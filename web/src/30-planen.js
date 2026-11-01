@@ -151,6 +151,8 @@ async function neuBerechnen() {
   S.stueckeFuer = stueckSignatur();
   S.rechnet = false;
   auswertenUndZeigen();
+  // erste Route am Telefon: Blatt halb öffnen, sonst sieht man nur den Kopf und keine Funktionen
+  if (window.innerWidth <= 760 && $('panel').classList.contains('klein') && S.wps.length === 2) blatt('mittel');
   $('status').innerHTML = fehler.length
     ? '<div class="fehler">Kein Weg gefunden, dort gerade Linie (gestrichelt). ' + R.esc(fehler.join(' · ')) + '</div>'
     : '';
@@ -354,6 +356,13 @@ $('bNeu').onclick = () => {
   neuBerechnen();
 };
 $('profilwahl').onchange = e => { S.profil = e.target.value; SPEICHER.schreiben('profil', S.profil); neuBerechnen(); };
+// „Mehr“ in der Aktionsleiste (nur am Telefon sichtbar): weitere Funktionen auf- und zuklappen
+$('bMehr').onclick = () => {
+  const offen = !$('aktionen').classList.contains('offen');
+  $('aktionen').classList.toggle('offen', offen);
+  $('bMehr').setAttribute('aria-expanded', String(offen));
+  $('bMehr').textContent = offen ? '▴ Weniger' : '⋯ Mehr';
+};
 $('tempowahl').onchange = e => { S.tempo = +e.target.value; SPEICHER.schreiben('tempo', S.tempo); if (S.stuecke.length) auswertenUndZeigen(); };
 $('tourname').oninput = e => { S.name = e.target.value; entwurfSichern(); };
 document.addEventListener('keydown', e => {

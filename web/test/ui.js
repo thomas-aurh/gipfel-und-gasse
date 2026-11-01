@@ -502,6 +502,10 @@ function pruef(name, bed, info) {
   await pa2.click('[data-reiter=touren]');
   pruef('App: Aufzeichnung als Tour', (await pa2.textContent('#tourliste')).includes('Aufzeichnung'));
   await pa2.click('[data-reiter=planen]');
+  // Telefon: weitere Funktionen hinter „Mehr“, aufgeklappt sichtbar
+  pruef('Telefon: GPX, Drucken & Co. erst hinter „Mehr“', await pa2.isHidden('#bGpx') && await pa2.isVisible('#bMehr') && await pa2.isVisible('#bSpeichern'));
+  await pa2.click('#bMehr');
+  pruef('Telefon: „Mehr“ zeigt alle Funktionen', await pa2.isVisible('#bGpx') && await pa2.isVisible('#bDrucken') && await pa2.isVisible('#bUmkehren') && await pa2.isVisible('#bRund'));
   await pa2.click('#bGpx');
   await pa2.waitForTimeout(200);
   const teilen = (await pa2.evaluate(() => window.__navi.aufrufe)).find(x => x[0] === 'teilen');

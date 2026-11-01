@@ -58,6 +58,18 @@
           <button data-modus="berg" class="an">⛰️ Berg und Natur</button>
           <button data-modus="stadt">🏛️ Stadt</button>
         </div>
+        <div id="aktionen">
+          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
+          <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)">↶ Rückgängig</button>
+          <button class="knopf" id="bNeu">✕ Neu</button>
+          <button class="knopf" id="bMehr" aria-expanded="false" title="Weitere Funktionen">⋯ Mehr</button>
+          <button class="knopf neben" id="bRund" title="Zurück zum Start (Rundtour)">⟲ Rundtour</button>
+          <button class="knopf neben" id="bUmkehren">⇄ Umkehren</button>
+          <button class="knopf neben" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Ordnen</button>
+          <button class="knopf neben" id="bGpx">⬇ GPX</button>
+          <button class="knopf neben" id="bTeilen">🔗 Link</button>
+          <button class="knopf neben" id="bDrucken">🖨 Drucken</button>
+        </div>
         <div id="leerHinweis" class="hinweis">Tippe auf die Karte: Der erste Punkt ist der Start, jeder weitere ein Zwischenziel.
           Punkte lassen sich ziehen; antippen zeigt „Punkt entfernen“. Ein Tipp auf die Route fügt dort einen Punkt ein.</div>
         <div class="zeile">
@@ -82,17 +94,6 @@
             <option value="0">keine</option><option value="15">15 min</option><option value="30">30 min</option>
             <option value="45">45 min</option><option value="60">1 h</option><option value="90">1:30 h</option><option value="120">2 h</option>
           </select></label>
-        </div>
-        <div id="aktionen">
-          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
-          <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)">↶ Rückgängig</button>
-          <button class="knopf" id="bNeu">✕ Neu</button>
-          <button class="knopf" id="bRund" title="Zurück zum Start (Rundtour)">⟲ Rundtour</button>
-          <button class="knopf" id="bUmkehren">⇄ Umkehren</button>
-          <button class="knopf" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Ordnen</button>
-          <button class="knopf" id="bGpx">⬇ GPX</button>
-          <button class="knopf" id="bTeilen">🔗 Link</button>
-          <button class="knopf" id="bDrucken">🖨 Drucken</button>
         </div>
         <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="status"></div>
