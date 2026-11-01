@@ -5,42 +5,26 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Android-App, Stufen 1 und 2 gebaut, auf dem Pixel nicht geprüft:** Installation, Erlaubnisse, GPS und Ansagen bei
-  gesperrtem Bildschirm, Akkuverbrauch, Teilen und Drucken. Nächster Schritt: APK von der Download-Seite installieren
-  und eine kurze Runde gehen (Ansage alle 1 km, Abseits-Warnung durch Abweichen testen).
+- **Android-App (Stufen 1–4) gebaut, auf dem Pixel nicht geprüft.** Geprüft in GitHub Actions: Bau, Java-Tests,
+  Probe-Rendering der echten Oberbayern-Karte, Probe-Routen auf den echten Routendaten; Oberfläche im Klicktest mit
+  nachgebildeten Diensten. Nicht geprüft, weil kein Gerät in der Cloud: Installation und Erlaubnisse, GPS und Ansagen
+  bei gesperrtem Bildschirm, Akkuverbrauch, Download der Pakete, Tempo von Vektorkarte und Offline-Routing, Teilen und
+  Drucken. Nächster Schritt: APK von der Download-Seite installieren, unter Touren › Offline-Karten „Oberbayern“ laden
+  und eine kurze Runde gehen (Ansage alle 1 km, Abseits-Warnung durch Abweichen, Abbiegeansage).
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
-  signiert GitHub mit einem Debug-Schlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
+  signiert GitHub mit einem Ersatzschlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
   nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
   verloren (vorher „Alle sichern“).
-- **Offline-Karten (Stufe 3) gebaut, mit echten Daten erst im Bau geprüft:** Der Ablauf „Kartenpakete“ zeichnet die
-  echte Oberbayern-Karte zur Probe; auf dem Pixel nicht geprüft sind Download über den Download-Manager, Prüfsumme,
-  Darstellung und Tempo der Vektorkarte, Wechsel ohne Netz. Paketgröße steht nach dem ersten Bau in der Liste.
-  Nächster Schritt nach dem Merge: Ablauf „Kartenpakete“ einmal von Hand starten (Actions › Kartenpakete › Run workflow),
-  dann in der App unter Touren › Offline-Karten laden.
-- **Offline-Routing und Abbiegeansagen (Stufe 4) gebaut, auf dem Pixel nicht geprüft:** BRouter läuft in der App auf den
-  Routendaten des Pakets (Kachel E10_N45 für Oberbayern). Geprüft: Routing-Kern mit echten BRouter-Daten (Testgebiet
-  Dreieich), Probe-Routen in Oberbayern im Ablauf „Kartenpakete“, Oberfläche im Klicktest. Nicht geprüft: Rechenzeit und
-  Speicher auf dem Handy, Ansagen unterwegs. Paketgröße steigt um die Routendaten (Größe nach dem Bau in der Liste).
-- **Weitere Stufen der App:**
-  5. **Offline-Orte und -Suche:** Sehenswürdigkeiten, Hütten, Wasser, Haltestellen je Region aus OSM.
-- **Emulator-Test in GitHub Actions** fehlt noch (App startet, Dienst startet mit vorgegebener Position).
-
-- **Nicht geprüft mit den echten Diensten:** Die Cloud-Umgebung der ersten Session sperrt brouter.de, die Kachelserver,
-  photon.komoot.io, overpass-api.de und open-meteo.com (Proxy 403). Geprüft sind die Rechnungen (Einheitstests) und alle
-  Abläufe im Browser mit nachgebildeten Antworten im gleichen Format (`test/ui.js`). Offen ist also: ob BRouter die
-  Anfrage aus dem Browser erlaubt (CORS), ob seine `WayTags` wie erwartet `sac_scale` und `surface` enthalten, ob die
-  Kacheln bei `file://` laden. Nächster Schritt: `web/dist/Gipfel-und-Gasse.html` am PC in Chrome öffnen und eine Tour um Penzberg planen.
-- **Stadt nicht mit echten Daten geprüft:** ob das BRouter-Profil `hiking-mountain` in der Stadt gute Fußwege wählt
-  (es meidet große Straßen, bevorzugt Fußwege und Parks), wie voll die Karte in einer Großstadt wird (höchstens 250
-  Marken) und wie lange Overpass für einen Stadtausschnitt braucht. Nächster Schritt: Rundgang in München-Altstadt planen.
-- **Nicht geprüft auf dem Telefon:** GPS, Vibration, Bildschirm wach halten, Teilen-Menü.
-- **Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung): Datei auf dem PC oder über eine `https://`-Adresse.
-- **Ideen, nicht gebaut** (wartet auf Thomas' Wahl):
-  - Als App installierbar (Manifest und Service Worker; braucht die `https://`-Auslieferung).
-  - Offline-Karte für einen kleinen Ausschnitt aus einer eigenen Kachelquelle (die Nutzungsregeln von OSM und OpenTopoMap
-    erlauben kein Massen-Herunterladen).
-  - Fotos und Notizen an Punkten der Tour, Höhepunkte.
-  - Familien-Filter: nur Touren unter X km und Y Hm, Spielplatz oder Einkehr auf halber Strecke.
+- **Stufe 5 nicht gebaut:** Offline-Orte und -Suche (Sehenswürdigkeiten, Hütten, Wasser, Haltestellen je Region aus OSM).
+- **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
+- **Web mit den echten Diensten nicht geprüft:** die Cloud-Umgebung sperrt brouter.de, die Kachelserver, Photon,
+  Overpass und Open-Meteo. Offen: CORS bei BRouter aus dem Browser, `WayTags` mit `sac_scale` und `surface`, Kacheln
+  bei `file://`. Nächster Schritt: `web/dist/Gipfel-und-Gasse.html` am PC in Chrome öffnen, Tour um Penzberg planen.
+- **Stadt nicht mit echten Daten geprüft:** Fußwege des Profils `hiking-mountain` in der Stadt, Fülle der Karte
+  (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
+- **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
+- **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
+  oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
 
 ## Entscheidungen
 
@@ -77,37 +61,26 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **BRouter als Routendienst** (01.11.): frei, ohne Schlüssel, Wanderprofil mit Bergwegen, liefert Höhen und die
   OSM-Merkmale je Abschnitt; daraus entstehen Wegtypen, Untergrund, SAC-Stufe und das Kinderwagen-Urteil ohne zweiten Dienst.
 - **Gehzeit nach DIN 33466** (01.11.): dieselbe Formel wie die Wegweiser der Alpenvereine; Tempo „mit Kind“ als Faktor 0,7.
-- **Keine Offline-Kacheln** (01.11.): verboten nach den Nutzungsregeln der Kachelserver. Ersatz: GPX-Export.
 - **Kein Artifact auf claude.ai** (01.11.): dort sind fremde Bilder, Anfragen an andere Server und GPS gesperrt.
 
 ## Auslieferung
 
-- **Android:** Merge auf `main` ⇒ GitHub Actions baut und ersetzt die Download-Seite
+- **Android:** Merge auf `main` ⇒ GitHub Actions (`app.yml`) baut und ersetzt die Download-Seite
   https://github.com/thomas-aurh/gipfel-und-gasse/releases/latest (Datei `Gipfel-und-Gasse.apk`).
-- **Web:** wie unten.
-
-1. `sh web/pruefen.sh` (baut `web/dist/Gipfel-und-Gasse.html`), dazu `node web/test/ui.js` für den Klicktest.
-2. Noch nicht festgelegt. Möglich:
-   - **Datei auf dem PC:** `web/dist/Gipfel-und-Gasse.html` in Chrome öffnen. Zum Planen am PC reicht das; die Kacheln von
-     OpenStreetMap Standard können ohne Referer gesperrt sein, OpenTopoMap ist voreingestellt.
-   - **`https://`-Adresse** für das Telefon (GPS, Teilen-Links): z. B. GitHub Pages aus einem eigenen öffentlichen Repo
-     oder Cloudflare Pages. Das Repo other-projects ist privat; Pages aus einem privaten Repo braucht ein bezahltes Konto.
+- **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
+  Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
+  dort und in der App-Liste. Die App holt die Liste von dort.
+- **Web:** `sh web/pruefen.sh` baut `web/dist/Gipfel-und-Gasse.html` (dazu `node web/test/ui.js`). Wohin, ist offen:
+  Datei am PC in Chrome öffnen (reicht zum Planen) oder eine `https://`-Adresse fürs Telefon, jetzt ohne Kosten über
+  GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
 
-- **01.11.** Stufe 4 Offline-Routing: BRouter (MIT) in der App, Routendaten im Kartenpaket, Probe-Routen im Bau,
-  Abbiegeansagen bei gesperrtem Bildschirm (vorab und „Jetzt …“, Kreisverkehr mit Ausfahrt), nächste Abzweigung in der
-  Anzeige, online ebenfalls mit Abbiegehinweisen; Ansagen im Dativ korrigiert („In 100 Metern“).
-
-- **01.11.** Stufe 3 Offline-Karten: Kartenpakete je Region (Vektorkarte und Höhen) aus GitHub Actions mit
-  Probe-Rendering, Paketverwaltung in der App (Download-Manager, Fortschritt, Prüfsumme, Aktualisieren, Löschen),
-  eigener Datei-Server mit Byte-Bereichen, Höhenlinien mit Zahlen und Relief ohne Kachelnähte, Höhen ohne Netz, Wechsel
-  auf die Offline-Karte ohne Netz.
-
-- **01.11.** Eigenes öffentliches Repo; Android-App Stufe 1 (Capacitor-Gerüst, App-Symbol und Startbild aus dem Logo,
-  Bau und Download über GitHub Actions) und Stufe 2 (Vordergrunddienst mit GPS bei gesperrtem Bildschirm, Rest,
-  Abseits-Warnung mit Vibration, Ansagen jeden Kilometer, Stopps und Ziel, Aufzeichnung mit Sicherung, Mitteilung mit
-  „Beenden“, GPX über Teilen-Menü, Drucken über Android). Java-Tests für die Formeln, Klicktest der App-Anbindung.
+- **01.11.** Eigenes öffentliches Repo (Code aus other-projects umgezogen) und Android-App in vier Stufen:
+  Capacitor-Gerüst mit Bau und Download über GitHub Actions (#1); Vordergrunddienst mit GPS bei gesperrtem Bildschirm,
+  Ansagen, Abseits-Warnung, Aufzeichnung, GPX teilen, Drucken (#1); Offline-Karten als Pakete je Region mit
+  Paketverwaltung, eigenem Datei-Server, Höhenlinien und Relief (#2); Offline-Routing mit BRouter und
+  Abbiegeansagen (#3). Kartenpakete für Oberbayern im Release `kartenpakete`. Copilot-Hinweise zu #1–#3 behoben.
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

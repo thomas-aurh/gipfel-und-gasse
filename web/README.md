@@ -38,7 +38,7 @@ Als Artifact auf claude.ai geht es nicht: Dort sind fremde Kacheln, Anfragen an 
 sh build.sh
 ```
 
-- `dist/Gipfel-und-Gasse.html`: fertige Datei mit Leaflet, Gestaltung und App-Code (rund 250 KB).
+- `dist/Gipfel-und-Gasse.html`: fertige Datei mit Leaflet, Offline-Bündel, Gestaltung und App-Code (Offline-Bündel nur nach `npm ci` im Hauptordner).
 - `dist/check.js`: nur der App-Code, für die Syntaxprüfung.
 
 `sh pruefen.sh` baut, prüft die Syntax und rechnet die Einheitstests. Genau das läuft bei jedem Pull Request auf GitHub.
@@ -51,16 +51,18 @@ sh build.sh
 | `src/symbol.svg` | vereinfachte Fassung für das Browser-Symbol (16 bis 32 px): Berg, Zwiebelturm, roter Gipfelpunkt |
 | `src/head.html` | Gestaltung (CSS); unter 760 px Breite wird die Seitenleiste zum Blatt unten |
 | `src/body.html` | Gerüst: Karte, Suche, Kartenknöpfe, Reiter Planen, Entdecken, Unterwegs, Touren, Info |
-| `src/00-rechnen.js` | reine Rechnungen ohne DOM und Netz: Abstand, Höhenmeter mit Schwelle, Gehzeit DIN 33466, Fahrzeit, SAC-Skala, Wegtyp und Untergrund aus OSM-Merkmalen, Kinderwagen-Urteil, BRouter-Antwort lesen, Strecke auswerten, Position auf der Strecke, GPX lesen und schreiben, Teilen-Link, Overpass-Abfrage und Orte, Wettercodes |
-| `src/10-dienste.js` | Anfragen an BRouter, Photon, Overpass, Open-Meteo; Profile (Wandern → `hiking-mountain`, Fahrrad → `trekking`, kürzester Weg → `shortest`) |
+| `src/00-rechnen.js` | reine Rechnungen ohne DOM und Netz: Abstand, Höhenmeter mit Schwelle, Gehzeit DIN 33466, Fahrzeit, SAC-Skala, Wegtyp und Untergrund aus OSM-Merkmalen, Kinderwagen-Urteil, BRouter-Antwort lesen, Strecke auswerten, Position auf der Strecke, GPX lesen und schreiben, Teilen-Link, Overpass-Abfrage und Orte, Wettercodes, Höhendaten (Terrarium, Schummerung, Höhenlinien), Abbiegehinweise und Übergänge an Zwischenzielen |
+| `src/10-dienste.js` | Anfragen an BRouter (in der App zuerst offline, sonst brouter.de mit Abbiegehinweisen), Photon, Overpass, Open-Meteo; Profile (Wandern → `hiking-mountain`, Fahrrad → `trekking`, kürzester Weg → `shortest`) |
 | `src/20-karte.js` | Karte, Kartenarten, Meldungen, Speicher im Browser |
 | `src/30-planen.js` | Wegpunkte, Teilstücke (zwischengespeichert, damit Ziehen nur das betroffene Stück neu anfragt), Route zeichnen, Kennzahlen, Hervorhebung |
 | `src/40-profil.js` | Höhenprofil auf Canvas |
 | `src/50-entdecken.js` | Suche, Orte entlang der Route, Wetter |
 | `src/55-stadt.js` | Umschalter Berg/Stadt, Sehenswürdigkeiten im Ausschnitt (Overpass), Stopps, Rundgang vorschlagen |
 | `src/57-drucken.js` | Druckansicht A4: Kopf, Karte, Höhenprofil |
+| `src/58-offline.js` | in der App: Offline-Karte, Höhenlinien und Relief, Höhen ohne Netz, Routen ohne Netz, Paketverwaltung (im Browser ohne Wirkung) |
 | `src/60-touren.js` | Touren speichern und öffnen, GPX, Teilen-Link |
 | `src/70-unterwegs.js` | GPS, Route folgen, Aufzeichnen, Bildschirm wach halten |
+| `src/75-app.js` | in der App: Route folgen und Aufzeichnen über den Navigationsdienst, GPX über Teilen, Drucken über Android |
 | `src/80-start.js` | Reiter, Blatt unten, Entwurf und Link beim Start |
 | `vendor/leaflet/` | Leaflet 1.9.4 (unverändert aus npm) |
 | `test/syntax.js` | prüft die Skripte in der fertigen HTML-Datei |
@@ -82,10 +84,9 @@ sh build.sh
 
 ## Grenzen
 
-- **Keine Offline-Karten.** Die Nutzungsregeln von OpenStreetMap und OpenTopoMap verbieten das Massen-Herunterladen von
-  Kacheln. Für Touren ohne Netz die GPX-Datei in eine App mit Offline-Karten laden.
-- **GPS nur bei eingeschaltetem Bildschirm.** Browser halten die Standortabfrage an, sobald das Telefon gesperrt ist.
-- **Keine Sprachansagen** und keine Abbiegehinweise, nur Rest, Richtung auf der Karte und Abseits-Warnung.
+- **Im Browser keine Offline-Karten.** Die Nutzungsregeln von OpenStreetMap und OpenTopoMap verbieten das
+  Massen-Herunterladen von Kacheln. Ohne Netz: die Android-App mit Kartenpaket, oder die GPX-Datei in eine andere App.
+- **Im Browser GPS nur bei eingeschaltetem Bildschirm** und ohne Sprach- und Abbiegeansagen; das kann nur die Android-App.
 - **Touren nur in diesem Browser**, kein Abgleich zwischen Geräten.
 - **Freie Dienste mit Fair-Use-Regeln:** für eine Familie unproblematisch, für viele Nutzer bräuchte es eigene Server
   (BRouter und Kacheln lassen sich selbst betreiben).
