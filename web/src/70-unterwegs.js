@@ -85,6 +85,8 @@ function naviNeu() {
   const an = new Date(Date.now() + rest.zeit * 3600e3);
   $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' +
     Math.round(lage.abw) + ' m neben der Route';
+  const naechster = (e.hinweise || []).find(h => h.d > lage.d + 5);
+  if (naechster && naechster.d - lage.d < 1000) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(naechster.d - lage.d) + ' ' + R.hinweisText(naechster.cmd, naechster.exit);
   // abseits: mehr als 50 m (oder die GPS-Ungenauigkeit) für 15 s
   const grenze = Math.max(50, (U.pos.gen || 0) * 1.5);
   if (lage.abw > grenze) {

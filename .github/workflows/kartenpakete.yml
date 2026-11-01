@@ -18,6 +18,8 @@ on:
       - "karten/**"
       - "web/src/58-offline.js"
       - "web/vendor/offline/**"
+      - "werkzeuge/brouter-holen.sh"
+      - "android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Routing.java"
       - ".github/workflows/kartenpakete.yml"
 
 permissions:
@@ -83,6 +85,11 @@ jobs:
           sh web/build.sh
           node karten/probe.js ausgabe
 
+      - name: Probe-Routing mit den echten Routendaten
+        run: |
+          sh werkzeuge/brouter-holen.sh
+          if ls ausgabe/routing-*.rd5 > /dev/null 2>&1; then sh karten/routing-probe.sh ausgabe; else echo "keine Routendaten in diesem Lauf"; fi
+
       - name: Probebilder aufheben
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,6 +105,6 @@ jobs:
             --title "Offline-Kartenpakete" \
             --notes "Kartenpakete für die App (Reiter Touren › Offline-Karten). Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, EU-DEM)."
           # erst alle Dateien (neue, unveränderliche Namen), dann die Liste, die auf sie zeigt, dann Altes entfernen
-          gh release upload kartenpakete ausgabe/*.pmtiles --clobber
+          gh release upload kartenpakete ausgabe/*.pmtiles ausgabe/*.rd5 --clobber
           gh release upload kartenpakete ausgabe/pakete.json --clobber
           python3 karten/aufraeumen.py ausgabe/pakete.json /tmp/alt/pakete.json

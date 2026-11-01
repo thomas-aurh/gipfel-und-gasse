@@ -199,5 +199,26 @@ const kp = R.kachelPixel(47.6, 11.35, 12);
 pruef('Kachel für Punkt', kp.x === 2177 && kp.y >= 1430 && kp.y <= 1436 && kp.px >= 0 && kp.px < 256, kp);
 pruef('Linienabstand je Zoom', R.linienAbstand(15)[0] === 20 && R.linienAbstand(12)[0] === 50 && R.linienAbstand(9)[0] === 200);
 
+// Abbiegehinweise aus einer echten BRouter-Antwort (Offline-Engine, Testgebiet Dreieich aus BRouters Testdaten)
+const dreieich = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'brouter-dreieich.json'), 'utf8'));
+const dr = R.brouterLesen(dreieich);
+pruef('Hinweise gelesen', dr.hinweise.length >= 5 && dr.hinweise[0].i === 5 && dr.hinweise[0].cmd === 5, dr.hinweise.slice(0, 2));
+const kreis = dr.hinweise.find(h => h.cmd === 14);
+pruef('Kreisverkehr mit Ausfahrt (BRouter liefert sie negativ)', kreis && kreis.exit === 1 && R.hinweisText(kreis.cmd, kreis.exit) === 'im Kreisverkehr die 1. Ausfahrt', kreis);
+const dz = R.auswerten([dr, dr], 1);
+dz.hinweise = dz.hinweise.filter(h => !h.uebergang);   // nur die Hinweise aus den Teilstücken (der Sprung zählt hier nicht)
+const zweite = dz.hinweise.filter(h => h.d > dz.stueckEnde[0]);
+// im zweiten Teilstück zeigt Punktindex i auf den Gesamtpunkt (Punkte des ersten − 1) + i
+pruef('Hinweise je Teilstück auf die ganze Strecke verschoben', zweite.length === dz.hinweise.length / 2 && zweite[0].d === dz.pts[dr.pts.length - 1 + dr.hinweise[0].i].d, [dz.hinweise[0], zweite[0]]);
+pruef('Hinweistexte', R.hinweisText(2) === 'links abbiegen' && R.hinweisText(13, 2) === 'im Kreisverkehr die 2. Ausfahrt' && R.hinweisText(1) === null && R.hinweisText(16) === null);
+// Abbiegen an einem Zwischenziel: Ost, dann Nord → links
+const ostTeil = { pts: [{ lat: 48, lon: 11.000 }, { lat: 48, lon: 11.0005 }, { lat: 48, lon: 11.001 }], abschnitte: [], hinweise: [] };
+const nordTeil = { pts: [{ lat: 48, lon: 11.001 }, { lat: 48.0004, lon: 11.001 }, { lat: 48.0008, lon: 11.001 }], abschnitte: [], hinweise: [] };
+const ue = R.auswerten([ostTeil, nordTeil], 1).hinweise;
+pruef('Übergang am Zwischenziel: links abbiegen', ue.length === 1 && ue[0].cmd === 2 && ue[0].uebergang, ue);
+pruef('Geradeaus am Zwischenziel: kein Hinweis', R.auswerten([ostTeil, { pts: [{ lat: 48, lon: 11.001 }, { lat: 48, lon: 11.0015 }, { lat: 48, lon: 11.002 }], abschnitte: [] }], 1).hinweise.length === 0);
+pruef('Abbiegebefehle', R.abbiegeBefehl(90, 0) === 2 && R.abbiegeBefehl(90, 180) === 5 && R.abbiegeBefehl(0, 40) === 6 && R.abbiegeBefehl(0, 200) === 4 && R.abbiegeBefehl(10, 350) === null);
+pruef('Routen-Kachel', R.routenKachel(11.57, 48.13) === 'E10_N45' && R.routenKachel(-3.2, -7.5) === 'W5_S10');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);
