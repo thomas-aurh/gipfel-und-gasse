@@ -1,5 +1,5 @@
 {
-  "hinweis": "Regionen für Offline-Kartenpakete. bbox = [West, Süd, Ost, Nord] in Grad; routing = Routendaten von BRouter dazupacken (5°-Kacheln, die die Region berührt); probe = Stellen [Breite, Länge, Zoom], an denen der Bau die Karte zur Kontrolle zeichnet. Neue Region: Eintrag ergänzen, dann den Ablauf „Kartenpakete“ in GitHub Actions starten.",
+  "hinweis": "Regionen für Offline-Kartenpakete. bbox = [West, Süd, Ost, Nord] in Grad; orte = OSM-Auszüge von Geofabrik (Pfad ohne -latest.osm.pbf), aus denen Orte und Suche entstehen, zusammen müssen sie die bbox abdecken; routing = Routendaten von BRouter dazupacken (5°-Kacheln, die die Region berührt); probe = Stellen [Breite, Länge, Zoom], an denen der Bau die Karte zur Kontrolle zeichnet. Neue Region: Eintrag ergänzen, dann den Ablauf „Kartenpakete“ in GitHub Actions starten.",
   "regionen": [
     {
       "id": "oberbayern",
@@ -29,7 +29,11 @@
           11
         ]
       ],
-      "routing": true
+      "routing": true,
+      "orte": [
+        "europe/germany/bayern",
+        "europe/austria"
+      ]
     }
   ]
 }

@@ -90,10 +90,22 @@ async function hoehenFuellen(pts) {
   }
 }
 
+// in der App mit Kartenpaket: zuerst im Paket suchen (geht ohne Netz), dann online; die Treffer werden gemischt
 async function suchen(text, nahe) {
+  const off = await sucheOfflineAlle(text, nahe);
+  if (navigator.onLine === false && mitOrten().length) return off;   // ohne Netz: auch „nichts gefunden“ kommt aus dem Paket
+  let online;
+  try { online = await sucheOnline(text, nahe, off.length ? 6 : 12); }
+  catch (e) { if (off.length) return off; throw e; }
+  // online zuerst (findet auch Vertipptes), dann was nur das Paket kennt; derselbe Ort nur einmal
+  const neu = off.filter(o => !online.some(x => R.suchNorm(x.name) === R.suchNorm(o.name) && R.abstand(x, o) < 300));
+  return online.slice(0, Math.max(4, 7 - neu.length)).concat(neu).slice(0, 8);
+}
+
+async function sucheOnline(text, nahe, sekunden) {
   let url = DIENST.photon + '?q=' + encodeURIComponent(text) + '&lang=de&limit=7';
   if (nahe) url += '&lat=' + nahe.lat.toFixed(4) + '&lon=' + nahe.lng.toFixed(4) + '&location_bias_scale=0.3';
-  const j = await holen(url, null, 12);
+  const j = await holen(url, null, sekunden);
   return (j.features || []).map(f => {
     const p = f.properties || {}, c = f.geometry.coordinates;
     const wo = [p.city || p.town || p.village || p.county, p.state, p.country].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
@@ -106,12 +118,17 @@ async function suchen(text, nahe) {
   });
 }
 
+// in der App mit Kartenpaket aus dessen Orte-Datei (schnell, geht ohne Netz), sonst Overpass
 async function orteHolen(pts, radius) {
+  const off = await orteOffline(pts, radius);
+  if (off) return off;
   const q = R.overpassAbfrage(pts, radius);
   return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
 }
 
 async function stadtHolen(bbox) {
+  const off = await stadtOffline(bbox);
+  if (off) return off;
   const q = R.stadtAbfrage(bbox);
   return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
 }

@@ -4,8 +4,10 @@
 Aufruf: python3 karten/bauen.py <ausgabeordner> <protomaps-quelle> [region-id] [--alte-liste pakete.json]
   protomaps-quelle: URL oder Datei eines Protomaps-Weltdatensatzes (PMTiles), z. B. https://build.protomaps.com/20261031.pmtiles
 Braucht das Programm „pmtiles“ (go-pmtiles) im PATH oder in $PMTILES, und das Paket pmtiles für hoehe.py.
-Je Region entstehen <id>-karte.pmtiles (Vektorkarte) und <id>-hoehe.pmtiles (Höhen); die Liste nennt Größe und
-SHA-256 jeder Datei, die App prüft beides nach dem Download.
+Je Region entstehen <id>-karte.pmtiles (Vektorkarte) und <id>-hoehe.pmtiles (Höhen), auf Wunsch Routendaten und
+<id>-orte.json.gz (Orte und Suche aus OSM-Auszügen von Geofabrik, karten/orte.py, braucht pip install osmium);
+die Liste nennt Größe und SHA-256 jeder Datei, die App prüft beides nach dem Download.
+Zum Testen ohne Netz: ROUTEN_QUELLE (Ordner mit Routen-Kacheln), OSM_QUELLE (PBF- oder OSM-Dateien, mit : getrennt).
 """
 import datetime
 import hashlib
@@ -25,6 +27,8 @@ TAG = "kartenpakete"
 HINWEIS = ("Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles "
            "(u. a. SRTM, GMTED2010, EU-DEM: produziert mit Copernicus-Daten, finanziert von der EU); Routendaten: BRouter (brouter.de)")
 ROUTEN = "https://brouter.de/brouter/segments4/{}.rd5"
+OSM = "https://download.geofabrik.de/{}-latest.osm.pbf"
+OSM_HINWEIS = "; Orte: OpenStreetMap über Geofabrik"
 
 
 def routen_kacheln(w, s, o, n):
@@ -122,10 +126,33 @@ def main():
                     "groesse": os.path.getsize(fest), "sha256": pruef,
                 })
                 print(f"  {os.path.basename(fest)}: {os.path.getsize(fest) / 1048576:.1f} MB", flush=True)
+        if r.get("orte"):
+            if os.environ.get("OSM_QUELLE"):
+                auszuege = os.environ["OSM_QUELLE"].split(":")
+            else:
+                auszuege = []
+                for teil in r["orte"]:
+                    pfad = os.path.join(ziel, "osm-" + teil.replace("/", "-") + ".osm.pbf")
+                    if not os.path.exists(pfad):   # mehrere Regionen teilen sich einen Auszug
+                        print(f"$ lade OSM-Auszug {teil}", flush=True)
+                        laden(OSM.format(teil), pfad)
+                    auszuege.append(pfad)
+            tmp = os.path.join(ziel, r["id"] + "-orte.json.gz")
+            ausfuehren([sys.executable, os.path.join(HIER, "orte.py"), str(w), str(s), str(o), str(n), tmp] + auszuege)
+            pruef = sha256(tmp)
+            fest = os.path.join(ziel, f"{r['id']}-orte-{pruef[:12]}.json.gz")
+            os.replace(tmp, fest)
+            dateien.append({
+                "name": "orte.json.gz",
+                "url": f"https://github.com/{REPO}/releases/download/{TAG}/{os.path.basename(fest)}",
+                "groesse": os.path.getsize(fest), "sha256": pruef,
+            })
+            print(f"  {os.path.basename(fest)}: {os.path.getsize(fest) / 1048576:.1f} MB", flush=True)
         gebaut.append(r["id"])
         bekannte[r["id"]] = {
             "id": r["id"], "name": r["name"], "bbox": r["bbox"], "maxzoom": r.get("maxzoom", 15),
-            "hoehe_maxzoom": r.get("hoehe_maxzoom", 12), "stand": stand, "attribution": HINWEIS, "dateien": dateien,
+            "hoehe_maxzoom": r.get("hoehe_maxzoom", 12), "stand": stand,
+            "attribution": HINWEIS + (OSM_HINWEIS if r.get("orte") else ""), "dateien": dateien,
         }
 
     # nur Regionen, die es in regionen.json noch gibt

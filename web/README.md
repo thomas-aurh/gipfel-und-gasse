@@ -59,7 +59,7 @@ sh build.sh
 | `src/50-entdecken.js` | Suche, Orte entlang der Route, Wetter |
 | `src/55-stadt.js` | Umschalter Berg/Stadt, Sehenswürdigkeiten im Ausschnitt (Overpass), Stopps, Rundgang vorschlagen |
 | `src/57-drucken.js` | Druckansicht A4: Kopf, Karte, Höhenprofil |
-| `src/58-offline.js` | in der App: Offline-Karte, Höhenlinien und Relief, Höhen ohne Netz, Routen ohne Netz, Paketverwaltung (im Browser ohne Wirkung) |
+| `src/58-offline.js` | in der App: Offline-Karte, Höhenlinien und Relief, Höhen ohne Netz, Routen ohne Netz, Orte und Suche aus der Orte-Datei des Pakets, Paketverwaltung (im Browser ohne Wirkung) |
 | `src/60-touren.js` | Touren speichern und öffnen, GPX, Teilen-Link |
 | `src/70-unterwegs.js` | GPS, Route folgen, Aufzeichnen, Bildschirm wach halten |
 | `src/75-app.js` | in der App: Route folgen und Aufzeichnen über den Navigationsdienst, GPX über Teilen, Drucken über Android |

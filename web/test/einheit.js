@@ -220,5 +220,34 @@ pruef('Geradeaus am Zwischenziel: kein Hinweis', R.auswerten([ostTeil, { pts: [{
 pruef('Abbiegebefehle', R.abbiegeBefehl(90, 0) === 2 && R.abbiegeBefehl(90, 180) === 5 && R.abbiegeBefehl(0, 40) === 6 && R.abbiegeBefehl(0, 200) === 4 && R.abbiegeBefehl(10, 350) === null);
 pruef('Routen-Kachel', R.routenKachel(11.57, 48.13) === 'E10_N45' && R.routenKachel(-3.2, -7.5) === 'W5_S10');
 
+// Orte und Suche ohne Netz (Format von karten/orte.py)
+const offOrte = [[47.629, 11.317, 'n2', { name: 'Herzogstand', natural: 'peak', ele: '1731' }], [47.755, 11.376, 'w3', { name: 'Gasthof Post', amenity: 'restaurant' }],
+  [48.137, 11.575, 'r9', { name: 'Neues Rathaus', tourism: 'attraction', wikidata: 'Q1' }]];
+pruef('Ort als Overpass-Element', JSON.stringify(R.ortElement(offOrte[1])) === JSON.stringify({ type: 'way', id: 3, lat: 47.755, lon: 11.376, tags: { name: 'Gasthof Post', amenity: 'restaurant' } }));
+const umkreis = R.orteUmkreis(offOrte, [{ lat: 47.75, lon: 11.37 }, { lat: 47.76, lon: 11.38 }], 1000).elements;
+pruef('Orte im Umkreis der Strecke', umkreis.length === 1 && umkreis[0].tags.name === 'Gasthof Post', umkreis);
+pruef('Orte im Umkreis: Herzogstand weit weg', R.orteUmkreis(offOrte, [{ lat: 47.64, lon: 11.317 }], 2000).elements.length === 1 && R.orteUmkreis(offOrte, [{ lat: 47.66, lon: 11.317 }], 2000).elements.length === 0);
+const lese = R.orteLesen(R.orteUmkreis(offOrte, [{ lat: 47.629, lon: 11.317 }], 500), null);
+pruef('Offline-Orte gehen durch orteLesen', lese.length === 1 && lese[0].kat === 'gipfel' && lese[0].name === 'Herzogstand (1731 m)' && lese[0].id === 'node/2', lese);
+// Hütte genau zwischen zwei 1,5 km entfernten Routenpunkten, 100 m neben der Linie: zählt bei 150 m Radius
+const zwischen = R.orteUmkreis([[47.70, 11.3100 + 0.00002, 'n5', { name: 'Mittelhütte', tourism: 'alpine_hut' }]],
+  [{ lat: 47.6993, lon: 11.30 }, { lat: 47.6993, lon: 11.32 }], 150).elements;
+pruef('Orte im Umkreis: Abstand zum Abschnitt, nicht zu den Punkten', zwischen.length === 1, zwischen);
+pruef('Abstand zur Linie', nahe(R.abstandZurLinie([{ lat: 47, lon: 11 }, { lat: 47, lon: 11.01 }], 47.001, 11.005), 110.5, 1) &&
+  nahe(R.abstandZurLinie([{ lat: 47, lon: 11 }], 47.001, 11), 110.5, 1), R.abstandZurLinie([{ lat: 47, lon: 11 }, { lat: 47, lon: 11.01 }], 47.001, 11.005));
+const rahmen = R.streckenRahmen([{ lat: 47, lon: 11 }, { lat: 47.1, lon: 11.2 }], 1000);
+pruef('Rahmen um die Strecke', nahe(rahmen[0], 47 - 1000 / 110540, 1e-9) && rahmen[3] > 11.2 && rahmen[2] > 47.1 && rahmen[1] < 11, rahmen);
+pruef('Orte im Ausschnitt', R.orteAusschnitt(offOrte, [48.1, 11.5, 48.2, 11.6]).elements.length === 1 && R.stadtLesen(R.orteAusschnitt(offOrte, [48.1, 11.5, 48.2, 11.6]))[0].bekannt);
+pruef('Such-Schreibweise', R.suchNorm('Straße am Höllentalanger-Hütte') === 'strasse am hollentalanger hutte' && R.suchNorm('Café  Résumé!') === 'cafe resume', R.suchNorm('Straße am Höllentalanger-Hütte'));
+const suchListe = [['Penzberg', 47.7535, 11.3747, 'Stadt', '', 80], ['Herzogstand', 47.629, 11.317, 'Gipfel', '', 73], ['Bahnhofstraße', 47.751, 11.371, 'Straße', 'Penzberg', 20],
+  ['Bahnhofstraße', 48.14, 11.56, 'Straße', 'München', 20], ['Herzogstandbahn', 47.63, 11.33, 'Bergbahn', 'Walchensee', 40], ['Penzberger Hof', 47.75, 11.37, 'Gasthaus', 'Penzberg', 22]];
+const s1 = R.sucheOffline(suchListe, 'herzog');
+pruef('Offline-Suche: Wortanfang, Rang', s1.length === 2 && s1[0].name === 'Herzogstand' && s1[0].wo === 'Gipfel' && s1[0].offline, s1);
+const s2 = R.sucheOffline(suchListe, 'Bahnhofstr', { lat: 48.13, lng: 11.57 });
+pruef('Offline-Suche: Nähe entscheidet bei gleichem Namen', s2[0].wo === 'Straße · München' && s2[1].wo === 'Straße · Penzberg', s2);
+pruef('Offline-Suche: Ort als zweites Wort', R.sucheOffline(suchListe, 'bahnhofstrasse penzberg').map(x => x.wo).join() === 'Straße · Penzberg');
+pruef('Offline-Suche: genauer Name zuerst', R.sucheOffline(suchListe, 'Penzberg')[0].name === 'Penzberg' && R.sucheOffline(suchListe, 'x').length === 0);
+pruef('Offline-Suche: Teilwort ab 4 Zeichen', R.sucheOffline(suchListe, 'stand')[0].name === 'Herzogstand');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

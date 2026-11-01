@@ -46,7 +46,7 @@ jobs:
 
       - name: Werkzeuge
         run: |
-          pip install pmtiles==3.8.1
+          pip install pmtiles==3.8.1 osmium==4.3.2
           npm ci
           npx playwright install --with-deps chromium
           mkdir -p /tmp/pmt
@@ -90,6 +90,10 @@ jobs:
           sh werkzeuge/brouter-holen.sh
           if ls ausgabe/routing-*.rd5 > /dev/null 2>&1; then sh karten/routing-probe.sh ausgabe; else echo "keine Routendaten in diesem Lauf"; fi
 
+      - name: Probe-Suche und Orte mit den echten Daten
+        run: |
+          if ls ausgabe/*-orte-*.json.gz > /dev/null 2>&1; then node karten/orte-probe.js ausgabe; else echo "keine Orte in diesem Lauf"; fi
+
       - name: Probebilder aufheben
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,8 +107,8 @@ jobs:
         run: |
           gh release view kartenpakete > /dev/null 2>&1 || gh release create kartenpakete --latest=false \
             --title "Offline-Kartenpakete" \
-            --notes "Kartenpakete für die App (Reiter Touren › Offline-Karten). Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, EU-DEM)."
+            --notes "Kartenpakete für die App (Reiter Touren › Offline-Karten). Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, EU-DEM); Routendaten: BRouter; Orte: OpenStreetMap über Geofabrik."
           # erst alle Dateien (neue, unveränderliche Namen), dann die Liste, die auf sie zeigt, dann Altes entfernen
-          gh release upload kartenpakete ausgabe/*.pmtiles ausgabe/*.rd5 --clobber
+          gh release upload kartenpakete ausgabe/*.pmtiles ausgabe/*.rd5 ausgabe/*-orte-*.json.gz --clobber
           gh release upload kartenpakete ausgabe/pakete.json --clobber
           python3 karten/aufraeumen.py ausgabe/pakete.json /tmp/alt/pakete.json
