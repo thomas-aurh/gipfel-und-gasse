@@ -33,7 +33,7 @@ try {
 const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>';
 const LAGEN = {
   topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    subdomains: 'abc', maxZoom: 17, maxNativeZoom: 17,
+    subdomains: 'abc', maxZoom: 19, maxNativeZoom: 17,   // über 17 vergrößert (z. B. beim Wechsel von der Offline-Karte)
     attribution: 'Kartendaten ' + OSM_HINWEIS + ', SRTM | Darstellung © <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)'
   }),
   osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM_HINWEIS }),

@@ -268,11 +268,10 @@ function offlineEbenen() {
 
 // Kartenmitte außerhalb jedes Pakets? Dann zeigt die Kartenwahl „Offline-Karte“ die topografische Karte (20-karte.js)
 function offlineAusserhalb() { const c = karte.getCenter(); return !paketFuer(c.lat, c.lng); }
-let warAusserhalb = null;
+// nach dem Verschieben: gezeigte Grundkarte mit der nötigen vergleichen (nicht mit einem Merker, der veralten kann)
 karte.on('moveend', () => {
   if (lagenWahl.basis !== 'offline' || !LAGEN.offline) return;
-  const jetzt = offlineAusserhalb();
-  if (jetzt !== warAusserhalb) { warAusserhalb = jetzt; lagenAnwenden(); }
+  if (karte.hasLayer(LAGEN.offline) === offlineAusserhalb()) lagenAnwenden();
 });
 
 // ohne Netz: auf die Offline-Karte wechseln, wenn ein Paket die Kartenmitte abdeckt

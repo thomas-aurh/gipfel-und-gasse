@@ -121,7 +121,8 @@ function tourZeichen(t) {
 function tourenPunkte(liste) {
   ebeneTouren.clearLayers();
   for (const t of liste) {
-    const a = t.spur && t.spur.length ? spurEntpacken(t.spur)[0] : t.wps && t.wps[0] ? { lat: t.wps[0][0], lon: t.wps[0][1] } : null;
+    // nur der erste Punkt: die Spur nicht ganz entpacken
+    const a = t.spur && t.spur.length ? { lat: t.spur[0][0], lon: t.spur[0][1] } : t.wps && t.wps[0] ? { lat: t.wps[0][0], lon: t.wps[0][1] } : null;
     if (!a) continue;
     const gegangen = t.art === 'aufzeichnung';
     const m = L.marker([a.lat, a.lon], {

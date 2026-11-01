@@ -158,11 +158,9 @@ public class KartenPlugin extends Plugin {
             // installiertes Paket: unveränderte Dateien (gleiche Prüfsumme) werden übernommen statt neu geladen
             JSONObject installiert = null;
             try { installiert = new JSONObject(NaviService.dateiLesen(new File(paketOrdner(id), "paket.json"))); } catch (Exception e) { /* noch keins */ }
+            // Platz für alle Dateien: übernommene werden zwar meist nur verknüpft, ohne harte Verweise aber kopiert
             long noetig = 0;
-            for (int i = 0; i < dateien.length(); i++) {
-                JSONObject d = dateien.optJSONObject(i);
-                if (d != null && !Bereich.gleicheDatei(installiert, d.optString("name"), d.optString("sha256", ""), d.optLong("groesse", 0))) noetig += d.optLong("groesse", 0);
-            }
+            for (int i = 0; i < dateien.length(); i++) { JSONObject d = dateien.optJSONObject(i); if (d != null) noetig += d.optLong("groesse", 0); }
             try {
                 long frei = new StatFs(dir.getAbsolutePath()).getAvailableBytes();
                 if (noetig > 0 && frei < noetig + 200L * 1024 * 1024) {
@@ -267,9 +265,18 @@ public class KartenPlugin extends Plugin {
             try {
                 File dir = neuOrdner(id);
                 JSONArray auftraege = eintrag.getJSONArray("auftraege");
+                // unveränderte Dateien aus dem installierten Paket übernehmen: unter der Sperre und nur, solange dieser
+                // Auftrag gilt (sonst schriebe ein veralteter Prüfvorgang in den Ordner eines neueren Downloads)
+                synchronized (sperre(id)) {
+                    String jetzt = prefs().getString(id, null);
+                    if (jetzt == null || !gen.equals(new JSONObject(jetzt).optString("gen", ""))) return;
+                    for (int i = 0; i < auftraege.length(); i++) {
+                        JSONObject a = auftraege.getJSONObject(i);
+                        if (a.optBoolean("uebernehmen")) uebernehmen(new File(paketOrdner(id), a.getString("name")), new File(dir, a.getString("name")));
+                    }
+                }
                 for (int i = 0; i < auftraege.length(); i++) {
                     JSONObject a = auftraege.getJSONObject(i);
-                    if (a.optBoolean("uebernehmen")) uebernehmen(new File(paketOrdner(id), a.getString("name")), new File(dir, a.getString("name")));
                     String soll = a.optString("sha256", "");
                     if (!soll.isEmpty() && !soll.equalsIgnoreCase(sha256(new File(dir, a.getString("name"))))) {
                         throw new Exception("Prüfsumme von " + a.getString("name") + " stimmt nicht (Download beschädigt). Bitte neu laden.");
