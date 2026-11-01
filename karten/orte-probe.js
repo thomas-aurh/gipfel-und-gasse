@@ -14,10 +14,10 @@ const PROBEN = {
   oberbayern: {
     suche: [
       ['Zugspitze', 47.4211, 10.9853, 2], ['Marienplatz', 48.1374, 11.5755, 1], ['Penzberg', 47.7535, 11.3747, 2],
-      ['Herzogstand', 47.6290, 11.3170, 2], ['Frauenkirche', 48.1386, 11.5736, 1], ['Kochelsee', 47.6450, 11.3500, 5]
+      ['Herzogstand', 47.6122, 11.3117, 1], ['Frauenkirche', 48.1386, 11.5736, 1], ['Kochelsee', 47.6450, 11.3500, 5]
     ],
-    // Kesselberg-Gegend: Herzogstand-Weg mit Hütte und Gipfel; München Altstadt mit Museen
-    strecke: { pts: [[47.6403, 11.3297], [47.6326, 11.3185], [47.6290, 11.3170]], radius: 500, kat: ['gipfel', 'huette'] },
+    // Herzogstandbahn (Bergstation) → Herzogstandhaus → Gipfel; München Altstadt mit Museen
+    strecke: { pts: [[47.6176, 11.3194], [47.6150, 11.3140], [47.6122, 11.3117]], radius: 500, kat: ['gipfel', 'huette'] },
     stadt: { bbox: [48.130, 11.565, 48.145, 11.590], mindestens: 30, kat: ['museum', 'sehens'] }
   }
 };
