@@ -486,6 +486,56 @@ var R = (function () {
     return out;
   }
 
+  // ---------- Sonne und Zeitplan ----------
+  // Sonnenuntergang (Oberkante am Horizont, mit Lichtbrechung) für den Tag von `tag` an einem Ort; gerechnet wie die
+  // gängigen Sonnenformeln (Abweichung wenige Minuten), damit es auch ohne Netz geht. null bei Polartag/-nacht.
+  function sonnenuntergang(tag, lat, lon) {
+    const T = 86400000, J1970 = 2440588, J2000 = 2451545, e = RAD * 23.4397;
+    const mittag = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate(), 12);
+    const d = mittag.valueOf() / T - 0.5 + J1970 - J2000;
+    const lw = RAD * -lon, phi = RAD * lat;
+    const n = Math.round(d - 0.0009 - lw / (2 * Math.PI));
+    const ds = 0.0009 + lw / (2 * Math.PI) + n;
+    const M = RAD * (357.5291 + 0.98560028 * ds);
+    const C = RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    const L = M + C + RAD * 102.9372 + Math.PI;
+    const dek = Math.asin(Math.sin(e) * Math.sin(L));
+    const cosw = (Math.sin(-0.833 * RAD) - Math.sin(phi) * Math.sin(dek)) / (Math.cos(phi) * Math.cos(dek));
+    if (Math.abs(cosw) > 1) return null;
+    const a = 0.0009 + (Math.acos(cosw) + lw) / (2 * Math.PI) + n;
+    const jset = J2000 + a + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    return new Date((jset + 0.5 - J1970) * T);
+  }
+
+  function uhr(d) { return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+
+  // Zeitplan: Start (Date oder null), Dauer in Stunden (Gehzeit plus Besichtigung), Pausen in Minuten, Sonnenuntergang.
+  // Mit Start: Ankunft und ob es vor dem Dunkelwerden reicht (30 min Reserve). Ohne Start: spätester Start.
+  function zeitplan(start, stunden, pauseMin, untergang, reserveMin) {
+    const reserve = (reserveMin == null ? 30 : reserveMin) * 60000, dauer = stunden * 3600000 + (pauseMin || 0) * 60000;
+    const out = { spaetestens: untergang ? new Date(untergang - reserve - dauer) : null };
+    if (start) {
+      out.ankunft = new Date(start.valueOf() + dauer);
+      if (untergang) { out.puffer = (untergang - out.ankunft) / 60000; out.knapp = out.puffer < (reserveMin == null ? 30 : reserveMin); }
+    }
+    return out;
+  }
+
+  // ---------- Notfall ----------
+  function gradMinSek(x, pos, neg) {
+    const a = Math.abs(x), g = Math.floor(a), m = Math.floor((a - g) * 60), s = ((a - g) * 60 - m) * 60;
+    return g + '° ' + m + '′ ' + s.toFixed(1).replace('.', ',') + '″ ' + (x >= 0 ? pos : neg);
+  }
+  // Text zum Vorlesen und Senden: Dezimalgrad (für Leitstellen und Karten-Apps), Grad/Minuten/Sekunden, Höhe, Genauigkeit
+  function notfallText(p) {
+    const dez = p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
+    return 'Mein Standort: ' + dez + ' (' + gradMinSek(p.lat, 'N', 'S') + ', ' + gradMinSek(p.lon, 'O', 'W') + ')' +
+      (p.ele != null && isFinite(p.ele) ? ', Höhe etwa ' + Math.round(p.ele) + ' m' : '') +
+      (p.gen != null ? ', Genauigkeit ± ' + Math.round(p.gen) + ' m' : '') +
+      (p.t ? ', Stand ' + uhr(new Date(p.t)) + ' Uhr' : '') +
+      '. Karte: https://www.openstreetmap.org/?mlat=' + p.lat.toFixed(5) + '&mlon=' + p.lon.toFixed(5) + '#map=16/' + p.lat.toFixed(5) + '/' + p.lon.toFixed(5);
+  }
+
   // Text für „abseits der Route“: weit weg (z. B. noch nicht am Start) mit km und Weg zum Start
   function abseitsText(abw, zumStart) {
     if (abw < 1000) return 'Du bist ' + Math.round(abw) + ' m neben der Route';
@@ -906,7 +956,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

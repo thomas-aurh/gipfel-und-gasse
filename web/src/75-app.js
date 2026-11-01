@@ -72,7 +72,8 @@ if (NATIV) {
       // weit weg (noch nicht am Start): Weg zum Start statt eines Rests ab der nächsten Stelle der Route
       const start = S.ergebnis && S.ergebnis.pts.length && st.lat != null ? R.abstand({ lat: st.lat, lon: st.lon }, S.ergebnis.pts[0]) : null;
       $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' +
-        (st.abw == null ? '' : st.abw >= 1000 && start != null ? ' · zum Start ' + R.kmText(start) : ' · ' + Math.round(st.abw) + ' m neben der Route');
+        (st.abw == null ? '' : st.abw >= 1000 && start != null ? ' · zum Start ' + R.kmText(start) : ' · ' + Math.round(st.abw) + ' m neben der Route') +
+        (st.lat != null ? sonnenHinweis(an, st.lat, st.lon) : '');
       if (st.naechster) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(st.naechster.bis) + ' ' + st.naechster.text;
       $('abseits').hidden = !st.abseits;
       if (st.abseits) $('abseits').textContent = R.abseitsText(st.abw, start);
@@ -130,6 +131,10 @@ if (NATIV) {
   };
 
   // GPX: WebView kann nichts herunterladen, darum über das Teilen-Menü (z. B. an CoMaps, Drive, Mail)
+  // Standort im Notfall: Text über das Teilen-Menü (SMS, Messenger, Mail)
+  textTeilen = function (text) {
+    return Navi.textTeilen({ text }).catch(err => melde(err.message || String(err), 6));
+  };
   dateiAusgeben = function (datei, text, mime) {
     Navi.teilen({ name: datei, text, mime }).catch(err => melde(err.message || String(err), 6));
   };

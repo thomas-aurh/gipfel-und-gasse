@@ -28,8 +28,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
-- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Startzeit mit Ankunft gegen Sonnenuntergang; Notfall in
-  Unterwegs (Koordinaten, Standort senden, 112); Pausen bei Bergtouren; Stopps von Hand umsortieren; Wetter je Stunde
+- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Wetter je Stunde
   und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern; Berg/Stadt und „Art“ zusammenführen.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
@@ -102,7 +101,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Verona); Stufe 5 Orte und Suche ohne Netz (#6); Touren als Punkte auf der Karte, Zwischenziele aus der Suche,
   Paket-Update nur für geänderte Dateien, Offline-Karte außerhalb des Pakets topografisch (#7); Durchsicht: Sicherung
   aller Touren als eine Datei, Aktionsleiste oben in Planen, Zurück-Taste, Kartenpakete aus der Kartenwahl, Region
-  Allgäu und Bodensee, kleinere Fehler (#8).
+  Allgäu und Bodensee, kleinere Fehler (#8); Zeitplan mit Startzeit, Pausen und Sonnenuntergang (ohne Netz gerechnet),
+  Notfall in Unterwegs (Koordinaten, Standort senden, 112) (#9).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

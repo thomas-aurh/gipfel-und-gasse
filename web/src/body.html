@@ -75,6 +75,14 @@
             <option value="0.7">Mit Kind</option>
           </select></label>
         </div>
+        <div class="zeile" id="planZeit">
+          <label>Tag<input type="date" id="startTag"></label>
+          <label>Start um<input type="time" id="startZeit" step="300"></label>
+          <label>Pausen<select id="pausewahl">
+            <option value="0">keine</option><option value="15">15 min</option><option value="30">30 min</option>
+            <option value="45">45 min</option><option value="60">1 h</option><option value="90">1:30 h</option><option value="120">2 h</option>
+          </select></label>
+        </div>
         <div id="aktionen">
           <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
           <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)">↶ Rückgängig</button>
@@ -99,6 +107,7 @@
             <div class="zahl"><b id="zAb">–</b><span>Abstieg</span></div>
             <div class="zahl"><b id="zHoch">–</b><span>Höchster Punkt</span></div>
           </div>
+          <div id="zeitplan" class="klein"></div>
           <div id="stopps"></div>
           <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
           <div id="kinderwagen" class="urteil"></div>
@@ -156,6 +165,18 @@
         </div>
         <div id="uAnkunft" class="klein"></div>
         <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
+        <h3>Notfall</h3>
+        <div id="notfall">
+          <div id="notfallOrt" class="klein">Standort noch unbekannt.</div>
+          <div class="knopfreihe">
+            <a class="knopf haupt" id="bNotruf" href="tel:112">📞 112 anrufen</a>
+            <button class="knopf" id="bStandortSenden">📍 Standort senden</button>
+            <button class="knopf" id="bStandortHolen">🛰 Standort bestimmen</button>
+          </div>
+          <p class="klein">112 gilt in ganz Europa, auch ohne Guthaben und in fremden Netzen. In Österreich erreicht 140 direkt die
+            Bergrettung, in der Schweiz 1414 die Rega. Am Telefon: was passiert ist, wo (Koordinaten vorlesen), wie viele Verletzte.
+            Bleibt der Empfang schwach, hilft oft ein Ortswechsel von wenigen Metern oder eine SMS mit dem Standort.</p>
+        </div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
           <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>

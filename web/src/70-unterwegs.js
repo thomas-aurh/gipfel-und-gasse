@@ -38,6 +38,38 @@ function posNeu(p) {
   else if (U.folgen) karte.panTo(ll, { animate: true });
   if (U.navi) naviNeu();
   if (U.aufz) aufzNeu();
+  notfallZeigen();
+}
+
+// ---------- Notfall: Standort zum Vorlesen und Senden ----------
+function notfallZeigen() {
+  const p = U.pos;
+  if (!p) return;
+  $('notfallOrt').innerHTML = '<b>' + p.lat.toFixed(5) + ', ' + p.lon.toFixed(5) + '</b><br>' + R.esc(R.gradMinSek(p.lat, 'N', 'S') + ' · ' + R.gradMinSek(p.lon, 'O', 'W')) +
+    '<br>' + (p.ele != null && isFinite(p.ele) ? 'Höhe etwa ' + Math.round(p.ele) + ' m · ' : '') + 'Genauigkeit ± ' + Math.round(p.gen || 0) + ' m' +
+    (p.t ? ' · Stand ' + R.uhr(new Date(p.t)) + ' Uhr' : '');
+}
+// Text weitergeben: im Browser über das Teilen-Menü oder die Zwischenablage; die App nimmt das Teilen-Menü von Android
+async function textTeilen(text) {
+  if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(text); melde('Standort kopiert: in eine SMS oder Nachricht einfügen.', 6); }
+  catch (e) { melde(text, 12); }
+}
+$('bStandortHolen').onclick = () => {
+  if (U.pos && Date.now() - (U.pos.t || 0) < 60000) { notfallZeigen(); melde('Standort ist aktuell.'); return; }
+  if (U.watch == null) gpsAn();
+  $('notfallOrt').textContent = 'Standort wird bestimmt …';
+};
+$('bStandortSenden').onclick = () => {
+  if (!U.pos) { if (U.watch == null) gpsAn(); melde('Standort wird bestimmt; gleich nochmal tippen.', 5); return; }
+  textTeilen(R.notfallText(U.pos));
+};
+
+// Ankunft gegen Sonnenuntergang am aktuellen Ort: Hinweis, wenn es dunkel wird, bevor man ankommt (30 min Reserve)
+function sonnenHinweis(ankunft, lat, lon) {
+  const u = R.sonnenuntergang(new Date(), lat, lon);
+  if (!u || ankunft < new Date(u - 30 * 60000)) return '';
+  return ' · ⚠️ Sonnenuntergang ' + R.uhr(u) + ' Uhr';
 }
 
 $('bOrt').onclick = () => {
@@ -86,7 +118,7 @@ function naviNeu() {
   // noch nicht auf der Route (z. B. Anfahrt): der Rest gilt erst ab dem Start, darum den Weg dorthin nennen
   const weit = U.fortschritt == null && lage.abw >= 300;
   $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' +
-    (weit ? 'noch nicht auf der Route, zum Start ' + R.kmText(R.abstand(U.pos, e.pts[0])) : Math.round(lage.abw) + ' m neben der Route');
+    (weit ? 'noch nicht auf der Route, zum Start ' + R.kmText(R.abstand(U.pos, e.pts[0])) : Math.round(lage.abw) + ' m neben der Route') + sonnenHinweis(an, U.pos.lat, U.pos.lon);
   const naechster = (e.hinweise || []).find(h => h.d > lage.d + 5);
   if (naechster && naechster.d - lage.d < 1000) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(naechster.d - lage.d) + ' ' + R.hinweisText(naechster.cmd, naechster.exit);
   // abseits: mehr als 50 m (oder die GPS-Ungenauigkeit) für 15 s

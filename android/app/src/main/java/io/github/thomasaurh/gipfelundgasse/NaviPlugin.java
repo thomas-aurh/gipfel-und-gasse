@@ -35,6 +35,7 @@ import org.json.JSONObject;
  *   Navi.status()                    → Zustand (auch nach einem Neustart der Oberfläche)
  *   Navi.aufzeichnungHolen({ leeren }) → { start, spur: [[lat, lon, ele, zeit], …] }
  *   Navi.teilen({ name, text, mime }) → Datei über das Teilen-Menü von Android weitergeben (z. B. GPX an CoMaps)
+ *   Navi.textTeilen({ text })        → Text über das Teilen-Menü (Standort im Notfall)
  *   Navi.drucken({ name })           → Druckdialog von Android für die aktuelle Seite
  *   Ereignis "position": { lat, lon, gen, rest, abw, aufz }
  */
@@ -223,6 +224,22 @@ public class NaviPlugin extends Plugin {
             Intent senden = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
                 .putExtra(Intent.EXTRA_SUBJECT, name).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             Intent wahl = Intent.createChooser(senden, "Weitergeben an …");
+            wahl.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(wahl);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Teilen ging nicht: " + e.getMessage());
+        }
+    }
+
+    /** Text über das Teilen-Menü weitergeben (z. B. den Standort im Notfall per SMS oder Messenger). */
+    @PluginMethod
+    public void textTeilen(PluginCall call) {
+        String text = call.getString("text", "");
+        if (text.isEmpty()) { call.reject("Kein Text"); return; }
+        try {
+            Intent senden = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text);
+            Intent wahl = Intent.createChooser(senden, "Standort senden an …");
             wahl.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(wahl);
             call.resolve();

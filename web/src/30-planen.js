@@ -244,8 +244,34 @@ function zeigen() {
   $('kinderwagen').hidden = !e.abschnitte.some(a => Object.keys(a.tags).length);
   balken($('wege'), e.wege, FARBE_WEG, R.wegtyp);
   balken($('boden'), e.boden, FARBE_BODEN, R.untergrund);
+  zeitplanZeigen();
   profilZeichnen();
 }
+
+// Zeitplan: Tag, Startzeit und Pausen gegen den Sonnenuntergang am Ziel (ohne Netz gerechnet)
+function zeitplanZeigen() {
+  const e = S.ergebnis, box = $('zeitplan');
+  if (!e || !e.pts.length) { box.hidden = true; return; }
+  const tag = $('startTag').value ? new Date($('startTag').value + 'T12:00') : new Date();
+  const ziel = e.pts[e.pts.length - 1];
+  const unter = R.sonnenuntergang(tag, ziel.lat, ziel.lon);
+  const pause = +$('pausewahl').value || 0;
+  const [h, m] = ($('startZeit').value || '').split(':').map(Number);
+  const start = $('startZeit').value ? new Date(tag.getFullYear(), tag.getMonth(), tag.getDate(), h, m) : null;
+  const z = R.zeitplan(start, e.zeit + besichtigung() / 60, pause, unter);
+  const sonne = unter ? 'Sonnenuntergang ' + R.uhr(unter) + ' Uhr' : '';
+  let text;
+  if (start) {
+    text = 'Start ' + R.uhr(start) + ' → Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + (sonne ? ' · ' + sonne : '');
+    if (unter) text += z.knapp ? '. ⚠️ Knapp: spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (30 min Reserve).' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve.';
+  } else {
+    text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
+  }
+  box.textContent = text;
+  box.classList.toggle('warnung', !!(z.knapp || (!start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
+  box.hidden = !text;
+}
+['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', zeitplanZeigen));
 
 // Besichtigungszeit aller Stopps in Minuten (das Ziel einer Rundtour ist der Start und zählt nicht doppelt)
 function besichtigung(abIndex) {
