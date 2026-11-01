@@ -579,17 +579,37 @@ var R = (function () {
     return { type: { n: 'node', w: 'way', r: 'relation' }[e[2][0]] || 'node', id: +e[2].slice(1), lat: e[0], lon: e[1], tags: e[3] };
   }
 
-  // Orte im Umkreis von `radius` Metern um die Strecke (oder um einen Punkt), wie die Overpass-Abfrage „around“
-  function orteUmkreis(orte, pts, radius, max) {
-    const nah = ausduennen(pts, 250);
+  // Abstand eines Punkts zur Linie durch pts in Metern (kürzester Abstand zu einem ihrer Abschnitte)
+  function abstandZurLinie(pts, lat, lon) {
+    const kx = Math.cos(lat * RAD) * 111320, ky = 110540;
+    let best = Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const ax = (pts[i].lon - lon) * kx, ay = (pts[i].lat - lat) * ky;
+      if (i === pts.length - 1) { if (pts.length === 1) best = Math.hypot(ax, ay); break; }
+      const bx = (pts[i + 1].lon - lon) * kx, by = (pts[i + 1].lat - lat) * ky;
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+      const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    return best;
+  }
+
+  // Umgebung der Strecke: [süd, west, nord, ost] um `radius` Meter erweitert
+  function streckenRahmen(pts, radius) {
     let s = 90, w = 180, n = -90, o = -180;
-    for (const p of nah) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lon); o = Math.max(o, p.lon); }
+    for (const p of pts) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lon); o = Math.max(o, p.lon); }
     const db = radius / 110540, dl = radius / (111320 * Math.cos(((s + n) / 2) * RAD));
+    return [s - db, w - dl, n + db, o + dl];
+  }
+
+  // Orte im Umkreis von `radius` Metern um die Strecke (oder um einen Punkt), wie die Overpass-Abfrage „around“:
+  // gemessen zu den Abschnitten der Strecke (auf 50 m vereinfacht), nicht nur zu ihren Punkten
+  function orteUmkreis(orte, pts, radius, max) {
+    const linie = ausduennen(pts, 50), r = streckenRahmen(pts, radius);
     const out = [];
     for (const e of orte) {
-      if (e[0] < s - db || e[0] > n + db || e[1] < w - dl || e[1] > o + dl) continue;
-      const kx = Math.cos(e[0] * RAD) * 111320;
-      if (nah.some(p => Math.hypot((p.lon - e[1]) * kx, (p.lat - e[0]) * 110540) <= radius)) out.push(ortElement(e));
+      if (e[0] < r[0] || e[0] > r[2] || e[1] < r[1] || e[1] > r[3]) continue;
+      if (abstandZurLinie(linie, e[0], e[1]) <= radius) out.push(ortElement(e));
       if (out.length >= (max || 1500)) break;
     }
     return { elements: out };
@@ -810,7 +830,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, ortElement, orteUmkreis, orteAusschnitt, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

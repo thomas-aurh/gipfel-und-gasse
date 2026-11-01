@@ -102,35 +102,45 @@ async function routeOffline(a, b, profil) {
 }
 
 // ---------- Orte und Suche ohne Netz (orte.json.gz, gebaut von karten/orte.py) ----------
-const orteSpeicher = {};   // Paket-ID → Promise der gelesenen Datei
+const orteSpeicher = {};   // Paket-ID und Prüfsumme der Datei → Promise der gelesenen Datei
 
 function mitOrten() { return OFF.installiert.filter(p => (p.dateien || []).some(d => d.name === 'orte.json.gz')); }
 
 function orteLaden(p) {
-  if (!orteSpeicher[p.id]) {
-    orteSpeicher[p.id] = (async () => {
+  // mit Prüfsumme: ein aktualisiertes Paket mit gleichem Datenstand liest die neue Datei
+  const d = (p.dateien || []).find(f => f.name === 'orte.json.gz'), k = p.id + ':' + ((d && d.sha256) || '');
+  if (!orteSpeicher[k]) {
+    orteSpeicher[k] = (async () => {
       const r = await fetch('/_karten_/' + p.id + '/orte.json.gz');
       if (!r.ok || !r.body || typeof DecompressionStream !== 'function') throw new Error('Orte-Datei nicht lesbar');
       return JSON.parse(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text());
     })();
-    orteSpeicher[p.id].catch(() => { delete orteSpeicher[p.id]; });
+    orteSpeicher[k].catch(() => { delete orteSpeicher[k]; });
   }
-  return orteSpeicher[p.id];
+  return orteSpeicher[k];
 }
 
-// Pakete mit Orten, die alle Punkte abdecken; null, wenn ein Punkt außerhalb liegt (dann fragt die App online)
-async function ortePakete(pts) {
+// Pakete mit Orten für ein Suchgebiet: alle, die es schneiden. Deckt die Pakete das Gebiet nicht ganz ab (Rand einer
+// Region), fragt die App mit Netz online (null); ohne Netz antwortet sie mit dem, was die Pakete haben.
+// stellen: Punkte, deren Umgebung (radius Meter) abgedeckt sein muss
+async function ortePakete(stellen, radius) {
   if (OFF.bereit) await OFF.bereit;
-  const ps = mitOrten();
+  const ps = mitOrten().filter(p => p.bbox);
   if (!ps.length) return null;
-  const drin = (p, q) => q.lon >= p.bbox[0] && q.lon <= p.bbox[2] && q.lat >= p.bbox[1] && q.lat <= p.bbox[3];
-  if (!pts.every(q => ps.some(p => p.bbox && drin(p, q)))) return null;
-  return ps.filter(p => p.bbox && pts.some(q => drin(p, q)));
+  const r = R.streckenRahmen(stellen, radius);
+  const schneidet = ps.filter(p => p.bbox[0] <= r[3] && p.bbox[2] >= r[1] && p.bbox[1] <= r[2] && p.bbox[3] >= r[0]);
+  if (!schneidet.length) return null;
+  const drin = q => schneidet.some(p => q.lon >= p.bbox[0] && q.lon <= p.bbox[2] && q.lat >= p.bbox[1] && q.lat <= p.bbox[3]);
+  const ganz = R.ausduennen(stellen, 250).every(q => {
+    const e = R.streckenRahmen([q], radius);
+    return [[e[0], e[1]], [e[0], e[3]], [e[2], e[1]], [e[2], e[3]]].every(([lat, lon]) => drin({ lat, lon }));
+  });
+  return ganz || navigator.onLine === false ? schneidet : null;
 }
 
 // Orte entlang der Strecke aus dem Paket, im Format der Overpass-Antwort; null ohne passendes Paket
 async function orteOffline(pts, radius) {
-  const ps = await ortePakete(pts);
+  const ps = await ortePakete(pts, radius);
   if (!ps) return null;
   try {
     const els = [];
@@ -141,7 +151,7 @@ async function orteOffline(pts, radius) {
 
 // Sehenswürdigkeiten im Ausschnitt [süd, west, nord, ost] aus dem Paket; null, wenn kein Paket die Mitte abdeckt
 async function stadtOffline(bbox) {
-  const ps = await ortePakete([{ lat: (bbox[0] + bbox[2]) / 2, lon: (bbox[1] + bbox[3]) / 2 }]);
+  const ps = await ortePakete([{ lat: bbox[0], lon: bbox[1] }, { lat: bbox[2], lon: bbox[3] }, { lat: bbox[0], lon: bbox[3] }, { lat: bbox[2], lon: bbox[1] }], 0);
   if (!ps) return null;
   try {
     const els = [];

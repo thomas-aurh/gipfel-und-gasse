@@ -59,10 +59,11 @@ def ist_ort(t, knoten):
     return False
 
 
-# nur diese Merkmale braucht die App (Einordnung, Name, Fenster mit Öffnungszeiten, Höhe, Betreiber, Webseite)
+# nur diese Merkmale braucht die App (Einordnung, Name, Fenster mit Öffnungszeiten, Höhe, Betreiber, Webseite,
+# Eintritt und Rollstuhl in den Fenstern der Sehenswürdigkeiten)
 BEHALTEN = ("name", "name:de", "ele", "natural", "tourism", "amenity", "leisure", "historic", "waterway", "highway",
             "railway", "aerialway", "drinking_water", "access", "wikipedia", "wikidata", "opening_hours", "operator",
-            "website", "contact:website", "information")
+            "website", "contact:website", "information", "fee", "charge", "wheelchair")
 
 # ---------- Suche ----------
 ORTSART = {"city": ("Stadt", 100), "town": ("Stadt", 80), "village": ("Dorf", 50), "suburb": ("Stadtteil", 35),
@@ -167,8 +168,9 @@ def lesen(dateien, bbox):
                 kennung = "n" + str(obj.id)
             t = {tag.k: tag.v for tag in obj.tags}
             strasse = isinstance(obj, osmium.osm.Way) and t.get("highway") in STRASSEN and "name" in t
-            # Linien nur als Straße; geschlossene Wege mit anderen Merkmalen kommen als Fläche
-            if isinstance(obj, osmium.osm.Way) and not strasse:
+            # geschlossene Wege kommen als Fläche (gleiche Kennung), offene Wege als Straße oder als Ort (z. B. eine
+            # Stadtmauer mit historic=citywalls und Namen); die Mitte ist dann ihr mittlerer Punkt
+            if isinstance(obj, osmium.osm.Way) and not strasse and (obj.is_closed() or not ist_ort(t, False)):
                 continue
             if isinstance(obj, osmium.osm.Area) and "highway" in t:
                 continue

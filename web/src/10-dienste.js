@@ -93,7 +93,7 @@ async function hoehenFuellen(pts) {
 // in der App mit Kartenpaket: zuerst im Paket suchen (geht ohne Netz), dann online; die Treffer werden gemischt
 async function suchen(text, nahe) {
   const off = await sucheOfflineAlle(text, nahe);
-  if (off.length && navigator.onLine === false) return off;
+  if (navigator.onLine === false && mitOrten().length) return off;   // ohne Netz: auch „nichts gefunden“ kommt aus dem Paket
   let online;
   try { online = await sucheOnline(text, nahe, off.length ? 6 : 12); }
   catch (e) { if (off.length) return off; throw e; }

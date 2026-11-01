@@ -229,6 +229,14 @@ pruef('Orte im Umkreis der Strecke', umkreis.length === 1 && umkreis[0].tags.nam
 pruef('Orte im Umkreis: Herzogstand weit weg', R.orteUmkreis(offOrte, [{ lat: 47.64, lon: 11.317 }], 2000).elements.length === 1 && R.orteUmkreis(offOrte, [{ lat: 47.66, lon: 11.317 }], 2000).elements.length === 0);
 const lese = R.orteLesen(R.orteUmkreis(offOrte, [{ lat: 47.629, lon: 11.317 }], 500), null);
 pruef('Offline-Orte gehen durch orteLesen', lese.length === 1 && lese[0].kat === 'gipfel' && lese[0].name === 'Herzogstand (1731 m)' && lese[0].id === 'node/2', lese);
+// Hütte genau zwischen zwei 1,5 km entfernten Routenpunkten, 100 m neben der Linie: zählt bei 150 m Radius
+const zwischen = R.orteUmkreis([[47.70, 11.3100 + 0.00002, 'n5', { name: 'Mittelhütte', tourism: 'alpine_hut' }]],
+  [{ lat: 47.6993, lon: 11.30 }, { lat: 47.6993, lon: 11.32 }], 150).elements;
+pruef('Orte im Umkreis: Abstand zum Abschnitt, nicht zu den Punkten', zwischen.length === 1, zwischen);
+pruef('Abstand zur Linie', nahe(R.abstandZurLinie([{ lat: 47, lon: 11 }, { lat: 47, lon: 11.01 }], 47.001, 11.005), 110.5, 1) &&
+  nahe(R.abstandZurLinie([{ lat: 47, lon: 11 }], 47.001, 11), 110.5, 1), R.abstandZurLinie([{ lat: 47, lon: 11 }, { lat: 47, lon: 11.01 }], 47.001, 11.005));
+const rahmen = R.streckenRahmen([{ lat: 47, lon: 11 }, { lat: 47.1, lon: 11.2 }], 1000);
+pruef('Rahmen um die Strecke', nahe(rahmen[0], 47 - 1000 / 110540, 1e-9) && rahmen[3] > 11.2 && rahmen[2] > 47.1 && rahmen[1] < 11, rahmen);
 pruef('Orte im Ausschnitt', R.orteAusschnitt(offOrte, [48.1, 11.5, 48.2, 11.6]).elements.length === 1 && R.stadtLesen(R.orteAusschnitt(offOrte, [48.1, 11.5, 48.2, 11.6]))[0].bekannt);
 pruef('Such-Schreibweise', R.suchNorm('Straße am Höllentalanger-Hütte') === 'strasse am hollentalanger hutte' && R.suchNorm('Café  Résumé!') === 'cafe resume', R.suchNorm('Straße am Höllentalanger-Hütte'));
 const suchListe = [['Penzberg', 47.7535, 11.3747, 'Stadt', '', 80], ['Herzogstand', 47.629, 11.317, 'Gipfel', '', 73], ['Bahnhofstraße', 47.751, 11.371, 'Straße', 'Penzberg', 20],
