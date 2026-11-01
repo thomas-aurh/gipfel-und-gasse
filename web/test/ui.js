@@ -43,7 +43,8 @@ function brouter(url) {
     msgs.push([String(Math.round(c[0] * 1e6)), String(Math.round(c[1] * 1e6)), String(c[2]), String(Math.round(m)), '1000', '0', '0', '0', '0', tags[k - 1], '', '0', '0']);
     seg = bis;
   }
-  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { creator: 'BRouter-Nachbildung', messages: msgs }, geometry: { type: 'LineString', coordinates: coords } }] };
+  const voicehints = [[10, 2, 0, 300, -90], [27, 6, 0, 200, 30]];   // links abbiegen, leicht rechts
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { creator: 'BRouter-Nachbildung', messages: msgs, voicehints }, geometry: { type: 'LineString', coordinates: coords } }] };
 }
 
 function server() {
@@ -489,19 +490,25 @@ function pruef(name, bed, info) {
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
   await offCtx.addInitScript(() => {
     const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
-      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }] };
+      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }] };
+    window.__routing = []; window.__naviStart = [];
     window.Capacitor = {
       isNativePlatform: () => true,
       registerPlugin: name => name === 'Karten' ? {
         liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30' })] }, frei: 5e9 }),
         status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => ({ remove() {} })
+      } : name === 'Routing' ? {
+        // Offline-Engine: antwortet wie BRouter (Nachbildung aus dem Test), ohne Netz
+        route: async o => { window.__routing.push(o); return { geojson: await window.brouterNach(o.punkte.map(p => p.join(',')).join('|')) }; }
       } : {
-        starten: async () => ({}), status: async () => ({ laeuft: false }), aufzeichnungHolen: async () => ({ spur: [] }),
+        starten: async o => { window.__naviStart.push(o); return { laeuft: true, folgen: !!o.folgen }; }, status: async () => ({ laeuft: false }), aufzeichnungHolen: async () => ({ spur: [] }),
         teilen: async () => {}, drucken: async () => {}, addListener: () => ({ remove() {} })
       }
     };
     localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.585, lon: 11.35, z: 13 }));
   });
+  // die Offline-Nachbildung nutzt dieselbe Routenerzeugung, zählt aber nicht als Anfrage an brouter.de
+  await offCtx.exposeFunction('brouterNach', ll => { const j = brouter('https://brouter.de/brouter?lonlats=' + ll); zaehler.brouter--; return JSON.stringify(j); });
   const po = await offCtx.newPage();
   const offFehler = [];
   po.on('pageerror', e => offFehler.push(e.message));
@@ -539,6 +546,24 @@ function pruef(name, bed, info) {
   const hoch = parseInt(await po.textContent('#zHoch'), 10);
   pruef('Offline: Höhen der geraden Linie aus dem Paket', hoch > 1700 && hoch < 1810, hoch);
   await po.screenshot({ path: path.join(OUT, '12-offline-linie.png') });
+  // Route offline: BRouter in der App, brouter.de wird nicht gefragt; Abbiegehinweise gehen an den Navigationsdienst
+  await po.click('#bNeu');
+  await po.selectOption('#profilwahl', 'wandern');
+  const vorOnline = zaehler.brouter;
+  await po.mouse.click(kb2.x + kb2.width * 0.35, kb2.y + kb2.height * 0.45);
+  await po.waitForTimeout(300);
+  await po.mouse.click(kb2.x + kb2.width * 0.65, kb2.y + kb2.height * 0.55);
+  await po.waitForSelector('#ergebnis:not([hidden])');
+  await po.waitForTimeout(300);
+  const routing = await po.evaluate(() => window.__routing);
+  pruef('Offline-Routing: Engine in der App gefragt, nicht brouter.de', routing.length === 1 && routing[0].profil === 'hiking-mountain' && zaehler.brouter === vorOnline, [routing.length, zaehler.brouter - vorOnline]);
+  pruef('Offline-Routing: Wegtypen aus den Routendaten', (await po.textContent('#wege')).includes('Pfad'));
+  await po.click('[data-reiter=unterwegs]');
+  await po.click('#bNavi');
+  await po.waitForTimeout(300);
+  const naviStart = await po.evaluate(() => window.__naviStart);
+  const hw = naviStart.length ? naviStart[naviStart.length - 1].hinweise : null;
+  pruef('Abbiegehinweise an den Navigationsdienst', hw && hw.length === 2 && hw[0][1] === 2 && hw[1][1] === 6 && hw[0][0] < hw[1][0], hw);
   pruef('Offline: keine Skriptfehler', offFehler.length === 0, offFehler);
   await offCtx.close();
 

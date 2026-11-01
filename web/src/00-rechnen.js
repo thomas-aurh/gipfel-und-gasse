@@ -188,7 +188,28 @@ var R = (function () {
         if (m > 0) abschnitte.push({ m, tags: tagsLesen(msgs[i][iT]) });
       }
     }
-    return { pts, abschnitte };
+    // Abbiegehinweise (BRouter „voicehints“, Modus 2): [Punktindex, Befehl, Ausfahrt, Meter bis zum nächsten, Winkel]
+    const hinweise = ((f.properties && f.properties.voicehints) || [])
+      .filter(v => Array.isArray(v) && v.length >= 2)
+      .map(v => ({ i: +v[0], cmd: +v[1], exit: +v[2] || 0 }));
+    return { pts, abschnitte, hinweise };
+  }
+
+  // Abbiegehinweis als kurzer deutscher Text (Befehlscodes von BRouter)
+  function hinweisText(cmd, exit) {
+    const t = {
+      2: 'links abbiegen', 3: 'leicht links', 4: 'scharf links', 5: 'rechts abbiegen', 6: 'leicht rechts', 7: 'scharf rechts',
+      8: 'links halten', 9: 'rechts halten', 10: 'wenden', 11: 'wenden', 15: 'wenden', 17: 'links ausfahren', 18: 'rechts ausfahren'
+    }[cmd];
+    if (t) return t;
+    if (cmd === 13 || cmd === 14) return exit ? 'im Kreisverkehr die ' + exit + '. Ausfahrt' : 'in den Kreisverkehr';
+    return null;   // geradeaus, Luftlinie, Ende: keine Ansage
+  }
+
+  // BRouter-Kachel (5°-Raster) eines Punkts, z. B. „E10_N45“
+  function routenKachel(lon, lat) {
+    const x = Math.floor(lon / 5) * 5, y = Math.floor(lat / 5) * 5;
+    return (x < 0 ? 'W' + (-x) : 'E' + x) + '_' + (y < 0 ? 'S' + (-y) : 'N' + y);
   }
 
   // gerade Linie, alle ~50 m ein Punkt (für Höhenwerte und das Profil)
@@ -220,8 +241,13 @@ var R = (function () {
       grenzen.push([von, pts.length - 1]);
     }
     const laenge = laengen(pts);
-    const abschnitte = [], stueckEnde = [];
+    const abschnitte = [], stueckEnde = [], hinweise = [];
     stuecke.forEach((s, k) => {
+      // Abbiegehinweise: Punktindex im Teilstück → Meter ab Start der ganzen Strecke
+      for (const h of s.hinweise || []) {
+        const p = pts[grenzen[k][0] + h.i];
+        if (p && h.i > 0 && hinweisText(h.cmd, h.exit)) hinweise.push({ d: p.d, cmd: h.cmd, exit: h.exit });
+      }
       const a = pts[grenzen[k][0]] ? pts[grenzen[k][0]].d : 0, b = pts[grenzen[k][1]] ? pts[grenzen[k][1]].d : a;
       stueckEnde.push(b);
       const summe = s.abschnitte.reduce((x, y) => x + y.m, 0) || 1, f = (b - a) / summe;
@@ -233,7 +259,7 @@ var R = (function () {
     const gueltig = eles.filter(e => e != null);
     const steigung = maxSteigung(pts);
     return {
-      pts, abschnitte, laenge, stueckEnde,
+      pts, abschnitte, laenge, stueckEnde, hinweise,
       auf: hm.auf, ab: hm.ab,
       hoch: gueltig.length ? Math.round(Math.max(...gueltig)) : null,
       tief: gueltig.length ? Math.round(Math.min(...gueltig)) : null,
@@ -688,7 +714,7 @@ var R = (function () {
   return {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
-    linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
+    hinweisText, routenKachel, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };

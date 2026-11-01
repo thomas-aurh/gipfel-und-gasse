@@ -50,6 +50,14 @@ android {
     }
 }
 
+// Routen-Engine BRouter (MIT) direkt als Quellen in der App: werkzeuge/brouter-holen.sh legt sie nach android/brouter/
+def brouterOrdner = rootProject.file('brouter')
+if (!new File(brouterOrdner, '.fassung').exists()) {
+    throw new GradleException("BRouter fehlt: zuerst 'sh werkzeuge/brouter-holen.sh' im Hauptordner ausführen")
+}
+android.sourceSets.main.java.srcDirs += ['brouter-util', 'brouter-codec', 'brouter-expressions', 'brouter-mapaccess', 'brouter-core']
+    .collect { new File(brouterOrdner, it + '/src/main/java') }
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
@@ -63,6 +71,8 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    // org.json ist in Android-Einheitstests nur eine leere Attrappe; für RoutingTest die echte Bibliothek
+    testImplementation "org.json:json:20240303"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

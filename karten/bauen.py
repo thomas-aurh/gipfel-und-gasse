@@ -12,14 +12,40 @@ import hashlib
 import json
 import os
 import re
+import math
+import shutil
 import subprocess
 import sys
+import time
+import urllib.request
 
 HIER = os.path.dirname(os.path.abspath(__file__))
 REPO = "thomas-aurh/gipfel-und-gasse"
 TAG = "kartenpakete"
 HINWEIS = ("Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles "
-           "(u. a. SRTM, GMTED2010, EU-DEM: produziert mit Copernicus-Daten, finanziert von der EU)")
+           "(u. a. SRTM, GMTED2010, EU-DEM: produziert mit Copernicus-Daten, finanziert von der EU); Routendaten: BRouter (brouter.de)")
+ROUTEN = "https://brouter.de/brouter/segments4/{}.rd5"
+
+
+def routen_kacheln(w, s, o, n):
+    """Namen der BRouter-Kacheln (5°×5°), die das Gebiet berührt, z. B. E10_N45."""
+    out = []
+    for x in range(int(math.floor(w / 5)) * 5, int(math.floor(o / 5)) * 5 + 1, 5):
+        for y in range(int(math.floor(s / 5)) * 5, int(math.floor(n / 5)) * 5 + 1, 5):
+            out.append(("W" + str(-x) if x < 0 else "E" + str(x)) + "_" + ("S" + str(-y) if y < 0 else "N" + str(y)))
+    return out
+
+
+def laden(url, ziel):
+    for versuch in range(5):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "GipfelUndGasse-Kartenpakete"}), timeout=120) as r, open(ziel, "wb") as f:
+                shutil.copyfileobj(r, f, 1 << 20)
+            return
+        except Exception as e:  # noqa: BLE001 - Netzfehler: nochmal
+            if versuch == 4:
+                raise RuntimeError(f"{url}: {e}") from e
+            time.sleep(5 * 2 ** versuch)
 
 
 def sha256(datei):
@@ -78,6 +104,24 @@ def main():
                 "sha256": pruef,
             })
             print(f"  {os.path.basename(fest)}: {os.path.getsize(fest) / 1048576:.1f} MB", flush=True)
+        if r.get("routing"):
+            for k in routen_kacheln(w, s, o, n):
+                name = "routing-" + k.lower().replace("_", "-") + ".rd5"
+                tmp = os.path.join(ziel, name)
+                if os.environ.get("ROUTEN_QUELLE"):   # zum Testen: Ordner mit fertigen Kacheln
+                    shutil.copyfile(os.path.join(os.environ["ROUTEN_QUELLE"], k + ".rd5"), tmp)
+                else:
+                    print(f"$ lade Routendaten {k}", flush=True)
+                    laden(ROUTEN.format(k), tmp)
+                pruef = sha256(tmp)
+                fest = os.path.join(ziel, f"{name[:-4]}-{pruef[:12]}.rd5")
+                os.replace(tmp, fest)
+                dateien.append({
+                    "name": name, "kachel": k,
+                    "url": f"https://github.com/{REPO}/releases/download/{TAG}/{os.path.basename(fest)}",
+                    "groesse": os.path.getsize(fest), "sha256": pruef,
+                })
+                print(f"  {os.path.basename(fest)}: {os.path.getsize(fest) / 1048576:.1f} MB", flush=True)
         gebaut.append(r["id"])
         bekannte[r["id"]] = {
             "id": r["id"], "name": r["name"], "bbox": r["bbox"], "maxzoom": r.get("maxzoom", 15),

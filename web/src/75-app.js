@@ -31,6 +31,8 @@ if (NATIV) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
       opt.stopps = stoppsFuerApp();
+      // Abbiegehinweise für die Ansagen: [Meter ab Start, Befehl, Ausfahrt]
+      opt.hinweise = S.fest ? [] : (e.hinweise || []).map(h => [h.d, h.cmd, h.exit]);
     }
     try {
       const st = await Navi.starten(opt);
@@ -67,6 +69,7 @@ if (NATIV) {
       const an = new Date(Date.now() + st.rest.stunden * 3600e3);
       $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' +
         (st.abw != null ? ' · ' + Math.round(st.abw) + ' m neben der Route' : '');
+      if (st.naechster) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(st.naechster.bis) + ' ' + st.naechster.text;
       $('abseits').hidden = !st.abseits;
       if (st.abseits) $('abseits').textContent = 'Du bist ' + Math.round(st.abw) + ' m neben der Route';
     }

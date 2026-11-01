@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
         // eigene Plugins vor dem Start der Brücke anmelden
         registerPlugin(NaviPlugin.class);
         registerPlugin(KartenPlugin.class);
+        registerPlugin(RoutingPlugin.class);
         super.onCreate(savedInstanceState);
         // Kartenpakete über einen eigenen Datei-Server mit echten Byte-Bereichen ausliefern
         getBridge().setWebViewClient(new KartenServer(getBridge()));

@@ -73,6 +73,33 @@ async function hoehenOffline(pts) {
   }
 }
 
+// ---------- Routen ohne Netz (BRouter in der App, Routendaten aus dem Kartenpaket) ----------
+const RoutingNativ = NATIV ? window.Capacitor.registerPlugin('Routing') : null;
+
+function routenKachelnDa() {
+  const k = new Set();
+  for (const p of OFF.installiert) for (const d of p.dateien || []) if (d.kachel) k.add(d.kachel);
+  return k;
+}
+
+// Teilstück a → b offline rechnen; null, wenn dafür keine Routendaten auf dem Handy liegen (dann fragt die App online).
+// Schlägt die Rechnung offline fehl, wird online versucht, sofern Netz da ist; sonst kommt die Fehlermeldung von BRouter.
+async function routeOffline(a, b, profil) {
+  if (!RoutingNativ) return null;
+  if (OFF.bereit) await OFF.bereit;
+  const da = routenKachelnDa();
+  if (!da.has(R.routenKachel(a.lon, a.lat)) || !da.has(R.routenKachel(b.lon, b.lat))) return null;
+  try {
+    const r = await RoutingNativ.route({ punkte: [[a.lon, a.lat], [b.lon, b.lat]], profil });
+    const s = R.brouterLesen(JSON.parse(r.geojson));
+    if (s.pts.some(x => x.ele == null)) await hoehenFuellen(s.pts);
+    return Object.assign(s, { quelle: 'brouter', offline: true });
+  } catch (e) {
+    if (navigator.onLine) return null;
+    throw new Error((e && e.message) || String(e));
+  }
+}
+
 // ---------- Relief und Höhenlinien als Kartenebene ----------
 const Relief = L.GridLayer.extend({
   createTile(c, fertig) {

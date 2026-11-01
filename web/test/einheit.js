@@ -199,5 +199,16 @@ const kp = R.kachelPixel(47.6, 11.35, 12);
 pruef('Kachel für Punkt', kp.x === 2177 && kp.y >= 1430 && kp.y <= 1436 && kp.px >= 0 && kp.px < 256, kp);
 pruef('Linienabstand je Zoom', R.linienAbstand(15)[0] === 20 && R.linienAbstand(12)[0] === 50 && R.linienAbstand(9)[0] === 200);
 
+// Abbiegehinweise aus einer echten BRouter-Antwort (Offline-Engine, Testgebiet Dreieich aus BRouters Testdaten)
+const dreieich = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'brouter-dreieich.json'), 'utf8'));
+const dr = R.brouterLesen(dreieich);
+pruef('Hinweise gelesen', dr.hinweise.length >= 5 && dr.hinweise[0].i === 5 && dr.hinweise[0].cmd === 5, dr.hinweise.slice(0, 2));
+const dz = R.auswerten([dr, dr], 1);
+const zweite = dz.hinweise.filter(h => h.d > dz.stueckEnde[0]);
+// im zweiten Teilstück zeigt Punktindex i auf den Gesamtpunkt (Punkte des ersten − 1) + i
+pruef('Hinweise je Teilstück auf die ganze Strecke verschoben', zweite.length === dz.hinweise.length / 2 && zweite[0].d === dz.pts[dr.pts.length - 1 + dr.hinweise[0].i].d, [dz.hinweise[0], zweite[0]]);
+pruef('Hinweistexte', R.hinweisText(2) === 'links abbiegen' && R.hinweisText(13, 2) === 'im Kreisverkehr die 2. Ausfahrt' && R.hinweisText(1) === null && R.hinweisText(16) === null);
+pruef('Routen-Kachel', R.routenKachel(11.57, 48.13) === 'E10_N45' && R.routenKachel(-3.2, -7.5) === 'W5_S10');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

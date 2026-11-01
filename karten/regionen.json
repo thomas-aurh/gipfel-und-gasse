@@ -1,5 +1,5 @@
 {
-  "hinweis": "Regionen für Offline-Kartenpakete. bbox = [West, Süd, Ost, Nord] in Grad; probe = Stellen [Breite, Länge, Zoom], an denen der Bau die Karte zur Kontrolle zeichnet. Neue Region: Eintrag ergänzen, dann den Ablauf „Kartenpakete“ in GitHub Actions starten.",
+  "hinweis": "Regionen für Offline-Kartenpakete. bbox = [West, Süd, Ost, Nord] in Grad; routing = Routendaten von BRouter dazupacken (5°-Kacheln, die die Region berührt); probe = Stellen [Breite, Länge, Zoom], an denen der Bau die Karte zur Kontrolle zeichnet. Neue Region: Eintrag ergänzen, dann den Ablauf „Kartenpakete“ in GitHub Actions starten.",
   "regionen": [
     {
       "id": "oberbayern",
@@ -28,7 +28,8 @@
           11.95,
           11
         ]
-      ]
+      ],
+      "routing": true
     }
   ]
 }

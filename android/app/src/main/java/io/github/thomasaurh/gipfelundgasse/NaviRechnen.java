@@ -124,6 +124,37 @@ public final class NaviRechnen {
     /** Rest mit geänderter Zeit (z. B. plus Besichtigungen). */
     public static Rest restMit(double meter, double auf, double ab, double stunden) { return new Rest(meter, auf, ab, stunden); }
 
+    /** Abbiegehinweis als Text (Befehlscodes von BRouter, wie R.hinweisText in der Web-App), null = keine Ansage. */
+    public static String hinweisText(int cmd, int exit) {
+        switch (cmd) {
+            case 2: return "links abbiegen";
+            case 3: return "leicht links";
+            case 4: return "scharf links";
+            case 5: return "rechts abbiegen";
+            case 6: return "leicht rechts";
+            case 7: return "scharf rechts";
+            case 8: return "links halten";
+            case 9: return "rechts halten";
+            case 10: case 11: case 15: return "wenden";
+            case 13: case 14: return exit > 0 ? "im Kreisverkehr die " + exit + ". Ausfahrt" : "in den Kreisverkehr";
+            case 17: return "links ausfahren";
+            case 18: return "rechts ausfahren";
+            default: return null;
+        }
+    }
+
+    /** Vorankündigung: „In 100 Metern links abbiegen.“ */
+    public static String hinweisVorab(double bis, int cmd, int exit) {
+        String t = hinweisText(cmd, exit);
+        return t == null ? null : "In " + kmDativ(bis) + " " + t + ".";
+    }
+
+    /** Kurz davor: „Jetzt links abbiegen.“ */
+    public static String hinweisJetzt(int cmd, int exit) {
+        String t = hinweisText(cmd, exit);
+        return t == null ? null : "Jetzt " + t + ".";
+    }
+
     public static String kmText(double meter) {
         if (meter < 1000) return Math.round(meter) + " m";
         return String.format(Locale.GERMANY, meter < 10000 ? "%.1f km" : "%.0f km", meter / 1000);
@@ -135,6 +166,14 @@ public final class NaviRechnen {
         double km = Math.round(meter / 100) / 10.0;
         if (km == Math.floor(km)) return (long) km + (km == 1 ? " Kilometer" : " Kilometer");
         return String.format(Locale.GERMANY, "%.1f Kilometer", km);
+    }
+
+    /** Nach „in“: „100 Metern“, „1,5 Kilometern“, „1 Kilometer“ bleibt (ein Kilometer). */
+    public static String kmDativ(double meter) {
+        String s = kmSprache(meter);
+        if (s.endsWith(" Meter")) return s + "n";
+        if (s.endsWith(" Kilometer") && !s.equals("1 Kilometer")) return s + "n";
+        return s.equals("1 Kilometer") ? "einem Kilometer" : s;
     }
 
     public static String zeitText(double stunden) {

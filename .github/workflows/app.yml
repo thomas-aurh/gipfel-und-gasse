@@ -52,6 +52,9 @@ jobs:
       - name: Web-App in die App kopieren
         run: npm run sync
 
+      - name: Routen-Engine BRouter holen (feste Fassung)
+        run: sh werkzeuge/brouter-holen.sh
+
       # Fester Schlüssel aus den Repo-Geheimnissen KEYSTORE_B64 / KEYSTORE_PASSWORT (siehe STAND.md).
       # Ohne ihn: Ersatzschlüssel, der einmal angelegt wird und zwischen den Läufen im Cache liegt,
       # damit Updates sich über die installierte App legen.

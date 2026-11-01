@@ -345,7 +345,8 @@ function planPacken() {
   return {
     profil: S.profil,
     spur: spurPacken(R.auswerten(S.stuecke, 1).pts),
-    stuecke: S.stuecke.map(s => ({ n: s.pts.length, q: s.quelle, a: s.abschnitte.map(a => [Math.round(a.m), tagsText(a.tags)]) }))
+    stuecke: S.stuecke.map(s => ({ n: s.pts.length, q: s.quelle, a: s.abschnitte.map(a => [Math.round(a.m), tagsText(a.tags)]),
+      h: (s.hinweise || []).map(x => [x.i, x.cmd, x.exit]) }))
   };
 }
 // Gegenstück: Teilstücke aus gepackter Spur zurückbauen und in den Speicher legen.
@@ -355,7 +356,8 @@ function planEntpacken(wps, profil, spur, stuecke) {
   const pts = spurEntpacken(spur), out = [];
   let i = 0;
   stuecke.forEach((s, k) => {
-    const st = { pts: pts.slice(i, i + s.n), abschnitte: s.a.map(a => ({ m: a[0], tags: R.tagsLesen(a[1]) })), quelle: s.q };
+    const st = { pts: pts.slice(i, i + s.n), abschnitte: s.a.map(a => ({ m: a[0], tags: R.tagsLesen(a[1]) })), quelle: s.q,
+      hinweise: (s.h || []).map(x => ({ i: x[0], cmd: x[1], exit: x[2] })) };
     i += s.n - 1;
     out.push(st);
     if (s.q !== 'linie' || profil === 'linie') cache.set(schluessel(wps[k], wps[k + 1], profil), st);

@@ -8,3 +8,7 @@ www/
 *.jks
 .secrets/
 **/test/out/
+android/brouter/
+android/app/src/main/assets/brouter/
+__pycache__/
+*.pyc

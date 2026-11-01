@@ -17,8 +17,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Darstellung und Tempo der Vektorkarte, Wechsel ohne Netz. Paketgröße steht nach dem ersten Bau in der Liste.
   Nächster Schritt nach dem Merge: Ablauf „Kartenpakete“ einmal von Hand starten (Actions › Kartenpakete › Run workflow),
   dann in der App unter Touren › Offline-Karten laden.
-- **Weitere Stufen der App** (in dieser Reihenfolge):
-  4. **Offline-Routing:** BRouter-Kern als Bibliothek in der App, Routendaten je 5°-Kachel; Abbiegehinweise für Ansagen.
+- **Offline-Routing und Abbiegeansagen (Stufe 4) gebaut, auf dem Pixel nicht geprüft:** BRouter läuft in der App auf den
+  Routendaten des Pakets (Kachel E10_N45 für Oberbayern). Geprüft: Routing-Kern mit echten BRouter-Daten (Testgebiet
+  Dreieich), Probe-Routen in Oberbayern im Ablauf „Kartenpakete“, Oberfläche im Klicktest. Nicht geprüft: Rechenzeit und
+  Speicher auf dem Handy, Ansagen unterwegs. Paketgröße steigt um die Routendaten (Größe nach dem Bau in der Liste).
+- **Weitere Stufen der App:**
   5. **Offline-Orte und -Suche:** Sehenswürdigkeiten, Hütten, Wasser, Haltestellen je Region aus OSM.
 - **Emulator-Test in GitHub Actions** fehlt noch (App startet, Dienst startet mit vorgegebener Position).
 
@@ -45,6 +48,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   kann. Logo als rundes Abzeichen (Gipfel, Giebel, Zwiebelturm, Route), dazu ein vereinfachtes Symbol für kleine
   Größen. Frühere Namen Wegwerk und Murmel; deren gespeicherte Touren übernimmt die App einmalig. Verworfen: Stadt Land
   Pfad, Kundschafter, Spürnase, Kartograf, Fährte u. a.; Bergzeit und Bergfex sind bereits Marken.
+- **Offline-Routing mit BRouter in der App** (01.11.): dieselbe Engine und dieselben Profile wie online, deshalb gleiche
+  Routen und gleiche Antwort (GeoJSON samt Abbiegehinweisen), die Oberfläche bleibt unverändert. Quellen in fester Fassung
+  beim Bau geholt (nicht im Repo), Routendaten als fertige 5°-Kacheln von brouter.de im Paket. Verworfen: GraphHopper
+  (andere Profile und Daten), eigene zugeschnittene Routendaten (später möglich, spart Platz, aber aufwendiger Bau).
 - **Offline-Karten als PMTiles mit eigenem Datei-Server** (01.11.): je Region eine Vektorkarte (Protomaps-Weltdatensatz,
   zugeschnitten) und ein Höhen-Paket (Terrarium-Kacheln bis Zoom 12), gezeichnet in Leaflet (protomaps-leaflet,
   Höhenlinien und Relief selbst gerechnet), damit die Oberfläche bleibt. Ein eigener Java-Server liefert Byte-Bereiche,
@@ -87,6 +94,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
      oder Cloudflare Pages. Das Repo other-projects ist privat; Pages aus einem privaten Repo braucht ein bezahltes Konto.
 
 ## Erledigt
+
+- **01.11.** Stufe 4 Offline-Routing: BRouter (MIT) in der App, Routendaten im Kartenpaket, Probe-Routen im Bau,
+  Abbiegeansagen bei gesperrtem Bildschirm (vorab und „Jetzt …“, Kreisverkehr mit Ausfahrt), nächste Abzweigung in der
+  Anzeige, online ebenfalls mit Abbiegehinweisen; Ansagen im Dativ korrigiert („In 100 Metern“).
 
 - **01.11.** Stufe 3 Offline-Karten: Kartenpakete je Region (Vektorkarte und Höhen) aus GitHub Actions mit
   Probe-Rendering, Paketverwaltung in der App (Download-Manager, Fortschritt, Prüfsumme, Aktualisieren, Löschen),

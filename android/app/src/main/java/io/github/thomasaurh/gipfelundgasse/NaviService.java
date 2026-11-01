@@ -50,6 +50,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         // Einstellungen
         NaviRechnen.Strecke strecke;
         List<double[]> stopps = new ArrayList<>();   // {d, minuten}
+        List<double[]> hinweise = new ArrayList<>(); // Abbiegehinweise {d, befehl, ausfahrt}
+        boolean[] hinweisVorab = new boolean[0], hinweisJetzt = new boolean[0];
         List<String> stoppNamen = new ArrayList<>();
         double tempo = 1;
         boolean rad, folgen, aufzeichnen, ansagen = true;
@@ -118,6 +120,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 int n2 = Z.stopps.size();
                 Z.stoppAngekuendigt = new boolean[n2];
                 Z.stoppErreicht = new boolean[n2];
+                Z.hinweisVorab = new boolean[Z.hinweise.size()];
+                Z.hinweisJetzt = new boolean[Z.hinweise.size()];
                 if (Z.ansagen && Z.strecke != null) {
                     NaviRechnen.Rest r = NaviRechnen.rest(Z.strecke, 0, Z.tempo, Z.rad);
                     sagen("Los geht's. " + NaviRechnen.kmSprache(r.meter) + ", etwa " + NaviRechnen.zeitSprache(r.stunden) + ".");
@@ -179,8 +183,25 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         for (int i = 0; i < Z.stopps.size(); i++) {
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
-            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmSprache(bis) + ": " + name + "."); }
+            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) { Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true; sagen(name + " erreicht."); }
+        }
+        // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“)
+        double vorab = Z.rad ? 200 : 100;
+        for (int i = 0; i < Z.hinweise.size() && i < Z.hinweisVorab.length; i++) {
+            double[] h = Z.hinweise.get(i);
+            double bis = h[0] - d;
+            if (bis < -30) { Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true; continue; }   // vorbei
+            if (!Z.hinweisVorab[i] && bis > 40 && bis <= vorab) {
+                Z.hinweisVorab[i] = true;
+                String t = NaviRechnen.hinweisVorab(bis, (int) h[1], (int) h[2]);
+                if (t != null) sagen(t);
+            }
+            if (!Z.hinweisJetzt[i] && bis <= (Z.rad ? 35 : 20) && bis > -10) {
+                Z.hinweisJetzt[i] = true; Z.hinweisVorab[i] = true;
+                String t = NaviRechnen.hinweisJetzt((int) h[1], (int) h[2]);
+                if (t != null) sagen(t);
+            }
         }
         // jeder volle Kilometer: Rest und Zeit
         int km = (int) Math.floor(d / 1000);
@@ -242,6 +263,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     st.put(s);
                 }
                 o.put("stopps", st);
+                JSONArray hw = new JSONArray();
+                for (double[] h : Z.hinweise) { JSONArray q = new JSONArray(); q.put(h[0]); q.put((int) h[1]); q.put((int) h[2]); hw.put(q); }
+                o.put("hinweise", hw);
             }
             try (FileOutputStream out = new FileOutputStream(new File(c.getFilesDir(), "sitzung.json"))) {
                 out.write(o.toString().getBytes(StandardCharsets.UTF_8));
@@ -286,6 +310,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     Z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
                     Z.stoppNamen.add(s.optString("name", "Stopp"));
                 }
+                Z.hinweise = new ArrayList<>();
+                JSONArray hw = o.optJSONArray("hinweise");
+                if (hw != null) for (int i = 0; i < hw.length(); i++) {
+                    JSONArray q = hw.optJSONArray(i);
+                    if (q != null) Z.hinweise.add(new double[] { q.optDouble(0), q.optInt(1), q.optInt(2) });
+                }
+                Z.hinweisVorab = new boolean[Z.hinweise.size()];
+                Z.hinweisJetzt = new boolean[Z.hinweise.size()];
                 Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);

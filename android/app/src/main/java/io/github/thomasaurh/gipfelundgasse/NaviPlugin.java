@@ -107,6 +107,14 @@ public class NaviPlugin extends Plugin {
                     z.stoppNamen.add(s.optString("name", "Stopp"));
                 }
             }
+            JSArray hinweise = call.getArray("hinweise", null);
+            if (hinweise != null) {
+                z.hinweise = new ArrayList<>();
+                for (int i = 0; i < hinweise.length(); i++) {
+                    JSONArray h = hinweise.optJSONArray(i);
+                    if (h != null) z.hinweise.add(new double[] { h.optDouble(0), h.optInt(1), h.optInt(2) });
+                }
+            }
             z.tempo = call.getDouble("tempo", z.tempo);
             z.rad = call.getBoolean("rad", z.rad);
             z.ansagen = call.getBoolean("ansagen", z.ansagen);
@@ -118,6 +126,8 @@ public class NaviPlugin extends Plugin {
                 z.fortschritt = Double.NaN;
                 z.stoppAngekuendigt = new boolean[z.stopps.size()];
                 z.stoppErreicht = new boolean[z.stopps.size()];
+                z.hinweisVorab = new boolean[z.hinweise.size()];
+                z.hinweisJetzt = new boolean[z.hinweise.size()];
                 z.zielGemeldet = false;
             } else if (z.stopps.size() != stoppsVorher) {
                 // gleiche Route (z. B. nur anderes Tempo): Fortschritt bleibt, nur die Stopp-Merker passend groß
@@ -259,6 +269,15 @@ public class NaviPlugin extends Plugin {
                 o.put("rest", r);
                 o.put("abw", Double.isNaN(z.abw) ? null : z.abw);
                 o.put("abseits", z.abseitsGemeldet);
+                // nächster Abbiegehinweis innerhalb von 1 km für die Anzeige
+                double d = Double.isNaN(z.fortschritt) ? 0 : z.fortschritt;
+                for (double[] h : z.hinweise) {
+                    if (h[0] <= d + 5) continue;
+                    String t = NaviRechnen.hinweisText((int) h[1], (int) h[2]);
+                    if (t == null) continue;
+                    if (h[0] - d < 1000) { JSObject n = new JSObject(); n.put("bis", h[0] - d); n.put("text", t); o.put("naechster", n); }
+                    break;
+                }
             }
             if (z.aufzStart != 0) {
                 JSObject a = new JSObject();

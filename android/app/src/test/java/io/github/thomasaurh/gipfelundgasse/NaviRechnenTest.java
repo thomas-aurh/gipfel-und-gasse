@@ -56,6 +56,16 @@ public class NaviRechnenTest {
         assertTrue(s.gleich(t));
     }
 
+    @Test public void abbiegehinweise() {
+        assertEquals("In 100 Metern links abbiegen.", NaviRechnen.hinweisVorab(98, 2, 0));
+        assertEquals("Jetzt leicht rechts.", NaviRechnen.hinweisJetzt(6, 0));
+        assertEquals("In 200 Metern im Kreisverkehr die 2. Ausfahrt.", NaviRechnen.hinweisVorab(205, 13, 2));
+        assertEquals("1,5 Kilometern", NaviRechnen.kmDativ(1500));
+        assertEquals("einem Kilometer", NaviRechnen.kmDativ(1000));
+        assertNull(NaviRechnen.hinweisText(1, 0));    // geradeaus: keine Ansage
+        assertNull(NaviRechnen.hinweisVorab(100, 16, 0));
+    }
+
     @Test public void texte() {
         assertEquals("4:40 h", NaviRechnen.zeitText(4.7));
         assertEquals("20 min", NaviRechnen.zeitText(0.3));
