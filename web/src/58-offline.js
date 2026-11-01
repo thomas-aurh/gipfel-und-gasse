@@ -266,6 +266,14 @@ function offlineEbenen() {
   lagenAnwenden();
 }
 
+// Kartenmitte außerhalb jedes Pakets? Dann zeigt die Kartenwahl „Offline-Karte“ die topografische Karte (20-karte.js)
+function offlineAusserhalb() { const c = karte.getCenter(); return !paketFuer(c.lat, c.lng); }
+// nach dem Verschieben: gezeigte Grundkarte mit der nötigen vergleichen (nicht mit einem Merker, der veralten kann)
+karte.on('moveend', () => {
+  if (lagenWahl.basis !== 'offline' || !LAGEN.offline) return;
+  if (karte.hasLayer(LAGEN.offline) === offlineAusserhalb()) lagenAnwenden();
+});
+
 // ohne Netz: auf die Offline-Karte wechseln, wenn ein Paket die Kartenmitte abdeckt
 function ohneNetzUmschalten() {
   if (navigator.onLine !== false) return;
@@ -321,7 +329,12 @@ function paketListe() {
     const li = document.createElement('li');
     li.style.cursor = 'default';
     let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (p.stand ? ' · Daten vom ' + R.esc(p.stand) : '');
-    if (da) text += ' · <b>auf dem Handy</b>' + (neuerAls(neu, da) ? ' · neuere Daten verfügbar' : '');
+    if (da) {
+      // ein Update lädt nur Dateien mit anderer Prüfsumme (der Rest kommt aus dem installierten Paket)
+      const gleich = d => (da.dateien || []).some(x => x.name === d.name && x.sha256 && x.sha256 === d.sha256 && x.groesse === d.groesse);
+      const update = neu ? (neu.dateien || []).filter(d => !gleich(d)).reduce((s, d) => s + (d.groesse || 0), 0) : 0;
+      text += ' · <b>auf dem Handy</b>' + (neuerAls(neu, da) ? ' · neuere Daten verfügbar (Update ' + mb(update) + ')' : '');
+    }
     text += '</small>';
     if (lauf) {
       const anteil = lauf.gesamt ? lauf.geladen / lauf.gesamt : 0;
@@ -373,7 +386,8 @@ if (Karten) {
     const erstes = !OFF.installiert.length;
     await paketeLaden(false);
     melde('Kartenpaket fertig: Die Karte geht jetzt auch ohne Netz.', 6);
-    if (erstes && LAGEN.offline) { lagenWahl.basis = 'offline'; lagenWahl.relief = true; lagenAnwenden(); }
+    // nur umschalten, wenn die Karte gerade im Paketgebiet steht
+    if (erstes && LAGEN.offline && !offlineAusserhalb()) { lagenWahl.basis = 'offline'; lagenWahl.relief = true; lagenAnwenden(); }
   });
   window.addEventListener('offline', ohneNetzUmschalten);
   // wieder Netz: Angebotsliste nachladen, falls sie beim Start fehlte

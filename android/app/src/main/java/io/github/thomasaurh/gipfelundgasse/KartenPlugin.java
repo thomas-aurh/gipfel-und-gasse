@@ -135,7 +135,7 @@ public class KartenPlugin extends Plugin {
         if (eintragText == null) return;
         try {
             JSONArray auftraege = new JSONObject(eintragText).getJSONArray("auftraege");
-            for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));
+            for (int i = 0; i < auftraege.length(); i++) { long dl = auftraege.getJSONObject(i).optLong("dl", -1); if (dl >= 0) dm.remove(dl); }
         } catch (Exception e) { Log.w(TAG, "alte Aufträge nicht entfernbar", e); }
     }
 
@@ -155,6 +155,10 @@ public class KartenPlugin extends Plugin {
             File dir = neuOrdner(id);
             ordnerLoeschen(dir);
             if (!dir.mkdirs()) { call.reject("Ordner nicht anlegbar"); return; }
+            // installiertes Paket: unveränderte Dateien (gleiche Prüfsumme) werden übernommen statt neu geladen
+            JSONObject installiert = null;
+            try { installiert = new JSONObject(NaviService.dateiLesen(new File(paketOrdner(id), "paket.json"))); } catch (Exception e) { /* noch keins */ }
+            // Platz für alle Dateien: übernommene werden zwar meist nur verknüpft, ohne harte Verweise aber kopiert
             long noetig = 0;
             for (int i = 0; i < dateien.length(); i++) { JSONObject d = dateien.optJSONObject(i); if (d != null) noetig += d.optLong("groesse", 0); }
             try {
@@ -171,6 +175,13 @@ public class KartenPlugin extends Plugin {
                     JSONObject d = dateien.getJSONObject(i);
                     String name = d.getString("name");
                     if (!Bereich.sichererName(name) || !d.getString("url").startsWith("https://")) throw new Exception("Ungültige Datei " + name);
+                    if (Bereich.gleicheDatei(installiert, name, d.optString("sha256", ""), d.optLong("groesse", 0))
+                        && new File(paketOrdner(id), name).isFile()) {
+                        JSONObject a = new JSONObject();
+                        a.put("dl", -1); a.put("uebernehmen", true); a.put("name", name); a.put("sha256", d.optString("sha256", "")); a.put("groesse", d.optLong("groesse", 0));
+                        auftraege.put(a);
+                        continue;
+                    }
                     DownloadManager.Request r = new DownloadManager.Request(Uri.parse(d.getString("url")))
                         .setTitle("Kartenpaket " + meta.optString("name", id))
                         .setDescription(name)
@@ -213,6 +224,7 @@ public class KartenPlugin extends Plugin {
                 String meldung = "";
                 for (int i = 0; i < auftraege.length(); i++) {
                     JSONObject a = auftraege.getJSONObject(i);
+                    if (a.optBoolean("uebernehmen")) continue;   // kommt beim Abschluss aus dem installierten Paket
                     try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(a.getLong("dl")))) {
                         if (c == null || !c.moveToFirst()) { fehler = true; meldung = "Download verschwunden"; alleFertig = false; continue; }
                         int st = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
@@ -253,6 +265,16 @@ public class KartenPlugin extends Plugin {
             try {
                 File dir = neuOrdner(id);
                 JSONArray auftraege = eintrag.getJSONArray("auftraege");
+                // unveränderte Dateien aus dem installierten Paket übernehmen: unter der Sperre und nur, solange dieser
+                // Auftrag gilt (sonst schriebe ein veralteter Prüfvorgang in den Ordner eines neueren Downloads)
+                synchronized (sperre(id)) {
+                    String jetzt = prefs().getString(id, null);
+                    if (jetzt == null || !gen.equals(new JSONObject(jetzt).optString("gen", ""))) return;
+                    for (int i = 0; i < auftraege.length(); i++) {
+                        JSONObject a = auftraege.getJSONObject(i);
+                        if (a.optBoolean("uebernehmen")) uebernehmen(new File(paketOrdner(id), a.getString("name")), new File(dir, a.getString("name")));
+                    }
+                }
                 for (int i = 0; i < auftraege.length(); i++) {
                     JSONObject a = auftraege.getJSONObject(i);
                     String soll = a.optString("sha256", "");
@@ -278,7 +300,7 @@ public class KartenPlugin extends Plugin {
                     }
                     ordnerLoeschen(alt);
                     DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
-                    for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));
+                    for (int i = 0; i < auftraege.length(); i++) { long dl = auftraege.getJSONObject(i).optLong("dl", -1); if (dl >= 0) dm.remove(dl); }
                     prefs().edit().remove(id).apply();
                 }
                 notifyListeners("fertig", new JSObject().put("id", id));
@@ -289,6 +311,23 @@ public class KartenPlugin extends Plugin {
                 synchronized (pruefenLaeuft) { pruefenLaeuft.remove(id); }
             }
         }).start();
+    }
+
+    /** Datei aus dem installierten Paket in den Vorbereitungsordner: als harter Verweis (sofort), sonst als Kopie. */
+    private static void uebernehmen(File von, File nach) throws Exception {
+        if (nach.isFile()) return;
+        if (!von.isFile()) throw new Exception("Datei " + von.getName() + " fehlt im installierten Paket. Bitte neu laden.");
+        try {
+            android.system.Os.link(von.getAbsolutePath(), nach.getAbsolutePath());
+            return;
+        } catch (Exception e) { Log.i(TAG, "kein harter Verweis möglich, kopiere " + von.getName()); }
+        File tmp = new File(nach.getParentFile(), nach.getName() + ".teil");
+        try (FileInputStream in = new FileInputStream(von); FileOutputStream out = new FileOutputStream(tmp)) {
+            byte[] b = new byte[1 << 16];
+            int n;
+            while ((n = in.read(b)) > 0) out.write(b, 0, n);
+        }
+        if (!tmp.renameTo(nach)) throw new Exception("Kopie von " + von.getName() + " nicht ablegbar");
     }
 
     static String sha256(File f) throws Exception {
