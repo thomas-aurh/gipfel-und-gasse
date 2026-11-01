@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Abhängigkeiten (Offline-Bündel)
+        run: npm ci
       - name: Web-App prüfen (Syntax, Einheitstests)
         run: sh web/pruefen.sh
 

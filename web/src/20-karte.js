@@ -1,5 +1,7 @@
 // Karte, Kartenarten, Hilfen für Meldungen und Speicher
 const $ = id => document.getElementById(id);
+// läuft die Oberfläche in der Android-App (Capacitor)?
+const NATIV = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 
 let meldUhr = null;
 function melde(text, sek) {
@@ -47,13 +49,18 @@ const karte = L.map('karte', { zoomControl: false, attributionControl: true, max
 karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
 
 const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false }, SPEICHER.lesen('lagen', {}));
+// Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
+const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
 function lagenAnwenden() {
-  for (const k of ['topo', 'osm']) { if (k === lagenWahl.basis) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
-  for (const k of ['wander', 'rad']) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
-  document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === lagenWahl.basis; });
+  // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen): solange topografisch zeigen, Wahl behalten
+  const basis = LAGEN[lagenWahl.basis] ? lagenWahl.basis : 'topo';
+  for (const k of BASIS) if (LAGEN[k]) { if (k === basis) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
+  for (const k of DARUEBER) if (LAGEN[k]) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
+  document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === basis; });
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageSehens').checked = !!lagenWahl.sehens;
+  $('lageRelief').checked = !!lagenWahl.relief;
   SPEICHER.schreiben('lagen', lagenWahl);
   if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
 }
@@ -62,6 +69,7 @@ document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('
 $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
+$('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
 $('bLagen').addEventListener('click', e => { e.stopPropagation(); $('lagenwahl').hidden = !$('lagenwahl').hidden; });
 document.addEventListener('click', e => { if (!$('lagenwahl').hidden && !$('lagenwahl').contains(e.target)) $('lagenwahl').hidden = true; });
 $('bPlus').addEventListener('click', () => karte.zoomIn());

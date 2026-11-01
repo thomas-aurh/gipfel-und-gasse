@@ -12,9 +12,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   signiert GitHub mit einem Debug-Schlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
   nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
   verloren (vorher „Alle sichern“).
+- **Offline-Karten (Stufe 3) gebaut, mit echten Daten erst im Bau geprüft:** Der Ablauf „Kartenpakete“ zeichnet die
+  echte Oberbayern-Karte zur Probe; auf dem Pixel nicht geprüft sind Download über den Download-Manager, Prüfsumme,
+  Darstellung und Tempo der Vektorkarte, Wechsel ohne Netz. Paketgröße steht nach dem ersten Bau in der Liste.
+  Nächster Schritt nach dem Merge: Ablauf „Kartenpakete“ einmal von Hand starten (Actions › Kartenpakete › Run workflow),
+  dann in der App unter Touren › Offline-Karten laden.
 - **Weitere Stufen der App** (in dieser Reihenfolge):
-  3. **Offline-Karten:** Kartenpakete je Region (Vektorkacheln aus OSM, Höhenlinien und Schummerung aus freien
-     Höhendaten), gebaut in GitHub Actions, als Download in diesem Repo; Paketverwaltung in der App.
   4. **Offline-Routing:** BRouter-Kern als Bibliothek in der App, Routendaten je 5°-Kachel; Abbiegehinweise für Ansagen.
   5. **Offline-Orte und -Suche:** Sehenswürdigkeiten, Hütten, Wasser, Haltestellen je Region aus OSM.
 - **Emulator-Test in GitHub Actions** fehlt noch (App startet, Dienst startet mit vorgegebener Position).
@@ -42,6 +45,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   kann. Logo als rundes Abzeichen (Gipfel, Giebel, Zwiebelturm, Route), dazu ein vereinfachtes Symbol für kleine
   Größen. Frühere Namen Wegwerk und Murmel; deren gespeicherte Touren übernimmt die App einmalig. Verworfen: Stadt Land
   Pfad, Kundschafter, Spürnase, Kartograf, Fährte u. a.; Bergzeit und Bergfex sind bereits Marken.
+- **Offline-Karten als PMTiles mit eigenem Datei-Server** (01.11.): je Region eine Vektorkarte (Protomaps-Weltdatensatz,
+  zugeschnitten) und ein Höhen-Paket (Terrarium-Kacheln bis Zoom 12), gezeichnet in Leaflet (protomaps-leaflet,
+  Höhenlinien und Relief selbst gerechnet), damit die Oberfläche bleibt. Ein eigener Java-Server liefert Byte-Bereiche,
+  weil Capacitors lokaler Server Bereiche falsch ausliefert und bei 2 GB endet. Download über den Download-Manager von
+  Android (läuft im Hintergrund weiter), standardmäßig nur im WLAN, mit SHA-256-Prüfung. Verworfen: Rasterkacheln von
+  OpenTopoMap herunterladen (verboten), MapLibre statt Leaflet (Oberfläche neu), Kacheln einzeln als Dateien (zu viele).
 - **Android als Hybrid-App, APK selbst installieren, Kartenpakete aus öffentlichem Repo** (01.11., Thomas' Wahl):
   Nur eine native App darf bei gesperrtem Bildschirm GPS nutzen und offline Karten zeichnen. Hybrid (Capacitor) behält
   die Web-Oberfläche, nativ werden nur Hintergrund-GPS, Ansagen, Routing und Pakete. Gebaut in GitHub Actions, weil die
@@ -78,6 +87,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
      oder Cloudflare Pages. Das Repo other-projects ist privat; Pages aus einem privaten Repo braucht ein bezahltes Konto.
 
 ## Erledigt
+
+- **01.11.** Stufe 3 Offline-Karten: Kartenpakete je Region (Vektorkarte und Höhen) aus GitHub Actions mit
+  Probe-Rendering, Paketverwaltung in der App (Download-Manager, Fortschritt, Prüfsumme, Aktualisieren, Löschen),
+  eigener Datei-Server mit Byte-Bereichen, Höhenlinien mit Zahlen und Relief ohne Kachelnähte, Höhen ohne Netz, Wechsel
+  auf die Offline-Karte ohne Netz.
 
 - **01.11.** Eigenes öffentliches Repo; Android-App Stufe 1 (Capacitor-Gerüst, App-Symbol und Startbild aus dem Logo,
   Bau und Download über GitHub Actions) und Stufe 2 (Vordergrunddienst mit GPS bei gesperrtem Bildschirm, Rest,

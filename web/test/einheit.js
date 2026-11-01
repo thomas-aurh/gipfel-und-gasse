@@ -160,5 +160,44 @@ const offen = R.wegOrdnen(ecke(0, 0), linieOrte, false);
 pruef('Offener Weg der Reihe nach', offen[0] === linieOrte[1] && offen[1] === linieOrte[2] && offen[2] === linieOrte[0], offen);
 pruef('Offene Länge ohne Rückweg', R.wegLaenge(ecke(0, 0), offen, false) < R.wegLaenge(ecke(0, 0), offen, true));
 
+// Höhendaten
+pruef('Terrarium Meereshöhe 0', R.terrarium(128, 0, 0) === 0 && R.terrarium(131, 232, 0) === 1000, R.terrarium(131, 232, 0));
+const rgba = new Uint8ClampedArray([128, 10, 128, 255, 127, 255, 0, 255]);
+const tg = R.terrariumGitter(rgba);
+pruef('Terrarium-Gitter', tg.length === 2 && tg[0] === 10.5 && tg[1] === -1, Array.from(tg));
+pruef('Meter je Pixel z12 am Äquator ≈ 38 m', Math.abs(R.meterJePixel(12, 0) - 38.2) < 0.1, R.meterJePixel(12, 0));
+// Rampe nach Osten ansteigend: Höhenlinien senkrecht, eine je 10 m
+const W = 32, rampe = new Float32Array(W * W);
+for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) rampe[y * W + x] = x * 3.3;
+const hl = R.hoehenlinien(rampe, W, W, 10);
+const stufen = [...new Set(hl.map(s => s[4]))];
+pruef('Höhenlinien: Stufen 10 … 100', stufen.length === 10 && stufen[0] === 10 && stufen[9] === 100, stufen);
+pruef('Höhenlinien senkrecht bei x = Höhe / 3,3', hl.filter(s => s[4] === 33).every(s => Math.abs(s[0] - 10) < 1e-6 && Math.abs(s[2] - 10) < 1e-6), hl.filter(s => s[4] === 33).slice(0, 2));
+pruef('Flaches Gelände: keine Linien', R.hoehenlinien(new Float32Array(16).fill(500), 4, 4, 20).length === 0);
+// Schummerung: Hang nach Nordwesten (zum Licht) heller als nach Südosten
+const hang = (fx, fy) => { const a = new Float32Array(W * W); for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) a[y * W + x] = (fx * x + fy * y) * 10; return a; };
+const nw = R.schummerung(hang(1, 1), W, W, 30)[W * 16 + 16];   // steigt nach SO an = Hang schaut nach NW
+const so = R.schummerung(hang(-1, -1), W, W, 30)[W * 16 + 16];
+const eben = R.schummerung(new Float32Array(W * W), W, W, 30)[W * 16 + 16];
+pruef('Schummerung: zum Licht heller, abgewandt dunkler', nw > eben && eben > so, [nw, eben, so]);
+// Gitter mit Rand: Rampe über zwei Quellkacheln nebeneinander; der Rand kommt aus der Nachbarkachel
+const quelle = (tx) => { const a = new Float32Array(65536); for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) a[j * 256 + i] = (tx * 256 + i) * 2; return a; };
+const qk = { '10,5': quelle(10), '11,5': quelle(11) };
+const rg = R.randGitter((tx, ty) => qk[tx + ',' + ty] || null, 10, 5, 3, 3);
+// Zeile 100 (mitten in der Kachel): rechts außen kommt der erste Pixel der rechten Nachbarkachel
+pruef('Rand aus Nachbarkachel', rg.length === 258 * 258 && rg[258 * 100 + 1] === 10 * 256 * 2 && rg[258 * 100 + 257] === (11 * 256) * 2, [rg[258 * 100 + 1], rg[258 * 100 + 257]]);
+pruef('Rand fehlt: am Rand gehalten', rg[0] === rg[1]);
+const rgz = R.randGitter((tx, ty) => qk[tx + ',' + ty] || null, 41, 20, 5, 3);   // Zoom 5 aus Stufe 3: Viertel von Kachel 10/5
+pruef('Hochgerechnet aus Elternkachel steigt gleichmäßig', rgz[258 * 100 + 101] > rgz[258 * 100 + 100] && Math.abs((rgz[258 * 100 + 101] - rgz[258 * 100 + 100]) - 0.5) < 1e-3, rgz[258 * 100 + 101] - rgz[258 * 100 + 100]);
+pruef('Benötigte Quellkacheln', JSON.stringify(R.randKacheln(10, 5, 3, 3)) === JSON.stringify([[9, 4], [10, 4], [11, 4], [9, 5], [10, 5], [11, 5], [9, 6], [10, 6], [11, 6]]) &&
+  // Zoom 5 aus Stufe 3: Kachel 41/20 liegt oben in Quellkachel 10/5, ihr oberer Rand kommt aus 10/4
+  JSON.stringify(R.randKacheln(41, 20, 5, 3)) === JSON.stringify([[10, 4], [10, 5]]), R.randKacheln(41, 20, 5, 3));
+const az = R.aufziehen(rampe, W, 0, 0, 8, 32);
+pruef('Aufziehen: Ausschnitt weich vergrößert', az.length === 1024 && az[0] < az[31] && Math.abs(az[31] - 7.5 * 3.3) < 1, [az[0], az[31]]);
+pruef('Lesbarer Winkel', Math.abs(R.lesbarerWinkel(Math.PI * 0.9) - (-Math.PI * 0.1)) < 1e-9 && R.lesbarerWinkel(0.3) === 0.3 && Math.abs(R.lesbarerWinkel(-Math.PI * 0.75) - Math.PI * 0.25) < 1e-9);
+const kp = R.kachelPixel(47.6, 11.35, 12);
+pruef('Kachel für Punkt', kp.x === 2177 && kp.y >= 1430 && kp.y <= 1436 && kp.px >= 0 && kp.px < 256, kp);
+pruef('Linienabstand je Zoom', R.linienAbstand(15)[0] === 20 && R.linienAbstand(12)[0] === 50 && R.linienAbstand(9)[0] === 200);
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

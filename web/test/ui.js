@@ -468,6 +468,77 @@ function pruef(name, bed, info) {
   pruef('App: keine Skriptfehler', appFehler.length === 0, appFehler);
   await appCtx.close();
 
+  // ---------- Offline-Karten in der App: Pakete aus test/testkarten.py, Dateien mit echten Byte-Bereichen ----------
+  const kartenOrdner = path.join(__dirname, 'out', 'karten');
+  if (!fs.existsSync(path.join(kartenOrdner, 'probe', 'hoehe.pmtiles'))) require('child_process').execFileSync('python3', [path.join(__dirname, 'testkarten.py')]);
+  const offCtx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await dienste(offCtx);
+  const bereiche = [];
+  await offCtx.route(/\/_karten_\//, r => {
+    const m = /\/_karten_\/([a-z0-9-]+)\/([a-z0-9.-]+)$/.exec(new URL(r.request().url()).pathname);
+    const f = m && path.join(kartenOrdner, m[1], m[2]);
+    if (!f || !fs.existsSync(f)) return r.fulfill({ status: 404, body: '' });
+    const daten = fs.readFileSync(f), range = r.request().headers()['range'];
+    const t = range && /bytes=(\d+)-(\d*)/.exec(range);
+    if (!t) return r.fulfill({ status: 200, body: daten, headers: { 'Accept-Ranges': 'bytes' } });
+    const von = +t[1], bis = Math.min(daten.length - 1, t[2] ? +t[2] : daten.length - 1);
+    bereiche.push(m[2] + ':' + von + '-' + bis);
+    r.fulfill({ status: 206, body: daten.subarray(von, bis + 1), headers: { 'Content-Range': 'bytes ' + von + '-' + bis + '/' + daten.length, 'Accept-Ranges': 'bytes' } });
+  });
+  // kein Netz für Höhen: die gerade Linie muss ihre Höhen aus dem Paket holen
+  await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
+  await offCtx.addInitScript(() => {
+    const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
+      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }] };
+    window.Capacitor = {
+      isNativePlatform: () => true,
+      registerPlugin: name => name === 'Karten' ? {
+        liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30' })] }, frei: 5e9 }),
+        status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => ({ remove() {} })
+      } : {
+        starten: async () => ({}), status: async () => ({ laeuft: false }), aufzeichnungHolen: async () => ({ spur: [] }),
+        teilen: async () => {}, drucken: async () => {}, addListener: () => ({ remove() {} })
+      }
+    };
+    localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.585, lon: 11.35, z: 13 }));
+  });
+  const po = await offCtx.newPage();
+  const offFehler = [];
+  po.on('pageerror', e => offFehler.push(e.message));
+  await po.goto(url);
+  await po.waitForFunction(() => !document.querySelector('.nur-offline').hidden, null, { timeout: 8000 });
+  pruef('Offline: Auswahl erscheint mit installiertem Paket', true);
+  await po.click('[data-reiter=touren]');
+  pruef('Offline: Paket in der Liste, neuere Daten gemeldet', (await po.textContent('#paketliste')).includes('auf dem Handy') && (await po.textContent('#paketliste')).includes('neuere Daten'));
+  await po.click('#bLagen');
+  await po.check('input[name=basis][value=offline]');
+  await po.check('#lageRelief');
+  await po.click('#bLagen');
+  await po.waitForTimeout(2500);
+  // Vektorkarte: Kacheln von protomaps-leaflet sind Canvas mit Inhalt; Relief ebenso
+  const gezeichnet = await po.evaluate(() => {
+    const leer = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; };
+    const cs = [...document.querySelectorAll('.leaflet-tile-pane canvas')];
+    return cs.map(leer);
+  });
+  pruef('Offline: Vektorkarte und Relief zeichnen', gezeichnet.length >= 4 && gezeichnet.filter(n => n > 10).length >= 4, gezeichnet);
+  pruef('Offline: Dateien mit Byte-Bereichen gelesen', bereiche.some(b => b.startsWith('karte.pmtiles')) && bereiche.some(b => b.startsWith('hoehe.pmtiles')), bereiche.slice(0, 4));
+  await po.screenshot({ path: path.join(OUT, '11-offline-relief.png') });
+  // gerade Linie über den Berg: Höhen aus dem Paket (Gipfel 1800 m)
+  await po.click('[data-reiter=planen]');
+  await po.selectOption('#profilwahl', 'linie');
+  const kb2 = await (await po.$('#karte')).boundingBox();
+  await po.mouse.click(kb2.x + kb2.width * 0.3, kb2.y + kb2.height * 0.5);
+  await po.waitForTimeout(300);
+  await po.mouse.click(kb2.x + kb2.width * 0.7, kb2.y + kb2.height * 0.5);
+  await po.waitForSelector('#ergebnis:not([hidden])');
+  await po.waitForFunction(() => document.querySelector('#zHoch').textContent !== '–', null, { timeout: 8000 });
+  const hoch = parseInt(await po.textContent('#zHoch'), 10);
+  pruef('Offline: Höhen der geraden Linie aus dem Paket', hoch > 1700 && hoch < 1810, hoch);
+  await po.screenshot({ path: path.join(OUT, '12-offline-linie.png') });
+  pruef('Offline: keine Skriptfehler', offFehler.length === 0, offFehler);
+  await offCtx.close();
+
   // Telefon
   const tel = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await dienste(tel);

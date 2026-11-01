@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""Baut die Offline-Kartenpakete aus karten/regionen.json und schreibt pakete.json.
+
+Aufruf: python3 karten/bauen.py <ausgabeordner> <protomaps-quelle> [region-id] [--alte-liste pakete.json]
+  protomaps-quelle: URL oder Datei eines Protomaps-Weltdatensatzes (PMTiles), z. B. https://build.protomaps.com/20261031.pmtiles
+Braucht das Programm „pmtiles“ (go-pmtiles) im PATH oder in $PMTILES, und das Paket pmtiles für hoehe.py.
+Je Region entstehen <id>-karte.pmtiles (Vektorkarte) und <id>-hoehe.pmtiles (Höhen); die Liste nennt Größe und
+SHA-256 jeder Datei, die App prüft beides nach dem Download.
+"""
+import datetime
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+
+HIER = os.path.dirname(os.path.abspath(__file__))
+REPO = "thomas-aurh/gipfel-und-gasse"
+TAG = "kartenpakete"
+HINWEIS = ("Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles "
+           "(u. a. SRTM, GMTED2010, EU-DEM: produziert mit Copernicus-Daten, finanziert von der EU)")
+
+
+def sha256(datei):
+    h = hashlib.sha256()
+    with open(datei, "rb") as f:
+        for teil in iter(lambda: f.read(1 << 20), b""):
+            h.update(teil)
+    return h.hexdigest()
+
+
+def ausfuehren(befehl):
+    print("$ " + " ".join(befehl), flush=True)
+    subprocess.run(befehl, check=True)
+
+
+def main():
+    argv = [a for a in sys.argv[1:] if not a.startswith("--")]
+    alte = None
+    if "--alte-liste" in sys.argv:
+        alte = sys.argv[sys.argv.index("--alte-liste") + 1]
+        argv = [a for a in argv if a != alte]
+    if len(argv) < 2:
+        sys.exit(__doc__)
+    ziel, quelle = argv[0], argv[1]
+    nur = argv[2] if len(argv) > 2 and argv[2] else None
+    os.makedirs(ziel, exist_ok=True)
+    pmtiles = os.environ.get("PMTILES", "pmtiles")
+    stand = re.search(r"(\d{8})", quelle)
+    stand = datetime.datetime.strptime(stand.group(1), "%Y%m%d").date().isoformat() if stand else datetime.date.today().isoformat()
+
+    regionen = json.load(open(os.path.join(HIER, "regionen.json"), encoding="utf-8"))["regionen"]
+    liste = {"pakete": []}
+    if alte and os.path.exists(alte):
+        liste = json.load(open(alte, encoding="utf-8"))
+    bekannte = {p["id"]: p for p in liste.get("pakete", [])}
+
+    for r in regionen:
+        if nur and r["id"] != nur:
+            continue
+        w, s, o, n = r["bbox"]
+        karte = os.path.join(ziel, r["id"] + "-karte.pmtiles")
+        hoehe = os.path.join(ziel, r["id"] + "-hoehe.pmtiles")
+        ausfuehren([pmtiles, "extract", quelle, karte, f"--bbox={w},{s},{o},{n}", f"--maxzoom={r.get('maxzoom', 15)}", "--download-threads=4"])
+        ausfuehren([sys.executable, os.path.join(HIER, "hoehe.py"), str(w), str(s), str(o), str(n), str(r.get("hoehe_maxzoom", 12)), hoehe])
+        dateien = []
+        for name, pfad in (("karte.pmtiles", karte), ("hoehe.pmtiles", hoehe)):
+            dateien.append({
+                "name": name,
+                "url": f"https://github.com/{REPO}/releases/download/{TAG}/{os.path.basename(pfad)}",
+                "groesse": os.path.getsize(pfad),
+                "sha256": sha256(pfad),
+            })
+            print(f"  {os.path.basename(pfad)}: {os.path.getsize(pfad) / 1048576:.1f} MB", flush=True)
+        bekannte[r["id"]] = {
+            "id": r["id"], "name": r["name"], "bbox": r["bbox"], "maxzoom": r.get("maxzoom", 15),
+            "hoehe_maxzoom": r.get("hoehe_maxzoom", 12), "stand": stand, "attribution": HINWEIS, "dateien": dateien,
+        }
+
+    # nur Regionen, die es in regionen.json noch gibt
+    ids = [r["id"] for r in regionen]
+    liste = {
+        "erstellt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "quelle": quelle,
+        "pakete": [bekannte[i] for i in ids if i in bekannte],
+    }
+    with open(os.path.join(ziel, "pakete.json"), "w", encoding="utf-8") as f:
+        json.dump(liste, f, ensure_ascii=False, indent=2)
+    print("pakete.json: " + ", ".join(p["id"] + " (" + p["stand"] + ")" for p in liste["pakete"]), flush=True)
+
+
+if __name__ == "__main__":
+    main()

@@ -19,7 +19,9 @@
     <h4>Karte</h4>
     <label><input type="radio" name="basis" value="topo" checked> Topografisch (OpenTopoMap)</label>
     <label><input type="radio" name="basis" value="osm"> Stadtplan (OpenStreetMap)</label>
+    <label class="nur-offline" hidden><input type="radio" name="basis" value="offline"> Offline-Karte (heruntergeladen)</label>
     <h4>Darüber</h4>
+    <label class="nur-offline" hidden><input type="checkbox" id="lageRelief"> Höhenlinien und Relief (offline)</label>
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
@@ -171,6 +173,14 @@
           <button class="knopf" id="bAlleGpx">⬇ Alle sichern</button>
         </div>
         <ul id="tourliste" class="liste"></ul>
+        <div id="offlineBox" hidden>
+          <h3>Offline-Karten</h3>
+          <p class="klein">Karte, Höhenlinien und Relief für eine Region aufs Handy laden; danach geht die Karte ohne Netz.
+            Routen planen, Suche und Wetter brauchen vorerst weiter Netz.</p>
+          <label class="klein" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="offlineMobil"> auch über Mobilfunk laden (sonst nur WLAN)</label>
+          <ul id="paketliste" class="liste"></ul>
+          <div id="paketStatus" class="klein"></div>
+        </div>
         <p class="klein">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
           „Alle sichern“ lädt jede Tour als GPX-Datei herunter.</p>
       </section>
@@ -198,6 +208,9 @@
           <li>Orte: <a href="https://overpass-api.de" target="_blank" rel="noopener">Overpass API</a></li>
           <li>Wetter und Höhen für gerade Linien: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0)</li>
           <li>Kartenbibliothek: <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD-2)</li>
+          <li>Offline-Karten (App): Vektorkacheln von <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a> aus OpenStreetMap,
+            gezeichnet mit protomaps-leaflet (BSD-3); Höhenlinien und Relief aus den Mapzen/Tilezen Terrain Tiles (u. a. SRTM, GMTED2010,
+            EU-DEM: produziert mit Copernicus-Daten, finanziert von der EU)</li>
         </ul>
         <p class="klein">Alle Dienste sind frei und werden von Freiwilligen oder kleinen Teams betrieben. Gipfel &amp; Gasse fragt sie nur an,
           wenn du etwas tust, und nie im Hintergrund. Für viele Nutzer bräuchte es eigene Server.</p>
