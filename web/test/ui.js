@@ -407,24 +407,25 @@ function pruef(name, bed, info) {
   await alt.close();
 
   // ---------- Android-App: Oberfläche mit nachgebildetem Navi-Plugin ----------
+  const bruecke = require('./bruecke');
   const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true });
   await dienste(appCtx);
-  await appCtx.addInitScript(() => {
+  await appCtx.addInitScript(bruecke.mit(() => {
     const aufrufe = [];
     let hoerer = null;
     window.__navi = { aufrufe, melden: st => hoerer && hoerer(st) };
-    window.Capacitor = {
-      isNativePlatform: () => true,
-      registerPlugin: () => ({
+    window.__bruecke({
+      Karten: { liste: async () => ({ installiert: [] }), status: async () => ({ laufend: [] }), addListener: () => {} },
+      Navi: {
         starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
-        addListener: (n, f) => { if (n === 'position') hoerer = f; return { remove() {} }; }
-      })
-    };
-  });
+        addListener: (n, f) => { if (n === 'position') hoerer = f; }
+      }
+    });
+  }));
   const pa2 = await appCtx.newPage();
   const appFehler = [];
   pa2.on('pageerror', e => appFehler.push(e.message));
@@ -488,25 +489,26 @@ function pruef(name, bed, info) {
   });
   // kein Netz für Höhen: die gerade Linie muss ihre Höhen aus dem Paket holen
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
-  await offCtx.addInitScript(() => {
+  await offCtx.addInitScript(bruecke.mit(() => {
     const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
       dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }] };
     window.__routing = []; window.__naviStart = [];
-    window.Capacitor = {
-      isNativePlatform: () => true,
-      registerPlugin: name => name === 'Karten' ? {
+    window.__bruecke({
+      Karten: {
         liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30' })] }, frei: 5e9 }),
-        status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => ({ remove() {} })
-      } : name === 'Routing' ? {
+        status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => {}
+      },
+      Routing: {
         // Offline-Engine: antwortet wie BRouter (Nachbildung aus dem Test), ohne Netz
         route: async o => { window.__routing.push(o); return { geojson: await window.brouterNach(o.punkte.map(p => p.join(',')).join('|')) }; }
-      } : {
+      },
+      Navi: {
         starten: async o => { window.__naviStart.push(o); return { laeuft: true, folgen: !!o.folgen }; }, status: async () => ({ laeuft: false }), aufzeichnungHolen: async () => ({ spur: [] }),
-        teilen: async () => {}, drucken: async () => {}, addListener: () => ({ remove() {} })
+        teilen: async () => {}, drucken: async () => {}, addListener: () => {}
       }
-    };
+    });
     localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.585, lon: 11.35, z: 13 }));
-  });
+  }));
   // die Offline-Nachbildung nutzt dieselbe Routenerzeugung, zählt aber nicht als Anfrage an brouter.de
   await offCtx.exposeFunction('brouterNach', ll => { const j = brouter('https://brouter.de/brouter?lonlats=' + ll); zaehler.brouter--; return JSON.stringify(j); });
   const po = await offCtx.newPage();
