@@ -31,6 +31,9 @@ public final class Routing {
         RoutingContext rc = new RoutingContext();
         rc.localFunction = profil.getAbsolutePath();
         rc.turnInstructionMode = HINWEISE;
+        // Kreisverkehre mit Ausfahrt ansagen; das Wanderprofil schaltet das sonst ab (zu Fuß: 0)
+        rc.keyValues = new java.util.HashMap<>();
+        rc.keyValues.put("turnInstructionRoundabouts", "1");
         List<OsmNodeNamed> wps = new ArrayList<>();
         for (int i = 0; i < punkte.length; i++) {
             OsmNodeNamed n = new OsmNodeNamed();

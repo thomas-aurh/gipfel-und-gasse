@@ -27,6 +27,8 @@ import org.json.JSONArray;
  */
 @CapacitorPlugin(name = "Routing")
 public class RoutingPlugin extends Plugin {
+    // Berechnungen nacheinander: Verweis-Ordner und Profile werden je Aufruf neu aufgebaut und dürfen sich nicht überschneiden
+    private static final Object SPERRE = new Object();
     private static final String TAG = "GipfelGasseRouting";
     private static final Set<String> PROFILE = new HashSet<>(java.util.Arrays.asList("hiking-mountain", "trekking", "shortest"));
 
@@ -89,7 +91,7 @@ public class RoutingPlugin extends Plugin {
     public void kacheln(PluginCall call) {
         try {
             Set<String> k = new HashSet<>();
-            segmente(k);
+            synchronized (SPERRE) { segmente(k); }
             JSObject o = new JSObject();
             o.put("kacheln", new JSArray(k));
             call.resolve(o);
@@ -110,12 +112,15 @@ public class RoutingPlugin extends Plugin {
                     JSONArray q = punkte.getJSONArray(i);
                     p[i] = new double[] { q.getDouble(0), q.getDouble(1) };
                 }
-                Set<String> k = new HashSet<>();
-                File seg = segmente(k);
-                for (double[] q : p) {
-                    if (!k.contains(Routing.kachel(q[0], q[1]))) throw new Exception("keine Routendaten für diese Gegend (Kartenpaket fehlt)");
+                String geojson;
+                synchronized (SPERRE) {
+                    Set<String> k = new HashSet<>();
+                    File seg = segmente(k);
+                    for (double[] q : p) {
+                        if (!k.contains(Routing.kachel(q[0], q[1]))) throw new Exception("keine Routendaten für diese Gegend (Kartenpaket fehlt)");
+                    }
+                    geojson = Routing.route(seg, new File(profile(), profil + ".brf"), p, 60000);
                 }
-                String geojson = Routing.route(seg, new File(profile(), profil + ".brf"), p, 60000);
                 JSObject o = new JSObject();
                 o.put("geojson", geojson);
                 call.resolve(o);

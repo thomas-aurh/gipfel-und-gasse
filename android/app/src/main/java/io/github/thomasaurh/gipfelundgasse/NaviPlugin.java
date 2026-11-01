@@ -109,10 +109,22 @@ public class NaviPlugin extends Plugin {
             }
             JSArray hinweise = call.getArray("hinweise", null);
             if (hinweise != null) {
+                // neue Liste; Merker („schon angesagt“) für gleiche Hinweise übernehmen, alle anderen frisch
+                List<double[]> alt = z.hinweise;
+                boolean[] altVorab = z.hinweisVorab, altJetzt = z.hinweisJetzt;
                 z.hinweise = new ArrayList<>();
                 for (int i = 0; i < hinweise.length(); i++) {
                     JSONArray h = hinweise.optJSONArray(i);
                     if (h != null) z.hinweise.add(new double[] { h.optDouble(0), h.optInt(1), h.optInt(2) });
+                }
+                z.hinweisVorab = new boolean[z.hinweise.size()];
+                z.hinweisJetzt = new boolean[z.hinweise.size()];
+                for (int i = 0; i < z.hinweise.size(); i++) {
+                    double[] n = z.hinweise.get(i);
+                    for (int j = 0; j < alt.size() && j < altVorab.length; j++) {
+                        double[] o = alt.get(j);
+                        if (Math.abs(o[0] - n[0]) < 5 && o[1] == n[1]) { z.hinweisVorab[i] = altVorab[j]; z.hinweisJetzt[i] = altJetzt[j]; break; }
+                    }
                 }
             }
             z.tempo = call.getDouble("tempo", z.tempo);

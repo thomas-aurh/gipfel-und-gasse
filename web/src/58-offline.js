@@ -229,6 +229,14 @@ async function paketeLaden(mitListe) {
   }
 }
 
+// neuere Daten: späterer Stand oder andere Dateien (Prüfsummen), z. B. Routendaten bei gleichem Kartenstand ergänzt
+function neuerAls(neu, da) {
+  if (!neu || !da) return false;
+  if (neu.stand && da.stand && neu.stand > da.stand) return true;
+  const sig = p => (p.dateien || []).map(d => d.name + ':' + (d.sha256 || '')).sort().join('|');
+  return sig(neu) !== sig(da);
+}
+
 function mb(b) { return b ? (b / 1048576 >= 1024 ? (b / 1073741824).toFixed(1).replace('.', ',') + ' GB' : Math.round(b / 1048576) + ' MB') : '–'; }
 
 function paketListe() {
@@ -244,7 +252,7 @@ function paketListe() {
     const li = document.createElement('li');
     li.style.cursor = 'default';
     let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (p.stand ? ' · Daten vom ' + R.esc(p.stand) : '');
-    if (da) text += ' · <b>auf dem Handy</b>' + (neu && neu.stand && da.stand && neu.stand > da.stand ? ' · neuere Daten verfügbar' : '');
+    if (da) text += ' · <b>auf dem Handy</b>' + (neuerAls(neu, da) ? ' · neuere Daten verfügbar' : '');
     text += '</small>';
     if (lauf) {
       const anteil = lauf.gesamt ? lauf.geladen / lauf.gesamt : 0;
@@ -254,7 +262,7 @@ function paketListe() {
     li.innerHTML = '<span class="zeichen">🗺️</span><span class="was">' + text + '</span><span class="aktionen"></span>';
     const akt = li.querySelector('.aktionen');
     const knopf = (zeichen, titel, f) => { const b = document.createElement('button'); b.textContent = zeichen; b.title = titel; b.onclick = f; akt.appendChild(b); return b; };
-    if (neu && (!da || (neu.stand && da.stand && neu.stand > da.stand)) && (!lauf || lauf.zustand === 'fehler')) knopf('⬇', da ? 'Aktualisieren' : 'Herunterladen', () => paketHolen(neu));
+    if (neu && (!da || neuerAls(neu, da)) && (!lauf || lauf.zustand === 'fehler')) knopf('⬇', da ? 'Aktualisieren' : 'Herunterladen', () => paketHolen(neu));
     if (da || lauf) {
       const b = knopf('🗑', 'Löschen', () => {
         if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = '✓?'; b.title = 'Nochmal tippen löscht das Paket'; setTimeout(() => paketListe(), 4000); return; }

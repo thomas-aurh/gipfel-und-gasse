@@ -14,6 +14,7 @@ const S = {
 };
 const cache = new Map();   // Teilstücke nach Profil und Koordinaten
 const laufend = new Map(); // Anfragen, die gerade unterwegs sind: dasselbe Stück nicht doppelt anfragen
+const ersatz = new Map();  // gespeicherte Teilstücke ohne Abbiegehinweise (vor Stufe 4): Ersatz, falls neu rechnen scheitert
 let lauf = 0;              // jede Neuberechnung bekommt eine Nummer; ältere Antworten werden verworfen
 
 function schluessel(a, b, p) { return p + ':' + a.lat.toFixed(6) + ',' + a.lon.toFixed(6) + '>' + b.lat.toFixed(6) + ',' + b.lon.toFixed(6); }
@@ -138,6 +139,7 @@ async function neuBerechnen() {
       }
       return await laufend.get(k);
     } catch (err) {
+      if (ersatz.has(k)) return ersatz.get(k);   // alte gespeicherte Linie ist besser als eine gerade Ersatzlinie
       fehler.push('Abschnitt ' + (i + 1) + ': ' + kuerzen(err.message));
       const s = R.linie(a, b);
       s.quelle = 'linie';
@@ -360,7 +362,10 @@ function planEntpacken(wps, profil, spur, stuecke) {
       hinweise: (s.h || []).map(x => ({ i: x[0], cmd: x[1], exit: x[2] })) };
     i += s.n - 1;
     out.push(st);
-    if (s.q !== 'linie' || profil === 'linie') cache.set(schluessel(wps[k], wps[k + 1], profil), st);
+    const sch = schluessel(wps[k], wps[k + 1], profil);
+    // vor Stufe 4 gespeichert (kein Feld h): nicht in den Speicher, damit neu gerechnet wird; die Linie bleibt als Ersatz
+    if (s.q === 'brouter' && !s.h) ersatz.set(sch, st);
+    else if (s.q !== 'linie' || profil === 'linie') cache.set(sch, st);
   });
   return out;
 }

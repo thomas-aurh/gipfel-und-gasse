@@ -74,6 +74,8 @@ function tourOeffnen(id) {
     S.stueckeFuer = stueckSignatur();
     zeichenWegpunkte();
     auswertenUndZeigen();
+    // ältere Tour ohne Abbiegehinweise: im Hintergrund neu rechnen (scheitert das, bleibt die gespeicherte Linie)
+    if (t.stuecke.some(s => s.q === 'brouter' && !s.h)) neuBerechnen();
     $('status').textContent = '';
   } else {
     spurAnzeigen(pts, t.name, t.art);

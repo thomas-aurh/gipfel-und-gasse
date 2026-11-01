@@ -186,21 +186,30 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) { Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true; sagen(name + " erreicht."); }
         }
-        // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“)
-        double vorab = Z.rad ? 200 : 100;
-        for (int i = 0; i < Z.hinweise.size() && i < Z.hinweisVorab.length; i++) {
+        // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
+        // zählt; folgt ihm der übernächste binnen 40 m, wird er angehängt („…, dann links abbiegen“) und nicht eigens angesagt.
+        double vorab = Z.rad ? 200 : 100, jetztAb = Z.rad ? 35 : 20;
+        int n = Math.min(Z.hinweise.size(), Math.min(Z.hinweisVorab.length, Z.hinweisJetzt.length));
+        int i = 0;
+        while (i < n && (Z.hinweisJetzt[i] || Z.hinweise.get(i)[0] - d < -15)) { Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true; i++; }
+        if (i < n) {
             double[] h = Z.hinweise.get(i);
             double bis = h[0] - d;
-            if (bis < -30) { Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true; continue; }   // vorbei
+            String dann = "";
+            if (i + 1 < n && Z.hinweise.get(i + 1)[0] - h[0] < 40) {
+                String t2 = NaviRechnen.hinweisText((int) Z.hinweise.get(i + 1)[1], (int) Z.hinweise.get(i + 1)[2]);
+                if (t2 != null) dann = ", dann " + t2;
+            }
             if (!Z.hinweisVorab[i] && bis > 40 && bis <= vorab) {
                 Z.hinweisVorab[i] = true;
                 String t = NaviRechnen.hinweisVorab(bis, (int) h[1], (int) h[2]);
-                if (t != null) sagen(t);
+                if (t != null) sagen(t.substring(0, t.length() - 1) + dann + ".");
             }
-            if (!Z.hinweisJetzt[i] && bis <= (Z.rad ? 35 : 20) && bis > -10) {
-                Z.hinweisJetzt[i] = true; Z.hinweisVorab[i] = true;
+            if (bis <= jetztAb) {
+                Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true;
                 String t = NaviRechnen.hinweisJetzt((int) h[1], (int) h[2]);
-                if (t != null) sagen(t);
+                if (t != null) sagen(t.substring(0, t.length() - 1) + dann + ".");
+                if (!dann.isEmpty()) { Z.hinweisVorab[i + 1] = true; Z.hinweisJetzt[i + 1] = true; }   // schon mit angesagt
             }
         }
         // jeder volle Kilometer: Rest und Zeit

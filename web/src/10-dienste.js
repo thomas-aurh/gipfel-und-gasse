@@ -55,7 +55,7 @@ async function teilstueck(a, b, profilKey) {
   if (offline) return offline;
   // timode=2: Abbiegehinweise (voicehints) für die Ansagen unterwegs
   const url = DIENST.brouter + '?lonlats=' + a.lon.toFixed(6) + ',' + a.lat.toFixed(6) + '|' + b.lon.toFixed(6) + ',' + b.lat.toFixed(6) +
-    '&profile=' + p.brouter + '&alternativeidx=0&format=geojson&timode=2';
+    '&profile=' + p.brouter + '&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1';
   await brouterPlatz();
   let s;
   try { s = R.brouterLesen(await holen(url, null, 30)); } finally { brouterFrei(); }

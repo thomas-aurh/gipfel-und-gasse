@@ -70,6 +70,7 @@ if (!ausLink()) {
     if (ent.spur && ent.stuecke && ent.stuecke.length === S.wps.length - 1) {
       S.profil = PROFILE[ent.profil] ? ent.profil : S.profil; $('profilwahl').value = S.profil;
       try { planEntpacken(S.wps, S.profil, ent.spur, ent.stuecke); } catch (e) { /* dann wird neu gefragt */ }
+      // Entwurf ohne Abbiegehinweise (vor Stufe 4): neuBerechnen holt sie, die alte Linie bleibt Ersatz
     }
     neuBerechnen();
   } else zeigen();

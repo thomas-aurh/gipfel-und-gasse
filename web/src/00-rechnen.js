@@ -191,7 +191,7 @@ var R = (function () {
     // Abbiegehinweise (BRouter „voicehints“, Modus 2): [Punktindex, Befehl, Ausfahrt, Meter bis zum nächsten, Winkel]
     const hinweise = ((f.properties && f.properties.voicehints) || [])
       .filter(v => Array.isArray(v) && v.length >= 2)
-      .map(v => ({ i: +v[0], cmd: +v[1], exit: +v[2] || 0 }));
+      .map(v => ({ i: +v[0], cmd: +v[1], exit: Math.abs(+v[2] || 0) }));   // Kreisverkehr links (14): Ausfahrt negativ
     return { pts, abschnitte, hinweise };
   }
 
@@ -204,6 +204,23 @@ var R = (function () {
     if (t) return t;
     if (cmd === 13 || cmd === 14) return exit ? 'im Kreisverkehr die ' + exit + '. Ausfahrt' : 'in den Kreisverkehr';
     return null;   // geradeaus, Luftlinie, Ende: keine Ansage
+  }
+
+  // Richtung von a nach b in Grad (0 = Nord, 90 = Ost)
+  function richtung(a, b) {
+    const y = Math.sin((b.lon - a.lon) * RAD) * Math.cos(b.lat * RAD);
+    const x = Math.cos(a.lat * RAD) * Math.sin(b.lat * RAD) - Math.sin(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.cos((b.lon - a.lon) * RAD);
+    return (Math.atan2(y, x) / RAD + 360) % 360;
+  }
+
+  // Abbiegen aus Ankunfts- und Weiterrichtung (Grad): BRouter-Befehlscode oder null (unter 30° = geradeaus)
+  function abbiegeBefehl(rein, raus) {
+    const w = ((raus - rein + 540) % 360) - 180;   // −180 … 180, negativ = links
+    const a = Math.abs(w);
+    if (a < 30) return null;
+    if (a < 60) return w < 0 ? 3 : 6;
+    if (a < 135) return w < 0 ? 2 : 5;
+    return w < 0 ? 4 : 7;
   }
 
   // BRouter-Kachel (5°-Raster) eines Punkts, z. B. „E10_N45“
@@ -254,6 +271,19 @@ var R = (function () {
       let d = a;
       for (const ab of s.abschnitte) { abschnitte.push({ m: ab.m, tags: ab.tags, von: d, bis: d + ab.m * f }); d += ab.m * f; }
     });
+    // Übergänge an Zwischenzielen: jedes Teilstück kennt nur seine eigenen Abzweigungen. Biegt die Route genau am
+    // Zwischenziel ab, fehlt der Hinweis; hier aus der Richtung 25 m davor und 25 m danach ermitteln.
+    for (let k = 0; k < stuecke.length - 1; k++) {
+      const via = grenzen[k][1], dv = pts[via] && pts[via].d;
+      if (dv == null || hinweise.some(h => Math.abs(h.d - dv) < 25)) continue;
+      let i0 = via, i1 = via;
+      while (i0 > 0 && dv - pts[i0].d < 25) i0--;
+      while (i1 < pts.length - 1 && pts[i1].d - dv < 25) i1++;
+      if (i0 === via || i1 === via || pts[via + 1] && pts[via + 1].luecke) continue;
+      const cmd = abbiegeBefehl(richtung(pts[i0], pts[via]), richtung(pts[via], pts[i1]));
+      if (cmd) hinweise.push({ d: dv, cmd, exit: 0, uebergang: true });
+    }
+    hinweise.sort((a, b) => a.d - b.d);
     const eles = pts.map(p => p.ele);
     const hm = hoehenmeter(eles);
     const gueltig = eles.filter(e => e != null);
@@ -714,7 +744,7 @@ var R = (function () {
   return {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
-    hinweisText, routenKachel, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
+    hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
