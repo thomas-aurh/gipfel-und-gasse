@@ -219,9 +219,18 @@ function pruef(name, bed, info) {
   await setze('startZeit', '16:00');
   pruef('Zeitplan: zu später Start wird gewarnt', (await page.textContent('#zeitplan')).includes('Knapp') && (await page.getAttribute('#zeitplan', 'class')).includes('warnung'), await page.textContent('#zeitplan'));
   await setze('startZeit', '08:00'); await setze('pausewahl', '45');
-  pruef('Zeitplan: Ankunft mit Pause und Reserve', /Start 08:00 → Ankunft etwa \d\d:\d\d Uhr \(mit 45 min Pause\).*Reserve/.test(await page.textContent('#zeitplan')) &&
-    !(await page.getAttribute('#zeitplan', 'class')).includes('warnung'), await page.textContent('#zeitplan'));
+  // die Strecke ist je Lauf verschieden lang (Klicks auf die Karte): Ankunft aus der angezeigten Gehzeit nachrechnen
+  const [gh, gm] = (await page.textContent('#zZeit')).match(/(\d+):(\d+)/).slice(1).map(Number);
+  const ankunftMin = 8 * 60 + gh * 60 + gm + 45, soll = String(Math.floor(ankunftMin / 60) % 24).padStart(2, '0') + ':' + String(ankunftMin % 60).padStart(2, '0');
+  const zp = await page.textContent('#zeitplan');
+  const [uh, um] = zp.match(/Sonnenuntergang (\d\d):(\d\d)/).slice(1).map(Number);
+  const knappSoll = uh * 60 + um - ankunftMin < 25;   // nahe an 30 min entscheidet die genaue Gehzeit: Grenzfall nicht prüfen
+  const grenzfall = Math.abs(uh * 60 + um - ankunftMin - 30) <= 5;
+  const [ah, am] = (zp.match(/Ankunft etwa (\d\d):(\d\d)/) || [0, 0, 0]).slice(1).map(Number);   // angezeigte Gehzeit ist gerundet: ±5 min
+  pruef('Zeitplan: Ankunft = Start + Gehzeit + Pause, Warnung passt zur Reserve', zp.startsWith('Start 08:00 → Ankunft etwa') && Math.abs(ah * 60 + am - ankunftMin) <= 5 && zp.includes('(mit 45 min Pause)') &&
+    (grenzfall || (zp.includes('Knapp') === knappSoll && (await page.getAttribute('#zeitplan', 'class')).includes('warnung') === knappSoll)), [zp, soll, knappSoll]);
 
+  pruef('Zeitplan im Entwurf gespeichert', await page.evaluate(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf')); return e.zeit && e.zeit.start === '08:00' && e.zeit.pause === 45 && e.zeit.tag === '2026-11-01'; }));
   // Entdecken: Wetter und Orte
   await page.click('[data-reiter=entdecken]');
   await page.waitForSelector('#wetter .wetter');

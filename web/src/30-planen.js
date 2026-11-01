@@ -262,18 +262,31 @@ function zeitplanZeigen() {
   const start = $('startZeit').value ? new Date(tag.getFullYear(), tag.getMonth(), tag.getDate(), h, m) : null;
   const z = R.zeitplan(start, e.zeit + besichtigung() / 60, pause, unter);
   const sonne = unter ? 'Sonnenuntergang ' + R.uhr(unter) + ' Uhr' : '';
+  // liegt eine Uhrzeit an einem anderen Tag als der Tourtag (sehr lange Touren), steht das Datum dabei
+  const amTag = d => d.toDateString() === tag.toDateString() ? '' : ' (' + d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' }) + ')';
   let text;
   if (start) {
-    text = 'Start ' + R.uhr(start) + ' → Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + (sonne ? ' · ' + sonne : '');
-    if (unter) text += z.knapp ? '. ⚠️ Knapp: spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (30 min Reserve).' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve.';
+    text = 'Start ' + R.uhr(start) + ' → Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr' + amTag(z.ankunft) + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + (sonne ? ' · ' + sonne : '');
+    if (unter) text += z.knapp ? '. ⚠️ Knapp: spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen (30 min Reserve).' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve.';
   } else {
-    text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
+    text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
   box.textContent = text;
   box.classList.toggle('warnung', !!(z.knapp || (!start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
 }
-['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', zeitplanZeigen));
+['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); entwurfSichern(); }));
+// Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
+function zeitplanLesen() {
+  const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
+  return z.tag || z.start || z.pause ? z : null;
+}
+function zeitplanSetzen(z) {
+  $('startTag').value = (z && z.tag) || '';
+  $('startZeit').value = (z && z.start) || '';
+  $('pausewahl').value = String((z && z.pause) || 0);
+  if (!$('pausewahl').value) $('pausewahl').value = '0';
+}
 
 // Besichtigungszeit aller Stopps in Minuten (das Ziel einer Rundtour ist der Start und zählt nicht doppelt)
 function besichtigung(abIndex) {
@@ -351,7 +364,7 @@ $('bUmkehren').onclick = () => {
 };
 $('bNeu').onclick = () => {
   if (S.wps.length) merken();
-  S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = '';
+  S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null);
   ebeneOrte.clearLayers();
   neuBerechnen();
 };
@@ -373,7 +386,7 @@ document.addEventListener('keydown', e => {
 // damit beim Neuladen nichts neu angefragt werden muss
 function entwurfSichern() {
   if (S.fest) return;
-  const ent = { wps: S.wps, name: S.name, tourId: S.tourId, modus: S.modus };
+  const ent = { wps: S.wps, name: S.name, tourId: S.tourId, modus: S.modus, zeit: zeitplanLesen() };
   if (S.stuecke.length && S.stueckeFuer === stueckSignatur()) Object.assign(ent, planPacken());
   if (!SPEICHER.schreiben('entwurf', ent)) SPEICHER.schreiben('entwurf', { wps: S.wps, name: S.name, tourId: S.tourId });
 }

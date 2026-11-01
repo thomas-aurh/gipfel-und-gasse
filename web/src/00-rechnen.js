@@ -523,13 +523,15 @@ var R = (function () {
 
   // ---------- Notfall ----------
   function gradMinSek(x, pos, neg) {
-    const a = Math.abs(x), g = Math.floor(a), m = Math.floor((a - g) * 60), s = ((a - g) * 60 - m) * 60;
+    // erst auf Zehntelsekunden runden, dann zerlegen: sonst entsteht „59′ 60,0″“ statt des Übertrags
+    const z = Math.round(Math.abs(x) * 36000), g = Math.floor(z / 36000), m = Math.floor((z % 36000) / 600), s = (z % 600) / 10;
     return g + '° ' + m + '′ ' + s.toFixed(1).replace('.', ',') + '″ ' + (x >= 0 ? pos : neg);
   }
   // Text zum Vorlesen und Senden: Dezimalgrad (für Leitstellen und Karten-Apps), Grad/Minuten/Sekunden, Höhe, Genauigkeit
-  function notfallText(p) {
+  // alt = true: kein aktueller Standort, nur der letzte bekannte (wird so benannt)
+  function notfallText(p, alt) {
     const dez = p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
-    return 'Mein Standort: ' + dez + ' (' + gradMinSek(p.lat, 'N', 'S') + ', ' + gradMinSek(p.lon, 'O', 'W') + ')' +
+    return (alt ? 'Mein letzter bekannter Standort (nicht aktuell): ' : 'Mein Standort: ') + dez + ' (' + gradMinSek(p.lat, 'N', 'S') + ', ' + gradMinSek(p.lon, 'O', 'W') + ')' +
       (p.ele != null && isFinite(p.ele) ? ', Höhe etwa ' + Math.round(p.ele) + ' m' : '') +
       (p.gen != null ? ', Genauigkeit ± ' + Math.round(p.gen) + ' m' : '') +
       (p.t ? ', Stand ' + uhr(new Date(p.t)) + ' Uhr' : '') +
@@ -609,6 +611,11 @@ var R = (function () {
     if (['wandern', 'stadt', 'rad', 'kurz', 'linie'].includes(t.profil)) out.profil = t.profil;
     if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
     if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
+    if (t.zeit && typeof t.zeit === 'object') {
+      const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
+        pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };
+      if (z.tag || z.start || z.pause) out.zeit = z;
+    }
     return out;
   }
 

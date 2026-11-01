@@ -69,7 +69,7 @@ if (!ausLink()) {
   const ent = SPEICHER.lesen('entwurf', null);
   if (ent && ent.wps && ent.wps.length) {
     if (ent.modus) modusSetzen(ent.modus);
-    S.wps = ent.wps; S.name = ent.name || ''; S.tourId = ent.tourId || null; $('tourname').value = S.name;
+    S.wps = ent.wps; S.name = ent.name || ''; S.tourId = ent.tourId || null; $('tourname').value = S.name; zeitplanSetzen(ent.zeit);
     // eine gespeicherte Tour füllt den Speicher der Teilstücke, dann muss nichts neu angefragt werden
     if (ent.spur && ent.stuecke && ent.stuecke.length === S.wps.length - 1) {
       S.profil = PROFILE[ent.profil] ? ent.profil : S.profil; $('profilwahl').value = S.profil;
