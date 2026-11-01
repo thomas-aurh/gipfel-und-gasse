@@ -62,6 +62,8 @@ async function teilstueck(a, b, profilKey) {
 // fehlende Höhen von Open-Meteo (Copernicus-Höhenmodell, 90 m); höchstens 100 Punkte je Anfrage,
 // dazwischen wird linear gefüllt
 async function hoehenFuellen(pts) {
+  // zuerst aus einem heruntergeladenen Kartenpaket (geht ohne Netz), danach Open-Meteo für den Rest
+  if (pts.some(p => p.ele == null)) await hoehenOffline(pts);
   const fehlt = pts.map((p, i) => p.ele == null ? i : -1).filter(i => i >= 0);
   if (!fehlt.length) return;
   const schritt = Math.max(1, Math.ceil(fehlt.length / 300));

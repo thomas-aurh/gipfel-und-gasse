@@ -556,11 +556,141 @@ var R = (function () {
   const rundgangOrdnen = (start, orte) => wegOrdnen(start, orte, true);
   const rundgangLaenge = (start, orte) => wegLaenge(start, orte, true);
 
+  // ---------- Höhendaten (Terrarium-Kacheln aus dem Offline-Paket) ----------
+  // Terrarium: Höhe = R·256 + G + B/256 − 32768 Meter
+  function terrarium(r, g, b) { return r * 256 + g + b / 256 - 32768; }
+
+  // RGBA-Pixel (Uint8ClampedArray, 4 Werte je Pixel) → Höhen in Metern
+  function terrariumGitter(rgba) {
+    const n = rgba.length / 4, h = new Float32Array(n);
+    for (let i = 0; i < n; i++) h[i] = terrarium(rgba[4 * i], rgba[4 * i + 1], rgba[4 * i + 2]);
+    return h;
+  }
+
+  // Bodenmeter je Pixel einer 256er-Kachel auf Zoomstufe z bei Breite lat
+  function meterJePixel(z, lat) { return 40075016.686 * Math.cos(lat * RAD) / (256 * Math.pow(2, z)); }
+
+  // Höhengitter (256 + 2 Pixel Rand)² für Kartenkachel x/y auf Zoom z aus Quellkacheln der Stufe s (s ≤ z), bilinear.
+  // kachel(tx, ty) liefert die 256×256-Höhen einer Quellkachel oder null; der Rand kommt aus den Nachbarkacheln,
+  // damit Schummerung und Höhenlinien an Kachelgrenzen nahtlos sind. Fehlt eine Nachbarkachel, wird am Rand gehalten.
+  function randGitter(kachel, x, y, z, s) {
+    const f = Math.pow(2, z - s), N = 258, out = new Float32Array(N * N);
+    const tx0 = Math.floor(x / f), ty0 = Math.floor(y / f);
+    const wert = (gx, gy) => {
+      let tx = Math.floor(gx / 256), ty = Math.floor(gy / 256), t = kachel(tx, ty);
+      if (!t) { tx = tx0; ty = ty0; t = kachel(tx, ty); gx = Math.min(tx * 256 + 255, Math.max(tx * 256, gx)); gy = Math.min(ty * 256 + 255, Math.max(ty * 256, gy)); }
+      return t ? t[(gy - ty * 256) * 256 + (gx - tx * 256)] : 0;
+    };
+    for (let j = 0; j < N; j++) {
+      const sy = (y * 256 + j - 1 + 0.5) / f - 0.5, y0 = Math.floor(sy), ty = sy - y0;
+      for (let i = 0; i < N; i++) {
+        const sx = (x * 256 + i - 1 + 0.5) / f - 0.5, x0 = Math.floor(sx), tx = sx - x0;
+        out[j * N + i] = (wert(x0, y0) * (1 - tx) + wert(x0 + 1, y0) * tx) * (1 - ty) + (wert(x0, y0 + 1) * (1 - tx) + wert(x0 + 1, y0 + 1) * tx) * ty;
+      }
+    }
+    return out;
+  }
+
+  // Ausschnitt (ox, oy, Kantenlänge groesse in Pixeln) eines g×g-Gitters bilinear auf w×w vergrößern
+  function aufziehen(gitter, g, ox, oy, groesse, w) {
+    const out = new Float32Array(w * w), f = groesse / w;
+    for (let y = 0; y < w; y++) {
+      const sy = Math.min(g - 1, Math.max(0, oy + (y + 0.5) * f - 0.5)), y0 = Math.floor(sy), y1 = Math.min(g - 1, y0 + 1), ty = sy - y0;
+      for (let x = 0; x < w; x++) {
+        const sx = Math.min(g - 1, Math.max(0, ox + (x + 0.5) * f - 0.5)), x0 = Math.floor(sx), x1 = Math.min(g - 1, x0 + 1), tx = sx - x0;
+        out[y * w + x] = (gitter[y0 * g + x0] * (1 - tx) + gitter[y0 * g + x1] * tx) * (1 - ty) + (gitter[y1 * g + x0] * (1 - tx) + gitter[y1 * g + x1] * tx) * ty;
+      }
+    }
+    return out;
+  }
+
+  // Textwinkel so drehen, dass Schrift nie auf dem Kopf steht (Ergebnis zwischen −90° und +90°)
+  function lesbarerWinkel(w) {
+    while (w > Math.PI / 2) w -= Math.PI;
+    while (w <= -Math.PI / 2) w += Math.PI;
+    return w;
+  }
+
+  // welche Quellkacheln (Stufe s) randGitter für Kachel x/y auf Zoom z braucht
+  function randKacheln(x, y, z, s) {
+    const f = Math.pow(2, z - s), lo = v => Math.floor(Math.floor((v * 256 - 1 + 0.5) / f - 0.5) / 256), hi = v => Math.floor((Math.floor((v * 256 + 256 + 0.5) / f - 0.5) + 1) / 256);
+    const out = [];
+    for (let ty = lo(y); ty <= hi(y); ty++) for (let tx = lo(x); tx <= hi(x); tx++) out.push([tx, ty]);
+    return out;
+  }
+
+  // Schummerung nach Horn: Licht aus Nordwest (315°) und 45° Höhe. Ergebnis 0 (Schatten) … 1 (voll beleuchtet).
+  function schummerung(h, w, hoehe, mpp, ueberhoehung) {
+    const out = new Float32Array(w * hoehe), k = (ueberhoehung || 1.5) / (8 * mpp);
+    // Lichtrichtung 315° (Kompass) ist in mathematischer Zählung 360 − 315 + 90 = 135°
+    const az = 135 * RAD, zen = 45 * RAD;
+    const at = (x, y) => h[Math.min(hoehe - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+    for (let y = 0; y < hoehe; y++) {
+      for (let x = 0; x < w; x++) {
+        const a = at(x - 1, y - 1), b = at(x, y - 1), c = at(x + 1, y - 1), d = at(x - 1, y), f = at(x + 1, y), g = at(x - 1, y + 1), i = at(x, y + 1), j = at(x + 1, y + 1);
+        const dzdx = ((c + 2 * f + j) - (a + 2 * d + g)) * k;
+        const dzdy = ((g + 2 * i + j) - (a + 2 * b + c)) * k;
+        const neigung = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
+        const richtung = Math.atan2(dzdy, -dzdx);
+        const v = Math.cos(zen) * Math.cos(neigung) + Math.sin(zen) * Math.sin(neigung) * Math.cos(az - richtung);
+        out[y * w + x] = Math.max(0, Math.min(1, v));
+      }
+    }
+    return out;
+  }
+
+  // Abstand der Höhenlinien je Zoomstufe: [Abstand, jede wievielte ist eine Zähllinie]
+  function linienAbstand(z) {
+    if (z >= 14) return [20, 5];
+    if (z >= 12) return [50, 5];
+    if (z >= 11) return [100, 5];
+    return [200, 5];
+  }
+
+  // Höhenlinien mit Marching Squares: Liste von Strichen [x1, y1, x2, y2, höhe] in Pixeln des Gitters
+  function hoehenlinien(h, w, hoehe, abstand) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < h.length; i++) { if (h[i] < lo) lo = h[i]; if (h[i] > hi) hi = h[i]; }
+    const out = [];
+    if (!isFinite(lo) || hi - lo < 1e-6) return out;
+    for (let stufe = Math.ceil(lo / abstand) * abstand; stufe <= hi; stufe += abstand) {
+      for (let y = 0; y < hoehe - 1; y++) {
+        for (let x = 0; x < w - 1; x++) {
+          const a = h[y * w + x], b = h[y * w + x + 1], c = h[(y + 1) * w + x + 1], d = h[(y + 1) * w + x];
+          const fall = (a >= stufe ? 8 : 0) | (b >= stufe ? 4 : 0) | (c >= stufe ? 2 : 0) | (d >= stufe ? 1 : 0);
+          if (fall === 0 || fall === 15) continue;
+          const t = (p, q) => (stufe - p) / (q - p);
+          const oben = [x + t(a, b), y], rechts = [x + 1, y + t(b, c)], unten = [x + t(d, c), y + 1], links = [x, y + t(a, d)];
+          const strich = (p, q) => out.push([p[0], p[1], q[0], q[1], stufe]);
+          switch (fall) {
+            case 1: case 14: strich(links, unten); break;
+            case 2: case 13: strich(unten, rechts); break;
+            case 3: case 12: strich(links, rechts); break;
+            case 4: case 11: strich(oben, rechts); break;
+            case 6: case 9: strich(oben, unten); break;
+            case 7: case 8: strich(links, oben); break;
+            case 5: strich(links, oben); strich(unten, rechts); break;
+            case 10: strich(oben, rechts); strich(links, unten); break;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  // Kachel und Pixel für einen Punkt (Web-Mercator)
+  function kachelPixel(lat, lon, z) {
+    const n = Math.pow(2, z), x = (lon + 180) / 360 * n;
+    const r = lat * RAD, y = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n;
+    return { x: Math.floor(x), y: Math.floor(y), px: (x - Math.floor(x)) * 256, py: (y - Math.floor(y)) * 256 };
+  }
+
   return {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

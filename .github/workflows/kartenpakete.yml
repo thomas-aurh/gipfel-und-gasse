@@ -1,0 +1,103 @@
+# Baut die Offline-Kartenpakete (karten/regionen.json): Vektorkarte aus dem neuesten Protomaps-Weltdatensatz,
+# Höhen aus den Terrarium-Kacheln, Probe-Rendering mit den echten Daten. Veröffentlicht auf der Release „kartenpakete“,
+# von dort lädt die App: https://github.com/thomas-aurh/gipfel-und-gasse/releases/download/kartenpakete/pakete.json
+# Bei Pull Requests, die die Karten betreffen: nur bauen und prüfen, nichts veröffentlichen.
+name: Kartenpakete
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: "Nur diese Region bauen (leer = alle aus karten/regionen.json)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 2 3 * *"   # monatlich am 3. um 02:17 UTC
+  pull_request:
+    paths:
+      - "karten/**"
+      - "web/src/58-offline.js"
+      - "web/vendor/offline/**"
+      - ".github/workflows/kartenpakete.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kartenpakete-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Werkzeuge
+        run: |
+          pip install pmtiles==3.8.1
+          npm ci
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/pmt
+          gh release download -R protomaps/go-pmtiles --pattern '*Linux_x86_64.tar.gz' -D /tmp/pmt
+          tar xzf /tmp/pmt/*.tar.gz -C /tmp/pmt
+          /tmp/pmt/pmtiles version
+
+      - name: Neuesten Protomaps-Weltdatensatz finden
+        run: |
+          for i in $(seq 0 20); do
+            d=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -sfI "https://build.protomaps.com/$d.pmtiles" > /dev/null; then
+              echo "QUELLE=https://build.protomaps.com/$d.pmtiles" >> "$GITHUB_ENV"
+              echo "Quelle: $d"
+              exit 0
+            fi
+          done
+          echo "::error::Kein Protomaps-Weltdatensatz der letzten 20 Tage gefunden"
+          exit 1
+
+      - name: Bisherige Paketliste holen
+        run: gh release download kartenpakete --pattern pakete.json -D /tmp/alt || echo "noch keine Liste"
+
+      - name: Pakete bauen
+        env:
+          PMTILES: /tmp/pmt/pmtiles
+        run: |
+          REGION="${{ github.event_name == 'workflow_dispatch' && inputs.region || '' }}"
+          # die vorige Liste nur übernehmen, wenn eine einzelne Region gebaut wird (sonst entsteht alles neu)
+          ALT=""; [ -n "$REGION" ] && [ -f /tmp/alt/pakete.json ] && ALT="--alte-liste /tmp/alt/pakete.json"
+          python3 karten/bauen.py ausgabe "$QUELLE" "$REGION" $ALT
+          ls -la ausgabe
+
+      - name: App bauen und Probe-Rendering mit den echten Paketen
+        run: |
+          sh web/build.sh
+          node karten/probe.js ausgabe
+
+      - name: Probebilder aufheben
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-bilder
+          path: ausgabe/probe-*.png
+          retention-days: 14
+
+      - name: Veröffentlichen (nicht bei Pull Requests)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          gh release view kartenpakete > /dev/null 2>&1 || gh release create kartenpakete --latest=false \
+            --title "Offline-Kartenpakete" \
+            --notes "Kartenpakete für die App (Reiter Touren › Offline-Karten). Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, EU-DEM)."
+          # erst alle Dateien (neue, unveränderliche Namen), dann die Liste, die auf sie zeigt, dann Altes entfernen
+          gh release upload kartenpakete ausgabe/*.pmtiles --clobber
+          gh release upload kartenpakete ausgabe/pakete.json --clobber
+          python3 karten/aufraeumen.py ausgabe/pakete.json /tmp/alt/pakete.json

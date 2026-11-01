@@ -1,0 +1,34 @@
+{
+  "hinweis": "Regionen für Offline-Kartenpakete. bbox = [West, Süd, Ost, Nord] in Grad; probe = Stellen [Breite, Länge, Zoom], an denen der Bau die Karte zur Kontrolle zeichnet. Neue Region: Eintrag ergänzen, dann den Ablauf „Kartenpakete“ in GitHub Actions starten.",
+  "regionen": [
+    {
+      "id": "oberbayern",
+      "name": "Oberbayern mit München",
+      "bbox": [
+        10.7,
+        47.25,
+        13.1,
+        48.95
+      ],
+      "maxzoom": 15,
+      "hoehe_maxzoom": 12,
+      "probe": [
+        [
+          48.1374,
+          11.5755,
+          15
+        ],
+        [
+          47.629,
+          11.306,
+          13
+        ],
+        [
+          47.86,
+          11.95,
+          11
+        ]
+      ]
+    }
+  ]
+}

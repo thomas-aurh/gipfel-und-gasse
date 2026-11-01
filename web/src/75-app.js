@@ -1,8 +1,6 @@
 // In der Android-App: Route folgen und Aufzeichnen übernimmt der native Navigationsdienst (läuft auch bei gesperrtem
 // Bildschirm, spricht Ansagen); GPX geht über das Teilen-Menü, Drucken über den Druckdialog von Android.
 // Im Browser tut diese Datei nichts.
-const NATIV = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
-
 if (NATIV) {
   const Navi = window.Capacitor.registerPlugin('Navi');
   const app = { folgen: false, aufz: false };
