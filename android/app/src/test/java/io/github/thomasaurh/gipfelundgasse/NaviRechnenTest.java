@@ -44,6 +44,18 @@ public class NaviRechnenTest {
         assertEquals(75, l.abw, 3);   // 0,001° Länge bei 47,75° Breite ≈ 75 m
     }
 
+    @Test public void lueckeZaehltNichtUndVerbindetNicht() {
+        // zwei Abschnitte, 1 km auseinander; eine Position zwischen ihnen liegt auf keinem Weg
+        NaviRechnen.Strecke s = new NaviRechnen.Strecke(new double[] { 47.75, 47.751, 47.76, 47.761 }, new double[] { 11.37, 11.37, 11.37, 11.37 },
+            new double[] { N, N, N, N }, new boolean[] { false, false, true, false });
+        assertTrue(s.laenge() < 250);
+        NaviRechnen.Lage l = NaviRechnen.aufStrecke(s, 47.7555, 11.37, Double.NaN);
+        assertTrue(l.abw > 400);
+        NaviRechnen.Strecke t = new NaviRechnen.Strecke(new double[] { 47.75, 47.751, 47.76, 47.761 }, new double[] { 11.37, 11.37, 11.37, 11.37 },
+            new double[] { 1, 2, 3, 4 }, new boolean[] { false, false, true, false });
+        assertTrue(s.gleich(t));
+    }
+
     @Test public void texte() {
         assertEquals("4:40 h", NaviRechnen.zeitText(4.7));
         assertEquals("20 min", NaviRechnen.zeitText(0.3));

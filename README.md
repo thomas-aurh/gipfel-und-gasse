@@ -37,6 +37,16 @@ npm run sync            # Web-App bauen und in android/ kopieren
 cd android && ./gradlew assembleRelease   # braucht das Android-SDK; sonst baut GitHub Actions
 ```
 
+## Testen
+
+```bash
+npm ci
+npm test                # Web-Prüfung und Klicktest (Playwright mit Chromium)
+```
+
+Der Klicktest braucht Chromium für Playwright: einmal `npx playwright install chromium` (in der Cloud-Umgebung von
+Claude ist es schon da). Er bildet die Kartendienste nach und prüft auch die Anbindung an die Android-App.
+
 ## Fremde Inhalte und Lizenzen
 
 - Kartendaten © OpenStreetMap-Mitwirkende (ODbL); Kacheln, Dienste und Leaflet siehe [`web/README.md`](web/README.md).

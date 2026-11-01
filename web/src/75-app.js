@@ -8,6 +8,8 @@ if (NATIV) {
   const app = { folgen: false, aufz: false };
 
   document.body.classList.add('app');
+  // „Link teilen“ zeigt in der App auf die lokale Adresse der App, die niemand sonst öffnen kann: ausblenden, GPX nehmen
+  $('bTeilen').hidden = true;
   $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>: Android zeigt dann die Mitteilung „Navigation läuft“, ' +
     'dort lässt sie sich auch beenden. Ansagen kommen über die Sprachausgabe des Handys. Die Karte selbst braucht noch Netz; ' +
     'Offline-Karten kommen als nächster Ausbau.';
@@ -28,7 +30,8 @@ if (NATIV) {
     const e = S.ergebnis;
     const opt = { tempo: S.tempo, rad: (PROFILE[S.profil] || PROFILE.wandern).art === 'rad', ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz };
     if (mitRoute && e) {
-      opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele]);
+      // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
+      opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
       opt.stopps = stoppsFuerApp();
     }
     try {
@@ -52,7 +55,7 @@ if (NATIV) {
   // Stand aus dem Dienst in die Oberfläche (beim Ereignis „position“ und nach jedem Aufruf)
   function anzeigen(st) {
     if (!st) return;
-    const warFolgen = app.folgen;
+    const warFolgen = app.folgen, warAufz = app.aufz;
     app.folgen = !!st.folgen; app.aufz = !!st.aufzeichnen;
     knoepfe();
     if (st.lat != null) {
@@ -72,7 +75,10 @@ if (NATIV) {
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);
     if (st.aufz) {
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
-      $('aDauer').textContent = R.zeitText((Date.now() - st.aufz.start) / 3600e3, true);
+      // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt
+      $('aDauer').textContent = R.zeitText(((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3, true);
+      // auch wenn sie über „Beenden“ in der Mitteilung gestoppt wurde: jetzt speicherbar
+      if (warAufz && !app.aufz && st.aufz.punkte > 1) $('bAufzSpeichern').disabled = false;
       $('aAuf').textContent = Math.round(st.aufz.auf) + ' m';
     }
   }

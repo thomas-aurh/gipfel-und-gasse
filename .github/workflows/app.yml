@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# je Branch höchstens ein Lauf: ein neuerer Push bricht den älteren ab, damit ein alter Bau die Download-Seite nicht
+# mit einer älteren APK überschreibt
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pruefen:
     runs-on: ubuntu-latest
@@ -97,6 +103,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste Gipfel-und-Gasse.apk --latest \
+          gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" \
             --title "Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})" \
             --notes "Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"

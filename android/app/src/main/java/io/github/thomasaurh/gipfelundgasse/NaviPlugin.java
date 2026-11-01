@@ -21,7 +21,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -81,17 +80,23 @@ public class NaviPlugin extends Plugin {
         NaviService.Zustand z = NaviService.Z;
         synchronized (z) {
             JSArray pts = call.getArray("pts", null);
+            boolean neueGeometrie = false;
             if (pts != null && pts.length() > 1) {
                 int n = pts.length();
                 double[] lat = new double[n], lon = new double[n], ele = new double[n];
+                boolean[] lu = new boolean[n];
                 for (int i = 0; i < n; i++) {
                     JSONArray p = pts.optJSONArray(i);
                     lat[i] = p.optDouble(0); lon[i] = p.optDouble(1);
                     ele[i] = p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN);
+                    lu[i] = p.optInt(3, 0) == 1;   // Beginn eines neuen Abschnitts
                 }
-                z.strecke = new NaviRechnen.Strecke(lat, lon, ele);
+                NaviRechnen.Strecke neu = new NaviRechnen.Strecke(lat, lon, ele, lu);
+                neueGeometrie = !neu.gleich(z.strecke);
+                z.strecke = neu;
             }
             JSArray stopps = call.getArray("stopps", null);
+            int stoppsVorher = z.stopps.size();
             if (stopps != null) {
                 z.stopps = new ArrayList<>();
                 z.stoppNamen = new ArrayList<>();
@@ -108,17 +113,25 @@ public class NaviPlugin extends Plugin {
             boolean warFolgen = z.folgen;
             z.folgen = call.getBoolean("folgen", z.folgen) && z.strecke != null;
             if (!z.folgen || !warFolgen) z.folgenSeit = 0;   // neu gestartet: Begrüßung und Ansagen von vorn
-            else if (pts != null) {
-                // Route während der Fahrt geändert: ohne neue Begrüßung weiter, Stopps neu zählen
+            else if (neueGeometrie) {
+                // Route während der Fahrt geändert: ohne neue Begrüßung weiter, Fortschritt und Stopps neu
                 z.fortschritt = Double.NaN;
                 z.stoppAngekuendigt = new boolean[z.stopps.size()];
                 z.stoppErreicht = new boolean[z.stopps.size()];
                 z.zielGemeldet = false;
+            } else if (z.stopps.size() != stoppsVorher) {
+                // gleiche Route (z. B. nur anderes Tempo): Fortschritt bleibt, nur die Stopp-Merker passend groß
+                z.stoppAngekuendigt = java.util.Arrays.copyOf(z.stoppAngekuendigt, z.stopps.size());
+                z.stoppErreicht = java.util.Arrays.copyOf(z.stoppErreicht, z.stopps.size());
             }
             boolean warAufz = z.aufzeichnen;
             z.aufzeichnen = call.getBoolean("aufzeichnen", z.aufzeichnen);
             if (z.aufzeichnen && !warAufz) z.aufzStart = 0;    // neue Aufzeichnung
+            if (!z.aufzeichnen && warAufz) z.aufzEnde = System.currentTimeMillis();
         }
+        // Aufzeichnung beendet: sofort sichern, auch wenn die Navigation weiterläuft
+        if (!z.aufzeichnen && z.aufzStart != 0) NaviService.spurSichern(getContext());
+        NaviService.sitzungSichern(getContext());
         Context c = getContext();
         Intent i = new Intent(c, NaviService.class);
         if (z.folgen || z.aufzeichnen) {
@@ -148,9 +161,7 @@ public class NaviPlugin extends Plugin {
                 try {
                     File f = new File(getContext().getFilesDir(), "aufzeichnung.json");
                     if (f.exists()) {
-                        byte[] b = new byte[(int) f.length()];
-                        try (FileInputStream in = new FileInputStream(f)) { int gelesen = in.read(b); if (gelesen < b.length) b = java.util.Arrays.copyOf(b, Math.max(0, gelesen)); }
-                        JSONObject g = new JSONObject(new String(b, StandardCharsets.UTF_8));
+                        JSONObject g = new JSONObject(NaviService.dateiLesen(f));
                         start = g.optLong("start", 0);
                         JSONArray s = g.optJSONArray("spur");
                         if (s != null) for (int i = 0; i < s.length(); i++) a.put(s.optJSONArray(i));
@@ -164,7 +175,7 @@ public class NaviPlugin extends Plugin {
                 }
             }
             if (call.getBoolean("leeren", false) && !z.aufzeichnen) {
-                z.spur.clear(); z.aufzStart = 0; z.aufzMeter = 0;
+                z.spur.clear(); z.aufzStart = 0; z.aufzEnde = 0; z.aufzMeter = 0;
                 new File(getContext().getFilesDir(), "aufzeichnung.json").delete();
             }
         }
@@ -180,7 +191,9 @@ public class NaviPlugin extends Plugin {
         String text = call.getString("text", "");
         String mime = call.getString("mime", "application/gpx+xml");
         try {
-            File ordner = new File(getContext().getCacheDir(), "teilen");
+            // je Freigabe ein eigener Ordner: der Empfänger liest die Datei erst später, eine zweite Freigabe gleichen
+            // Namens darf sie nicht überschreiben
+            File ordner = new File(new File(getContext().getCacheDir(), "teilen"), String.valueOf(System.nanoTime()));
             if (!ordner.exists() && !ordner.mkdirs()) throw new Exception("Ordner nicht anlegbar");
             File f = new File(ordner, name);
             try (FileOutputStream out = new FileOutputStream(f)) { out.write(text.getBytes(StandardCharsets.UTF_8)); }
@@ -252,6 +265,7 @@ public class NaviPlugin extends Plugin {
                 a.put("meter", z.aufzMeter);
                 a.put("start", z.aufzStart);
                 a.put("punkte", z.spur.size());
+                if (z.aufzEnde != 0) a.put("ende", z.aufzEnde);
                 double[] hm = NaviRechnen.hoehenmeter(eles(z.spur), 0, Double.NaN, 8);
                 a.put("auf", hm[0]);
                 o.put("aufz", a);

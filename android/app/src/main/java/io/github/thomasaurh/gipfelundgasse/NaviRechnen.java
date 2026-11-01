@@ -9,13 +9,26 @@ import java.util.Locale;
 public final class NaviRechnen {
     private NaviRechnen() {}
 
-    /** Strecke: Breite, Länge, Höhe (NaN = unbekannt) und Meter ab Start. */
+    /**
+     * Strecke: Breite, Länge, Höhe (NaN = unbekannt) und Meter ab Start.
+     * luecke[i] = true: Punkt i beginnt einen neuen Abschnitt (z. B. zweite Aufnahme einer GPX-Datei); der Sprung dorthin
+     * zählt nicht als Weg und ist keine Verbindung, auf der man laufen könnte.
+     */
     public static final class Strecke {
         public final double[] lat, lon, ele, d;
-        public Strecke(double[] lat, double[] lon, double[] ele) {
+        public final boolean[] luecke;
+        public Strecke(double[] lat, double[] lon, double[] ele) { this(lat, lon, ele, null); }
+        public Strecke(double[] lat, double[] lon, double[] ele, boolean[] luecke) {
             this.lat = lat; this.lon = lon; this.ele = ele;
+            this.luecke = luecke != null ? luecke : new boolean[lat.length];
             this.d = new double[lat.length];
-            for (int i = 1; i < lat.length; i++) d[i] = d[i - 1] + abstand(lat[i - 1], lon[i - 1], lat[i], lon[i]);
+            for (int i = 1; i < lat.length; i++) d[i] = d[i - 1] + (this.luecke[i] ? 0 : abstand(lat[i - 1], lon[i - 1], lat[i], lon[i]));
+        }
+        /** Gleiche Geometrie (für erneut gesendete, unveränderte Routen). */
+        public boolean gleich(Strecke o) {
+            if (o == null || o.groesse() != groesse()) return false;
+            for (int i = 0; i < groesse(); i++) if (lat[i] != o.lat[i] || lon[i] != o.lon[i] || luecke[i] != o.luecke[i]) return false;
+            return true;
         }
         public int groesse() { return lat.length; }
         public double laenge() { return d.length == 0 ? 0 : d[d.length - 1]; }
@@ -57,6 +70,7 @@ public final class NaviRechnen {
         double kx = Math.cos(lat * Math.PI / 180) * 111320, ky = 110540;
         Lage best = null;
         for (int i = 0; i < s.groesse() - 1; i++) {
+            if (s.luecke[i + 1]) continue;   // keine Verbindung zwischen zwei Abschnitten
             if (s.d[i + 1] < von || s.d[i] > bis) continue;
             double ax = (s.lon[i] - lon) * kx, ay = (s.lat[i] - lat) * ky;
             double bx = (s.lon[i + 1] - lon) * kx, by = (s.lat[i + 1] - lat) * ky;

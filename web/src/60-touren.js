@@ -105,7 +105,7 @@ function tourLoeschen(id) {
     setTimeout(() => { if (li.isConnected) { delete li.dataset.sicher; tourenZeigen(); } }, 4000);
     return;
   }
-  tourenSchreiben(tourenLesen().filter(x => x.id !== id));
+  if (!tourenSchreiben(tourenLesen().filter(x => x.id !== id))) return;   // Speicher gesperrt: nichts ändern, Meldung steht schon
   if (S.tourId === id) S.tourId = null;
   tourenZeigen();
   melde('Gelöscht: ' + t.name);

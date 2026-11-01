@@ -15,14 +15,17 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -61,7 +64,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         NaviRechnen.Rest rest;
         // Aufzeichnung: {lat, lon, ele, zeit}
         final List<double[]> spur = new ArrayList<>();
-        long aufzStart;
+        long aufzStart, aufzEnde;
         double aufzMeter;
         Runnable beiNeuem;   // vom Plugin gesetzt: Position an die Oberfläche melden
     }
@@ -84,10 +87,19 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && AKTION_BEENDEN.equals(intent.getAction())) {
-            synchronized (Z) { Z.folgen = false; Z.aufzeichnen = false; }
+            synchronized (Z) {
+                if (Z.aufzeichnen) Z.aufzEnde = System.currentTimeMillis();
+                Z.folgen = false; Z.aufzeichnen = false;
+            }
+            sitzungSichern(this);
             beenden();
             if (Z.beiNeuem != null) Z.beiNeuem.run();
             return START_NOT_STICKY;
+        }
+        if (intent == null && !Z.folgen && !Z.aufzeichnen) {
+            sitzungLaden(this);
+            if (!Z.folgen && !Z.aufzeichnen) { stopSelf(); return START_NOT_STICKY; }
+            Log.i(TAG, "Sitzung nach Neustart wiederhergestellt");
         }
         Notification n = benachrichtigung();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -111,7 +123,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     sagen("Los geht's. " + NaviRechnen.kmSprache(r.meter) + ", etwa " + NaviRechnen.zeitSprache(r.stunden) + ".");
                 }
             }
-            if (Z.aufzeichnen && Z.aufzStart == 0) { Z.aufzStart = System.currentTimeMillis(); Z.spur.clear(); Z.aufzMeter = 0; }
+            if (Z.aufzeichnen && Z.aufzStart == 0) { Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0; }
         }
         return START_STICKY;
     }
@@ -180,9 +192,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (!Z.zielGemeldet && Z.rest.meter < 30 && lage.abw < 40 && d > Z.strecke.laenge() / 2 && jetzt - Z.folgenSeit > 60000) {
             Z.zielGemeldet = true;
             vibrieren();
-            sagen("Ziel erreicht. Schön war's!");
             Z.folgen = false;
-            if (!Z.aufzeichnen) beenden();
+            sitzungSichern(this);
+            if (Z.aufzeichnen) sagen("Ziel erreicht. Schön war's!");
+            else {
+                if (lm != null) lm.removeUpdates(this);
+                sagenDannBeenden("Ziel erreicht. Schön war's!");
+            }
         }
     }
 
@@ -200,6 +216,101 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); }
     }
 
+    /**
+     * Sitzung (Route, Stopps, Einstellungen, Schalter) als JSON sichern, damit der Dienst nach einem Neustart durch
+     * Android weitermachen kann. Die Aufzeichnung selbst steht in aufzeichnung.json.
+     */
+    static void sitzungSichern(Context c) {
+        try {
+            JSONObject o = new JSONObject();
+            synchronized (Z) {
+                o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
+                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                JSONArray pts = new JSONArray();
+                if (Z.strecke != null) for (int i = 0; i < Z.strecke.groesse(); i++) {
+                    JSONArray p = new JSONArray();
+                    p.put(Z.strecke.lat[i]); p.put(Z.strecke.lon[i]);
+                    p.put(Double.isNaN(Z.strecke.ele[i]) ? JSONObject.NULL : Z.strecke.ele[i]);
+                    p.put(Z.strecke.luecke[i] ? 1 : 0);
+                    pts.put(p);
+                }
+                o.put("pts", pts);
+                JSONArray st = new JSONArray();
+                for (int i = 0; i < Z.stopps.size(); i++) {
+                    JSONObject s = new JSONObject();
+                    s.put("d", Z.stopps.get(i)[0]); s.put("min", Z.stopps.get(i)[1]); s.put("name", Z.stoppNamen.get(i));
+                    st.put(s);
+                }
+                o.put("stopps", st);
+            }
+            try (FileOutputStream out = new FileOutputStream(new File(c.getFilesDir(), "sitzung.json"))) {
+                out.write(o.toString().getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Sitzung nicht gesichert", e);
+        }
+    }
+
+    static String dateiLesen(File f) throws Exception {
+        byte[] b = new byte[(int) f.length()];
+        int n = 0;
+        try (FileInputStream in = new FileInputStream(f)) {
+            while (n < b.length) { int r = in.read(b, n, b.length - n); if (r < 0) break; n += r; }
+        }
+        return new String(b, 0, n, StandardCharsets.UTF_8);
+    }
+
+    static void sitzungLaden(Context c) {
+        try {
+            File f = new File(c.getFilesDir(), "sitzung.json");
+            if (!f.exists()) return;
+            JSONObject o = new JSONObject(dateiLesen(f));
+            synchronized (Z) {
+                JSONArray pts = o.optJSONArray("pts");
+                if (pts != null && pts.length() > 1) {
+                    int n = pts.length();
+                    double[] lat = new double[n], lon = new double[n], ele = new double[n];
+                    boolean[] lu = new boolean[n];
+                    for (int i = 0; i < n; i++) {
+                        JSONArray p = pts.optJSONArray(i);
+                        lat[i] = p.optDouble(0); lon[i] = p.optDouble(1);
+                        ele[i] = p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN);
+                        lu[i] = p.optInt(3, 0) == 1;
+                    }
+                    Z.strecke = new NaviRechnen.Strecke(lat, lon, ele, lu);
+                }
+                Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+                JSONArray st = o.optJSONArray("stopps");
+                if (st != null) for (int i = 0; i < st.length(); i++) {
+                    JSONObject s = st.optJSONObject(i);
+                    Z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
+                    Z.stoppNamen.add(s.optString("name", "Stopp"));
+                }
+                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.ansagen = o.optBoolean("ansagen", true);
+                Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
+                Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
+                Z.aufzStart = o.optLong("aufzStart", 0); Z.aufzEnde = o.optLong("aufzEnde", 0);
+                Z.folgenSeit = Z.folgen ? System.currentTimeMillis() : 0;   // ohne neue Begrüßung weiter
+                Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
+                Z.stoppErreicht = new boolean[Z.stopps.size()];
+                // bisherige Aufzeichnung zurückholen
+                Z.spur.clear(); Z.aufzMeter = 0;
+                File a = new File(c.getFilesDir(), "aufzeichnung.json");
+                if (a.exists()) {
+                    JSONArray sp = new JSONObject(dateiLesen(a)).optJSONArray("spur");
+                    if (sp != null) for (int i = 0; i < sp.length(); i++) {
+                        JSONArray p = sp.optJSONArray(i);
+                        double[] q = { p.optDouble(0), p.optDouble(1), p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN), p.optLong(3, 0) };
+                        if (!Z.spur.isEmpty()) { double[] l = Z.spur.get(Z.spur.size() - 1); Z.aufzMeter += NaviRechnen.abstand(l[0], l[1], q[0], q[1]); }
+                        Z.spur.add(q);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Sitzung nicht lesbar", e);
+        }
+    }
+
     /** Aufzeichnung als JSON in den App-Speicher (wird beim nächsten Start wiedergefunden). */
     static void spurSichern(Context c) {
         try {
@@ -213,6 +324,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
             JSONObject o = new JSONObject();
             o.put("start", Z.aufzStart);
+            o.put("ende", Z.aufzEnde);
             o.put("spur", a);
             File f = new File(c.getFilesDir(), "aufzeichnung.json");
             try (FileOutputStream out = new FileOutputStream(f)) { out.write(o.toString().getBytes(StandardCharsets.UTF_8)); }
@@ -225,6 +337,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.aufzStart != 0) spurSichern(this);
         if (lm != null) lm.removeUpdates(this);
         synchronized (Z) { Z.laeuft = false; Z.folgenSeit = 0; }
+        sitzungSichern(this);
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
@@ -256,6 +369,24 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private void sagen(String text) {
         if (ttsBereit) tts.speak(text, TextToSpeech.QUEUE_ADD, null, "gug");
         else ttsWarten.add(text);
+    }
+
+    /** Letzte Ansage zu Ende sprechen lassen, dann den Dienst beenden (spätestens nach 10 s). */
+    private void sagenDannBeenden(String text) {
+        Handler h = new Handler(Looper.getMainLooper());
+        Runnable ende = new Runnable() {
+            boolean erledigt;
+            @Override public void run() { if (!erledigt) { erledigt = true; beenden(); } }
+        };
+        if (ttsBereit) {
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String id) {}
+                @Override public void onDone(String id) { if ("ende".equals(id)) h.post(ende); }
+                @Override public void onError(String id) { if ("ende".equals(id)) h.post(ende); }
+            });
+            tts.speak(text, TextToSpeech.QUEUE_ADD, null, "ende");
+        }
+        h.postDelayed(ende, 10000);
     }
 
     private void vibrieren() {
