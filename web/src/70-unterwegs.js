@@ -83,8 +83,10 @@ function naviNeu() {
   $('uZeit').textContent = R.zeitText(rest.zeit);
   $('uAuf').textContent = rest.auf + ' m';
   const an = new Date(Date.now() + rest.zeit * 3600e3);
+  // noch nicht auf der Route (z. B. Anfahrt): der Rest gilt erst ab dem Start, darum den Weg dorthin nennen
+  const weit = U.fortschritt == null && lage.abw >= 300;
   $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' +
-    Math.round(lage.abw) + ' m neben der Route';
+    (weit ? 'noch nicht auf der Route, zum Start ' + R.kmText(R.abstand(U.pos, e.pts[0])) : Math.round(lage.abw) + ' m neben der Route');
   const naechster = (e.hinweise || []).find(h => h.d > lage.d + 5);
   if (naechster && naechster.d - lage.d < 1000) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(naechster.d - lage.d) + ' ' + R.hinweisText(naechster.cmd, naechster.exit);
   // abseits: mehr als 50 m (oder die GPS-Ungenauigkeit) für 15 s
@@ -93,7 +95,7 @@ function naviNeu() {
     if (!U.abseitsSeit) U.abseitsSeit = Date.now();
     if (Date.now() - U.abseitsSeit > 15000) {
       $('abseits').hidden = false;
-      $('abseits').textContent = 'Du bist ' + Math.round(lage.abw) + ' m neben der Route';
+      $('abseits').textContent = R.abseitsText(lage.abw, U.fortschritt == null ? R.abstand(U.pos, e.pts[0]) : null);
       if (!U.gewarnt && navigator.vibrate) navigator.vibrate([200, 100, 200]);
       U.gewarnt = true;
     }

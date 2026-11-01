@@ -19,13 +19,15 @@
     <h4>Karte</h4>
     <label><input type="radio" name="basis" value="topo" checked> Topografisch (OpenTopoMap)</label>
     <label><input type="radio" name="basis" value="osm"> Stadtplan (OpenStreetMap)</label>
-    <label class="nur-offline" hidden><input type="radio" name="basis" value="offline"> Offline-Karte (heruntergeladen; außerhalb des Pakets topografisch)</label>
+    <label class="nur-offline" hidden><input type="radio" name="basis" value="offline"> Offline-Karte (heruntergeladen)
+      <small id="offlineAussen" hidden>hier außerhalb der Pakete: topografisch gezeigt</small></label>
     <h4>Darüber</h4>
     <label class="nur-offline" hidden><input type="checkbox" id="lageRelief"> Höhenlinien und Relief (offline)</label>
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
     <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
+    <button class="knopf nur-app" id="bPakete" hidden>🗺️ Kartenpakete laden und verwalten</button>
   </div>
 
   <div id="abseits" hidden>Du bist abseits der Route</div>
@@ -57,7 +59,7 @@
           <button data-modus="stadt">🏛️ Stadt</button>
         </div>
         <div id="leerHinweis" class="hinweis">Tippe auf die Karte: Der erste Punkt ist der Start, jeder weitere ein Zwischenziel.
-          Punkte lassen sich ziehen, Antippen entfernt sie. Ein Tipp auf die Route fügt dort einen Punkt ein.</div>
+          Punkte lassen sich ziehen; antippen zeigt „Punkt entfernen“. Ein Tipp auf die Route fügt dort einen Punkt ein.</div>
         <div class="zeile">
           <label>Art<select id="profilwahl">
             <option value="wandern">Wandern</option>
@@ -73,10 +75,21 @@
             <option value="0.7">Mit Kind</option>
           </select></label>
         </div>
+        <div id="aktionen">
+          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
+          <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)">↶ Rückgängig</button>
+          <button class="knopf" id="bNeu">✕ Neu</button>
+          <button class="knopf" id="bRund" title="Zurück zum Start (Rundtour)">⟲ Rundtour</button>
+          <button class="knopf" id="bUmkehren">⇄ Umkehren</button>
+          <button class="knopf" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Ordnen</button>
+          <button class="knopf" id="bGpx">⬇ GPX</button>
+          <button class="knopf" id="bTeilen">🔗 Link</button>
+          <button class="knopf" id="bDrucken">🖨 Drucken</button>
+        </div>
         <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="status"></div>
         <p id="planHinweis" class="klein" hidden>Weitere Punkte: Karte antippen setzt ein neues Ziel, Antippen der Route fügt
-          dort ein Zwischenziel ein. Punkte lassen sich verschieben; Antippen eines Punkts entfernt ihn. In der Suche: „Als Zwischenziel“.</p>
+          dort ein Zwischenziel ein. Punkte lassen sich verschieben; antippen zeigt „Punkt entfernen“. In der Suche: „Als Zwischenziel“.</p>
         <div id="ergebnis" hidden>
           <div class="zahlen">
             <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
@@ -93,19 +106,6 @@
           <h3>Untergrund</h3><div id="boden" class="balken"></div>
           <p class="klein">Antippen hebt die Stellen auf der Karte hervor. Wegtyp, Untergrund und Schwierigkeit stammen aus
             OpenStreetMap und sind dort nicht überall erfasst.</p>
-        </div>
-        <div class="knopfreihe">
-          <button class="knopf" id="bZurueck" title="Strg+Z">↶ Rückgängig</button>
-          <button class="knopf" id="bRund">⟲ Zurück zum Start</button>
-          <button class="knopf" id="bUmkehren">⇄ Umkehren</button>
-          <button class="knopf" id="bNeu">✕ Neu</button>
-          <button class="knopf" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Reihenfolge optimieren</button>
-        </div>
-        <div class="knopfreihe">
-          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
-          <button class="knopf" id="bGpx">⬇ GPX</button>
-          <button class="knopf" id="bTeilen">🔗 Link teilen</button>
-          <button class="knopf" id="bDrucken">🖨 Karte drucken</button>
         </div>
       </section>
 
@@ -173,7 +173,9 @@
         <div class="knopfreihe">
           <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
-          <button class="knopf" id="bAlleGpx">⬇ Alle sichern</button>
+          <button class="knopf" id="bSichern" title="Alle Touren samt Planung in eine Datei">💾 Sicherung speichern</button>
+          <button class="knopf" id="bSicherungLaden">📥 Sicherung laden</button>
+          <input type="file" id="sicherungDatei" accept=".json,application/json" hidden>
         </div>
         <ul id="tourliste" class="liste"></ul>
         <div id="offlineBox" hidden>
@@ -184,16 +186,16 @@
           <ul id="paketliste" class="liste"></ul>
           <div id="paketStatus" class="klein"></div>
         </div>
-        <p class="klein">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
-          „Alle sichern“ lädt jede Tour als GPX-Datei herunter.</p>
+        <p class="klein" id="tourenHinweis">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
+          „Sicherung speichern“ schreibt alle Touren samt Planung in eine Datei; „Sicherung laden“ holt sie zurück.</p>
       </section>
 
       <!-- Info -->
       <section data-reiter="info">
         <h3>Was Gipfel &amp; Gasse ist</h3>
         <p>Ein Tourenplaner auf OpenStreetMap: Route planen, Höhenprofil, Gehzeit nach DIN 33466, Wegtypen und Untergrund,
-          Orte entlang der Strecke, Wetter, GPX, unterwegs der Route folgen und aufzeichnen. Ohne Konto, ohne Server, alles
-          im Browser.</p>
+          Orte entlang der Strecke, Wetter, GPX, unterwegs der Route folgen und aufzeichnen. Ohne Konto, ohne eigenen Server;
+          Touren bleiben auf dem Gerät.</p>
         <h3>Gehzeit</h3>
         <p class="klein">Wie auf den Wegweisern der Alpenvereine (DIN 33466): 4 km je Stunde in der Ebene, 300 Höhenmeter je
           Stunde bergauf, 500 bergab; gerechnet wird die größere Zeit plus die Hälfte der kleineren. Ohne Pausen. „Mit Kind“

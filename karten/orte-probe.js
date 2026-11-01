@@ -19,6 +19,14 @@ const PROBEN = {
     // Herzogstandbahn (Bergstation) → Herzogstandhaus → Gipfel; München Altstadt mit Museen
     strecke: { pts: [[47.6176, 11.3194], [47.6150, 11.3140], [47.6122, 11.3117]], radius: 500, kat: ['gipfel', 'huette'] },
     stadt: { bbox: [48.130, 11.565, 48.145, 11.590], mindestens: 30, kat: ['museum', 'sehens'] }
+  },
+  'allgaeu-bodensee': {
+    suche: [
+      ['Lindau', 47.5460, 9.6840, 3], ['Nebelhorn', 47.4219, 10.3417, 1.5], ['Neuschwanstein', 47.5576, 10.7498, 1],
+      ['Kempten', 47.7267, 10.3139, 3], ['Bregenz', 47.5031, 9.7471, 3]
+    ],
+    // Lindauer Insel: Hafen, Altstadt
+    stadt: { bbox: [47.540, 9.675, 47.552, 9.695], mindestens: 10, kat: ['sehens'] }
   }
 };
 
@@ -45,12 +53,14 @@ for (const p of liste.pakete) {
     pruef(r.length && e <= km, 'Suche „' + q + '“: ' + (r[0] ? r[0].name + ' (' + r[0].wo + '), ' + e.toFixed(1) + ' km von der erwarteten Stelle' : 'nichts') +
       ', ' + (Date.now() - t) + ' ms');
   }
+  if (pr.strecke) {
   const pts = pr.strecke.pts.map(([lat, lon]) => ({ lat, lon }));
   const orte = R.orteLesen(R.orteUmkreis(j.orte, pts, pr.strecke.radius), pts.length > 1 ? (() => {
     let d0 = 0; return pts.map((q, i) => { if (i) d0 += R.abstand(pts[i - 1], q); return Object.assign({ d: d0 }, q); });
   })() : null);
   const kats = new Set(orte.map(o => o.kat));
   pruef(pr.strecke.kat.every(k => kats.has(k)), 'Orte entlang der Strecke: ' + orte.length + ' (' + [...kats].join(', ') + ')');
+  }
   const stadt = R.stadtLesen(R.orteAusschnitt(j.orte, pr.stadt.bbox));
   const skats = new Set(stadt.map(o => o.kat));
   pruef(stadt.length >= pr.stadt.mindestens && pr.stadt.kat.every(k => skats.has(k)),

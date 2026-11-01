@@ -214,7 +214,7 @@ function pruef(name, bed, info) {
   // Entdecken: Wetter und Orte
   await page.click('[data-reiter=entdecken]');
   await page.waitForSelector('#wetter .wetter');
-  pruef('Wetter mit Gewitterwarnung', (await page.textContent('#wetter')).includes('Gewitter angesagt'));
+  pruef('Wetter: Gewitterwarnung mit Tag', (await page.textContent('#wetter')).includes('Gewitter am Di'), await page.textContent('#wetter .warnung'));
   await page.click('#bOrte');
   await page.waitForSelector('#ortliste li');
   const orteText = await page.textContent('#ortliste');
@@ -333,6 +333,21 @@ function pruef(name, bed, info) {
   pruef('Tour-Punkt: Fenster mit Art und Öffnen', (await page.textContent('.leaflet-popup')).includes('gegangen'));
   await page.click('.leaflet-popup button:has-text("Öffnen")');
   await page.waitForTimeout(300);
+  // Sicherung: alle Touren samt Planung in einer Datei; eine verlorene Tour kommt beim Laden zurück
+  await page.click('[data-reiter=touren]');
+  const [sich] = await Promise.all([page.waitForEvent('download'), page.click('#bSichern')]);
+  const sichPfad = path.join(OUT, 'sicherung.json');
+  await sich.saveAs(sichPfad);
+  const sichDaten = JSON.parse(fs.readFileSync(sichPfad, 'utf8'));
+  const tourenVorher = await page.$$eval('#tourliste li', l => l.length);
+  pruef('Sicherung: eine Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.json') && sichDaten.app === 'gipfel-und-gasse' &&
+    sichDaten.touren.length === tourenVorher && sichDaten.touren.some(t => t.wps && t.wps.length >= 2), [sich.suggestedFilename(), sichDaten.touren.length, tourenVorher]);
+  await page.evaluate(() => { const l = JSON.parse(localStorage.getItem('gug.touren')); l.shift(); localStorage.setItem('gug.touren', JSON.stringify(l)); });
+  await page.click('[data-reiter=planen]'); await page.click('[data-reiter=touren]');
+  await page.setInputFiles('#sicherungDatei', sichPfad);
+  await page.waitForTimeout(300);
+  pruef('Sicherung laden: fehlende Tour zurück, keine doppelt', (await page.$$eval('#tourliste li', l => l.length)) === tourenVorher && (await page.textContent('#meldung')).includes('1 Touren'),
+    [await page.$$eval('#tourliste li', l => l.length), await page.textContent('#meldung')]);
 
   // ---------- Stadt ----------
   await page.click('[data-reiter=planen]');
@@ -470,6 +485,22 @@ function pruef(name, bed, info) {
   await pa2.waitForTimeout(200);
   const teilen = (await pa2.evaluate(() => window.__navi.aufrufe)).find(x => x[0] === 'teilen');
   pruef('App: GPX über das Teilen-Menü', teilen && teilen[1].gpx && teilen[1].name.endsWith('.gpx'), teilen);
+  // Sicherung in der App: genau ein Teilen-Fenster mit einer JSON-Datei
+  await pa2.click('[data-reiter=touren]');
+  const vorTeilen = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;
+  await pa2.click('#bSichern');
+  await pa2.waitForTimeout(200);
+  const teilenS = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen');
+  pruef('App: Sicherung als eine Datei über das Teilen-Menü', teilenS.length === vorTeilen + 1 && teilenS[teilenS.length - 1][1].name.endsWith('.json'), teilenS.slice(-1));
+  pruef('App: Hinweis zu Touren passt zur App', (await pa2.textContent('#tourenHinweis')).includes('in der App'));
+  // Zurück-Taste: erst Kartenwahl schließen, dann zum Reiter Planen, danach darf die App in den Hintergrund
+  await pa2.click('#bLagen');
+  const zr1 = await pa2.evaluate(() => window.gugZurueck());
+  const zr2 = await pa2.evaluate(() => window.gugZurueck());
+  const zr3 = await pa2.evaluate(() => window.gugZurueck());
+  pruef('App: Zurück-Taste schließt erst Kartenwahl, dann Reiter, dann App', zr1 === true && zr2 === true && zr3 === false &&
+    await pa2.isHidden('#lagenwahl') && (await pa2.getAttribute('[data-reiter=planen]', 'class')).includes('an'), [zr1, zr2, zr3]);
+  await pa2.click('[data-reiter=planen]');
   await pa2.click('#bDrucken');
   await pa2.waitForFunction(() => window.__navi.aufrufe.some(x => x[0] === 'drucken'), null, { timeout: 8000 });
   await pa2.waitForTimeout(300);
@@ -600,8 +631,9 @@ function pruef(name, bed, info) {
   await po.waitForFunction(() => [...document.querySelectorAll('#treffer button')].some(b => b.textContent.includes('Teststadt')), null, { timeout: 8000 });
   await po.click('#treffer button:has-text("Teststadt")');
   await po.waitForTimeout(800);
-  pruef('Offline-Karte außerhalb des Pakets: topografisch gezeigt', await po.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked &&
-    [...document.querySelectorAll('.leaflet-tile-pane img')].some(i => i.src.includes('opentopomap'))));
+  pruef('Offline-Karte außerhalb des Pakets: Wahl bleibt, topografisch gezeigt mit Hinweis', await po.evaluate(() => document.querySelector('input[name=basis][value=offline]').checked &&
+    !document.querySelector('#offlineAussen').hidden && [...document.querySelectorAll('.leaflet-tile-pane img')].some(i => i.src.includes('opentopomap'))));
+  pruef('Kartenwahl führt zu den Kartenpaketen', await po.evaluate(() => !document.querySelector('#bPakete').hidden));
   // Suchtreffer als Zwischenziel vor dem Ziel einfügen
   const vorPunkte = await po.$$eval('.wp', l => l.length);
   await po.click('.leaflet-popup button:has-text("Als Zwischenziel")');

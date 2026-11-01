@@ -46,7 +46,7 @@ function trefferWaehlen(x) {
   $('suchfeld').value = x.name;
   $('suchfeld').blur();
   if (x.extent) einpassen([[x.extent[1], x.extent[0]], [x.extent[3], x.extent[2]]]);
-  else karte.setView([x.lat, x.lon], 15);
+  else einpassen(L.latLng(x.lat, x.lon).toBounds(800));   // Rand für das Blatt am Telefon
   if (suchMarke) suchMarke.remove();
   const box = document.createElement('div');
   box.innerHTML = '<b>' + R.esc(x.name) + '</b><br><span class="klein">' + R.esc(x.wo) + '</span><br>';
@@ -140,17 +140,17 @@ async function wetterLaden() {
   try {
     const j = await wetterHolen(p.lat, p.lon);
     const d = j.daily, tage = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    let html = '<div class="wetter">', gewitter = false;
+    let html = '<div class="wetter">';
     for (let i = 0; i < d.time.length; i++) {
       const [zeichen, text] = R.wetterText(d.weather_code[i]);
-      if (d.weather_code[i] >= 95) gewitter = true;
       const tag = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : tage[new Date(d.time[i] + 'T12:00').getDay()];
       html += '<div>' + tag + '<b>' + zeichen + '</b>' + text + '<br>' + Math.round(d.temperature_2m_min[i]) + '° / ' + Math.round(d.temperature_2m_max[i]) + '°' +
         '<br><span class="klein">Regen ' + (d.precipitation_probability_max[i] ?? '–') + ' % · Wind ' + Math.round(d.wind_speed_10m_max[i]) + ' km/h' +
         '<br>Sonne bis ' + String(d.sunset[i]).slice(11, 16) + '</span></div>';
     }
     html += '</div>';
-    if (gewitter) html = '<div class="warnung">⛈️ Gewitter angesagt: In den Bergen früh starten und Grate am Nachmittag meiden.</div>' + html;
+    const gw = R.gewitterTage(d.weather_code, d.time);
+    if (gw.length) html = '<div class="warnung">⛈️ Gewitter ' + gw.join(', ') + ': In den Bergen früh starten und Grate am Nachmittag meiden.</div>' + html;
     $('wetter').innerHTML = html + '<p class="klein">Vorhersage für ' + p.lat.toFixed(3) + ', ' + p.lon.toFixed(3) + ' (Open-Meteo). Am Gipfel ist es kälter und windiger: je 100 m etwa 0,65 °C weniger.</p>';
   } catch (err) {
     wetterFuer = '';

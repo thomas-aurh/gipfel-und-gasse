@@ -16,7 +16,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
   signiert GitHub mit einem Ersatzschlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
   nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
-  verloren (vorher „Alle sichern“).
+  verloren (vorher „Sicherung speichern“, danach „Sicherung laden“).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy. Die Datei kommt erst mit dem nächsten Lauf „Kartenpakete“ nach dem Merge ins Paket.
@@ -28,6 +28,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
+- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Startzeit mit Ankunft gegen Sonnenuntergang; Notfall in
+  Unterwegs (Koordinaten, Standort senden, 112); Pausen bei Bergtouren; Stopps von Hand umsortieren; Wetter je Stunde
+  und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern; Berg/Stadt und „Art“ zusammenführen.
+- **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
+  Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
 - **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
   oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
@@ -95,7 +100,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Abbiegeansagen (#3). Kartenpakete für Oberbayern im Release `kartenpakete`. Copilot-Hinweise zu #1–#3 behoben.
   Danach: Capacitor-Kern eingebaut, ohne ihn liefen die Android-Funktionen auf dem Handy nicht (#5, Fehlerbild aus
   Verona); Stufe 5 Orte und Suche ohne Netz (#6); Touren als Punkte auf der Karte, Zwischenziele aus der Suche,
-  Paket-Update nur für geänderte Dateien, Offline-Karte außerhalb des Pakets topografisch (#7).
+  Paket-Update nur für geänderte Dateien, Offline-Karte außerhalb des Pakets topografisch (#7); Durchsicht: Sicherung
+  aller Touren als eine Datei, Aktionsleiste oben in Planen, Zurück-Taste, Kartenpakete aus der Kartenwahl, Region
+  Allgäu und Bodensee, kleinere Fehler (#8).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

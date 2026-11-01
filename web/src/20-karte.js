@@ -61,7 +61,9 @@ function lagenAnwenden() {
   const basis = LAGEN[lagenWahl.basis] && !(lagenWahl.basis === 'offline' && offlineAusserhalb()) ? lagenWahl.basis : 'topo';
   for (const k of BASIS) if (LAGEN[k]) { if (k === basis) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
   for (const k of DARUEBER) if (LAGEN[k]) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
-  document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === basis; });
+  // markiert bleibt die Wahl; zeigt die Karte stattdessen topografisch, sagt das der Hinweis darunter
+  document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === (LAGEN[lagenWahl.basis] ? lagenWahl.basis : basis); });
+  $('offlineAussen').hidden = !(lagenWahl.basis === 'offline' && basis !== 'offline' && LAGEN.offline);
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageSehens').checked = !!lagenWahl.sehens;

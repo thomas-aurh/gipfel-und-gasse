@@ -486,6 +486,28 @@ var R = (function () {
     return out;
   }
 
+  // Text für „abseits der Route“: weit weg (z. B. noch nicht am Start) mit km und Weg zum Start
+  function abseitsText(abw, zumStart) {
+    if (abw < 1000) return 'Du bist ' + Math.round(abw) + ' m neben der Route';
+    return 'Du bist ' + kmText(abw) + ' von der Route entfernt' + (zumStart != null ? ' · zum Start ' + kmText(zumStart) : '');
+  }
+
+  // Tage mit Gewitter (WMO 95–99) als kurze Namen: „heute“, „morgen“, sonst Wochentag
+  function gewitterTage(codes, tage) {
+    const kurz = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const out = [];
+    (codes || []).forEach((c, i) => { if (+c >= 95) out.push(i === 0 ? 'heute' : i === 1 ? 'morgen' : 'am ' + kurz[new Date(tage[i] + 'T12:00').getDay()]); });
+    return out;
+  }
+
+  // Sicherung aller Touren: {app, version, touren}; liefert die gültigen Touren oder wirft mit Grund
+  function sicherungLesen(text) {
+    let d;
+    try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); }
+    if (!d || d.app !== 'gipfel-und-gasse' || !Array.isArray(d.touren)) throw new Error('keine Sicherung von Gipfel & Gasse');
+    return d.touren.filter(t => t && t.id && t.name && Array.isArray(t.spur) && t.kurz);
+  }
+
   // ---------- Wetter (Open-Meteo, WMO-Codes) ----------
   function wetterText(code) {
     const c = +code;
@@ -830,7 +852,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

@@ -16,6 +16,10 @@ function blatt(stufe) {
   p.classList.toggle('gross', stufe === 'gross');
   setTimeout(() => { karte.invalidateSize(); profilZeichnen(); }, 230);
 }
+// Höhe des Blatts für den Kartennachweis (er steht am Telefon darüber, damit er sichtbar bleibt)
+if (window.ResizeObserver) new ResizeObserver(() => {
+  document.documentElement.style.setProperty('--blatt', (window.innerWidth <= 760 ? $('panel').getBoundingClientRect().height : 0) + 'px');
+}).observe($('panel'));
 (function griff() {
   const g = $('griff');
   let y0 = null;

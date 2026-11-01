@@ -249,5 +249,12 @@ pruef('Offline-Suche: Ort als zweites Wort', R.sucheOffline(suchListe, 'bahnhofs
 pruef('Offline-Suche: genauer Name zuerst', R.sucheOffline(suchListe, 'Penzberg')[0].name === 'Penzberg' && R.sucheOffline(suchListe, 'x').length === 0);
 pruef('Offline-Suche: Teilwort ab 4 Zeichen', R.sucheOffline(suchListe, 'stand')[0].name === 'Herzogstand');
 
+pruef('Abseits nah und weit', R.abseitsText(72) === 'Du bist 72 m neben der Route' && R.abseitsText(4284, 4500) === 'Du bist 4,3 km von der Route entfernt · zum Start 4,5 km', R.abseitsText(4284, 4500));
+pruef('Gewittertage', R.gewitterTage([1, 95, 96], ['2026-11-01', '2026-11-02', '2026-11-03']).join() === 'morgen,am Di' && R.gewitterTage([95], ['2026-11-01']).join() === 'heute');
+const sich = JSON.stringify({ app: 'gipfel-und-gasse', version: 1, touren: [{ id: 'a', name: 'A', spur: [[47, 11, 600]], kurz: { laenge: 1 } }, { id: 'b' }] });
+pruef('Sicherung lesen: nur gültige Touren', R.sicherungLesen(sich).length === 1);
+let sichFehler = ''; try { R.sicherungLesen('{"app":"anders","touren":[]}'); } catch (e) { sichFehler = e.message; }
+pruef('Sicherung lesen: fremde Datei abgelehnt', sichFehler.includes('keine Sicherung'));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

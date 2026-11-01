@@ -328,7 +328,8 @@ function paketListe() {
     const p = neu || da || { id, name: lauf && lauf.name || id, dateien: [] }, groesse = (p.dateien || []).reduce((s, d) => s + (d.groesse || 0), 0);
     const li = document.createElement('li');
     li.style.cursor = 'default';
-    let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (p.stand ? ' · Daten vom ' + R.esc(p.stand) : '');
+    const stand = p.stand ? new Date(p.stand + 'T12:00').toLocaleDateString('de-DE') : '';
+    let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (stand ? ' · Daten vom ' + R.esc(stand) : '');
     if (da) {
       // ein Update lädt nur Dateien mit anderer Prüfsumme (der Rest kommt aus dem installierten Paket)
       const gleich = d => (da.dateien || []).some(x => x.name === d.name && x.sha256 && x.sha256 === d.sha256 && x.groesse === d.groesse);
@@ -382,6 +383,14 @@ async function statusFragen() {
 
 if (Karten) {
   $('offlineBox').hidden = false;
+  // aus der Kartenwahl direkt zu den Kartenpaketen
+  $('bPakete').hidden = false;
+  $('bPakete').onclick = () => {
+    $('lagenwahl').hidden = true;
+    reiter('touren');
+    if (window.innerWidth <= 760) blatt('gross');
+    setTimeout(() => $('offlineBox').scrollIntoView({ behavior: 'smooth', block: 'start' }), 250);
+  };
   Karten.addListener('fertig', async () => {
     const erstes = !OFF.installiert.length;
     await paketeLaden(false);
