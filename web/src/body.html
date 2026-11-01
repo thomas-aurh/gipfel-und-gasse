@@ -19,12 +19,13 @@
     <h4>Karte</h4>
     <label><input type="radio" name="basis" value="topo" checked> Topografisch (OpenTopoMap)</label>
     <label><input type="radio" name="basis" value="osm"> Stadtplan (OpenStreetMap)</label>
-    <label class="nur-offline" hidden><input type="radio" name="basis" value="offline"> Offline-Karte (heruntergeladen)</label>
+    <label class="nur-offline" hidden><input type="radio" name="basis" value="offline"> Offline-Karte (heruntergeladen; außerhalb des Pakets topografisch)</label>
     <h4>Darüber</h4>
     <label class="nur-offline" hidden><input type="checkbox" id="lageRelief"> Höhenlinien und Relief (offline)</label>
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
+    <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
   </div>
 
   <div id="abseits" hidden>Du bist abseits der Route</div>
@@ -74,6 +75,8 @@
         </div>
         <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="status"></div>
+        <p id="planHinweis" class="klein" hidden>Weitere Punkte: Karte antippen setzt ein neues Ziel, Antippen der Route fügt
+          dort ein Zwischenziel ein. Punkte lassen sich verschieben; Antippen eines Punkts entfernt ihn. In der Suche: „Als Zwischenziel“.</p>
         <div id="ergebnis" hidden>
           <div class="zahlen">
             <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
@@ -175,8 +178,8 @@
         <ul id="tourliste" class="liste"></ul>
         <div id="offlineBox" hidden>
           <h3>Offline-Karten</h3>
-          <p class="klein">Karte, Höhenlinien und Relief für eine Region aufs Handy laden; danach geht die Karte ohne Netz.
-            Routen planen, Suche und Wetter brauchen vorerst weiter Netz.</p>
+          <p class="klein">Karte, Höhenlinien und Relief, Routendaten und Orte für eine Region aufs Handy laden; danach gehen
+            Karte, Routen planen, Suche und Orte auch ohne Netz. Nur das Wetter braucht Netz. Ein Update lädt nur geänderte Dateien.</p>
           <label class="klein" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="offlineMobil"> auch über Mobilfunk laden (sonst nur WLAN)</label>
           <ul id="paketliste" class="liste"></ul>
           <div id="paketStatus" class="klein"></div>

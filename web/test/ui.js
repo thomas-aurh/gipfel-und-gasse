@@ -325,6 +325,14 @@ function pruef(name, bed, info) {
   await page.click('#bNavi');
   await page.click('[data-reiter=touren]');
   pruef('Aufzeichnung als Tour', (await page.textContent('#tourliste')).includes('Aufzeichnung'));
+  // gespeicherte Touren als Punkte: geplante und gegangene getrennt, Öffnen aus dem Fenster
+  const tourMk = await page.$$eval('.tour-mk', l => l.map(e => e.className));
+  pruef('Touren als Punkte auf der Karte (geplant und gegangen)', tourMk.some(c => c.includes('geplant')) && tourMk.some(c => c.includes('gegangen')), tourMk);
+  await page.click('.tour-mk.gegangen', { force: true });
+  await page.waitForSelector('.leaflet-popup button:has-text("Öffnen")');
+  pruef('Tour-Punkt: Fenster mit Art und Öffnen', (await page.textContent('.leaflet-popup')).includes('gegangen'));
+  await page.click('.leaflet-popup button:has-text("Öffnen")');
+  await page.waitForTimeout(300);
 
   // ---------- Stadt ----------
   await page.click('[data-reiter=planen]');
@@ -586,6 +594,20 @@ function pruef(name, bed, info) {
   pruef('Offline-Suche ohne Netz: Paket allein, Schreibweise egal', zaehler.photon === vorPhoton && (await po.textContent('#treffer')).includes('Berghütte · Probedorf'),
     [zaehler.photon - vorPhoton, await po.textContent('#treffer')]);
   await po.evaluate(() => { delete navigator.onLine; });
+  // Suchtreffer außerhalb des Pakets: Kartenwahl bleibt „Offline-Karte“, gezeigt wird die topografische Karte
+  pruef('Plan-Hinweis zu Zwischenzielen sichtbar', await po.evaluate(() => !document.querySelector('#planHinweis').hidden));
+  await po.fill('#suchfeld', 'Teststadt');
+  await po.waitForFunction(() => [...document.querySelectorAll('#treffer button')].some(b => b.textContent.includes('Teststadt')), null, { timeout: 8000 });
+  await po.click('#treffer button:has-text("Teststadt")');
+  await po.waitForTimeout(800);
+  pruef('Offline-Karte außerhalb des Pakets: topografisch gezeigt', await po.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked &&
+    [...document.querySelectorAll('.leaflet-tile-pane img')].some(i => i.src.includes('opentopomap'))));
+  // Suchtreffer als Zwischenziel vor dem Ziel einfügen
+  const vorPunkte = await po.$$eval('.wp', l => l.length);
+  await po.click('.leaflet-popup button:has-text("Als Zwischenziel")');
+  await po.waitForTimeout(600);
+  const punkte = await po.$$eval('.wp', l => l.map(e => e.textContent));
+  pruef('Suchtreffer als Zwischenziel: vor dem Ziel eingefügt', punkte.length === vorPunkte + 1 && punkte[punkte.length - 1] === 'Z' && punkte.includes('1'), punkte);
   pruef('Offline: keine Skriptfehler', offFehler.length === 0, offFehler);
   await offCtx.close();
 

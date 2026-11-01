@@ -50,12 +50,15 @@ const blick = SPEICHER.lesen('blick', { lat: 47.70, lon: 11.37, z: 11 });
 const karte = L.map('karte', { zoomControl: false, attributionControl: true, maxZoom: 19 }).setView([blick.lat, blick.lon], blick.z);
 karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
 
-const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false }, SPEICHER.lesen('lagen', {}));
+const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true }, SPEICHER.lesen('lagen', {}));
+// gespeicherte Touren als Punkte am Start (60-touren.js füllt die Ebene)
+const ebeneTouren = L.layerGroup();
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
 const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
 function lagenAnwenden() {
-  // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen): solange topografisch zeigen, Wahl behalten
-  const basis = LAGEN[lagenWahl.basis] ? lagenWahl.basis : 'topo';
+  // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen) oder Offline-Karte außerhalb jedes Pakets:
+  // solange topografisch zeigen, Wahl behalten (zurück im Paketgebiet erscheint wieder die Offline-Karte)
+  const basis = LAGEN[lagenWahl.basis] && !(lagenWahl.basis === 'offline' && offlineAusserhalb()) ? lagenWahl.basis : 'topo';
   for (const k of BASIS) if (LAGEN[k]) { if (k === basis) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
   for (const k of DARUEBER) if (LAGEN[k]) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
   document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === basis; });
@@ -63,6 +66,8 @@ function lagenAnwenden() {
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageSehens').checked = !!lagenWahl.sehens;
   $('lageRelief').checked = !!lagenWahl.relief;
+  $('lageTouren').checked = !!lagenWahl.touren;
+  if (lagenWahl.touren) ebeneTouren.addTo(karte); else ebeneTouren.remove();
   SPEICHER.schreiben('lagen', lagenWahl);
   if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
 }
@@ -72,6 +77,7 @@ $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.ch
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
+$('lageTouren').addEventListener('change', e => { lagenWahl.touren = e.target.checked; lagenAnwenden(); });
 $('bLagen').addEventListener('click', e => { e.stopPropagation(); $('lagenwahl').hidden = !$('lagenwahl').hidden; });
 document.addEventListener('click', e => { if (!$('lagenwahl').hidden && !$('lagenwahl').contains(e.target)) $('lagenwahl').hidden = true; });
 $('bPlus').addEventListener('click', () => karte.zoomIn());

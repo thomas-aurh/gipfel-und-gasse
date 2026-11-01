@@ -50,11 +50,16 @@ function trefferWaehlen(x) {
   if (suchMarke) suchMarke.remove();
   const box = document.createElement('div');
   box.innerHTML = '<b>' + R.esc(x.name) + '</b><br><span class="klein">' + R.esc(x.wo) + '</span><br>';
-  const k = document.createElement('button');
-  k.className = 'popup-knopf';
-  k.textContent = S.wps.length ? 'Als nächsten Punkt' : 'Als Start';
-  k.onclick = () => { karte.closePopup(); suchMarke.remove(); wegpunktDazu(x.lat, x.lon); };
-  box.appendChild(k);
+  const knopf = (text, index) => {
+    const k = document.createElement('button');
+    k.className = 'popup-knopf';
+    k.textContent = text;
+    k.onclick = () => { karte.closePopup(); suchMarke.remove(); wegpunktDazu(x.lat, x.lon, index, { name: x.name }); };
+    box.appendChild(k);
+  };
+  // mit Start und Ziel: vor dem Ziel einfügen oder als neues Ziel anhängen
+  if (S.wps.length >= 2 && !S.fest) { knopf('Als Zwischenziel', S.wps.length - 1); box.appendChild(document.createTextNode(' ')); knopf('Als neues Ziel'); }
+  else knopf(S.wps.length ? 'Als Ziel' : 'Als Start');
   suchMarke = L.circleMarker([x.lat, x.lon], { radius: 8, color: '#fff', weight: 3, fillColor: '#2f6b3a', fillOpacity: 1 }).addTo(karte).bindPopup(box).openPopup();
 }
 

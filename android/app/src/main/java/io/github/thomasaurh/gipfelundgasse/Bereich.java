@@ -38,4 +38,21 @@ public final class Bereich {
     public static boolean sichererName(String s) {
         return s != null && s.matches("[a-z0-9][a-z0-9.\\-]{0,80}") && !s.contains("..");
     }
+
+    /**
+     * Darf ein Update diese Datei aus dem installierten Paket übernehmen statt sie neu zu laden? Ja, wenn das installierte
+     * Paket (Inhalt seiner paket.json) eine Datei gleichen Namens mit derselben Prüfsumme und Größe nennt. Ohne
+     * Prüfsumme nie: dann ist nicht sicher, dass es dieselbe Datei ist.
+     */
+    public static boolean gleicheDatei(org.json.JSONObject installiert, String name, String sha256, long groesse) {
+        if (installiert == null || name == null || sha256 == null || sha256.isEmpty()) return false;
+        org.json.JSONArray ds = installiert.optJSONArray("dateien");
+        if (ds == null) return false;
+        for (int i = 0; i < ds.length(); i++) {
+            org.json.JSONObject d = ds.optJSONObject(i);
+            if (d != null && name.equals(d.optString("name")) && sha256.equalsIgnoreCase(d.optString("sha256"))
+                && (groesse <= 0 || groesse == d.optLong("groesse", -1))) return true;
+        }
+        return false;
+    }
 }

@@ -42,4 +42,15 @@ public class BereichTest {
         assertFalse(Bereich.sichererName("Ober Bayern"));
         assertFalse(Bereich.sichererName(""));
     }
+    @Test public void gleicheDatei() throws Exception {
+        org.json.JSONObject da = new org.json.JSONObject("{\"dateien\":[{\"name\":\"karte.pmtiles\",\"sha256\":\"ab12\",\"groesse\":100},"
+            + "{\"name\":\"orte.json.gz\",\"sha256\":\"\",\"groesse\":5}]}");
+        assertTrue(Bereich.gleicheDatei(da, "karte.pmtiles", "AB12", 100));
+        assertTrue(Bereich.gleicheDatei(da, "karte.pmtiles", "ab12", 0));
+        assertFalse(Bereich.gleicheDatei(da, "karte.pmtiles", "cd34", 100));
+        assertFalse(Bereich.gleicheDatei(da, "karte.pmtiles", "ab12", 101));
+        assertFalse(Bereich.gleicheDatei(da, "orte.json.gz", "", 5));
+        assertFalse(Bereich.gleicheDatei(da, "hoehe.pmtiles", "ab12", 100));
+        assertFalse(Bereich.gleicheDatei(null, "karte.pmtiles", "ab12", 100));
+    }
 }

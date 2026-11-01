@@ -113,14 +113,44 @@ function tourLoeschen(id) {
   melde('Gelöscht: ' + t.name);
 }
 
+function tourZeichen(t) {
+  return t.art === 'aufzeichnung' ? '⏺' : t.art === 'spur' ? '📄' : (t.profil === 'rad' ? '🚲' : t.modus === 'stadt' || t.profil === 'stadt' ? '🏛️' : '🥾');
+}
+
+// gespeicherte Touren als Punkte am Start: geplante blau umrandet, gegangene (Aufzeichnungen) grün mit Haken
+function tourenPunkte(liste) {
+  ebeneTouren.clearLayers();
+  for (const t of liste) {
+    const a = t.spur && t.spur.length ? spurEntpacken(t.spur)[0] : t.wps && t.wps[0] ? { lat: t.wps[0][0], lon: t.wps[0][1] } : null;
+    if (!a) continue;
+    const gegangen = t.art === 'aufzeichnung';
+    const m = L.marker([a.lat, a.lon], {
+      title: t.name, zIndexOffset: -500,
+      icon: L.divIcon({ className: '', html: '<div class="tour-mk ' + (gegangen ? 'gegangen' : 'geplant') + '">' + (gegangen ? '✓' : tourZeichen(t)) + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] })
+    });
+    m.bindPopup(() => {
+      const box = document.createElement('div');
+      box.innerHTML = '<b>' + R.esc(t.name) + '</b><br><span class="klein">' + (gegangen ? 'gegangen' : t.art === 'spur' ? 'GPX-Spur' : 'geplant') + ' · ' +
+        R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
+      const k = document.createElement('button');
+      k.className = 'popup-knopf'; k.textContent = 'Öffnen';
+      k.onclick = () => { karte.closePopup(); tourOeffnen(t.id); };
+      box.appendChild(k);
+      return box;
+    });
+    m.addTo(ebeneTouren);
+  }
+}
+
 function tourenZeigen() {
   const liste = tourenLesen(), ul = $('tourliste');
+  tourenPunkte(liste);
   ul.innerHTML = '';
   if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">Noch keine Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.</span></li>'; return; }
   for (const t of liste) {
     const li = document.createElement('li');
     li.dataset.tour = t.id;
-    const zeichen = t.art === 'aufzeichnung' ? '⏺' : t.art === 'spur' ? '📄' : (t.profil === 'rad' ? '🚲' : t.modus === 'stadt' || t.profil === 'stadt' ? '🏛️' : '🥾');
+    const zeichen = tourZeichen(t);
     // Öffnen ist ein echter Knopf, damit es auch mit Tastatur und Bildschirmleser geht
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
       R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +

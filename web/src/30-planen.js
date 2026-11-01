@@ -210,6 +210,7 @@ const FARBE_BODEN = { 'Befestigt': '#6d7884', 'Schotter': '#c9a66b', 'Naturboden
 function zeigen() {
   const e = S.ergebnis;
   $('leerHinweis').hidden = S.wps.length > 0 || !!S.fest;
+  $('planHinweis').hidden = S.wps.length < 2 || !!S.fest;
   $('ergebnis').hidden = !e;
   $('bZurueck').disabled = !S.verlauf.length || !!S.fest;
   $('bRund').disabled = S.wps.length < 2 || !!S.fest;
