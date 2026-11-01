@@ -10,6 +10,9 @@ const path = require('path');
 
 const ordner = path.resolve(process.argv[2] || 'ausgabe');
 const liste = JSON.parse(fs.readFileSync(path.join(ordner, 'pakete.json'), 'utf8'));
+// nur die in diesem Lauf gebauten Regionen prüfen (bei einer Einzelregion stehen die anderen nur in der Liste)
+const gebautDatei = path.join(ordner, 'gebaut.json');
+const gebaut = fs.existsSync(gebautDatei) ? JSON.parse(fs.readFileSync(gebautDatei, 'utf8')) : liste.pakete.map(p => p.id);
 const regionen = JSON.parse(fs.readFileSync(path.join(__dirname, 'regionen.json'), 'utf8')).regionen;
 const app = path.join(__dirname, '..', 'web', 'dist', 'Gipfel-und-Gasse.html');
 
@@ -17,7 +20,10 @@ const server = http.createServer((req, res) => {
   const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   const m = /^\/_karten_\/([a-z0-9-]+)\/([a-z0-9.-]+)$/.exec(p);
   if (!m) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(fs.readFileSync(app)); }
-  const datei = path.join(ordner, m[1] + '-' + m[2]);
+  // die App fragt nach dem Namen im Paket (karte.pmtiles); im Ausgabeordner liegt die Datei unter ihrem festen Namen
+  const paket = liste.pakete.find(p => p.id === m[1]);
+  const eintrag = paket && (paket.dateien || []).find(d => d.name === m[2]);
+  const datei = eintrag ? path.join(ordner, path.basename(eintrag.url)) : path.join(ordner, m[1] + '-' + m[2]);
   if (!fs.existsSync(datei)) { res.writeHead(404); return res.end(); }
   const laenge = fs.statSync(datei).size, t = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
   if (!t) { res.writeHead(200, { 'Content-Length': laenge, 'Accept-Ranges': 'bytes' }); return fs.createReadStream(datei).pipe(res); }
@@ -31,7 +37,7 @@ const server = http.createServer((req, res) => {
   const url = 'http://127.0.0.1:' + server.address().port + '/';
   const browser = await chromium.launch();
   let fehler = 0;
-  for (const paket of liste.pakete) {
+  for (const paket of liste.pakete.filter(p => gebaut.includes(p.id))) {
     const region = regionen.find(r => r.id === paket.id) || {};
     const stellen = region.probe || [[(paket.bbox[1] + paket.bbox[3]) / 2, (paket.bbox[0] + paket.bbox[2]) / 2, 13]];
     for (const [i, [lat, lon, z]] of stellen.entries()) {
@@ -68,7 +74,9 @@ const server = http.createServer((req, res) => {
       });
       const bild = path.join(ordner, `probe-${paket.id}-${i + 1}.png`);
       await page.screenshot({ path: bild });
-      const ok = ergebnis.karte.kacheln > 0 && ergebnis.karte.farben >= 4 && ergebnis.karte.anteil > 0.9 && skriptFehler.length === 0;
+      // Karte voll und bunt, Relief vorhanden und mit sichtbarem Inhalt (leere Höhenkacheln fallen sonst nicht auf)
+      const ok = ergebnis.karte.kacheln > 0 && ergebnis.karte.farben >= 4 && ergebnis.karte.anteil > 0.9 &&
+        ergebnis.relief.kacheln > 0 && ergebnis.relief.farben >= 10 && ergebnis.relief.anteil > 0.3 && skriptFehler.length === 0;
       console.log((ok ? '✓' : '✗') + ` ${paket.id} @ ${lat},${lon} z${z}: Karte ${JSON.stringify(ergebnis.karte)}, Relief ${JSON.stringify(ergebnis.relief)}` +
         (skriptFehler.length ? ' · Fehler: ' + skriptFehler.join(' | ') : '') + ' → ' + path.basename(bild));
       if (!ok) fehler++;

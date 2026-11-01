@@ -65,8 +65,7 @@ jobs:
           echo "::error::Kein Protomaps-Weltdatensatz der letzten 20 Tage gefunden"
           exit 1
 
-      - name: Bisherige Paketliste holen (bei nur einer Region)
-        if: github.event_name == 'workflow_dispatch' && inputs.region != ''
+      - name: Bisherige Paketliste holen
         run: gh release download kartenpakete --pattern pakete.json -D /tmp/alt || echo "noch keine Liste"
 
       - name: Pakete bauen
@@ -74,7 +73,8 @@ jobs:
           PMTILES: /tmp/pmt/pmtiles
         run: |
           REGION="${{ github.event_name == 'workflow_dispatch' && inputs.region || '' }}"
-          ALT=""; [ -f /tmp/alt/pakete.json ] && ALT="--alte-liste /tmp/alt/pakete.json"
+          # die vorige Liste nur übernehmen, wenn eine einzelne Region gebaut wird (sonst entsteht alles neu)
+          ALT=""; [ -n "$REGION" ] && [ -f /tmp/alt/pakete.json ] && ALT="--alte-liste /tmp/alt/pakete.json"
           python3 karten/bauen.py ausgabe "$QUELLE" "$REGION" $ALT
           ls -la ausgabe
 
@@ -97,4 +97,7 @@ jobs:
           gh release view kartenpakete > /dev/null 2>&1 || gh release create kartenpakete --latest=false \
             --title "Offline-Kartenpakete" \
             --notes "Kartenpakete für die App (Reiter Touren › Offline-Karten). Kartendaten © OpenStreetMap-Mitwirkende (ODbL), Vektorkacheln Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, EU-DEM)."
-          gh release upload kartenpakete ausgabe/*.pmtiles ausgabe/pakete.json --clobber
+          # erst alle Dateien (neue, unveränderliche Namen), dann die Liste, die auf sie zeigt, dann Altes entfernen
+          gh release upload kartenpakete ausgabe/*.pmtiles --clobber
+          gh release upload kartenpakete ausgabe/pakete.json --clobber
+          python3 karten/aufraeumen.py ausgabe/pakete.json /tmp/alt/pakete.json

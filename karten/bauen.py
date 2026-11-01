@@ -55,6 +55,7 @@ def main():
     if alte and os.path.exists(alte):
         liste = json.load(open(alte, encoding="utf-8"))
     bekannte = {p["id"]: p for p in liste.get("pakete", [])}
+    gebaut = []
 
     for r in regionen:
         if nur and r["id"] != nur:
@@ -66,13 +67,18 @@ def main():
         ausfuehren([sys.executable, os.path.join(HIER, "hoehe.py"), str(w), str(s), str(o), str(n), str(r.get("hoehe_maxzoom", 12)), hoehe])
         dateien = []
         for name, pfad in (("karte.pmtiles", karte), ("hoehe.pmtiles", hoehe)):
+            # unveränderlicher Name mit dem Anfang der Prüfsumme: eine ältere Liste zeigt nie auf eine neuere Datei
+            pruef = sha256(pfad)
+            fest = os.path.join(ziel, f"{r['id']}-{name.split('.')[0]}-{pruef[:12]}.pmtiles")
+            os.replace(pfad, fest)
             dateien.append({
                 "name": name,
-                "url": f"https://github.com/{REPO}/releases/download/{TAG}/{os.path.basename(pfad)}",
-                "groesse": os.path.getsize(pfad),
-                "sha256": sha256(pfad),
+                "url": f"https://github.com/{REPO}/releases/download/{TAG}/{os.path.basename(fest)}",
+                "groesse": os.path.getsize(fest),
+                "sha256": pruef,
             })
-            print(f"  {os.path.basename(pfad)}: {os.path.getsize(pfad) / 1048576:.1f} MB", flush=True)
+            print(f"  {os.path.basename(fest)}: {os.path.getsize(fest) / 1048576:.1f} MB", flush=True)
+        gebaut.append(r["id"])
         bekannte[r["id"]] = {
             "id": r["id"], "name": r["name"], "bbox": r["bbox"], "maxzoom": r.get("maxzoom", 15),
             "hoehe_maxzoom": r.get("hoehe_maxzoom", 12), "stand": stand, "attribution": HINWEIS, "dateien": dateien,
@@ -87,6 +93,9 @@ def main():
     }
     with open(os.path.join(ziel, "pakete.json"), "w", encoding="utf-8") as f:
         json.dump(liste, f, ensure_ascii=False, indent=2)
+    # welche Regionen in diesem Lauf neu gebaut wurden (nur die prüft die Probe)
+    with open(os.path.join(ziel, "gebaut.json"), "w", encoding="utf-8") as f:
+        json.dump(gebaut, f)
     print("pakete.json: " + ", ".join(p["id"] + " (" + p["stand"] + ")" for p in liste["pakete"]), flush=True)
 
 

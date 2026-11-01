@@ -117,6 +117,7 @@ public class KartenServer extends BridgeWebViewClient {
     /** Für Tests und das Plugin: welche Pakete liegen da (Ordnernamen). */
     static void pakete(Context c, List<String> out) {
         File[] fs = ordner(c).listFiles();
-        if (fs != null) for (File f : fs) if (f.isDirectory() && new File(f, "paket.json").isFile()) out.add(f.getName());
+        // nur fertige Pakete: Vorbereitungs- und Reserveordner (.neu-*, .alt-*) zählen nicht
+        if (fs != null) for (File f : fs) if (f.isDirectory() && Bereich.sichererName(f.getName()) && new File(f, "paket.json").isFile()) out.add(f.getName());
     }
 }

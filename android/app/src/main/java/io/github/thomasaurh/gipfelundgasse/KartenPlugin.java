@@ -90,6 +90,8 @@ public class KartenPlugin extends Plugin {
     }
 
     private JSArray installiert() {
+        File[] alte = KartenServer.ordner(getContext()).listFiles((d, n) -> n.startsWith(".alt-"));
+        if (alte != null) for (File f : alte) { String id = f.getName().substring(5); synchronized (sperre(id)) { aufraeumen(id); } }
         JSArray a = new JSArray();
         List<String> ids = new ArrayList<>();
         KartenServer.pakete(getContext(), ids);
@@ -102,51 +104,96 @@ public class KartenPlugin extends Plugin {
         return a;
     }
 
+    // ---------- Laden, Prüfen, Austauschen ----------
+    // Ablauf je Paket: Download in den Vorbereitungsordner .neu-<id>, Prüfsummen, paket.json dort schreiben, dann Austausch
+    // (alter Ordner → .alt-<id>, .neu-<id> → <id>, .alt-<id> löschen). Jeder Ladeauftrag hat eine Kennung („gen“); ein
+    // Prüfvorgang aktiviert nur, wenn seine Kennung noch gilt. Alles je Paket unter einer Sperre.
+    private final java.util.Map<String, Object> sperren = new java.util.HashMap<>();
+
+    private Object sperre(String id) { synchronized (sperren) { return sperren.computeIfAbsent(id, k -> new Object()); } }
+
+    private File neuOrdner(String id) { return new File(KartenServer.ordner(getContext()), ".neu-" + id); }
+    private File altOrdner(String id) { return new File(KartenServer.ordner(getContext()), ".alt-" + id); }
+    private File paketOrdner(String id) { return new File(KartenServer.ordner(getContext()), id); }
+
+    private static void ordnerLoeschen(File d) {
+        File[] fs = d.listFiles();
+        if (fs != null) for (File f : fs) if (!f.delete()) Log.w(TAG, "nicht löschbar: " + f);
+        if (d.exists() && !d.delete()) Log.w(TAG, "Ordner nicht löschbar: " + d);
+    }
+
+    /** Nach einem Abbruch mitten im Austausch: alten Stand zurückholen bzw. Reste entfernen. */
+    private void aufraeumen(String id) {
+        File alt = altOrdner(id), ziel = paketOrdner(id);
+        if (alt.exists()) {
+            if (!new File(ziel, "paket.json").isFile()) { ordnerLoeschen(ziel); if (!alt.renameTo(ziel)) Log.w(TAG, "alter Stand nicht zurückholbar: " + id); }
+            else ordnerLoeschen(alt);
+        }
+    }
+
+    private void auftraegeEntfernen(DownloadManager dm, String eintragText) {
+        if (eintragText == null) return;
+        try {
+            JSONArray auftraege = new JSONObject(eintragText).getJSONArray("auftraege");
+            for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));
+        } catch (Exception e) { Log.w(TAG, "alte Aufträge nicht entfernbar", e); }
+    }
+
     @PluginMethod
     public void laden(PluginCall call) {
         String id = call.getString("id", "");
         JSArray dateien = call.getArray("dateien", null);
         JSObject meta = call.getObject("meta", new JSObject());
         if (!Bereich.sichererName(id) || dateien == null || dateien.length() == 0) { call.reject("Ungültiges Paket"); return; }
-        File dir = new File(KartenServer.ordner(getContext()), id);
-        if (!dir.exists() && !dir.mkdirs()) { call.reject("Ordner nicht anlegbar"); return; }
-        long noetig = 0;
-        for (int i = 0; i < dateien.length(); i++) { JSONObject d = dateien.optJSONObject(i); if (d != null) noetig += d.optLong("groesse", 0); }
-        try {
-            long frei = new StatFs(dir.getAbsolutePath()).getAvailableBytes();
-            if (noetig > 0 && frei < noetig + 200L * 1024 * 1024) {
-                call.reject("Zu wenig Speicher: nötig " + (noetig / 1048576) + " MB, frei " + (frei / 1048576) + " MB.");
-                return;
-            }
-        } catch (Exception e) { /* weiter versuchen */ }
         DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
-        try {
-            JSONArray auftraege = new JSONArray();
-            for (int i = 0; i < dateien.length(); i++) {
-                JSONObject d = dateien.getJSONObject(i);
-                String name = d.getString("name");
-                if (!Bereich.sichererName(name) || !d.getString("url").startsWith("https://")) throw new Exception("Ungültige Datei " + name);
-                File teil = new File(dir, name + ".teil");
-                if (teil.exists() && !teil.delete()) Log.w(TAG, "alte Teildatei bleibt: " + teil);
-                DownloadManager.Request r = new DownloadManager.Request(Uri.parse(d.getString("url")))
-                    .setTitle("Kartenpaket " + meta.optString("name", id))
-                    .setDescription(name)
-                    .setDestinationUri(Uri.fromFile(teil))
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                    .setAllowedOverMetered(call.getBoolean("mobil", false));
-                long dl = dm.enqueue(r);
-                JSONObject a = new JSONObject();
-                a.put("dl", dl); a.put("name", name); a.put("sha256", d.optString("sha256", "")); a.put("groesse", d.optLong("groesse", 0));
-                auftraege.put(a);
-            }
-            JSONObject eintrag = new JSONObject();
-            eintrag.put("auftraege", auftraege);
-            eintrag.put("meta", meta);
-            prefs().edit().putString(id, eintrag.toString()).apply();
+        synchronized (sperre(id)) {
+            aufraeumen(id);
+            // ein früherer Versuch für dieses Paket: dessen Aufträge beenden, Vorbereitungsordner leeren
+            auftraegeEntfernen(dm, prefs().getString(id, null));
+            prefs().edit().remove(id).apply();
             fehlerJe.remove(id);
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("Download ging nicht: " + e.getMessage());
+            File dir = neuOrdner(id);
+            ordnerLoeschen(dir);
+            if (!dir.mkdirs()) { call.reject("Ordner nicht anlegbar"); return; }
+            long noetig = 0;
+            for (int i = 0; i < dateien.length(); i++) { JSONObject d = dateien.optJSONObject(i); if (d != null) noetig += d.optLong("groesse", 0); }
+            try {
+                long frei = new StatFs(dir.getAbsolutePath()).getAvailableBytes();
+                if (noetig > 0 && frei < noetig + 200L * 1024 * 1024) {
+                    call.reject("Zu wenig Speicher: nötig " + (noetig / 1048576) + " MB, frei " + (frei / 1048576) + " MB.");
+                    return;
+                }
+            } catch (Exception e) { /* weiter versuchen */ }
+            List<Long> angelegt = new ArrayList<>();
+            try {
+                JSONArray auftraege = new JSONArray();
+                for (int i = 0; i < dateien.length(); i++) {
+                    JSONObject d = dateien.getJSONObject(i);
+                    String name = d.getString("name");
+                    if (!Bereich.sichererName(name) || !d.getString("url").startsWith("https://")) throw new Exception("Ungültige Datei " + name);
+                    DownloadManager.Request r = new DownloadManager.Request(Uri.parse(d.getString("url")))
+                        .setTitle("Kartenpaket " + meta.optString("name", id))
+                        .setDescription(name)
+                        .setDestinationUri(Uri.fromFile(new File(dir, name)))
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                        .setAllowedOverMetered(call.getBoolean("mobil", false));
+                    long dl = dm.enqueue(r);
+                    angelegt.add(dl);
+                    JSONObject a = new JSONObject();
+                    a.put("dl", dl); a.put("name", name); a.put("sha256", d.optString("sha256", "")); a.put("groesse", d.optLong("groesse", 0));
+                    auftraege.put(a);
+                }
+                JSONObject eintrag = new JSONObject();
+                eintrag.put("gen", java.util.UUID.randomUUID().toString());
+                eintrag.put("auftraege", auftraege);
+                eintrag.put("meta", meta);
+                prefs().edit().putString(id, eintrag.toString()).apply();
+                call.resolve();
+            } catch (Exception e) {
+                for (long dl : angelegt) dm.remove(dl);   // halb angelegten Versuch zurückrollen
+                ordnerLoeschen(dir);
+                call.reject("Download ging nicht: " + e.getMessage());
+            }
         }
     }
 
@@ -159,14 +206,14 @@ public class KartenPlugin extends Plugin {
             s.put("id", id);
             try {
                 JSONObject eintrag = new JSONObject(prefs().getString(id, "{}"));
+                s.put("name", eintrag.optJSONObject("meta") != null ? eintrag.getJSONObject("meta").optString("name", id) : id);
                 JSONArray auftraege = eintrag.getJSONArray("auftraege");
                 long geladen = 0, gesamt = 0;
                 boolean alleFertig = true, fehler = false;
                 String meldung = "";
                 for (int i = 0; i < auftraege.length(); i++) {
                     JSONObject a = auftraege.getJSONObject(i);
-                    long dl = a.getLong("dl");
-                    try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(dl))) {
+                    try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(a.getLong("dl")))) {
                         if (c == null || !c.moveToFirst()) { fehler = true; meldung = "Download verschwunden"; alleFertig = false; continue; }
                         int st = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
                         long so = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
@@ -185,10 +232,8 @@ public class KartenPlugin extends Plugin {
                 s.put("gesamt", gesamt);
                 if (fehlerJe.has(id)) { s.put("zustand", "fehler"); s.put("meldung", fehlerJe.getString(id)); }
                 else if (fehler) { s.put("zustand", "fehler"); s.put("meldung", meldung); }
-                else if (alleFertig) {
-                    s.put("zustand", "pruefen");
-                    abschliessen(id, eintrag);
-                } else { s.put("zustand", "laedt"); s.put("meldung", meldung); }
+                else if (alleFertig) { s.put("zustand", "pruefen"); abschliessen(id, eintrag); }
+                else { s.put("zustand", "laedt"); s.put("meldung", meldung); }
             } catch (Exception e) {
                 s.put("zustand", "fehler");
                 s.put("meldung", e.getMessage());
@@ -200,36 +245,42 @@ public class KartenPlugin extends Plugin {
         call.resolve(o);
     }
 
-    /** Prüfsummen kontrollieren, Teildateien umbenennen, paket.json schreiben (im Hintergrund). */
+    /** Prüfsummen im Vorbereitungsordner kontrollieren, dann austauschen (im Hintergrund). */
     private void abschliessen(String id, JSONObject eintrag) {
         synchronized (pruefenLaeuft) { if (!pruefenLaeuft.add(id)) return; }
+        final String gen = eintrag.optString("gen", "");
         new Thread(() -> {
             try {
-                File dir = new File(KartenServer.ordner(getContext()), id);
+                File dir = neuOrdner(id);
                 JSONArray auftraege = eintrag.getJSONArray("auftraege");
                 for (int i = 0; i < auftraege.length(); i++) {
                     JSONObject a = auftraege.getJSONObject(i);
-                    File teil = new File(dir, a.getString("name") + ".teil");
                     String soll = a.optString("sha256", "");
-                    if (!soll.isEmpty()) {
-                        String ist = sha256(teil);
-                        if (!soll.equalsIgnoreCase(ist)) throw new Exception("Prüfsumme von " + a.getString("name") + " stimmt nicht (Download beschädigt). Bitte neu laden.");
+                    if (!soll.isEmpty() && !soll.equalsIgnoreCase(sha256(new File(dir, a.getString("name"))))) {
+                        throw new Exception("Prüfsumme von " + a.getString("name") + " stimmt nicht (Download beschädigt). Bitte neu laden.");
                     }
                 }
-                for (int i = 0; i < auftraege.length(); i++) {
-                    String name = auftraege.getJSONObject(i).getString("name");
-                    File ziel = new File(dir, name);
-                    if (ziel.exists() && !ziel.delete()) throw new Exception("alte Datei nicht ersetzbar: " + name);
-                    if (!new File(dir, name + ".teil").renameTo(ziel)) throw new Exception("Umbenennen ging nicht: " + name);
+                synchronized (sperre(id)) {
+                    // gilt dieser Auftrag noch? (Zwischendurch gelöscht oder neu gestartet: nichts aktivieren)
+                    String jetzt = prefs().getString(id, null);
+                    if (jetzt == null || !gen.equals(new JSONObject(jetzt).optString("gen", ""))) return;
+                    JSONObject meta = eintrag.getJSONObject("meta");
+                    meta.put("installiertAm", System.currentTimeMillis());
+                    try (FileOutputStream out = new FileOutputStream(new File(dir, "paket.json"))) {
+                        out.write(meta.toString().getBytes(StandardCharsets.UTF_8));
+                    }
+                    File ziel = paketOrdner(id), alt = altOrdner(id);
+                    ordnerLoeschen(alt);
+                    if (ziel.exists() && !ziel.renameTo(alt)) throw new Exception("alter Stand nicht beiseitelegbar");
+                    if (!dir.renameTo(ziel)) {
+                        if (alt.exists() && !alt.renameTo(ziel)) Log.w(TAG, "alter Stand nicht zurückholbar");
+                        throw new Exception("neuer Stand nicht aktivierbar");
+                    }
+                    ordnerLoeschen(alt);
+                    DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+                    for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));
+                    prefs().edit().remove(id).apply();
                 }
-                JSONObject meta = eintrag.getJSONObject("meta");
-                meta.put("installiertAm", System.currentTimeMillis());
-                try (FileOutputStream out = new FileOutputStream(new File(dir, "paket.json"))) {
-                    out.write(meta.toString().getBytes(StandardCharsets.UTF_8));
-                }
-                DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
-                for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));   // Eintrag weg, Datei liegt schon am Ziel
-                prefs().edit().remove(id).apply();
                 notifyListeners("fertig", new JSObject().put("id", id));
             } catch (Exception e) {
                 Log.e(TAG, "Paket " + id + " nicht abschließbar", e);
@@ -257,19 +308,14 @@ public class KartenPlugin extends Plugin {
         String id = call.getString("id", "");
         if (!Bereich.sichererName(id)) { call.reject("Ungültiges Paket"); return; }
         DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
-        try {
-            String e = prefs().getString(id, null);
-            if (e != null) {
-                JSONArray auftraege = new JSONObject(e).getJSONArray("auftraege");
-                for (int i = 0; i < auftraege.length(); i++) dm.remove(auftraege.getJSONObject(i).getLong("dl"));
-            }
-        } catch (Exception ex) { /* weiter löschen */ }
-        prefs().edit().remove(id).apply();
-        fehlerJe.remove(id);
-        File dir = new File(KartenServer.ordner(getContext()), id);
-        File[] fs = dir.listFiles();
-        if (fs != null) for (File f : fs) if (!f.delete()) Log.w(TAG, "nicht löschbar: " + f);
-        if (dir.exists() && !dir.delete()) Log.w(TAG, "Ordner nicht löschbar: " + dir);
+        synchronized (sperre(id)) {
+            auftraegeEntfernen(dm, prefs().getString(id, null));
+            prefs().edit().remove(id).apply();   // ein laufender Prüfvorgang sieht danach keine gültige Kennung mehr
+            fehlerJe.remove(id);
+            ordnerLoeschen(neuOrdner(id));
+            ordnerLoeschen(altOrdner(id));
+            ordnerLoeschen(paketOrdner(id));
+        }
         call.resolve();
     }
 }

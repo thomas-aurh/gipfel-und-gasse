@@ -36,7 +36,7 @@ $('bDrucken').onclick = async () => {
 
 function kachelnGeladen(ms) {
   return new Promise(res => {
-    const basis = LAGEN[lagenWahl.basis];
+    const basis = LAGEN[lagenWahl.basis] || LAGEN.topo;   // gewählte Karte (noch) nicht da: topografisch wird gezeigt
     let fertig = false;
     const ende = () => { if (!fertig) { fertig = true; basis.off('load', ende); res(); } };
     basis.on('load', ende);

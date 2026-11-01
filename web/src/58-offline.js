@@ -2,7 +2,7 @@
 // Vektorkarte (PMTiles, gezeichnet mit protomaps-leaflet), Höhenlinien und Relief aus den Höhendaten, Höhen ohne Netz.
 // Die Dateien liefert der native KartenServer unter /_karten_/<paket>/<datei>.
 const PAKET_INDEX = 'https://github.com/thomas-aurh/gipfel-und-gasse/releases/download/kartenpakete/pakete.json';
-const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: null };
+const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: null, bereit: null };
 
 function paketGrenzen(p) { const b = p.bbox; return L.latLngBounds([b[1], b[0]], [b[3], b[2]]); }
 function paketFuer(lat, lon) { return OFF.installiert.find(p => p.bbox && lon >= p.bbox[0] && lon <= p.bbox[2] && lat >= p.bbox[1] && lat <= p.bbox[3]); }
@@ -64,6 +64,7 @@ async function hoeheOffline(lat, lon) {
 
 // fehlende Höhen aus dem Paket füllen (vor der Anfrage an Open-Meteo, in 10-dienste.js)
 async function hoehenOffline(pts) {
+  if (OFF.bereit) await OFF.bereit;   // beim Start: erst wissen, welche Pakete auf dem Handy liegen
   if (!OFF.installiert.length) return;
   for (const p of pts) {
     if (p.ele != null) continue;
@@ -169,6 +170,16 @@ function offlineEbenen() {
   lagenAnwenden();
 }
 
+// ohne Netz: auf die Offline-Karte wechseln, wenn ein Paket die Kartenmitte abdeckt
+function ohneNetzUmschalten() {
+  if (navigator.onLine !== false) return;
+  const c = karte.getCenter();
+  if (LAGEN.offline && lagenWahl.basis !== 'offline' && paketFuer(c.lat, c.lng)) {
+    lagenWahl.basis = 'offline'; lagenWahl.relief = true; lagenAnwenden();
+    melde('Kein Netz: Offline-Karte eingeschaltet.');
+  }
+}
+
 // ---------- Paketverwaltung (Reiter Touren) ----------
 const Karten = NATIV ? window.Capacitor.registerPlugin('Karten') : null;
 
@@ -182,6 +193,9 @@ async function paketeLaden(mitListe) {
     OFF.frei = r.frei;
     if (r.fehler) $('paketStatus').textContent = r.fehler;
     if (vorher !== OFF.installiert.map(p => p.id + p.stand).join()) offlineEbenen();
+    // letztes Paket gelöscht: gespeicherte Wahl „Offline-Karte“ zurück auf topografisch
+    if (!OFF.installiert.length && lagenWahl.basis === 'offline') { lagenWahl.basis = 'topo'; lagenAnwenden(); }
+    ohneNetzUmschalten();
     paketListe();
   } catch (e) {
     $('paketStatus').textContent = 'Kartenpakete nicht lesbar: ' + (e.message || e);
@@ -194,11 +208,12 @@ function paketListe() {
   const ul = $('paketliste');
   ul.innerHTML = '';
   const angebot = (OFF.verfuegbar && OFF.verfuegbar.pakete) || [];
-  const ids = [...new Set(angebot.map(p => p.id).concat(OFF.installiert.map(p => p.id)))];
+  // auch laufende Downloads zeigen (z. B. nach einem Neustart ohne Netz, wenn die Angebotsliste fehlt)
+  const ids = [...new Set(angebot.map(p => p.id).concat(OFF.installiert.map(p => p.id), OFF.laufend.map(l => l.id)))];
   if (!ids.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">Noch keine Liste geladen. Mit Netz öffnen.</span></li>'; return; }
   for (const id of ids) {
     const neu = angebot.find(p => p.id === id), da = OFF.installiert.find(p => p.id === id), lauf = OFF.laufend.find(l => l.id === id);
-    const p = neu || da, groesse = (p.dateien || []).reduce((s, d) => s + (d.groesse || 0), 0);
+    const p = neu || da || { id, name: lauf && lauf.name || id, dateien: [] }, groesse = (p.dateien || []).reduce((s, d) => s + (d.groesse || 0), 0);
     const li = document.createElement('li');
     li.style.cursor = 'default';
     let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (p.stand ? ' · Daten vom ' + R.esc(p.stand) : '');
@@ -256,13 +271,11 @@ if (Karten) {
     melde('Kartenpaket fertig: Die Karte geht jetzt auch ohne Netz.', 6);
     if (erstes && LAGEN.offline) { lagenWahl.basis = 'offline'; lagenWahl.relief = true; lagenAnwenden(); }
   });
-  // ohne Netz: auf die Offline-Karte wechseln, wenn ein Paket die Kartenmitte abdeckt
-  window.addEventListener('offline', () => {
-    const c = karte.getCenter();
-    if (LAGEN.offline && lagenWahl.basis !== 'offline' && paketFuer(c.lat, c.lng)) {
-      lagenWahl.basis = 'offline'; lagenWahl.relief = true; lagenAnwenden();
-      melde('Kein Netz: Offline-Karte eingeschaltet.');
-    }
-  });
-  paketeLaden(true).then(statusFragen);
+  window.addEventListener('offline', ohneNetzUmschalten);
+  // wieder Netz: Angebotsliste nachladen, falls sie beim Start fehlte
+  window.addEventListener('online', () => { if (!OFF.verfuegbar) paketeLaden(true); });
+  document.querySelector('nav.reiter [data-reiter=touren]').addEventListener('click', () => { if (!OFF.verfuegbar && navigator.onLine) paketeLaden(true); });
+  // erst die Pakete auf dem Handy (schnell, ohne Netz), danach die Angebotsliste aus dem Netz
+  OFF.bereit = paketeLaden(false);
+  OFF.bereit.then(() => { statusFragen(); return paketeLaden(true); });
 }

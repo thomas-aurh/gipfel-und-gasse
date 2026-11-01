@@ -516,12 +516,15 @@ function pruef(name, bed, info) {
   await po.click('#bLagen');
   await po.waitForTimeout(2500);
   // Vektorkarte: Kacheln von protomaps-leaflet sind Canvas mit Inhalt; Relief ebenso
+  // Vektorkarte und Relief getrennt: beide müssen sichtbaren Inhalt haben
   const gezeichnet = await po.evaluate(() => {
-    const leer = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; };
-    const cs = [...document.querySelectorAll('.leaflet-tile-pane canvas')];
-    return cs.map(leer);
+    const voll = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; };
+    const ebenen = [...document.querySelectorAll('.leaflet-tile-pane .leaflet-layer')];
+    const zaehlen = es => es.flatMap(e => [...e.querySelectorAll('canvas')]).map(voll);
+    return { relief: zaehlen(ebenen.filter(e => e.style.zIndex === '2')), karte: zaehlen(ebenen.filter(e => e.style.zIndex !== '2')) };
   });
-  pruef('Offline: Vektorkarte und Relief zeichnen', gezeichnet.length >= 4 && gezeichnet.filter(n => n > 10).length >= 4, gezeichnet);
+  pruef('Offline: Vektorkarte zeichnet', gezeichnet.karte.filter(n => n > 10).length >= 4, gezeichnet.karte);
+  pruef('Offline: Relief zeichnet', gezeichnet.relief.filter(n => n > 10).length >= 4, gezeichnet.relief);
   pruef('Offline: Dateien mit Byte-Bereichen gelesen', bereiche.some(b => b.startsWith('karte.pmtiles')) && bereiche.some(b => b.startsWith('hoehe.pmtiles')), bereiche.slice(0, 4));
   await po.screenshot({ path: path.join(OUT, '11-offline-relief.png') });
   // gerade Linie über den Berg: Höhen aus dem Paket (Gipfel 1800 m)
