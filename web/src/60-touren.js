@@ -132,7 +132,7 @@ function tourenPunkte(liste) {
     m.bindPopup(() => {
       const box = document.createElement('div');
       box.innerHTML = '<b>' + R.esc(t.name) + '</b><br><span class="klein">' + (gegangen ? 'gegangen' : t.art === 'spur' ? 'GPX-Spur' : 'geplant') + ' · ' +
-        R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
+        R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Öffnen';
       k.onclick = () => { karte.closePopup(); tourOeffnen(t.id); };
@@ -154,7 +154,7 @@ function tourenZeigen() {
     const zeichen = tourZeichen(t);
     // Öffnen ist ein echter Knopf, damit es auch mit Tastatur und Bildschirmleser geht
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
-      R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
+      R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourOeffnen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
@@ -166,13 +166,37 @@ function tourenZeigen() {
 
 function dateiname(name) { return (name || 'tour').replace(/[^\wäöüÄÖÜß -]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'tour'; }
 
-function gpxHerunter(name, pts, wps) {
-  const blob = new Blob([R.gpxSchreiben(name, pts, wps)], { type: 'application/gpx+xml' });
+// Datei ausgeben: im Browser herunterladen; die App ersetzt das durch das Teilen-Menü (75-app.js)
+function dateiAusgeben(datei, text, mime) {
+  const blob = new Blob([text], { type: mime });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = dateiname(name) + '.gpx';
+  a.download = datei;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function gpxHerunter(name, pts, wps) {
+  dateiAusgeben(dateiname(name) + '.gpx', R.gpxSchreiben(name, pts, wps), 'application/gpx+xml');
+}
+
+// Sicherung: alle Touren samt Planung (Wegpunkte, Stücke, Hinweise) als eine Datei; Laden ergänzt, was fehlt
+function sicherungSpeichern() {
+  const liste = tourenLesen();
+  if (!liste.length) { melde('Keine Touren gespeichert.'); return; }
+  const tag = new Date().toISOString().slice(0, 10);
+  dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
+    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste }), 'application/json');
+}
+
+function sicherungEinlesen(text) {
+  const neu = R.sicherungLesen(text);
+  const liste = tourenLesen(), ids = new Set(liste.map(t => t.id));
+  const dazu = neu.filter(t => !ids.has(t.id));
+  if (dazu.length && !tourenSchreiben(dazu.concat(liste))) return;
+  tourenZeigen();
+  melde(dazu.length ? dazu.length + ' Touren aus der Sicherung übernommen' + (neu.length > dazu.length ? ', ' + (neu.length - dazu.length) + ' waren schon da.' : '.') :
+    'Alle Touren der Sicherung sind schon da.', 6);
 }
 
 $('bSpeichern').onclick = tourSpeichern;
@@ -181,10 +205,13 @@ $('bGpx').onclick = () => {
   const n = (S.name || '').trim() || 'Gipfel-und-Gasse-Tour';
   gpxHerunter(n, S.ergebnis.pts, S.wps.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Punkt ' + (i + 1)) })));
 };
-$('bAlleGpx').onclick = () => {
-  const liste = tourenLesen();
-  if (!liste.length) { melde('Keine Touren gespeichert.'); return; }
-  liste.forEach((t, i) => setTimeout(() => gpxHerunter(t.name, spurEntpacken(t.spur), []), i * 400));
+$('bSichern').onclick = sicherungSpeichern;
+$('bSicherungLaden').onclick = () => $('sicherungDatei').click();
+$('sicherungDatei').onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try { sicherungEinlesen(await f.text()); } catch (err) { melde('Sicherung nicht lesbar: ' + err.message, 6); }
 };
 $('bTeilen').onclick = async () => {
   if (!S.wps.length) return;

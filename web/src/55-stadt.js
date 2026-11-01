@@ -183,3 +183,4 @@ $('bRundgang').onclick = async () => {
 };
 
 stadtBereit = true;
+sehensPruefen();   // gespeicherter Ausschnitt beim Start: Sehenswürdigkeiten gleich laden, nicht erst nach dem Verschieben

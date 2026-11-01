@@ -486,6 +486,82 @@ var R = (function () {
     return out;
   }
 
+  // Text für „abseits der Route“: weit weg (z. B. noch nicht am Start) mit km und Weg zum Start
+  function abseitsText(abw, zumStart) {
+    if (abw < 1000) return 'Du bist ' + Math.round(abw) + ' m neben der Route';
+    return 'Du bist ' + kmText(abw) + ' von der Route entfernt' + (zumStart != null ? ' · zum Start ' + kmText(zumStart) : '');
+  }
+
+  // Tage mit Gewitter (WMO 95–99) als kurze Namen: „heute“, „morgen“, sonst Wochentag
+  function gewitterTage(codes, tage) {
+    const kurz = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const out = [];
+    (codes || []).forEach((c, i) => { if (+c >= 95) out.push(i === 0 ? 'heute' : i === 1 ? 'morgen' : 'am ' + kurz[new Date(tage[i] + 'T12:00').getDay()]); });
+    return out;
+  }
+
+  // Sicherung aller Touren: {app, version, touren}. Eine Sicherung kann von irgendwoher kommen: jede Tour wird
+  // Feld für Feld neu aufgebaut (nur endliche Zahlen, Texte mit Längengrenze, bekannte Werte); was nicht passt,
+  // fällt weg. Liefert die gültigen Touren oder wirft mit Grund.
+  function sicherungLesen(text) {
+    let d;
+    try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); }
+    if (!d || d.app !== 'gipfel-und-gasse' || !Array.isArray(d.touren)) throw new Error('keine Sicherung von Gipfel & Gasse');
+    return d.touren.map(tourPruefen).filter(Boolean);
+  }
+
+  function tourPruefen(t) {
+    const zahl = x => (typeof x === 'number' && isFinite(x) ? x : null);
+    const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : null);
+    const ort = (lat, lon) => zahl(lat) != null && zahl(lon) != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    if (!t || typeof t !== 'object') return null;
+    const id = text(t.id, 64), name = text(t.name, 200);
+    if (!id || !name || !Array.isArray(t.spur) || !t.spur.length || !t.kurz || typeof t.kurz !== 'object') return null;
+    const spur = [];
+    for (const p of t.spur) {
+      if (!Array.isArray(p) || !ort(p[0], p[1])) return null;
+      const x = [p[0], p[1], zahl(p[2])];
+      if (zahl(p[3]) != null || p[4] === 1) x.push(zahl(p[3]) || 0);
+      if (p[4] === 1) x.push(1);
+      spur.push(x);
+    }
+    let wps = null;
+    if (Array.isArray(t.wps)) {
+      wps = [];
+      for (const w of t.wps) {
+        if (!Array.isArray(w) || !ort(w[0], w[1])) return null;
+        wps.push(w.length > 2 ? [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)] : [w[0], w[1]]);
+      }
+    }
+    // Teilstücke nur, wenn sie zu Wegpunkten und Spur passen; sonst öffnet die Tour als Spur
+    let stuecke = null;
+    if (wps && Array.isArray(t.stuecke) && t.stuecke.length === wps.length - 1) {
+      let summe = 0;
+      const ok = t.stuecke.every(s => s && Number.isInteger(s.n) && s.n >= 1 && (s.q === 'brouter' || s.q === 'linie') && Array.isArray(s.a) &&
+        s.a.every(a => Array.isArray(a) && zahl(a[0]) != null && typeof a[1] === 'string') &&
+        (s.h == null || (Array.isArray(s.h) && s.h.every(h => Array.isArray(h) && Number.isInteger(h[0]) && Number.isInteger(h[1]) && (h[2] == null || zahl(h[2]) != null)))) &&
+        (summe += s.n) > 0);
+      if (ok && summe - (t.stuecke.length - 1) === spur.length) {
+        stuecke = t.stuecke.map(s => {
+          const o = { n: s.n, q: s.q, a: s.a.map(a => [a[0], a[1].slice(0, 500)]) };
+          if (s.h) o.h = s.h.map(h => [h[0], h[1], h[2] == null ? null : h[2]]);
+          return o;
+        });
+      }
+    }
+    const k = t.kurz;
+    const out = {
+      id, name, datum: typeof t.datum === 'string' && !isNaN(Date.parse(t.datum)) ? t.datum.slice(0, 40) : zahl(t.datum) || new Date().toISOString(), spur, wps: stuecke ? wps : null, stuecke,
+      art: ['plan', 'spur', 'aufzeichnung'].includes(t.art) ? t.art : 'spur',
+      kurz: { laenge: zahl(k.laenge) || 0, auf: Math.round(zahl(k.auf) || 0), ab: Math.round(zahl(k.ab) || 0), zeit: zahl(k.zeit) || 0 }
+    };
+    if (out.art === 'plan' && !stuecke) out.art = 'spur';
+    if (['wandern', 'stadt', 'rad', 'kurz', 'linie'].includes(t.profil)) out.profil = t.profil;
+    if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
+    if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
+    return out;
+  }
+
   // ---------- Wetter (Open-Meteo, WMO-Codes) ----------
   function wetterText(code) {
     const c = +code;
@@ -830,7 +906,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

@@ -249,5 +249,22 @@ pruef('Offline-Suche: Ort als zweites Wort', R.sucheOffline(suchListe, 'bahnhofs
 pruef('Offline-Suche: genauer Name zuerst', R.sucheOffline(suchListe, 'Penzberg')[0].name === 'Penzberg' && R.sucheOffline(suchListe, 'x').length === 0);
 pruef('Offline-Suche: Teilwort ab 4 Zeichen', R.sucheOffline(suchListe, 'stand')[0].name === 'Herzogstand');
 
+pruef('Abseits nah und weit', R.abseitsText(72) === 'Du bist 72 m neben der Route' && R.abseitsText(4284, 4500) === 'Du bist 4,3 km von der Route entfernt · zum Start 4,5 km', R.abseitsText(4284, 4500));
+pruef('Gewittertage', R.gewitterTage([1, 95, 96], ['2026-11-01', '2026-11-02', '2026-11-03']).join() === 'morgen,am Di' && R.gewitterTage([95], ['2026-11-01']).join() === 'heute');
+const sich = JSON.stringify({ app: 'gipfel-und-gasse', version: 1, touren: [{ id: 'a', name: 'A', spur: [[47, 11, 600]], kurz: { laenge: 1 } }, { id: 'b' }] });
+pruef('Sicherung lesen: nur gültige Touren', R.sicherungLesen(sich).length === 1);
+const boese = JSON.stringify({ app: 'gipfel-und-gasse', touren: [
+  { id: 'x', name: 'X', spur: [[47, 11, 600]], kurz: { laenge: 1, auf: '<img src=x onerror=alert(1)>' }, datum: '2026-11-01T10:00:00Z' },
+  { id: 'y', name: 'Y', spur: [null], kurz: {} },
+  { id: 'z', name: 'Z', spur: [[47, 11, null], [47.01, 11.01, null]], wps: [[47, 11], [47.01, 11.01]], stuecke: [{ n: 2, q: 'brouter', a: [[1500, 'highway=path']], h: [[1, 2, null]] }], art: 'plan', kurz: { laenge: 1500 } },
+  { id: 'w', name: 'W', spur: [[47, 11, null], [47.01, 11.01, null]], wps: [[47, 11], [47.01, 11.01]], stuecke: [{ n: 5, q: 'brouter', a: [] }], art: 'plan', kurz: { laenge: 1 } }] });
+const geprueft = R.sicherungLesen(boese);
+pruef('Sicherung: HTML in Kennzahlen wird zur Zahl, Datum bleibt', geprueft[0].kurz.auf === 0 && geprueft[0].datum === '2026-11-01T10:00:00Z', geprueft[0]);
+pruef('Sicherung: kaputte Spur fällt weg', !geprueft.some(t => t.id === 'y'));
+pruef('Sicherung: passende Teilstücke bleiben (Planung)', geprueft.find(t => t.id === 'z').stuecke.length === 1 && geprueft.find(t => t.id === 'z').art === 'plan');
+pruef('Sicherung: unpassende Teilstücke → Tour als Spur', geprueft.find(t => t.id === 'w').stuecke === null && geprueft.find(t => t.id === 'w').art === 'spur');
+let sichFehler = ''; try { R.sicherungLesen('{"app":"anders","touren":[]}'); } catch (e) { sichFehler = e.message; }
+pruef('Sicherung lesen: fremde Datei abgelehnt', sichFehler.includes('keine Sicherung'));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

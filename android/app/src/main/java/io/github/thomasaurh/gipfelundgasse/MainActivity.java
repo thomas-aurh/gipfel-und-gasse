@@ -1,6 +1,7 @@
 package io.github.thomasaurh.gipfelundgasse;
 
 import android.os.Bundle;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -13,5 +14,15 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Kartenpakete über einen eigenen Datei-Server mit echten Byte-Bereichen ausliefern
         getBridge().setWebViewClient(new KartenServer(getBridge()));
+        // Zurück-Taste: zuerst die Oberfläche fragen (Fenster, Kartenwahl, großes Blatt schließen, zurück zu „Planen“);
+        // hat sie nichts mehr zu schließen, geht die App in den Hintergrund statt sich zu beenden
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                getBridge().getWebView().evaluateJavascript("window.gugZurueck ? window.gugZurueck() : false", wert -> {
+                    if (!"true".equals(wert)) moveTaskToBack(true);
+                });
+            }
+        });
     }
 }

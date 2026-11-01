@@ -34,6 +34,42 @@
         "europe/germany/bayern",
         "europe/austria"
       ]
+    },
+    {
+      "id": "allgaeu-bodensee",
+      "name": "Allgäu und Bodensee",
+      "bbox": [
+        9.0,
+        47.25,
+        10.95,
+        48.05
+      ],
+      "maxzoom": 15,
+      "hoehe_maxzoom": 12,
+      "probe": [
+        [
+          47.546,
+          9.684,
+          15
+        ],
+        [
+          47.41,
+          10.28,
+          13
+        ],
+        [
+          47.67,
+          10.3,
+          11
+        ]
+      ],
+      "routing": true,
+      "orte": [
+        "europe/germany/bayern",
+        "europe/germany/baden-wuerttemberg",
+        "europe/austria",
+        "europe/switzerland"
+      ]
     }
   ]
 }

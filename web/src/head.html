@@ -11,6 +11,10 @@ button{cursor:pointer}
 #karte{position:absolute;inset:0 0 0 var(--panel);background:#e9ede6}
 .leaflet-container{font:inherit}
 .leaflet-control-attribution{font-size:11px}
+#aktionen{position:sticky;top:0;z-index:5;background:var(--hg);display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 8px;margin-bottom:4px;border-bottom:1px solid var(--linie)}
+#aktionen .knopf{padding:8px 10px;font-size:13px;min-height:40px}
+#lagenwahl small{display:block;color:var(--grau);font-size:12px}
+#lagenwahl .knopf{margin-top:8px;width:100%}
 
 /* Suche oben */
 #oben{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);right:64px;max-width:460px;z-index:1000}
@@ -42,7 +46,7 @@ button{cursor:pointer}
 .logo{display:inline-flex;width:34px;height:34px;flex:none}
 .logo svg{width:100%;height:100%}
 nav.reiter{display:flex;gap:2px;margin-top:8px;overflow-x:auto}
-nav.reiter button{border:0;background:none;padding:8px 8px;font-size:14px;border-bottom:3px solid transparent;color:var(--grau);white-space:nowrap;font-weight:600}
+nav.reiter button{border:0;background:none;padding:12px 8px;font-size:14px;border-bottom:3px solid transparent;color:var(--grau);white-space:nowrap;font-weight:600}
 nav.reiter button.an{color:var(--gruen);border-bottom-color:var(--gruen)}
 .inhalt{flex:1;overflow-y:auto;padding:12px 14px calc(20px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
 .inhalt>section{display:none}
@@ -82,7 +86,7 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .liste .was{flex:1;min-width:0}
 .liste .was small{display:block;color:var(--grau)}
 .liste .aktionen{display:flex;gap:4px}
-.liste .aktionen button{border:0;background:none;font-size:17px;padding:4px 6px;border-radius:6px}
+.liste .aktionen button{border:0;background:none;font-size:17px;padding:4px 6px;border-radius:6px;min-width:40px;min-height:40px}
 .liste .aktionen button:hover{background:#fff}
 .paket-balken{height:6px;background:#eef1ec;border-radius:3px;overflow:hidden;margin-top:4px}
 .paket-balken i{display:block;height:100%;background:var(--gruen)}
@@ -116,8 +120,8 @@ a{color:var(--gruen)}
 #stopps .nr{width:22px;height:22px;border-radius:50%;background:var(--route);color:#fff;font:700 11px/22px sans-serif;text-align:center;flex:none}
 #stopps .nr.s{background:#2e8b47}
 #stopps .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stopps select{padding:3px 4px;border:1px solid var(--linie);border-radius:7px;background:#fff;font-size:13px}
-#stopps button{border:0;background:none;font-size:15px;padding:2px 4px}
+#stopps select{min-height:36px;padding:3px 4px;border:1px solid var(--linie);border-radius:7px;background:#fff;font-size:13px}
+#stopps button{border:0;background:none;font-size:15px;padding:2px 4px;min-width:40px;min-height:40px}
 #druckkopf,#druckfuss{display:none}
 .ich{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e855,0 1px 4px #0006}
 .popup-knopf{margin-top:6px;border:1px solid var(--linie);background:#fff;border-radius:8px;padding:5px 10px;font-weight:600}
@@ -149,5 +153,11 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   #griff{display:block;width:44px;height:5px;border-radius:3px;background:#c9d1c6;margin:4px auto 6px;cursor:grab;touch-action:none}
   .marke{font-size:16px}
   #meldung{bottom:calc(46vh + 12px)}
+  #panel.gross ~ #meldung,body:has(#panel.gross) #meldung{bottom:auto;top:calc(76px + env(safe-area-inset-top,0px))}
+  /* Kartennachweis über dem Blatt (die Höhe setzt 80-start.js) */
+  .leaflet-bottom.leaflet-right{bottom:var(--blatt,46vh)}
+  /* Aktionsleiste am Telefon einzeilig, seitlich wischbar (bleibt beim Scrollen oben, ohne viel Platz zu nehmen) */
+  #aktionen{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #aktionen .knopf{flex:0 0 auto}
 }
 </style>
