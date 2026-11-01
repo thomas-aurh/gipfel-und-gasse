@@ -44,15 +44,14 @@ const server = http.createServer((req, res) => {
       const ctx = await browser.newContext({ viewport: { width: 1000, height: 760 } });
       // alles aus dem Netz sperren: die Probe darf nur das Paket benutzen
       await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
-      await ctx.addInitScript(require('../web/test/bruecke'));
-      await ctx.addInitScript(([paket, lat, lon, z]) => {
+      await ctx.addInitScript(require('../web/test/bruecke').mit(([paket, lat, lon, z]) => {
         window.__bruecke({
           Karten: { liste: async () => ({ installiert: [paket] }), status: async () => ({ laufend: [] }), addListener: () => {} },
           Navi: { status: async () => ({}), aufzeichnungHolen: async () => ({ spur: [] }), addListener: () => {} }
         });
         localStorage.setItem('gug.blick', JSON.stringify({ lat, lon, z }));
         localStorage.setItem('gug.lagen', JSON.stringify({ basis: 'offline', relief: true, wander: false, rad: false }));
-      }, [paket, lat, lon, z]);
+      }, [paket, lat, lon, z]));
       const page = await ctx.newPage();
       const skriptFehler = [];
       page.on('pageerror', e => skriptFehler.push(e.message));

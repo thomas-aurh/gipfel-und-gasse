@@ -410,8 +410,7 @@ function pruef(name, bed, info) {
   const bruecke = require('./bruecke');
   const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true });
   await dienste(appCtx);
-  await appCtx.addInitScript(bruecke);
-  await appCtx.addInitScript(() => {
+  await appCtx.addInitScript(bruecke.mit(() => {
     const aufrufe = [];
     let hoerer = null;
     window.__navi = { aufrufe, melden: st => hoerer && hoerer(st) };
@@ -426,7 +425,7 @@ function pruef(name, bed, info) {
         addListener: (n, f) => { if (n === 'position') hoerer = f; }
       }
     });
-  });
+  }));
   const pa2 = await appCtx.newPage();
   const appFehler = [];
   pa2.on('pageerror', e => appFehler.push(e.message));
@@ -490,8 +489,7 @@ function pruef(name, bed, info) {
   });
   // kein Netz für Höhen: die gerade Linie muss ihre Höhen aus dem Paket holen
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
-  await offCtx.addInitScript(bruecke);
-  await offCtx.addInitScript(() => {
+  await offCtx.addInitScript(bruecke.mit(() => {
     const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
       dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }] };
     window.__routing = []; window.__naviStart = [];
@@ -510,7 +508,7 @@ function pruef(name, bed, info) {
       }
     });
     localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.585, lon: 11.35, z: 13 }));
-  });
+  }));
   // die Offline-Nachbildung nutzt dieselbe Routenerzeugung, zählt aber nicht als Anfrage an brouter.de
   await offCtx.exposeFunction('brouterNach', ll => { const j = brouter('https://brouter.de/brouter?lonlats=' + ll); zaehler.brouter--; return JSON.stringify(j); });
   const po = await offCtx.newPage();
