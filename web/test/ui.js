@@ -407,19 +407,7 @@ function pruef(name, bed, info) {
   await alt.close();
 
   // ---------- Android-App: Oberfläche mit nachgebildetem Navi-Plugin ----------
-  // native Brücke der Android-App nachgebildet (wie native-bridge.js von Capacitor): Plugin-Köpfe, nativePromise,
-  // nativeCallback. Darauf läuft der echte @capacitor/core aus der App-Datei, wie auf dem Handy.
-  const bruecke = () => {
-    window.__bruecke = plugins => {
-      window.androidBridge = { postMessage() {} };
-      window.Capacitor = {
-        PluginHeaders: Object.keys(plugins).map(name => ({ name, methods: Object.keys(plugins[name]).filter(m => m !== 'addListener')
-          .map(m => ({ name: m, rtype: 'promise' })).concat([{ name: 'addListener', rtype: 'callback' }, { name: 'removeListener', rtype: 'promise' }]) })),
-        nativePromise: (p, m, o) => { try { return Promise.resolve(plugins[p][m] ? plugins[p][m](o) : undefined); } catch (e) { return Promise.reject(e); } },
-        nativeCallback: (p, m, o, cb) => { if (m === 'addListener' && plugins[p].addListener) plugins[p].addListener(o.eventName, cb); return Promise.resolve('cb' + Math.random()); }
-      };
-    };
-  };
+  const bruecke = require('./bruecke');
   const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true });
   await dienste(appCtx);
   await appCtx.addInitScript(bruecke);
