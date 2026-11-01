@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gipfel &amp; Gasse</string>
+    <string name="title_activity_main">Gipfel &amp; Gasse</string>
+    <string name="package_name">io.github.thomasaurh.gipfelundgasse</string>
+    <string name="custom_url_scheme">io.github.thomasaurh.gipfelundgasse</string>
+</resources>

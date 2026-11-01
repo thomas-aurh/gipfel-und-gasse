@@ -1,0 +1,213 @@
+<div id="app">
+  <div id="karte" aria-label="Karte"></div>
+
+  <div id="oben">
+    <div class="suche">
+      <input id="suchfeld" type="search" placeholder="Ort, Gipfel oder Hütte suchen" autocomplete="off" aria-label="Suche">
+      <div id="treffer" role="listbox"></div>
+    </div>
+  </div>
+
+  <div id="kartenknoepfe">
+    <button id="bLagen" title="Kartenart" aria-label="Kartenart">🗺️</button>
+    <button id="bOrt" title="Mein Standort" aria-label="Mein Standort">◎</button>
+    <button id="bPlus" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
+    <button id="bMinus" title="Herauszoomen" aria-label="Herauszoomen">−</button>
+  </div>
+
+  <div id="lagenwahl" hidden>
+    <h4>Karte</h4>
+    <label><input type="radio" name="basis" value="topo" checked> Topografisch (OpenTopoMap)</label>
+    <label><input type="radio" name="basis" value="osm"> Stadtplan (OpenStreetMap)</label>
+    <h4>Darüber</h4>
+    <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
+    <label><input type="checkbox" id="lageRad"> Radrouten</label>
+    <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
+  </div>
+
+  <div id="abseits" hidden>Du bist abseits der Route</div>
+
+  <aside id="panel">
+    <header>
+      <div id="griff" title="Größe ändern"></div>
+      <div class="marke">
+        <span id="logo" class="logo">
+<!--LOGO-->
+        </span>
+        Gipfel &amp; Gasse
+        <span id="kopfZahlen" class="klein" style="margin-left:auto;font-weight:600"></span>
+      </div>
+      <nav class="reiter" role="tablist">
+        <button data-reiter="planen" class="an">Planen</button>
+        <button data-reiter="entdecken">Entdecken</button>
+        <button data-reiter="unterwegs">Unterwegs</button>
+        <button data-reiter="touren">Touren</button>
+        <button data-reiter="info">Info</button>
+      </nav>
+    </header>
+
+    <div class="inhalt">
+      <!-- Planen -->
+      <section data-reiter="planen" class="an">
+        <div class="modus" role="group" aria-label="Art der Tour">
+          <button data-modus="berg" class="an">⛰️ Berg und Natur</button>
+          <button data-modus="stadt">🏛️ Stadt</button>
+        </div>
+        <div id="leerHinweis" class="hinweis">Tippe auf die Karte: Der erste Punkt ist der Start, jeder weitere ein Zwischenziel.
+          Punkte lassen sich ziehen, Antippen entfernt sie. Ein Tipp auf die Route fügt dort einen Punkt ein.</div>
+        <div class="zeile">
+          <label>Art<select id="profilwahl">
+            <option value="wandern">Wandern</option>
+            <option value="stadt">Stadtspaziergang</option>
+            <option value="rad">Fahrrad</option>
+            <option value="kurz">Kürzester Weg</option>
+            <option value="linie">Gerade Linie</option>
+          </select></label>
+          <label>Tempo<select id="tempowahl">
+            <option value="1.2">Zügig</option>
+            <option value="1" selected>Normal</option>
+            <option value="0.85">Gemütlich</option>
+            <option value="0.7">Mit Kind</option>
+          </select></label>
+        </div>
+        <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
+        <div id="status"></div>
+        <div id="ergebnis" hidden>
+          <div class="zahlen">
+            <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
+            <div class="zahl"><b id="zZeit">–</b><span id="zZeitText">Gehzeit</span></div>
+            <div class="zahl"><b id="zSchwer">–</b><span>Schwierigkeit</span></div>
+            <div class="zahl"><b id="zAuf">–</b><span>Aufstieg</span></div>
+            <div class="zahl"><b id="zAb">–</b><span>Abstieg</span></div>
+            <div class="zahl"><b id="zHoch">–</b><span>Höchster Punkt</span></div>
+          </div>
+          <div id="stopps"></div>
+          <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
+          <div id="kinderwagen" class="urteil"></div>
+          <h3>Wegtypen</h3><div id="wege" class="balken"></div>
+          <h3>Untergrund</h3><div id="boden" class="balken"></div>
+          <p class="klein">Antippen hebt die Stellen auf der Karte hervor. Wegtyp, Untergrund und Schwierigkeit stammen aus
+            OpenStreetMap und sind dort nicht überall erfasst.</p>
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf" id="bZurueck" title="Strg+Z">↶ Rückgängig</button>
+          <button class="knopf" id="bRund">⟲ Zurück zum Start</button>
+          <button class="knopf" id="bUmkehren">⇄ Umkehren</button>
+          <button class="knopf" id="bNeu">✕ Neu</button>
+          <button class="knopf" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Reihenfolge optimieren</button>
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
+          <button class="knopf" id="bGpx">⬇ GPX</button>
+          <button class="knopf" id="bTeilen">🔗 Link teilen</button>
+          <button class="knopf" id="bDrucken">🖨 Karte drucken</button>
+        </div>
+      </section>
+
+      <!-- Entdecken -->
+      <section data-reiter="entdecken">
+        <h3>Wetter am Start</h3>
+        <div id="wetter" class="klein">Erst eine Route planen oder die Karte auf das Gebiet schieben.</div>
+        <div id="stadtBox" hidden>
+          <h3>Sehenswürdigkeiten im Kartenausschnitt</h3>
+          <div id="stadtStatus" class="klein">Bis Zoomstufe 14 heranzoomen, dann erscheinen sie auf der Karte.</div>
+          <div class="zeile">
+            <label>Rundgang mit<select id="rundAnzahl">
+              <option value="4">4 Orten</option><option value="6" selected>6 Orten</option><option value="8">8 Orten</option><option value="10">10 Orten</option>
+            </select></label>
+            <button class="knopf haupt" id="bRundgang">✨ Rundgang vorschlagen</button>
+          </div>
+          <p class="klein">Verbindet die bekanntesten Orte im Ausschnitt zu einer kurzen Runde ab deinem Start (sonst ab der Kartenmitte).</p>
+          <div id="stadtChips" class="chips"></div>
+          <ul id="stadtListe" class="liste"></ul>
+        </div>
+        <div id="bergBox">
+        <h3 id="orteTitel">Orte entlang der Route</h3>
+        <div class="zeile">
+          <label>Abstand zur Route<select id="radiuswahl">
+            <option value="150">bis 150 m</option>
+            <option value="400" selected>bis 400 m</option>
+            <option value="1000">bis 1 km</option>
+          </select></label>
+          <button class="knopf haupt" id="bOrte">Orte suchen</button>
+        </div>
+        <div id="orteStatus" class="klein">Ohne Route sucht Gipfel &amp; Gasse rund um die Kartenmitte (2 km).</div>
+        <div id="chips" class="chips"></div>
+        <ul id="ortliste" class="liste"></ul>
+        </div>
+      </section>
+
+      <!-- Unterwegs -->
+      <section data-reiter="unterwegs">
+        <div class="hinweis" id="unterwegsHinweis">Lass den Bildschirm an: Browser halten GPS an, sobald das Telefon gesperrt ist. Gipfel &amp; Gasse hält den
+          Bildschirm wach, solange Navigation oder Aufzeichnung laufen. Für lange Touren lieber die GPX-Datei in eine App mit
+          Offline-Karten laden.</div>
+        <div id="gpsStatus" class="klein" style="margin-top:8px">GPS aus.</div>
+        <h3>Route folgen</h3>
+        <div class="zahlen unterwegs-zahlen">
+          <div class="zahl"><b id="uRest">–</b><span>noch</span></div>
+          <div class="zahl"><b id="uZeit">–</b><span>Restzeit</span></div>
+          <div class="zahl"><b id="uAuf">–</b><span>noch bergauf</span></div>
+        </div>
+        <div id="uAnkunft" class="klein"></div>
+        <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
+        <h3>Aufzeichnen</h3>
+        <div class="zahlen unterwegs-zahlen">
+          <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>
+          <div class="zahl"><b id="aDauer">–</b><span>Dauer</span></div>
+          <div class="zahl"><b id="aAuf">–</b><span>bergauf</span></div>
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
+          <button class="knopf" id="bAufzSpeichern" disabled>💾 Als Tour speichern</button>
+        </div>
+      </section>
+
+      <!-- Meine Touren -->
+      <section data-reiter="touren">
+        <div class="knopfreihe">
+          <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
+          <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
+          <button class="knopf" id="bAlleGpx">⬇ Alle sichern</button>
+        </div>
+        <ul id="tourliste" class="liste"></ul>
+        <p class="klein">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
+          „Alle sichern“ lädt jede Tour als GPX-Datei herunter.</p>
+      </section>
+
+      <!-- Info -->
+      <section data-reiter="info">
+        <h3>Was Gipfel &amp; Gasse ist</h3>
+        <p>Ein Tourenplaner auf OpenStreetMap: Route planen, Höhenprofil, Gehzeit nach DIN 33466, Wegtypen und Untergrund,
+          Orte entlang der Strecke, Wetter, GPX, unterwegs der Route folgen und aufzeichnen. Ohne Konto, ohne Server, alles
+          im Browser.</p>
+        <h3>Gehzeit</h3>
+        <p class="klein">Wie auf den Wegweisern der Alpenvereine (DIN 33466): 4 km je Stunde in der Ebene, 300 Höhenmeter je
+          Stunde bergauf, 500 bergab; gerechnet wird die größere Zeit plus die Hälfte der kleineren. Ohne Pausen. „Mit Kind“
+          rechnet rund 40 % länger. Beim Rad grob 16 km/h plus 600 Höhenmeter je Stunde.</p>
+        <h3>Schwierigkeit</h3>
+        <p class="klein">SAC-Wanderskala aus dem OSM-Merkmal <code>sac_scale</code>: T1 Wandern, T2 Bergwandern, T3
+          anspruchsvolles Bergwandern, ab T4 Alpinwandern. Fehlt das Merkmal, zeigt Gipfel &amp; Gasse „–“; das heißt nicht „leicht“.</p>
+        <h3>Daten und Dienste</h3>
+        <ul class="klein">
+          <li>Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a> (ODbL)</li>
+          <li>Topografische Karte: <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA), Höhen SRTM</li>
+          <li>Wanderwege und Radrouten: <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">Waymarked Trails</a> (CC-BY-SA)</li>
+          <li>Routen: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a></li>
+          <li>Suche: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a></li>
+          <li>Orte: <a href="https://overpass-api.de" target="_blank" rel="noopener">Overpass API</a></li>
+          <li>Wetter und Höhen für gerade Linien: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0)</li>
+          <li>Kartenbibliothek: <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD-2)</li>
+        </ul>
+        <p class="klein">Alle Dienste sind frei und werden von Freiwilligen oder kleinen Teams betrieben. Gipfel &amp; Gasse fragt sie nur an,
+          wenn du etwas tust, und nie im Hintergrund. Für viele Nutzer bräuchte es eigene Server.</p>
+        <p class="klein">Ohne Gewähr: Wege können gesperrt, verschüttet oder falsch eingetragen sein. Vor Ort zählen
+          Beschilderung, Wetter und das eigene Urteil.</p>
+      </section>
+    </div>
+  </aside>
+
+  <div id="druckkopf"></div>
+  <div id="druckfuss"></div>
+  <div id="meldung" role="status" aria-live="polite"></div>
+</div>

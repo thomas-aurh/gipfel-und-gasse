@@ -1,0 +1,108 @@
+# Prüft die Web-App, baut die Android-App und stellt sie nach dem Merge auf main als Download bereit:
+# https://github.com/thomas-aurh/gipfel-und-gasse/releases/latest/download/Gipfel-und-Gasse.apk
+name: App
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# je Branch höchstens ein Lauf: ein neuerer Push bricht den älteren ab, damit ein alter Bau die Download-Seite nicht
+# mit einer älteren APK überschreibt
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Web-App prüfen (Syntax, Einheitstests)
+        run: sh web/pruefen.sh
+
+  apk:
+    needs: pruefen
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # für die Download-Seite (Release) nach dem Merge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Web-App in die App kopieren
+        run: npm run sync
+
+      # Fester Schlüssel aus den Repo-Geheimnissen KEYSTORE_B64 / KEYSTORE_PASSWORT (siehe STAND.md).
+      # Ohne ihn: Ersatzschlüssel, der einmal angelegt wird und zwischen den Läufen im Cache liegt,
+      # damit Updates sich über die installierte App legen.
+      - name: Signierschlüssel
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/release.keystore
+            echo "Fester Schlüssel aus den Geheimnissen"
+          else
+            echo "::warning::Kein fester Schlüssel hinterlegt: Ersatzschlüssel aus dem Cache"
+          fi
+      - name: Ersatzschlüssel aus dem Cache
+        uses: actions/cache@v4
+        with:
+          path: android/app/ci.keystore
+          key: ci-keystore-v1
+      - name: Ersatzschlüssel anlegen, falls keiner da ist; Fingerabdruck zeigen
+        run: |
+          cd android/app
+          if [ ! -f release.keystore ] && [ ! -f ci.keystore ]; then
+            echo "::warning::Neuer Ersatzschlüssel: Diese APK lässt sich nicht über eine mit anderem Schlüssel installierte App legen."
+            keytool -genkeypair -keystore ci.keystore -storepass gipfelundgasse -keypass gipfelundgasse -alias ci \
+              -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Gipfel und Gasse (GitHub Actions)"
+          fi
+          if [ -f ci.keystore ] && [ ! -f release.keystore ]; then
+            keytool -list -v -keystore ci.keystore -storepass gipfelundgasse -alias ci | grep -E "SHA256:" | head -1
+          fi
+
+      - name: Java-Tests und APK bauen
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORT: ${{ secrets.KEYSTORE_PASSWORT }}
+        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+
+      - name: APK umbenennen
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk Gipfel-und-Gasse.apk
+          ls -la Gipfel-und-Gasse.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gipfel-und-Gasse-apk
+          path: Gipfel-und-Gasse.apk
+          retention-days: 14
+
+      - name: Download-Seite erneuern (nur auf main)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete neueste --yes --cleanup-tag || true
+          gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" \
+            --title "Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})" \
+            --notes "Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"

@@ -1,0 +1,164 @@
+// Einheitstests für src/00-rechnen.js (reine Rechnungen, ohne Browser und ohne Netz).
+// Aufruf: node test/einheit.js
+const R = require('../src/00-rechnen.js');
+let ok = 0, fehler = 0;
+function pruef(name, bed, info) {
+  if (bed) ok++;
+  else { fehler++; console.error('✗ ' + name + (info !== undefined ? ' → ' + JSON.stringify(info) : '')); }
+}
+const nahe = (a, b, tol) => Math.abs(a - b) <= tol;
+
+// Abstand: ein Breitengrad ≈ 111,2 km
+pruef('Abstand 1° Breite', nahe(R.abstand({ lat: 47, lon: 11 }, { lat: 48, lon: 11 }), 111195, 50));
+// Penzberg Bahnhof → Kirche ungefähr 600 m (Größenordnung)
+pruef('Abstand 0', R.abstand({ lat: 47.75, lon: 11.37 }, { lat: 47.75, lon: 11.37 }) === 0);
+
+// Gehzeit DIN 33466: 12 km, 600 Hm auf und ab → h = 3, v = 2 + 1,2 = 3,2 → 3,2 + 1,5 = 4,7 h
+pruef('Gehzeit DIN', nahe(R.gehzeit(12000, 600, 600, 1), 4.7, 1e-9), R.gehzeit(12000, 600, 600, 1));
+pruef('Gehzeit Kindertempo länger', R.gehzeit(12000, 600, 600, 0.7) > 6.7);
+pruef('Zeittext', R.zeitText(4.7) === '4:40 h', R.zeitText(4.7));
+pruef('Zeittext kurz', R.zeitText(0.3) === '20 min', R.zeitText(0.3));
+pruef('Zeittext genau (gemessene Dauer)', R.zeitText(1 / 60, true) === '1 min' && R.zeitText(0.001, true) === '0 min', [R.zeitText(1 / 60, true), R.zeitText(0.001, true)]);
+pruef('km-Text', R.kmText(12345) === '12 km' && R.kmText(5432) === '5,4 km' && R.kmText(250) === '250 m', [R.kmText(12345), R.kmText(5432)]);
+
+// Höhenmeter mit Schwelle: Wackler unter 5 m zählen nicht (600→650 +50, →640 −10, →700 +60, →600 −100)
+pruef('Höhenmeter', JSON.stringify(R.hoehenmeter([600, 602, 601, 603, 650, 640, 700, 600])) === JSON.stringify({ auf: 110, ab: 110 }), R.hoehenmeter([600, 602, 601, 603, 650, 640, 700, 600]));
+pruef('Höhenmeter mit Lücken', R.hoehenmeter([null, 500, null, 520]).auf === 20);
+
+// Tags, Wegtyp, Untergrund
+const t = R.tagsLesen('highway=path surface=ground sac_scale=mountain_hiking');
+pruef('Tags lesen', t.highway === 'path' && t.sac_scale === 'mountain_hiking');
+pruef('Wegtyp Pfad', R.wegtyp(t) === 'Pfad');
+pruef('Untergrund Naturboden', R.untergrund(t) === 'Naturboden');
+pruef('Untergrund Forstweg grade2', R.untergrund({ highway: 'track', tracktype: 'grade2' }) === 'Schotter');
+pruef('Untergrund Straße ohne surface', R.untergrund({ highway: 'residential' }) === 'Befestigt');
+pruef('Untergrund Pfad ohne surface unbekannt', R.untergrund({ highway: 'path' }) === 'Unbekannt');
+
+// BRouter-Antwort lesen (Aufbau wie format=geojson)
+const gj = {
+  type: 'FeatureCollection',
+  features: [{
+    type: 'Feature',
+    properties: {
+      'track-length': '1500',
+      messages: [
+        ['Longitude', 'Latitude', 'Elevation', 'Distance', 'CostPerKm', 'ElevCost', 'TurnCost', 'NodeCost', 'InitialCost', 'WayTags', 'NodeTags', 'Time', 'Energy'],
+        ['11374700', '47753500', '600', '700', '1000', '0', '0', '0', '0', 'highway=residential surface=asphalt', '', '0', '0'],
+        ['11380000', '47760000', '650', '800', '1500', '0', '0', '0', '0', 'highway=path surface=ground sac_scale=mountain_hiking', '', '0', '0']
+      ]
+    },
+    geometry: { type: 'LineString', coordinates: [[11.3747, 47.7535, 600], [11.377, 47.756, 620], [11.38, 47.76, 650]] }
+  }]
+};
+const br = R.brouterLesen(gj);
+pruef('BRouter Punkte', br.pts.length === 3 && br.pts[0].ele === 600 && br.pts[2].lat === 47.76);
+pruef('BRouter Abschnitte', br.abschnitte.length === 2 && br.abschnitte[1].tags.sac_scale === 'mountain_hiking');
+let kaputt = false; try { R.brouterLesen({}); } catch (e) { kaputt = true; }
+pruef('BRouter leere Antwort wirft', kaputt);
+
+// Auswerten zweier Teilstücke: gemeinsamer Punkt nur einmal
+const a = R.linie({ lat: 47.75, lon: 11.37 }, { lat: 47.76, lon: 11.37 });
+const b = R.linie({ lat: 47.76, lon: 11.37 }, { lat: 47.76, lon: 11.38 });
+const ges = R.auswerten([a, b], 1);
+pruef('Auswerten Punkte', ges.pts.length === a.pts.length + b.pts.length - 1);
+pruef('Auswerten Länge', nahe(ges.laenge, R.abstand({ lat: 47.75, lon: 11.37 }, { lat: 47.76, lon: 11.37 }) + R.abstand({ lat: 47.76, lon: 11.37 }, { lat: 47.76, lon: 11.38 }), 1), ges.laenge);
+const bw = R.auswerten([br], 1);
+pruef('Schwierigkeit T2', bw.sac && bw.sac.stufe === 2, bw.sac);
+pruef('Kinderwagen nein bei T2', bw.kinderwagen.urteil === 'nein', bw.kinderwagen);
+pruef('Wegtypen-Anteile', bw.wege[0][0] === 'Pfad' && bw.wege[0][1] === 800, bw.wege);
+const flach = R.kinderwagen([{ m: 3000, tags: { highway: 'track', surface: 'compacted' } }, { m: 1000, tags: { highway: 'residential' } }], 5);
+pruef('Kinderwagen ja', flach.urteil === 'ja', flach);
+
+pruef('Abschnitte von/bis', nahe(ges.abschnitte[1].bis, ges.laenge, 0.5) && nahe(ges.abschnitte[1].von, ges.stueckEnde[0], 0.5), ges.abschnitte);
+pruef('Fahrzeit Rad', nahe(R.fahrzeit(16000, 600, 1), 2, 1e-9) && R.auswerten([a, b], 1, 'rad').zeit < ges.zeit);
+
+// Position auf der Strecke
+const lage = R.aufStrecke(ges.pts, { lat: 47.755, lon: 11.3701 });
+pruef('Position auf Strecke', lage.abw < 10 && nahe(lage.d, 556, 15), lage);
+// Rundtour: am Start (= Ziel) mit Fortschritt 0 nicht ans Ende springen
+const rund = R.auswerten([R.linie({ lat: 47.75, lon: 11.37 }, { lat: 47.76, lon: 11.37 }), R.linie({ lat: 47.76, lon: 11.37 }, { lat: 47.75, lon: 11.37 })], 1);
+const amStart = R.aufStrecke(rund.pts, { lat: 47.7501, lon: 11.37 }, 0);
+pruef('Rundtour bleibt am Anfang', amStart.d < 50, amStart);
+const amEnde = R.aufStrecke(rund.pts, { lat: 47.7501, lon: 11.37 }, rund.laenge - 100);
+pruef('Rundtour am Ende erkannt', amEnde.d > rund.laenge - 50, amEnde);
+const r = R.rest(ges.pts, lage.d, 1);
+pruef('Rest', nahe(r.meter, ges.laenge - lage.d, 1));
+pruef('Rest mit Rad-Zeit', R.rest(ges.pts, 0, 1, 'rad').zeit < R.rest(ges.pts, 0, 1).zeit);
+
+// Steigung: 100 m Höhe auf 1000 m → 10 %
+const steil = [{ lat: 0, lon: 0, ele: 0, d: 0 }, { lat: 0, lon: 0, ele: 50, d: 500 }, { lat: 0, lon: 0, ele: 100, d: 1000 }];
+pruef('Max-Steigung', R.maxSteigung(steil, 100) === 10, R.maxSteigung(steil, 100));
+
+// GPX hin und zurück
+const pts = [{ lat: 47.75, lon: 11.37, ele: 600 }, { lat: 47.76, lon: 11.38, ele: 650.5 }];
+const gpx = R.gpxSchreiben('Runde <Test> & mehr', pts, [{ lat: 47.75, lon: 11.37, name: 'Start' }]);
+const zur = R.gpxLesen(gpx);
+pruef('GPX Name', zur.name === 'Runde <Test> & mehr', zur.name);
+pruef('GPX Punkte', zur.pts.length === 2 && zur.pts[1].ele === 650.5 && zur.pts[0].lat === 47.75, zur.pts);
+pruef('GPX Wegpunkt', zur.wpt.length === 1 && zur.wpt[0].name === 'Start');
+const rte = R.gpxLesen("<gpx><rte><name>R</name><rtept lon='11.1' lat='47.1'/><rtept lat='47.2' lon='11.2'></rtept></rte></gpx>");
+pruef('GPX Route mit einfachen Anführungszeichen', rte.pts.length === 2 && rte.pts[0].lon === 11.1 && rte.name === 'R', rte);
+let leer = false; try { R.gpxLesen('<gpx></gpx>'); } catch (e) { leer = true; }
+pruef('GPX leer wirft', leer);
+
+// Teilen-Link
+const link = R.linkSchreiben('hiking-mountain', [{ lat: 47.7535, lon: 11.3747 }, { lat: -1.5, lon: -70.25 }]);
+const zl = R.linkLesen('#' + link);
+pruef('Link hin und zurück', zl && zl.profil === 'hiking-mountain' && zl.wps.length === 2 && zl.wps[1].lon === -70.25, zl);
+pruef('Link Unsinn', R.linkLesen('#abc') === null && R.linkLesen('#tour-x-99_1') === null);
+
+// Overpass
+const q = R.overpassAbfrage(ges.pts, 300);
+pruef('Overpass-Abfrage', q.startsWith('[out:json]') && q.includes('around:300,47.75000,11.37000') && q.includes('alpine_hut'));
+const orte = R.orteLesen({ elements: [
+  { type: 'node', id: 1, lat: 47.7555, lon: 11.3702, tags: { natural: 'peak', name: 'Testgipfel', ele: '1731.4' } },
+  { type: 'way', id: 2, center: { lat: 47.752, lon: 11.3701 }, tags: { leisure: 'playground' } },
+  { type: 'node', id: 3, lat: 47.7, lon: 11.3, tags: { shop: 'bakery' } }
+] }, ges.pts);
+pruef('Orte lesen', orte.length === 2 && orte[0].kat === 'spiel' && orte[0].name === 'Spielplatz' && orte[1].name === 'Testgipfel (1731 m)', orte);
+
+pruef('Wetter Gewitter', R.wetterText(95)[1] === 'Gewitter' && R.wetterText(0)[1] === 'sonnig');
+
+// Stadt
+const sq = R.stadtAbfrage([48.13, 11.56, 48.15, 11.59]);
+pruef('Stadt-Abfrage mit Ausschnitt', sq.includes('[bbox:48.13000,11.56000,48.15000,11.59000]') && sq.includes('museum'));
+const st = R.stadtLesen({ elements: [
+  { type: 'node', id: 1, lat: 48.1, lon: 11.5, tags: { tourism: 'artwork' } },
+  { type: 'way', id: 2, center: { lat: 48.14, lon: 11.57 }, tags: { tourism: 'museum', name: 'Testmuseum', wikipedia: 'de:Test Museum' } },
+  { type: 'node', id: 3, lat: 48.14, lon: 11.57, tags: { tourism: 'museum', name: 'Testmuseum' } },
+  { type: 'node', id: 4, lat: 48.2, lon: 11.6, tags: { historic: 'castle', name: 'Burg', wikidata: 'Q1' } },
+  { type: 'node', id: 5, lat: 48.2, lon: 11.6, tags: { shop: 'bakery' } }
+] });
+pruef('Stadt lesen: doppelt nur einmal, Bekannte zuerst', st.length === 3 && st[0].bekannt && st[2].name === 'Kunstwerk', st.map(x => x.name));
+pruef('Besichtigungszeit Museum 60, bekannte Burg 30', st.find(x => x.name === 'Testmuseum').min === 60 && st.find(x => x.name === 'Burg').min === 30);
+pruef('Wikipedia-Link', R.wikiLink({ wikipedia: 'de:Test Museum' }) === 'https://de.wikipedia.org/wiki/Test_Museum' && R.wikiLink({}) === null);
+// Rundgang: vier Ecken eines Quadrats durcheinander → Runde ums Quadrat
+const ecke = (a, b) => ({ lat: 48 + a * 0.01, lon: 11 + b * 0.01 });
+const durch = [ecke(1, 1), ecke(0, 1), ecke(1, 0)];
+const geordnet = R.rundgangOrdnen(ecke(0, 0), durch);
+const umfang = R.rundgangLaenge(ecke(0, 0), geordnet);
+pruef('Rundgang ums Quadrat', geordnet.length === 3 && geordnet[1] === durch[0] && umfang < R.rundgangLaenge(ecke(0, 0), [durch[0], durch[1], durch[2]]) + 1, geordnet);
+const viele = Array.from({ length: 12 }, (_, i) => ({ lat: 48 + Math.sin(i * 2.4) * 0.02, lon: 11 + Math.cos(i * 2.4) * 0.02 }));
+pruef('Rundgang nicht länger als Zufallsreihenfolge', R.rundgangLaenge(ecke(0, 0), R.rundgangOrdnen(ecke(0, 0), viele)) <= R.rundgangLaenge(ecke(0, 0), viele));
+
+// Restaufstieg ab einer Stelle zwischen zwei Punkten (600 → 800 m, halbe Strecke → 100 m)
+const zwei = [{ lat: 47, lon: 11, ele: 600 }, { lat: 47.01, lon: 11, ele: 800 }];
+R.laengen(zwei);
+pruef('Rest zwischen Punkten', R.rest(zwei, zwei[1].d / 2, 1).auf === 100, R.rest(zwei, zwei[1].d / 2, 1));
+// GPX mit zwei Abschnitten: der Sprung zählt nicht als Weg und bleibt beim Schreiben getrennt
+const zweiSeg = '<gpx><trk><trkseg><trkpt lat="47" lon="11"><time>2026-11-01T10:00:00Z</time></trkpt><trkpt lat="47.001" lon="11"/></trkseg>' +
+  '<trkseg><trkpt lat="48" lon="11"/><trkpt lat="48.001" lon="11"/></trkseg></trk></gpx>';
+const zs = R.gpxLesen(zweiSeg);
+pruef('GPX-Abschnitte erkannt', zs.pts.length === 4 && zs.pts[2].luecke === true && !zs.pts[1].luecke, zs.pts);
+const zsAus = R.auswerten([{ pts: zs.pts, abschnitte: [] }], 1);
+pruef('Sprung zwischen Abschnitten zählt nicht', zsAus.laenge < 300, zsAus.laenge);
+pruef('Zeitstempel bleiben in der Auswertung', zsAus.pts[0].t === Date.parse('2026-11-01T10:00:00Z'));
+pruef('GPX schreibt Abschnitte getrennt', (R.gpxSchreiben('x', zsAus.pts).match(/<trkseg>/g) || []).length === 2 && R.gpxSchreiben('x', zsAus.pts).includes('<time>'));
+// offener Weg: ohne Rückweg ordnen
+const linieOrte = [ecke(0, 3), ecke(0, 1), ecke(0, 2)];
+const offen = R.wegOrdnen(ecke(0, 0), linieOrte, false);
+pruef('Offener Weg der Reihe nach', offen[0] === linieOrte[1] && offen[1] === linieOrte[2] && offen[2] === linieOrte[0], offen);
+pruef('Offene Länge ohne Rückweg', R.wegLaenge(ecke(0, 0), offen, false) < R.wegLaenge(ecke(0, 0), offen, true));
+
+console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
+process.exit(fehler ? 1 : 0);

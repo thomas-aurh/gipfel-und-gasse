@@ -7,4 +7,4 @@ www/
 *.keystore
 *.jks
 .secrets/
-test/out/
+**/test/out/
