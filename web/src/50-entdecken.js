@@ -19,6 +19,11 @@ $('suchfeld').addEventListener('keydown', e => {
   }
 });
 document.addEventListener('click', e => { if (!$('oben').contains(e.target)) $('treffer').innerHTML = ''; });
+// Suche schließen: auch eine wartende oder laufende Anfrage verwerfen, damit die Liste nicht wieder aufgeht
+function sucheSchliessen() {
+  clearTimeout(suchUhr); suchNr++; trefferListe = []; trefferAktiv = -1;
+  $('treffer').innerHTML = ''; $('suchfeld').blur();
+}
 
 async function sucheLos(t) {
   if (!t) return;

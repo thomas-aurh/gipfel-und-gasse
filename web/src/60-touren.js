@@ -132,7 +132,7 @@ function tourenPunkte(liste) {
     m.bindPopup(() => {
       const box = document.createElement('div');
       box.innerHTML = '<b>' + R.esc(t.name) + '</b><br><span class="klein">' + (gegangen ? 'gegangen' : t.art === 'spur' ? 'GPX-Spur' : 'geplant') + ' · ' +
-        R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
+        R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Öffnen';
       k.onclick = () => { karte.closePopup(); tourOeffnen(t.id); };
@@ -154,7 +154,7 @@ function tourenZeigen() {
     const zeichen = tourZeichen(t);
     // Öffnen ist ein echter Knopf, damit es auch mit Tastatur und Bildschirmleser geht
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
-      R.kmText(t.kurz.laenge) + ' · ↑ ' + t.kurz.auf + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
+      R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourOeffnen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
