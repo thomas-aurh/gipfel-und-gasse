@@ -6,8 +6,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 ## Offen
 
 - **Android-App (Stufen 1–4) gebaut, auf dem Pixel nicht geprüft.** Geprüft in GitHub Actions: Bau, Java-Tests,
-  Probe-Rendering der echten Oberbayern-Karte, Probe-Routen auf den echten Routendaten; Oberfläche im Klicktest mit
-  nachgebildeten Diensten. Nicht geprüft, weil kein Gerät in der Cloud: Installation und Erlaubnisse, GPS und Ansagen
+  Probe-Rendering der echten Oberbayern-Karte, Probe-Routen auf den echten Routendaten; lokal in der Cloud-Session:
+  Oberfläche im Klicktest (`web/test/ui.js`, nicht in GitHub Actions) mit nachgebildeten Diensten. Nicht geprüft, weil kein Gerät in der Cloud: Installation und Erlaubnisse, GPS und Ansagen
   bei gesperrtem Bildschirm, Akkuverbrauch, Download der Pakete, Tempo von Vektorkarte und Offline-Routing, Teilen und
   Drucken. Nächster Schritt: APK von der Download-Seite installieren, unter Touren › Offline-Karten „Oberbayern“ laden
   und eine kurze Runde gehen (Ansage alle 1 km, Abseits-Warnung durch Abweichen, Abbiegeansage).
@@ -22,6 +22,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   bei `file://`. Nächster Schritt: `web/dist/Gipfel-und-Gasse.html` am PC in Chrome öffnen, Tour um Penzberg planen.
 - **Stadt nicht mit echten Daten geprüft:** Fußwege des Profils `hiking-mountain` in der Stadt, Fülle der Karte
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
+- **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
+  (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
 - **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
   oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
