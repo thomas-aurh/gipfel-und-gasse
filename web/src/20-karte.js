@@ -1,7 +1,9 @@
 // Karte, Kartenarten, Hilfen für Meldungen und Speicher
 const $ = id => document.getElementById(id);
 // läuft die Oberfläche in der Android-App (Capacitor)?
-const NATIV = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+// registerPlugin kommt aus @capacitor/core im Offline-Bündel; fehlt es (Bau ohne npm ci), läuft die Oberfläche wie im Browser
+const NATIV = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform() &&
+  typeof window.Capacitor.registerPlugin === 'function');
 
 let meldUhr = null;
 function melde(text, sek) {
