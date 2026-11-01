@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.thomasaurh.gipfelundgasse",
+  "appName": "Gipfel & Gasse",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

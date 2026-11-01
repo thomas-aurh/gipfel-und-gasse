@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Gipfel &amp; Gasse">
+  <defs>
+    <clipPath id="gugRund"><circle cx="32" cy="32" r="28.5"/></clipPath>
+    <linearGradient id="gugHimmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde2bd"/><stop offset="1" stop-color="#eef5e9"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31.5" fill="#1f3d2a"/>
+  <g clip-path="url(#gugRund)">
+    <rect width="64" height="64" fill="url(#gugHimmel)"/>
+    <circle cx="44" cy="15" r="4.6" fill="#f6a65a"/>
+    <!-- Gipfel mit Vorberg -->
+    <path d="M-2 48 L12 31 L17 36 L26 12 L39 40 V64 H-2Z" fill="#2f6b3a"/>
+    <path d="M26 12 L21.4 23.6 L24.4 21.6 L26.4 24.4 L28.8 21.3 L31 22.6Z" fill="#fff"/>
+    <!-- Gasse: Giebelhaus und Zwiebelturm -->
+    <g fill="#24312a">
+      <path d="M35 64 V39 L41 32 L47 39 V64Z"/>
+      <path d="M48 64 V30 H56 V64Z"/>
+      <path d="M52 17.5 C55.6 20.8 57.4 23.6 56.5 26.4 C56 28 54.5 29 52 29 C49.5 29 48 28 47.5 26.4 C46.6 23.6 48.4 20.8 52 17.5Z"/>
+      <rect x="51.4" y="13.6" width="1.2" height="4.4"/>
+    </g>
+    <g fill="#fde2bd">
+      <rect x="38.4" y="42.5" width="2.6" height="3.4"/><rect x="42.4" y="42.5" width="2.6" height="3.4"/>
+      <rect x="50.8" y="34" width="2.4" height="4.2" rx="1.2"/>
+      <path d="M39.6 64 V55.5 A2.1 2.1 0 0 1 43.8 55.5 V64Z"/>
+    </g>
+    <!-- Boden, Weg von der Gasse hinauf zum Gipfel -->
+    <path d="M-2 57 C16 54 32 55 66 58 V66 H-2Z" fill="#c9dcc4"/>
+    <path d="M41.7 58.5 C33 58.5 22 58 18.5 53 C15 48 25 46 23.5 40 C22.2 35 29.5 32 27.6 25.5 C26.9 22.8 26.4 18.6 26.2 15.8"
+          fill="none" stroke="#e5532d" stroke-width="2.9" stroke-linecap="round" stroke-dasharray="0.1 4.8"/>
+    <circle cx="26" cy="12" r="2.6" fill="#e5532d" stroke="#fff" stroke-width="1.1"/>
+  </g>
+</svg>

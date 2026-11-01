@@ -1,0 +1,92 @@
+// Karte, Kartenarten, Hilfen für Meldungen und Speicher
+const $ = id => document.getElementById(id);
+
+let meldUhr = null;
+function melde(text, sek) {
+  const m = $('meldung');
+  m.textContent = text;
+  clearTimeout(meldUhr);
+  meldUhr = setTimeout(() => { m.textContent = ''; }, (sek || 3.5) * 1000);
+}
+
+const SPEICHER = {
+  lesen(k, ersatz) { try { const v = localStorage.getItem('gug.' + k); return v == null ? ersatz : JSON.parse(v); } catch (e) { return ersatz; } },
+  schreiben(k, v) { try { localStorage.setItem('gug.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+};
+// Daten aus den früheren Namen (Murmel, Wegwerk) einmalig übernehmen, damit gespeicherte Touren bleiben
+try {
+  if (!localStorage.getItem('gug.uebernommen')) {
+    for (const alt of ['wegwerk.', 'murmel.']) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(alt)) localStorage.setItem('gug.' + k.slice(alt.length), localStorage.getItem(k));
+      }
+    }
+    localStorage.setItem('gug.uebernommen', '1');
+  }
+} catch (e) { /* ohne Speicher geht es auch */ }
+
+const OSM_HINWEIS = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>';
+const LAGEN = {
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    subdomains: 'abc', maxZoom: 17, maxNativeZoom: 17,
+    attribution: 'Kartendaten ' + OSM_HINWEIS + ', SRTM | Darstellung © <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)'
+  }),
+  osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM_HINWEIS }),
+  wander: L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
+    maxZoom: 18, opacity: 0.85, attribution: 'Wanderwege © <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">waymarkedtrails.org</a> (CC-BY-SA)'
+  }),
+  rad: L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png', {
+    maxZoom: 18, opacity: 0.85, attribution: 'Radrouten © <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">waymarkedtrails.org</a> (CC-BY-SA)'
+  })
+};
+
+// Start: zuletzt gesehener Ausschnitt, sonst Penzberg und das Voralpenland
+const blick = SPEICHER.lesen('blick', { lat: 47.70, lon: 11.37, z: 11 });
+const karte = L.map('karte', { zoomControl: false, attributionControl: true, maxZoom: 19 }).setView([blick.lat, blick.lon], blick.z);
+karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+
+const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false }, SPEICHER.lesen('lagen', {}));
+function lagenAnwenden() {
+  for (const k of ['topo', 'osm']) { if (k === lagenWahl.basis) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
+  for (const k of ['wander', 'rad']) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
+  document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === lagenWahl.basis; });
+  $('lageWander').checked = !!lagenWahl.wander;
+  $('lageRad').checked = !!lagenWahl.rad;
+  $('lageSehens').checked = !!lagenWahl.sehens;
+  SPEICHER.schreiben('lagen', lagenWahl);
+  if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
+}
+lagenAnwenden();
+document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('change', () => { lagenWahl.basis = r.value; lagenAnwenden(); }));
+$('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
+$('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
+$('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
+$('bLagen').addEventListener('click', e => { e.stopPropagation(); $('lagenwahl').hidden = !$('lagenwahl').hidden; });
+document.addEventListener('click', e => { if (!$('lagenwahl').hidden && !$('lagenwahl').contains(e.target)) $('lagenwahl').hidden = true; });
+$('bPlus').addEventListener('click', () => karte.zoomIn());
+$('bMinus').addEventListener('click', () => karte.zoomOut());
+
+karte.on('moveend', () => {
+  const c = karte.getCenter();
+  SPEICHER.schreiben('blick', { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), z: karte.getZoom() });
+});
+
+// Ebenen für Route, Wegpunkte, Hervorhebung, Orte, eigene Position
+const ebeneRoute = L.layerGroup().addTo(karte);
+const ebeneHervor = L.layerGroup().addTo(karte);
+const ebenePunkte = L.layerGroup().addTo(karte);
+const ebeneOrte = L.layerGroup().addTo(karte);
+const ebeneSehens = L.layerGroup().addTo(karte);
+const ebeneIch = L.layerGroup().addTo(karte);
+
+// Ein Popup schließt sich beim Tipp auf die Karte; dieser Tipp soll keinen Wegpunkt setzen.
+let popupZuSeit = 0;
+karte.on('popupclose', () => { popupZuSeit = Date.now(); });
+
+// Auf dem Telefon verdeckt das Blatt unten einen Teil der Karte: beim Einpassen Rand lassen
+function einpassen(grenzen) {
+  const tel = window.innerWidth <= 760;
+  const unten = tel ? $('panel').getBoundingClientRect().height : 0;
+  karte.fitBounds(grenzen, { paddingTopLeft: [30, 80], paddingBottomRight: [70, unten + 30], maxZoom: 16 });
+}
