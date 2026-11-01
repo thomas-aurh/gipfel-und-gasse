@@ -17,8 +17,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Signierschlüssel: aus GitHub-Geheimnissen (siehe .github/workflows/android.yml), sonst Debug-Schlüssel
+    // Signierschlüssel: fester Schlüssel aus den GitHub-Geheimnissen (release.keystore), sonst der Ersatzschlüssel,
+    // den GitHub Actions einmal anlegt und im Cache aufbewahrt (ci.keystore), lokal der Debug-Schlüssel.
+    // Siehe .github/workflows/app.yml
     signingConfigs {
+        ersatz {
+            def ks = file("ci.keystore")
+            if (ks.exists()) {
+                storeFile ks
+                storePassword "gipfelundgasse"
+                keyAlias "ci"
+                keyPassword "gipfelundgasse"
+            }
+        }
         fest {
             def ks = file("release.keystore")
             if (ks.exists()) {
@@ -31,7 +42,8 @@ android {
     }
     buildTypes {
         release {
-            signingConfig file("release.keystore").exists() ? signingConfigs.fest : signingConfigs.debug
+            signingConfig file("release.keystore").exists() ? signingConfigs.fest
+                : file("ci.keystore").exists() ? signingConfigs.ersatz : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
