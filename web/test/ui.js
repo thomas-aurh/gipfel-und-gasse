@@ -471,7 +471,7 @@ function pruef(name, bed, info) {
 
   // ---------- Offline-Karten in der App: Pakete aus test/testkarten.py, Dateien mit echten Byte-Bereichen ----------
   const kartenOrdner = path.join(__dirname, 'out', 'karten');
-  if (!fs.existsSync(path.join(kartenOrdner, 'probe', 'hoehe.pmtiles'))) require('child_process').execFileSync('python3', [path.join(__dirname, 'testkarten.py')]);
+  if (!fs.existsSync(path.join(kartenOrdner, 'probe', 'orte.json.gz'))) require('child_process').execFileSync('python3', [path.join(__dirname, 'testkarten.py')]);
   const offCtx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
   await dienste(offCtx);
   const bereiche = [];
@@ -490,7 +490,7 @@ function pruef(name, bed, info) {
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
   await offCtx.addInitScript(() => {
     const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
-      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }] };
+      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }, { name: 'orte.json.gz', groesse: 400 }] };
     window.__routing = []; window.__naviStart = [];
     window.Capacitor = {
       isNativePlatform: () => true,
@@ -564,6 +564,26 @@ function pruef(name, bed, info) {
   const naviStart = await po.evaluate(() => window.__naviStart);
   const hw = naviStart.length ? naviStart[naviStart.length - 1].hinweise : null;
   pruef('Abbiegehinweise an den Navigationsdienst', hw && hw.length === 2 && hw[0][1] === 2 && hw[1][1] === 6 && hw[0][0] < hw[1][0], hw);
+  // Orte entlang der Route aus dem Paket: Overpass wird nicht gefragt
+  await po.click('[data-reiter=entdecken]');
+  const vorOverpass = zaehler.overpass;
+  await po.click('#bOrte');
+  await po.waitForFunction(() => /Orte|Keine/.test(document.querySelector('#orteStatus').textContent) && !document.querySelector('#bOrte').disabled, null, { timeout: 8000 });
+  const offOrteText = await po.textContent('#ortliste');
+  pruef('Offline-Orte: aus dem Kartenpaket, ohne Overpass', zaehler.overpass === vorOverpass && (await po.textContent('#orteStatus')).includes('Aus dem Kartenpaket') &&
+    offOrteText.includes('Probehütte') && offOrteText.includes('Probegipfel (1800 m)') && !offOrteText.includes('Probemuseum'), [zaehler.overpass - vorOverpass, await po.textContent('#orteStatus'), offOrteText]);
+  // Suche: Treffer aus dem Paket zusammen mit den Online-Treffern
+  await po.fill('#suchfeld', 'Probeg');
+  await po.waitForFunction(() => document.querySelector('#treffer').textContent.includes('Probegipfel'), null, { timeout: 8000 });
+  pruef('Offline-Suche: Treffer aus dem Paket neben den Online-Treffern', (await po.textContent('#treffer')).includes('Gipfel'));
+  // ohne Netz: nur das Paket, Photon wird nicht gefragt
+  await po.evaluate(() => { Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }); });
+  const vorPhoton = zaehler.photon;
+  await po.fill('#suchfeld', 'probehutte');
+  await po.waitForFunction(() => document.querySelector('#treffer').textContent.includes('Probehütte'), null, { timeout: 8000 });
+  pruef('Offline-Suche ohne Netz: Paket allein, Schreibweise egal', zaehler.photon === vorPhoton && (await po.textContent('#treffer')).includes('Berghütte · Probedorf'),
+    [zaehler.photon - vorPhoton, await po.textContent('#treffer')]);
+  await po.evaluate(() => { delete navigator.onLine; });
   pruef('Offline: keine Skriptfehler', offFehler.length === 0, offFehler);
   await offCtx.close();
 

@@ -1,5 +1,6 @@
 // Offline-Karten aus heruntergeladenen Kartenpaketen (nur in der Android-App):
-// Vektorkarte (PMTiles, gezeichnet mit protomaps-leaflet), Höhenlinien und Relief aus den Höhendaten, Höhen ohne Netz.
+// Vektorkarte (PMTiles, gezeichnet mit protomaps-leaflet), Höhenlinien und Relief aus den Höhendaten, Höhen ohne Netz,
+// Routen ohne Netz (BRouter in der App), Orte und Suche ohne Netz (orte.json.gz).
 // Die Dateien liefert der native KartenServer unter /_karten_/<paket>/<datei>.
 const PAKET_INDEX = 'https://github.com/thomas-aurh/gipfel-und-gasse/releases/download/kartenpakete/pakete.json';
 const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: null, bereit: null };
@@ -100,6 +101,63 @@ async function routeOffline(a, b, profil) {
   }
 }
 
+// ---------- Orte und Suche ohne Netz (orte.json.gz, gebaut von karten/orte.py) ----------
+const orteSpeicher = {};   // Paket-ID → Promise der gelesenen Datei
+
+function mitOrten() { return OFF.installiert.filter(p => (p.dateien || []).some(d => d.name === 'orte.json.gz')); }
+
+function orteLaden(p) {
+  if (!orteSpeicher[p.id]) {
+    orteSpeicher[p.id] = (async () => {
+      const r = await fetch('/_karten_/' + p.id + '/orte.json.gz');
+      if (!r.ok || !r.body || typeof DecompressionStream !== 'function') throw new Error('Orte-Datei nicht lesbar');
+      return JSON.parse(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text());
+    })();
+    orteSpeicher[p.id].catch(() => { delete orteSpeicher[p.id]; });
+  }
+  return orteSpeicher[p.id];
+}
+
+// Pakete mit Orten, die alle Punkte abdecken; null, wenn ein Punkt außerhalb liegt (dann fragt die App online)
+async function ortePakete(pts) {
+  if (OFF.bereit) await OFF.bereit;
+  const ps = mitOrten();
+  if (!ps.length) return null;
+  const drin = (p, q) => q.lon >= p.bbox[0] && q.lon <= p.bbox[2] && q.lat >= p.bbox[1] && q.lat <= p.bbox[3];
+  if (!pts.every(q => ps.some(p => p.bbox && drin(p, q)))) return null;
+  return ps.filter(p => p.bbox && pts.some(q => drin(p, q)));
+}
+
+// Orte entlang der Strecke aus dem Paket, im Format der Overpass-Antwort; null ohne passendes Paket
+async function orteOffline(pts, radius) {
+  const ps = await ortePakete(pts);
+  if (!ps) return null;
+  try {
+    const els = [];
+    for (const p of ps) els.push(...R.orteUmkreis((await orteLaden(p)).orte, pts, radius, 1500 - els.length).elements);
+    return { elements: els, offline: true };
+  } catch (e) { return null; }
+}
+
+// Sehenswürdigkeiten im Ausschnitt [süd, west, nord, ost] aus dem Paket; null, wenn kein Paket die Mitte abdeckt
+async function stadtOffline(bbox) {
+  const ps = await ortePakete([{ lat: (bbox[0] + bbox[2]) / 2, lon: (bbox[1] + bbox[3]) / 2 }]);
+  if (!ps) return null;
+  try {
+    const els = [];
+    for (const p of ps) els.push(...R.orteAusschnitt((await orteLaden(p)).orte, bbox, 2000 - els.length).elements);
+    return { elements: els, offline: true };
+  } catch (e) { return null; }
+}
+
+// Suche in allen Paketen mit Orten; [] ohne Paket
+async function sucheOfflineAlle(text, nahe) {
+  if (OFF.bereit) await OFF.bereit;
+  const listen = [];
+  for (const p of mitOrten()) { try { listen.push(...(await orteLaden(p)).suche); } catch (e) { /* Datei fehlt: online */ } }
+  return listen.length ? R.sucheOffline(listen, text, nahe, 7) : [];
+}
+
 // ---------- Relief und Höhenlinien als Kartenebene ----------
 const Relief = L.GridLayer.extend({
   createTile(c, fertig) {
@@ -183,6 +241,7 @@ function offlineEbenen() {
   for (const k of ['offline', 'relief']) if (LAGEN[k]) { LAGEN[k].remove(); delete LAGEN[k]; }
   OFF.hoehe = {};
   demSpeicher.clear();
+  for (const k in orteSpeicher) delete orteSpeicher[k];
   const da = OFF.installiert.length > 0;
   document.querySelectorAll('.nur-offline').forEach(e => { e.hidden = !da; });
   if (da && window.GugOffline) {

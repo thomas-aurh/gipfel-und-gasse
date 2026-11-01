@@ -573,6 +573,71 @@ var R = (function () {
     return 'https://' + m[1] + '.wikipedia.org/wiki/' + encodeURIComponent(m[2].replace(/ /g, '_'));
   }
 
+  // ---------- Orte und Suche ohne Netz (Datei orte.json.gz im Kartenpaket, gebaut von karten/orte.py) ----------
+  // Eintrag [lat, lon, "n123", Merkmale] → Element wie in der Antwort von Overpass (für orteLesen und stadtLesen)
+  function ortElement(e) {
+    return { type: { n: 'node', w: 'way', r: 'relation' }[e[2][0]] || 'node', id: +e[2].slice(1), lat: e[0], lon: e[1], tags: e[3] };
+  }
+
+  // Orte im Umkreis von `radius` Metern um die Strecke (oder um einen Punkt), wie die Overpass-Abfrage „around“
+  function orteUmkreis(orte, pts, radius, max) {
+    const nah = ausduennen(pts, 250);
+    let s = 90, w = 180, n = -90, o = -180;
+    for (const p of nah) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lon); o = Math.max(o, p.lon); }
+    const db = radius / 110540, dl = radius / (111320 * Math.cos(((s + n) / 2) * RAD));
+    const out = [];
+    for (const e of orte) {
+      if (e[0] < s - db || e[0] > n + db || e[1] < w - dl || e[1] > o + dl) continue;
+      const kx = Math.cos(e[0] * RAD) * 111320;
+      if (nah.some(p => Math.hypot((p.lon - e[1]) * kx, (p.lat - e[0]) * 110540) <= radius)) out.push(ortElement(e));
+      if (out.length >= (max || 1500)) break;
+    }
+    return { elements: out };
+  }
+
+  // Orte in einem Ausschnitt [süd, west, nord, ost], wie die Stadt-Abfrage
+  function orteAusschnitt(orte, bbox, max) {
+    const out = [];
+    for (const e of orte) {
+      if (e[0] < bbox[0] || e[0] > bbox[2] || e[1] < bbox[1] || e[1] > bbox[3]) continue;
+      out.push(ortElement(e));
+      if (out.length >= (max || 2000)) break;
+    }
+    return { elements: out };
+  }
+
+  // Schreibweise für den Vergleich: klein, ohne Akzente, ß = ss, nur Buchstaben und Ziffern
+  function suchNorm(t) {
+    return String(t).toLowerCase().replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Suche in [Name, lat, lon, Art, bei Ort, Rang]: jedes Wort der Anfrage muss ein Wort des Namens (oder des Orts)
+  // beginnen, oder die Anfrage steckt im Namen. Reihenfolge: Rang, genauer Treffer, Nähe zur Kartenmitte.
+  function sucheOffline(liste, text, nahe, n) {
+    const q = suchNorm(text);
+    if (q.length < 2) return [];
+    const woerter = q.split(' ');
+    const treffer = [];
+    for (const e of liste) {
+      if (e.n === undefined) { e.n = suchNorm(e[0]); e.w = suchNorm(e[4] || ''); }
+      const namenW = e.n.split(' '), alle = e.w ? namenW.concat(e.w.split(' ')) : namenW;
+      const passt = woerter.every(w => alle.some(x => x.startsWith(w))) || (q.length >= 4 && e.n.includes(q));
+      if (!passt) continue;
+      let punkte = e[5];
+      if (e.n === q) punkte += 40;
+      else if (e.n.startsWith(q)) punkte += 25;
+      else if (woerter.every(w => namenW.some(x => x.startsWith(w)))) punkte += 10;
+      if (nahe) {
+        const km = abstand({ lat: e[1], lon: e[2] }, { lat: nahe.lat, lon: nahe.lng != null ? nahe.lng : nahe.lon }) / 1000;
+        punkte -= Math.min(45, 12 * Math.log2(1 + km / 3));
+      }
+      treffer.push([punkte, e]);
+    }
+    treffer.sort((a, b) => b[0] - a[0]);
+    return treffer.slice(0, n || 7).map(([, e]) => ({ name: e[0], wo: [e[3], e[4]].filter(Boolean).join(' · '), lat: e[1], lon: e[2], offline: true }));
+  }
+
   // Orte in eine kurze Reihenfolge bringen; der Start bleibt vorn. rund = true: die Runde endet am Start,
   // sonst ist es ein offener Weg ohne Rückweg. Nächster Nachbar, dann 2-opt (Teilstücke umdrehen, solange es
   // kürzer wird). Luftlinie genügt dafür.
@@ -745,7 +810,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, ortElement, orteUmkreis, orteAusschnitt, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

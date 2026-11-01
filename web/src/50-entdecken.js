@@ -73,7 +73,7 @@ $('bOrte').onclick = async () => {
   try {
     const json = await orteHolen(pts, pts.length > 1 ? radius : 2000);
     orte = R.orteLesen(json, pts.length > 1 ? pts : null);
-    $('orteStatus').textContent = orte.length ? orte.length + ' Orte ' + wo + '.' : 'Keine Orte ' + wo + ' gefunden.';
+    $('orteStatus').textContent = (orte.length ? orte.length + ' Orte ' + wo + '.' : 'Keine Orte ' + wo + ' gefunden.') + (json.offline ? ' Aus dem Kartenpaket.' : '');
     orteZeigen();
   } catch (err) {
     $('orteStatus').textContent = 'Orte nicht erreichbar: ' + err.message;

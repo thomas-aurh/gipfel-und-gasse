@@ -86,8 +86,22 @@ def dem():
               {"name": "Probehöhen", "encoding": "terrarium"})
 
 
+def orte():
+    """Orte-Datei wie von karten/orte.py: Hütte und Gipfel am Berg, ein Museum, eine Straße für die Suche."""
+    import json
+    daten = {"v": 1, "bbox": list(BBOX), "orte": [
+        [47.585, 11.35, "n1", {"name": "Probehütte", "tourism": "alpine_hut", "opening_hours": "Mai-Okt"}],
+        [47.5852, 11.3505, "n2", {"name": "Probegipfel", "natural": "peak", "ele": "1800"}],
+        [47.61, 11.39, "w3", {"name": "Probemuseum", "tourism": "museum", "wikidata": "Q1"}]],
+        "suche": [["Probegipfel", 47.5852, 11.3505, "Gipfel", "", 73], ["Probehütte", 47.585, 11.35, "Berghütte", "Probedorf", 50],
+                  ["Probeweg", 47.57, 11.32, "Straße", "Probedorf", 20]]}
+    with gzip.open(os.path.join(ZIEL, "orte.json.gz"), "wt", encoding="utf-8") as f:
+        json.dump(daten, f, ensure_ascii=False)
+
+
 if __name__ == "__main__":
     os.makedirs(ZIEL, exist_ok=True)
     vektor()
     dem()
+    orte()
     print("Testkarten in " + ZIEL)
