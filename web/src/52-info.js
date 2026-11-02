@@ -118,6 +118,11 @@ function infoDetail(popup, o, ll, zurueck) {
   stopp.textContent = S.wps.length ? '➕ Als Stopp' : '📍 Hier starten';
   stopp.onclick = () => { karte.closePopup(); stoppDazu({ lat: o.lat, lon: o.lon, name: o.name }); };
   knoepfe.appendChild(stopp);
+  const merken = document.createElement('button');
+  merken.type = 'button'; merken.className = 'popup-knopf'; merken.textContent = '⭐ Merken';
+  merken.title = 'Als Reiseziel merken';
+  merken.onclick = ev => { ev.stopPropagation(); karte.closePopup(); zielForm(null, { name: o.name, wo: o.art, lat: o.lat, lon: o.lon, wikipedia: t.wikipedia, wikidata: t.wikidata }); };
+  knoepfe.appendChild(merken);
   if (zurueck) {
     const z2 = document.createElement('button');
     z2.type = 'button'; z2.className = 'popup-knopf'; z2.textContent = '‹ Liste';

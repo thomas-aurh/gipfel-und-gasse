@@ -1023,6 +1023,103 @@ var R = (function () {
     return { zustand: 'zu', text: heuteZu + ', öffnet ' + wann + hhmm(naechst[0]) + zusatz };
   }
 
+  // ---------- Reiseziele: Listen mit Orten, aus Dateien laden, als GPX weitergeben ----------
+  const ZIEL_STICHWORTE = ['Berg', 'Stadt', 'Baden', 'Kind', 'Kultur', 'Essen', 'Rad', 'Winter'];
+  const ZIEL_STAND = { idee: 'Idee', geplant: 'geplant', besucht: 'besucht' };
+  function xmlText(s) {
+    if (s == null) return '';
+    s = String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+    return s.replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  }
+  function xmlTag(inhalt, tag) { const m = new RegExp('<' + tag + '\\b[^>]*>([\\s\\S]*?)</' + tag + '>', 'i').exec(inhalt); return m ? xmlText(m[1]) : ''; }
+  function zielOrt(lat, lon) { return typeof lat === 'number' && typeof lon === 'number' && isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0); }
+  function zielLink(s) { s = String(s || '').trim(); return /^https?:\/\/\S+$/.test(s) ? s.slice(0, 500) : ''; }
+  // Datei → { art, ziele: [{ name, lat, lon } oder { name, suche }, notiz, link] }; höchstens 300
+  function zieleLesen(text, dateiname) {
+    text = String(text || '').replace(/^﻿/, '');
+    const name = String(dateiname || '').toLowerCase(), aus = [];
+    const dazu = z => { if (aus.length < 300 && z.name) aus.push({ name: z.name.slice(0, 200), notiz: (z.notiz || '').slice(0, 2000), link: zielLink(z.link),
+      ...(zielOrt(z.lat, z.lon) ? { lat: z.lat, lon: z.lon } : { suche: (z.suche || z.name).slice(0, 200) }) }); };
+    const anfang = text.trimStart().slice(0, 400).toLowerCase();
+    if (/\.gpx$/.test(name) || /<gpx[\s>]/.test(anfang)) {
+      const re = /<wpt\b([^>]*)>([\s\S]*?)<\/wpt>/gi;
+      let m;
+      while ((m = re.exec(text))) {
+        const lat = parseFloat((/\blat="([^"]+)"/.exec(m[1]) || [])[1]), lon = parseFloat((/\blon="([^"]+)"/.exec(m[1]) || [])[1]);
+        if (!zielOrt(lat, lon)) continue;
+        dazu({ name: xmlTag(m[2], 'name') || 'Punkt', lat, lon, notiz: xmlTag(m[2], 'desc') || xmlTag(m[2], 'cmt'), link: (/<link\b[^>]*href="([^"]+)"/i.exec(m[2]) || [])[1] });
+      }
+      return { art: 'GPX', ziele: aus };
+    }
+    if (/\.kml$/.test(name) || /<kml[\s>]/.test(anfang)) {
+      const re = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi;
+      let m;
+      while ((m = re.exec(text))) {
+        const k = /<Point\b[\s\S]*?<coordinates>\s*([-\d.]+)\s*,\s*([-\d.]+)/i.exec(m[1]);
+        if (!k) continue;
+        const notiz = xmlTag(m[1], 'description');
+        dazu({ name: xmlTag(m[1], 'name') || 'Ort', lat: +k[2], lon: +k[1], notiz, link: (/https?:\/\/[^\s"<]+/.exec(notiz) || [])[0] });
+      }
+      return { art: 'KML', ziele: aus };
+    }
+    if (/\.(geo)?json$/.test(name) || /^\s*\{/.test(text)) {
+      let j;
+      try { j = JSON.parse(text); } catch (e) { throw new Error('keine lesbare GeoJSON-Datei'); }
+      const fs = j && j.type === 'FeatureCollection' ? j.features : j && j.type === 'Feature' ? [j] : null;
+      if (!Array.isArray(fs)) throw new Error('keine GeoJSON-Datei (FeatureCollection mit Punkten)');
+      for (const f of fs) {
+        const g = f && f.geometry, p = (f && f.properties) || {};
+        if (!g || g.type !== 'Point' || !Array.isArray(g.coordinates)) continue;
+        dazu({ name: String(p.name || p.title || p.Name || 'Ort'), lat: +g.coordinates[1], lon: +g.coordinates[0], notiz: String(p.description || p.notiz || p.notes || ''), link: p.url || p.link || p.website });
+      }
+      return { art: 'GeoJSON', ziele: aus };
+    }
+    // Text oder CSV: eine Zeile je Ziel. Mit „;“ oder Tab getrennt: Name; Ort zum Suchen; Notiz; Link (oder eine Kopfzeile
+    // mit name, ort, notiz, link, lat, lon). Ohne Trenner ist die ganze Zeile Name und Suchbegriff („Lindau, Bodensee“).
+    const zeilen = text.split(/\r?\n/).map(z => z.trim()).filter(z => z && !z.startsWith('#'));
+    if (!zeilen.length) return { art: 'Text', ziele: aus };
+    const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';' : null;
+    const teile = z => (trenner ? z.split(trenner) : [z]).map(x => x.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'));
+    let spalten = { name: 0, suche: 1, notiz: 2, link: 3, lat: -1, lon: -1 }, ab = 0;
+    const kopf = teile(zeilen[0]).map(x => x.toLowerCase());
+    if (trenner && kopf.some(x => /^(name|titel|ziel)$/.test(x))) {
+      const finde = re => kopf.findIndex(x => re.test(x));
+      spalten = { name: finde(/^(name|titel|ziel)$/), suche: finde(/^(ort|adresse|suche|wo)$/), notiz: finde(/^(notiz|beschreibung|notes?|description|kommentar)$/),
+        link: finde(/^(link|url|webseite|website)$/), lat: finde(/^(lat|breite|latitude)$/), lon: finde(/^(lon|lng|länge|laenge|longitude)$/) };
+      ab = 1;
+    }
+    for (const z of zeilen.slice(ab)) {
+      const t = teile(z), w = i => (i >= 0 && t[i] != null ? t[i] : '');
+      // Link in einer Zeile ohne Trenner: abtrennen
+      let nm = w(spalten.name), link = w(spalten.link);
+      if (!trenner) { const l = /\s(https?:\/\/\S+)$/.exec(nm); if (l) { link = l[1]; nm = nm.slice(0, l.index).trim(); } }
+      dazu({ name: nm, suche: w(spalten.suche) || nm, notiz: w(spalten.notiz), link, lat: parseFloat(w(spalten.lat).replace(',', '.')), lon: parseFloat(w(spalten.lon).replace(',', '.')) });
+    }
+    return { art: trenner ? 'CSV' : 'Text', ziele: aus };
+  }
+  // gespeicherte Reiseziele prüfen (Speicher, Sicherung): { listen: [{ id, name }], ziele: [...] }
+  function zielePruefen(d) {
+    const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : '');
+    const listen = (d && Array.isArray(d.listen) ? d.listen : []).map(l => ({ id: text(l && l.id, 64), name: text(l && l.name, 120) })).filter(l => l.id && l.name);
+    const ids = new Set(listen.map(l => l.id));
+    const ziele = (d && Array.isArray(d.ziele) ? d.ziele : []).filter(z => z && zielOrt(z.lat, z.lon) && ids.has(z.liste) && text(z.id, 64) && text(z.name, 200)).map(z => ({
+      id: text(z.id, 64), liste: z.liste, name: text(z.name, 200), wo: text(z.wo, 200), lat: z.lat, lon: z.lon, notiz: text(z.notiz, 2000), link: zielLink(z.link),
+      stich: Array.isArray(z.stich) ? z.stich.filter(s => ZIEL_STICHWORTE.includes(s)) : [], stand: ZIEL_STAND[z.stand] ? z.stand : 'idee',
+      wikipedia: text(z.wikipedia, 300), wikidata: /^Q\d+$/.test(z.wikidata || '') ? z.wikidata : '', neu: text(z.neu, 40) }));
+    return { listen, ziele };
+  }
+  // Liste als GPX-Wegpunkte (öffnet in anderen Karten-Apps, lädt hier wieder)
+  function zieleGpx(name, ziele) {
+    const z = ['<?xml version="1.0" encoding="UTF-8"?>', '<gpx version="1.1" creator="Gipfel und Gasse" xmlns="http://www.topografix.com/GPX/1/1">', '<metadata><name>' + esc(name) + '</name></metadata>'];
+    for (const p of ziele) {
+      z.push('<wpt lat="' + p.lat.toFixed(6) + '" lon="' + p.lon.toFixed(6) + '"><name>' + esc(p.name) + '</name>' + (p.notiz ? '<desc>' + esc(p.notiz) + '</desc>' : '') +
+        (p.link ? '<link href="' + esc(p.link) + '"/>' : '') + '</wpt>');
+    }
+    z.push('</gpx>');
+    return z.join('\n');
+  }
+
   // ---------- Was ist hier? (Info beim Antippen der Karte) ----------
   // benannte Objekte im Umkreis, ohne Straßen, Grenzen, Routen, Flächennutzung, Gewässer und Orte (Dörfer kennt die Suche)
   function infoAbfrage(lat, lon, radius) {
@@ -1363,7 +1460,8 @@ var R = (function () {
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
-    infoAbfrage, infoArt, infoLesen, infoRadius
+    infoAbfrage, infoArt, infoLesen, infoRadius,
+    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

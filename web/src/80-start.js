@@ -1,6 +1,6 @@
 // Start: Seiten (Menü links oben, Leiste unten), Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
 const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren',
-  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
+  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
 let seite = 'planen';
 function reiter(name) {
   if (!SEITEN[name]) name = 'planen';
@@ -22,6 +22,7 @@ function reiter(name) {
   if (name === 'entdecken') wetterLaden();
   if (name === 'touren' || name === 'gegangen') tourenZeigen();
   if (name === 'tagebuch') tagebuchZeigen();
+  if (name === 'ziele') zieleZeigen();
   if (name === 'planen') requestAnimationFrame(() => profilZeichnen());
   if ($('panel').classList.contains('klein')) blatt('mittel');
 }

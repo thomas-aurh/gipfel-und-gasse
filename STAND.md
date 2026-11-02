@@ -47,6 +47,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
+- **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
+  aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
+  der Nähe).
 - **Info auf der Karte (#27) nicht auf dem Handy geprüft:** Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Google-Maps-Link
@@ -132,6 +135,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Reiseziele (Menü ⭐): Listen mit Zielen (Ortssuche, Notiz, Link, Stichworte, Stand), ⭐ auf der Karte mit
+  Anreise, Wetter dort und „Als Stopp“; Liste einfügen und Datei laden (Text, CSV, GPX, KML, GeoJSON; Orte ohne Koordinaten sucht die App,
+  eine Anfrage je Sekunde), als GPX weitergeben, „⭐ Merken“ im Info-Fenster, in der Sicherung (#28).
 
 - **02.11.** Info auf der Karte (Knopf ⓘ): Antippen zeigt, was dort ist (benannte Objekte aus dem Kartenpaket und von
   Overpass, mit Öffnungszeit, Eintritt und Wikipedia) statt einen Punkt zu setzen; Fenster gehen am Telefon nicht mehr

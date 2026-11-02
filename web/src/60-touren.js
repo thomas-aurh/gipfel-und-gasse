@@ -206,10 +206,11 @@ function gpxHerunter(name, pts, wps) {
 async function sicherungSpeichern() {
   const liste = tourenLesen();
   const tb = await tagebuchFuerSicherung();
-  if (!liste.length && !tb.tagebuch.reisen.length) { melde('Keine Touren und kein Tagebuch gespeichert.'); return; }
+  const ziele = zieleLesenSp();
+  if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length) { melde('Keine Touren, kein Tagebuch und keine Reiseziele gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
-    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos }), 'application/json');
+    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele }), 'application/json');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
   if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
@@ -220,10 +221,12 @@ async function sicherungEinlesen(text) {
   const dazu = neu.filter(t => !ids.has(t.id));
   if (dazu.length && !tourenSchreiben(dazu.concat(liste))) return;
   const tb = await tagebuchEinlesen(text);
+  const zl = zieleEinlesen(text);
   tourenZeigen();
   const teile = [];
   if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
   if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
+  if (zl) teile.push(zl + ' Reiseziele übernommen');
   melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
 }
 
