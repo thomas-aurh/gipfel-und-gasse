@@ -353,6 +353,9 @@ function pruef(name, bed, info) {
   const infoText = await page.textContent('.leaflet-popup-content');
   pruef('Info: Fenster mit Art, geöffnet jetzt, Eintritt und Wikipedia', infoText.includes('Schloss Test') && infoText.includes('Durchgehend geöffnet') && infoText.includes('Eintritt: ja') &&
     infoText.includes('Das Alte Burg (Teststadt) ist') && infoText.includes('Als Stopp'), infoText);
+  const gLink = await page.evaluate(() => { const a = [...document.querySelectorAll('.leaflet-popup a')].find(x => x.textContent.includes('Google Maps')); return a && a.href; });
+  pruef('Info: Link zu Google Maps mit Name und Ort', !!gLink && gLink.startsWith('https://www.google.com/maps/search/?api=1&query=') && decodeURIComponent(gLink).includes('Schloss Test, ') &&
+    !/query=\d/.test(gLink), gLink);
   await page.click('.leaflet-popup button:has-text("Liste")');
   pruef('Info: zurück zur Liste', (await page.$$('.info-liste button')).length === 2);
   // als Reiseziel merken: Formular mit Name und Ort aus dem Info-Fenster

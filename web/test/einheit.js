@@ -436,5 +436,9 @@ pruef('Ziele prüfen: nur gültige Listen und Ziele, Stichworte und Stand aus de
 const zx = R.zieleGpx('Liste & Co', [{ name: 'A<B', lat: 47.1, lon: 11.2, notiz: 'n', link: 'https://x' }]);
 pruef('Ziele als GPX: wieder lesbar', R.zieleLesen(zx, 'l.gpx').ziele[0].name === 'A<B' && zx.includes('<metadata><name>Liste &amp; Co</name>'));
 
+pruef('Google Maps: Name mit Adresse aus OSM', R.googleSuche('Bäckerei Huber', { 'addr:street': 'Bahnhofstraße', 'addr:housenumber': '3', 'addr:postcode': '82377', 'addr:city': 'Penzberg' }, '', 47.75, 11.37) ===
+  'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Bäckerei Huber, Bahnhofstraße 3, 82377 Penzberg'));
+pruef('Google Maps: Name mit Ortsname, sonst Koordinaten', R.googleSuche('Café Rosa', {}, 'Penzberg', 47.75, 11.37).endsWith(encodeURIComponent('Café Rosa, Penzberg')) &&
+  R.googleSuche('Café Rosa', {}, '', 47.7535, 11.3747).endsWith('query=47.753500%2C11.374700'));
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

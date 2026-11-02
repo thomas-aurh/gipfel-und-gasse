@@ -50,8 +50,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Offline-Karte leer auf dem Pixel (02.11., Thomas):** Ursache nicht gemessen; Verdacht: Range-Kopfzeile kommt im
   KartenServer nicht an (dann käme die ganze Datei). #29 liest zusätzlich über `?von=&bis=` und bringt die Prüfung; deren
   Ergebnis von Thomas steht aus.
-- **Info ohne Netz kennt keine Läden:** die Orte-Datei des Pakets enthält Gasthäuser, Cafés, Hütten, Sehenswürdigkeiten
-  und Ähnliches, aber keine Geschäfte (`karten/orte.py`); Läden mit Öffnungszeiten findet Info nur mit Netz (Overpass).
+- **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
+  Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
   aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
   der Nähe).
@@ -140,6 +140,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Link „🔎 In Google Maps“ in allen Ort-Fenstern (Info, Sehenswürdigkeiten, Orte, drinnen, Reiseziele):
+  Name mit Adresse aus OSM, sonst mit dem Ortsnamen; Öffnungszeiten und Bewertungen schaut Thomas lieber dort nach.
+  Fenster an Sehenswürdigkeiten gehen nicht mehr zu, wenn Leaflet die Karte für sie verschiebt (#30).
 
 - **02.11.** Offline-Karte: Pakete werden in Teilen über Kopfzeile und Adresse gelesen (Ausweg, falls das WebView die
   Range-Kopfzeile nicht an die App weiterreicht), „🔍 Offline-Karte prüfen“ misst auf dem Gerät Lesen, Kopf, Kachel und
