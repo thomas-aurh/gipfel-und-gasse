@@ -15,6 +15,7 @@
     <!-- Karte, Planen, Unterwegs und Touren (geplant und gegangen) stehen in der Leiste; hier nur, was dort fehlt -->
     <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
     <button data-ziel="tagebuch">📔 Reisetagebuch</button>
+    <button data-ziel="ziele">⭐ Reiseziele</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -55,6 +56,7 @@
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
     <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
     <label><input type="checkbox" id="lageTagebuch"> Reisetagebuch (Einträge mit Ort)</label>
+    <label><input type="checkbox" id="lageZiele"> Reiseziele ⭐</label>
     <button class="knopf nur-app" id="bPakete" hidden>🗺️ Kartenpakete laden und verwalten</button>
   </div>
 
@@ -328,6 +330,55 @@
         </div>
       </section>
 
+      <!-- Reiseziele: Listen mit Orten (eintippen oder aus einer Datei), Sterne auf der Karte -->
+      <section data-reiter="ziele">
+        <div id="zlUebersicht">
+          <p class="tipp">Ideen fürs nächste Mal sammeln: Gipfel, Städte, Seen, Hütten. Je Liste beliebig viele Ziele; sie stehen als ⭐ auf der Karte.</p>
+          <div class="zeile">
+            <label style="flex:1">Liste<select id="zlListe"></select></label>
+            <button class="knopf" id="zlListeNeu" title="Neue Liste">＋ Liste</button>
+            <button class="knopf" id="zlListeUm" title="Liste umbenennen">✏️</button>
+            <button class="knopf" id="zlListeWeg" title="Liste löschen">🗑</button>
+          </div>
+          <div class="zeile">
+            <button class="knopf haupt" id="zlNeu">＋ Ziel</button>
+            <button class="knopf" id="zlLaden" title="Text, CSV, GPX, KML oder GeoJSON">📂 Datei laden</button>
+            <button class="knopf" id="zlAusgeben" title="Liste als GPX-Datei">⬇ Als GPX</button>
+            <input type="file" id="zlDatei" accept=".txt,.csv,.gpx,.kml,.geojson,.json,text/plain,text/csv,application/gpx+xml,application/vnd.google-earth.kml+xml,application/geo+json,application/json" hidden>
+          </div>
+          <div class="zeile">
+            <label>Stand<select id="zlFilterStand"><option value="">alle</option><option value="idee">Idee</option><option value="geplant">geplant</option><option value="besucht">besucht</option></select></label>
+            <label>Ordnen<select id="zlOrdnen"><option value="nah">nach Entfernung</option><option value="name">nach Name</option><option value="neu">neueste zuerst</option></select></label>
+          </div>
+          <div id="zlStichFilter" class="chips"></div>
+          <p id="zlStatus" class="klein"></p>
+          <ul id="zlZiele" class="liste"></ul>
+        </div>
+        <form id="zlForm" hidden>
+          <h3 id="zlFormTitel">Neues Ziel</h3>
+          <div id="zlSucheZeile" class="zeile"><label style="flex:1">Ort suchen<input type="text" id="zlSuche" placeholder="z. B. Herzogstand, Lindau, Kloster Andechs" autocomplete="off"></label>
+            <button class="knopf" type="button" id="zlSucheLos">Suchen</button></div>
+          <ul id="zlTreffer" class="liste" hidden></ul>
+          <p id="zlOrt" class="klein"></p>
+          <div class="zeile"><label style="flex:1">Name<input type="text" id="zlName" maxlength="200" required></label></div>
+          <div class="zeile"><label style="flex:1">Notiz<textarea id="zlNotiz" rows="3" maxlength="2000" placeholder="Warum hin? Mit wem? Was ansehen?"></textarea></label></div>
+          <div class="zeile"><label style="flex:1">Link<input type="url" id="zlLink" maxlength="500" placeholder="https://…"></label></div>
+          <div id="zlStich" class="chips"></div>
+          <div class="zeile">
+            <label>Stand<select id="zlStand"><option value="idee">Idee</option><option value="geplant">geplant</option><option value="besucht">besucht</option></select></label>
+            <label>Liste<select id="zlFormListe"></select></label>
+          </div>
+          <div class="zeile"><button class="knopf haupt" type="submit">Speichern</button><button class="knopf" type="button" id="zlAbbrechen">Abbrechen</button></div>
+        </form>
+        <div id="zlImport" hidden>
+          <h3>Aus der Datei</h3>
+          <p id="zlImportStatus" class="klein"></p>
+          <ul id="zlImportListe" class="liste"></ul>
+          <div class="zeile"><label style="flex:1">in die Liste<select id="zlImportZiel"></select></label></div>
+          <div class="zeile"><button class="knopf haupt" id="zlImportOk" disabled>Übernehmen</button><button class="knopf" id="zlImportAbbrechen">Abbrechen</button></div>
+        </div>
+      </section>
+
       <!-- Sicherung und Daten -->
       <section data-reiter="daten">
         <div class="knopfreihe">
@@ -336,7 +387,7 @@
           <input type="file" id="sicherungDatei" accept=".json,application/json" hidden>
         </div>
         <p class="klein" id="tourenHinweis">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
-          „Sicherung speichern“ schreibt alle Touren samt Planung in eine Datei; „Sicherung laden“ holt sie zurück.</p>
+          „Sicherung speichern“ schreibt alle Touren samt Planung, das Reisetagebuch und die Reiseziele in eine Datei; „Sicherung laden“ holt sie zurück.</p>
       </section>
 
       <!-- Info -->
@@ -348,6 +399,8 @@
         <h3>Bedienung</h3>
         <ul class="klein">
           <li>Karte antippen: der erste Punkt ist der Start, jeder weitere ein neues Ziel.</li>
+          <li>⭐ Reiseziele (Menü): Ziele sammeln, per Ortssuche oder aus einer Datei: Text mit einer Zeile je Ziel, CSV
+            (Name;Ort;Notiz;Link), GPX, KML aus Google My Maps, GeoJSON. Orte ohne Koordinaten sucht die App, du hakst ab, was passt.</li>
           <li>ⓘ Info (rechts an der Karte): Antippen zeigt dann, was dort ist (Sehenswürdigkeit, Gasthaus, Gebäude), mit
             Öffnungszeit und Wikipedia; „Als Stopp“ oder „Hier starten“ übernimmt es in die Tour. „✏️ Planen“ schaltet zurück.</li>
           <li>Telefon: das Blatt unten am Kopf hoch- oder herunterziehen; steht der Inhalt ganz oben, klappt ein Wisch nach unten es zu.

@@ -413,5 +413,28 @@ pruef('Info: Burg mit Wikipedia vor der näheren Bäckerei, doppelte einmal mit 
 pruef('Info: Umkreis aus Maßstab, begrenzt', R.infoRadius(0.3) === 15 && R.infoRadius(2) === 60 && R.infoRadius(50) === 150);
 pruef('Info: Abfrage ohne Straßen und Grenzen', /around:40,47\.000000,11\.000000\)\["name"\]\[!"highway"\]\[!"boundary"\]/.test(R.infoAbfrage(47, 11, 40)));
 
+// Reiseziele: Dateien lesen, prüfen, als GPX
+const zt = R.zieleLesen('# Ideen\nHerzogstand\nLindau, Bodensee https://lindau.de\n\nKloster Andechs', 'x.txt');
+pruef('Ziele aus Text: Zeile je Ziel, Komma bleibt im Namen, Link abgetrennt, Kommentar weg', zt.art === 'Text' && zt.ziele.length === 3 && zt.ziele[1].name === 'Lindau, Bodensee' &&
+  zt.ziele[1].link === 'https://lindau.de' && zt.ziele[1].suche === 'Lindau, Bodensee' && zt.ziele[0].lat === undefined);
+const zc = R.zieleLesen('Name;Ort;Notiz;Lat;Lon\nGardasee;Riva del Garda;Baden;;\nAlm;;;47,5;11,25', 'z.csv');
+pruef('Ziele aus CSV mit Kopfzeile: Suchbegriff und Koordinaten mit Komma', zc.art === 'CSV' && zc.ziele[0].suche === 'Riva del Garda' && zc.ziele[0].notiz === 'Baden' && zc.ziele[1].lat === 47.5 && zc.ziele[1].lon === 11.25);
+const zg = R.zieleLesen('<gpx><wpt lon="11.3" lat="47.6"><name>Gipfel &amp; Hütte</name><desc><![CDATA[toll]]></desc><link href="https://a.b"/></wpt><wpt lat="0" lon="0"><name>Null</name></wpt></gpx>', 'a.gpx');
+pruef('Ziele aus GPX: Wegpunkte, Entitäten und CDATA, 0/0 nicht', zg.ziele.length === 1 && zg.ziele[0].name === 'Gipfel & Hütte' && zg.ziele[0].notiz === 'toll' && zg.ziele[0].link === 'https://a.b');
+const zk = R.zieleLesen('<kml><Placemark><name>Burg</name><description><![CDATA[Info https://x.y/z]]></description><Point><coordinates> 11.5,48.1,0 </coordinates></Point></Placemark><Placemark><name>Weg</name><LineString><coordinates>1,2 3,4</coordinates></LineString></Placemark></kml>', 'b.kml');
+pruef('Ziele aus KML (Google My Maps): Punkte, Link aus der Beschreibung, Linien nicht', zk.ziele.length === 1 && zk.ziele[0].lat === 48.1 && zk.ziele[0].link === 'https://x.y/z');
+const zj = R.zieleLesen(JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [11, 47] }, properties: { name: 'A', url: 'javascript:x' } }] }), 'c.geojson');
+pruef('Ziele aus GeoJSON: Punkte, nur http-Links', zj.ziele.length === 1 && zj.ziele[0].lat === 47 && zj.ziele[0].link === '');
+let zFehler = '';
+try { R.zieleLesen('{kaputt', 'd.geojson'); } catch (e) { zFehler = e.message; }
+pruef('Ziele: kaputte Datei mit Meldung', zFehler.includes('GeoJSON'));
+pruef('Ziele: höchstens 300', R.zieleLesen(Array.from({ length: 400 }, (_, i) => 'Ort ' + i).join('\n'), 'v.txt').ziele.length === 300);
+const zp = R.zielePruefen({ listen: [{ id: 'l1', name: 'A' }, { name: 'ohne id' }], ziele: [
+  { id: 'z1', liste: 'l1', name: 'Gut', lat: 47, lon: 11, stich: ['Berg', 'Quatsch'], stand: 'besucht', link: 'https://x' },
+  { id: 'z2', liste: 'l9', name: 'Liste fehlt', lat: 47, lon: 11 }, { id: 'z3', liste: 'l1', name: 'Ohne Ort' }] });
+pruef('Ziele prüfen: nur gültige Listen und Ziele, Stichworte und Stand aus der Auswahl', zp.listen.length === 1 && zp.ziele.length === 1 && zp.ziele[0].stich.join() === 'Berg' && zp.ziele[0].stand === 'besucht');
+const zx = R.zieleGpx('Liste & Co', [{ name: 'A<B', lat: 47.1, lon: 11.2, notiz: 'n', link: 'https://x' }]);
+pruef('Ziele als GPX: wieder lesbar', R.zieleLesen(zx, 'l.gpx').ziele[0].name === 'A<B' && zx.includes('<metadata><name>Liste &amp; Co</name>'));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

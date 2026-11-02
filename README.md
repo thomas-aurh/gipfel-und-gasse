@@ -30,6 +30,11 @@ und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipf
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
 
+**Reiseziele:** Menü ☰ › *Reiseziele*: Listen mit Zielen (Ort per Suche, Notiz, Link, Stichworte, Stand Idee/geplant/
+besucht), als ⭐ auf der Karte; Fenster mit Anreise, Wetter dort und „Als Stopp“. „📂 Datei laden“ liest Text (eine Zeile
+je Ziel, die App sucht den Ort), CSV (`Name;Ort;Notiz;Link`, auch mit `lat;lon`), GPX-Wegpunkte, KML aus Google My Maps
+und GeoJSON; „⬇ Als GPX“ gibt eine Liste weiter. Im Info-Fenster merkt „⭐ Merken“ einen Ort. Kommt mit in die Sicherung.
+
 **Info auf der Karte:** Der Knopf ⓘ rechts an der Karte schaltet zwischen Planen (Antippen setzt Punkte) und Info: Dann
 zeigt Antippen, was dort ist (Name, Art, geöffnet jetzt, Eintritt, Wikipedia), aus dem Kartenpaket und von Overpass; im
 Fenster geht es weiter mit „Als Stopp“ oder „Hier starten“.

@@ -68,10 +68,11 @@ function themaSetzen(t, merken = true) {
   if (typeof profilZeichnen === 'function' && window.__gugBereit) profilZeichnen();
 }
 themaSetzen(SPEICHER.lesen('thema', 'auto'), false);
-const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true, tagebuch: true }, SPEICHER.lesen('lagen', {}));
+const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true, tagebuch: true, ziele: true }, SPEICHER.lesen('lagen', {}));
 // gespeicherte Touren als Punkte am Start (60-touren.js füllt die Ebene), Tagebuch-Einträge mit Ort (65-tagebuch.js)
 const ebeneTouren = L.layerGroup();
 const ebeneTagebuch = L.layerGroup();
+const ebeneZiele = L.layerGroup();   // Reiseziele (67-ziele.js)
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
 const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
 function lagenAnwenden() {
@@ -91,6 +92,8 @@ function lagenAnwenden() {
   if (lagenWahl.touren) ebeneTouren.addTo(karte); else ebeneTouren.remove();
   $('lageTagebuch').checked = !!lagenWahl.tagebuch;
   if (lagenWahl.tagebuch) ebeneTagebuch.addTo(karte); else ebeneTagebuch.remove();
+  $('lageZiele').checked = lagenWahl.ziele !== false;
+  if (lagenWahl.ziele !== false) ebeneZiele.addTo(karte); else ebeneZiele.remove();
   SPEICHER.schreiben('lagen', lagenWahl);
   if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
 }
@@ -98,6 +101,7 @@ lagenAnwenden();
 document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('change', () => { lagenWahl.basis = r.value; lagenAnwenden(); }));
 $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
+$('lageZiele').addEventListener('change', e => { lagenWahl.ziele = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
 $('lageTouren').addEventListener('change', e => { lagenWahl.touren = e.target.checked; lagenAnwenden(); });

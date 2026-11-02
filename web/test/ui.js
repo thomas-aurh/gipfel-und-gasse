@@ -89,7 +89,10 @@ async function dienste(ctx) {
     const bb = /\[bbox:(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)\]/.exec(q);
     if (bb) {
       // Stadt: Sehenswürdigkeiten im Ausschnitt, verteilt um die Mitte
-      const la = (+bb[1] + +bb[3]) / 2, lo = (+bb[2] + +bb[4]) / 2, dl = (+bb[3] - +bb[1]) / 6, dn = (+bb[4] - +bb[2]) / 6;
+      // um den Testgipfel an festen Stellen (sonst hinge die Lage am zuletzt geladenen Ausschnitt), anderswo um die Mitte
+      const amGipfel = +bb[1] < 47.6262 && +bb[3] > 47.6262 && +bb[2] < 11.2578 && +bb[4] > 11.2578;
+      const la = amGipfel ? 47.6262 : (+bb[1] + +bb[3]) / 2, lo = amGipfel ? 11.2578 : (+bb[2] + +bb[4]) / 2;
+      const dl = amGipfel ? 0.0012 : (+bb[3] - +bb[1]) / 6, dn = amGipfel ? 0.0018 : (+bb[4] - +bb[2]) / 6;
       const el = [
         { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00' } },
         { type: 'node', id: 102, lat: la - dl, lon: lo + dn, tags: { historic: 'castle', name: 'Alte Burg', wikidata: 'Q2' } },
@@ -352,7 +355,13 @@ function pruef(name, bed, info) {
     infoText.includes('Das Alte Burg (Teststadt) ist') && infoText.includes('Als Stopp'), infoText);
   await page.click('.leaflet-popup button:has-text("Liste")');
   pruef('Info: zurück zur Liste', (await page.$$('.info-liste button')).length === 2);
-  await page.click('.leaflet-popup-close-button');
+  // als Reiseziel merken: Formular mit Name und Ort aus dem Info-Fenster
+  await page.click('.info-liste button >> nth=0');
+  await page.click('.leaflet-popup button:has-text("Merken")');
+  pruef('Info: ⭐ Merken öffnet das Reiseziel mit Name und Ort', await page.isVisible('#zlForm') && (await page.inputValue('#zlName')) === 'Schloss Test' &&
+    (await page.textContent('#zlOrt')).includes('Burg oder Schloss'));
+  await page.click('#zlAbbrechen');
+  await page.click('[data-reiter=planen]');
   await page.click('#bInfoAus');
   await page.waitForTimeout(500);
   await page.mouse.click(kbInfo.x + kbInfo.width * 0.75, kbInfo.y + kbInfo.height * 0.35);
@@ -643,6 +652,61 @@ function pruef(name, bed, info) {
   await page.click('.tb-eintrag:has-text("Zweiter Tag") button[title="Eintrag löschen"]');
   await page.click('.tb-eintrag:has-text("Zweiter Tag") button[title="Eintrag löschen"]');
   await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag').length === 1);
+  // ---------- Reiseziele ----------
+  await zuSeite(page, 'ziele');
+  pruef('Reiseziele: erste Liste von selbst, Hinweis wie es geht', (await page.textContent('#zlListe')).includes('Meine Ziele') && (await page.textContent('#zlStatus')).includes('Datei laden'));
+  await page.click('#zlNeu');
+  await page.fill('#zlSuche', 'Testg');
+  await page.click('#zlSucheLos');
+  await page.click('#zlTreffer li:has-text("Testgipfel")');
+  pruef('Reiseziele: Ort aus der Suche, Name vorbelegt', (await page.inputValue('#zlName')) === 'Testgipfel' && (await page.textContent('#zlOrt')).includes('📍'));
+  await page.fill('#zlNotiz', 'Mit Oma im Juni');
+  await page.click('#zlStich button:has-text("Berg")');
+  await page.click('#zlForm button[type=submit]');
+  await page.waitForSelector('#zlZiele li');
+  const zl1 = await page.textContent('#zlZiele');
+  pruef('Reiseziele: Ziel gespeichert, mit Stichwort und Entfernung, Stern auf der Karte', zl1.includes('Testgipfel') && zl1.includes('Berg') && zl1.includes('Idee') && /km|m/.test(zl1) &&
+    (await page.$$('.zl-mk')).length === 1, zl1);
+  // Datei laden: Text (Orte werden gesucht) und GPX (mit Koordinaten)
+  const txtPfad = path.join(OUT, 'Sommerziele.txt');
+  fs.writeFileSync(txtPfad, '# Ideen\nTestgipfel Süd\nStadtplatz https://beispiel.de\n');
+  await page.setInputFiles('#zlDatei', txtPfad);
+  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 8000 }).catch(() => {});
+  pruef('Datei laden: Text, beide Orte gesucht und gefunden', (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportStatus')).includes('2 mit Ort'),
+    await page.textContent('#zlImportStatus'));
+  await page.click('#zlImportOk');
+  await page.waitForTimeout(200);
+  pruef('Datei laden: neue Liste nach dem Dateinamen, Link mitgenommen', (await page.textContent('#zlListe')).includes('Sommerziele') && (await page.$$('#zlZiele li')).length === 2 &&
+    (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.some(z => z.link === 'https://beispiel.de'))));
+  const zlGpxPfad = path.join(OUT, 'punkte.gpx');
+  fs.writeFileSync(zlGpxPfad, '<?xml version="1.0"?><gpx><wpt lat="47.6" lon="11.3"><name>Walchensee</name><desc>Baden</desc></wpt><wpt lat="47.7" lon="11.2"><name>Kochelsee</name></wpt></gpx>');
+  await page.setInputFiles('#zlDatei', zlGpxPfad);
+  await page.waitForSelector('#zlImport:not([hidden])');
+  await page.selectOption('#zlImportZiel', { label: 'Meine Ziele' });
+  await page.click('#zlImportListe li:has-text("Kochelsee") input');
+  await page.click('#zlImportOk');
+  await page.waitForTimeout(200);
+  const zlAlle = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')));
+  pruef('Datei laden: GPX in eine bestehende Liste, abgewähltes bleibt weg', zlAlle.ziele.length === 4 && zlAlle.ziele.some(z => z.name === 'Walchensee' && z.notiz === 'Baden') &&
+    !zlAlle.ziele.some(z => z.name === 'Kochelsee') && (await page.$$('.zl-mk')).length === 4, zlAlle.ziele.map(z => z.name));
+  // als GPX weitergeben und wieder lesbar
+  const [zlDl] = await Promise.all([page.waitForEvent('download'), page.click('#zlAusgeben')]);
+  const zlGpx = fs.readFileSync(await zlDl.path(), 'utf8');
+  pruef('Reiseziele als GPX: Wegpunkte mit Namen und Notiz', zlDl.suggestedFilename() === 'Meine-Ziele.gpx' && zlGpx.includes('<name>Walchensee</name>') && zlGpx.includes('<desc>Mit Oma im Juni</desc>'),
+    [zlDl.suggestedFilename(), zlGpx.slice(0, 300)]);
+  await page.screenshot({ path: path.join(OUT, '8c-reiseziele.png') });
+  // Filter: Stichwort Berg
+  await page.click('#zlStichFilter button:has-text("Berg")');
+  pruef('Reiseziele: Filter nach Stichwort', (await page.$$('#zlZiele li')).length === 1 && (await page.textContent('#zlStatus')).includes('1 von 2'), await page.textContent('#zlStatus'));
+  await page.click('#zlStichFilter button:has-text("Berg")');
+  // auf der Karte: Fenster mit Notiz, Wetter am Ziel
+  await page.click('#zlZiele li:has-text("Testgipfel") .was');
+  await page.waitForSelector('.leaflet-popup:has-text("Mit Oma")', { timeout: 5000 });
+  pruef('Reiseziel auf der Karte: Fenster mit Notiz und Anreise', (await page.textContent('.leaflet-popup-content')).includes('Bus und Bahn'));
+  await page.click('.leaflet-popup button:has-text("Wetter")');
+  await page.waitForFunction(() => (document.querySelector('#wetter p.klein') || {}).textContent && document.querySelector('#wetter p.klein').textContent.includes('Testgipfel'), null, { timeout: 5000 }).catch(() => {});
+  pruef('Reiseziel: Wetter dort', (await page.inputValue('#wetterOrt')) === 'ort' && (await page.textContent('#wetter')).includes('Testgipfel'), await page.textContent('#wetter'));
+  await page.selectOption('#wetterOrt', 'start');
   // Sicherung: alle Touren samt Planung in einer Datei; eine verlorene Tour kommt beim Laden zurück
   await zuSeite(page, 'daten');
   const alleTouren = () => page.$$eval('#tourliste li[data-tour], #gangliste li[data-tour]', l => l.length);
@@ -656,16 +720,19 @@ function pruef(name, bed, info) {
   const fotoIds = Object.keys(sichDaten.fotos || {});
   pruef('Sicherung: Tagebuch samt Foto dabei', sichDaten.tagebuch && sichDaten.tagebuch.eintraege.length === 1 && fotoIds.length === 1 && sichDaten.fotos[fotoIds[0]].startsWith('data:image/jpeg;base64,'),
     sichDaten.tagebuch);
+  pruef('Sicherung: Reiseziele dabei', sichDaten.reiseziele && sichDaten.reiseziele.ziele.length === 4 && sichDaten.reiseziele.listen.length === 2);
   pruef('Sicherung: eine Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.json') && sichDaten.app === 'gipfel-und-gasse' &&
     sichDaten.touren.length === tourenVorher && sichDaten.touren.some(t => t.wps && t.wps.length >= 2), [sich.suggestedFilename(), sichDaten.touren.length, tourenVorher]);
   await page.evaluate(() => { const l = JSON.parse(localStorage.getItem('gug.touren')); l.shift(); localStorage.setItem('gug.touren', JSON.stringify(l)); });
   // Tagebuch samt Fotospeicher weg (wie nach einer Neuinstallation)
+  await page.evaluate(() => localStorage.removeItem('gug.ziele'));
   await page.evaluate(() => new Promise(ok => { localStorage.removeItem('gug.tagebuch'); const r = indexedDB.open('gug-tagebuch'); r.onsuccess = () => { const t = r.result.transaction('fotos', 'readwrite'); t.objectStore('fotos').clear(); t.oncomplete = ok; }; }));
   await page.click('[data-reiter=planen]'); await zuSeite(page, 'daten');
   await page.setInputFiles('#sicherungDatei', sichPfad);
   await page.waitForTimeout(300);
   pruef('Sicherung laden: fehlende Tour zurück, keine doppelt', (await alleTouren()) === tourenVorher && (await page.textContent('#meldung')).includes('1 Touren'),
     [await alleTouren(), await page.textContent('#meldung')]);
+  pruef('Sicherung laden: Reiseziele zurück', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele') || '{"ziele":[]}').ziele.length)) === 4 && (await page.textContent('#meldung')).includes('4 Reiseziele'));
   await zuSeite(page, 'tagebuch');
   // das Tagebuch öffnet die zuletzt angesehene Reise wieder
   pruef('Tagebuch: zurück in der zuletzt offenen Reise', await page.isVisible('#tbReise') && (await page.textContent('#tbTitel')) === 'Testurlaub');
