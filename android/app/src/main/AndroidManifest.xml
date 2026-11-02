@@ -52,10 +52,14 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
-    <!-- Sprachausgabe von Android finden (ab Android 11 nötig) -->
+    <!-- Sprachausgabe und Kamera-App von Android finden (ab Android 11 nötig): ohne den Kamera-Eintrag hält Capacitor
+         „Foto aufnehmen“ im Reisetagebuch für nicht möglich und zeigt still die Dateiauswahl -->
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
     </queries>
 </manifest>
