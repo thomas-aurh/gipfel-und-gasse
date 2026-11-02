@@ -117,6 +117,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 new Handler(Looper.getMainLooper()).post(() -> {
                     boolean ansagen;
                     synchronized (Z) {
+                        // inzwischen beendet: diese Antwort gehört zu keiner laufenden Sitzung mehr
+                        if (!Z.laeuft || !(Z.folgen || Z.aufzeichnen)) { Z.gewitter = null; return; }
                         Z.gewitter = text;
                         ansagen = text != null && Z.ansagen && jetzt - Z.gewitterGemeldet > 2 * 3600000L;
                         if (ansagen) Z.gewitterGemeldet = jetzt;
@@ -165,7 +167,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         } else {
             startForeground(NR, n);
         }
-        if (!Z.laeuft) { gpsAn(); wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000); }
+        if (!Z.laeuft) {
+            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; }   // neue Sitzung: keine alte Warnung zeigen
+            gpsAn(); wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
+        }
         synchronized (Z) {
             Z.laeuft = true;
             if (Z.folgen && Z.folgenSeit == 0) {
@@ -566,6 +571,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
 
     private void beenden() {
         wetter.removeCallbacks(wetterLauf);
+        synchronized (Z) { Z.gewitter = null; }
         if (Z.aufzStart != 0) spurSichern(this);
         if (lm != null) lm.removeUpdates(this);
         synchronized (Z) { Z.laeuft = false; Z.folgenSeit = 0; }

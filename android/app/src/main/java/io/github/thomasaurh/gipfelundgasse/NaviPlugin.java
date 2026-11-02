@@ -358,7 +358,7 @@ public class NaviPlugin extends Plugin {
             o.put("laeuft", z.laeuft);
             o.put("folgen", z.folgen);
             o.put("aufzeichnen", z.aufzeichnen);
-            if (z.gewitter != null && (z.folgen || z.aufzeichnen)) o.put("gewitter", z.gewitter);
+            if (z.gewitter != null && z.laeuft && (z.folgen || z.aufzeichnen)) o.put("gewitter", z.gewitter);
             Location l = z.letzte;
             if (l != null) {
                 o.put("lat", l.getLatitude());
