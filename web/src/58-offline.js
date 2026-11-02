@@ -7,9 +7,10 @@ const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: nu
 
 function paketGrenzen(p) { const b = p.bbox; return L.latLngBounds([b[1], b[0]], [b[3], b[2]]); }
 function paketFuer(lat, lon) { return OFF.installiert.find(p => p.bbox && lon >= p.bbox[0] && lon <= p.bbox[2] && lat >= p.bbox[1] && lat <= p.bbox[3]); }
-// Lesen aus einer Paketdatei in Teilen: der Bereich steht in der Range-Kopfzeile UND in der Adresse (?von=&bis=).
-// Reicht ein WebView die Kopfzeile nicht an die App weiter, käme sonst die ganze Datei (Hunderte MB) und die
-// Kartenbibliothek bräche ab; der Kartenserver der App nimmt dann den Bereich aus der Adresse.
+// Lesen aus einer Paketdatei in Teilen: der Bereich steht NUR in der Adresse (?von=&bis=), nicht in einer
+// Range-Kopfzeile. Mit Kopfzeile springt das Android-WebView in der Antwort der App selbst noch einmal an den Anfang des
+// Bereichs, obwohl der Kartenserver schon ab dort liefert: ab Byte 0 fällt das nicht auf, weiter hinten (dort liegen
+// die Kacheln) kommen zu wenige Bytes und das Lesen bricht mit „Failed to fetch“ ab (gemessen auf dem Pixel, 02.11.).
 const LESEN = [];   // letzte Lesevorgänge aller Paketdateien, für „Offline-Karte prüfen“
 function lesenMerken(text) { LESEN.push(new Date().toLocaleTimeString('de-DE') + ' ' + text); if (LESEN.length > 12) LESEN.shift(); }
 class PaketQuelle {
@@ -18,7 +19,7 @@ class PaketQuelle {
   async getBytes(offset, length, signal) {
     const bis = offset + length - 1, name = this.url.split('/').slice(-2).join('/'), t0 = Date.now();
     let r;
-    try { r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, cache: 'no-store', headers: { range: 'bytes=' + offset + '-' + bis } }); }
+    try { r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, cache: 'no-store' }); }
     catch (e) {
       if (e.name !== 'AbortError') lesenMerken(name + ' ' + offset + '+' + length + ': ' + e.name + ' ' + e.message);
       throw e;
@@ -342,13 +343,16 @@ async function offlinePruefen() {
     // Stücke weit hinten und in der Mitte der Datei (dort liegen die Kacheln)
     const gesamt = ((p.dateien || []).find(d => d.name === 'karte.pmtiles') || {}).groesse || 0;
     for (const [wo, von] of [['Mitte', Math.floor(gesamt / 2)], ['Ende', gesamt - 16384]]) {
-      if (!gesamt || von < 0) continue;
+      if (gesamt < 65536 || von < 0) continue;
       const bis = von + 16383;
-      try {
-        const r = await fetch(url + '?von=' + von + '&bis=' + bis, { headers: { range: 'bytes=' + von + '-' + bis }, cache: 'no-store' });
-        const b = await r.arrayBuffer();
-        z.push('Stück ' + wo + ' (' + von + '+16384): Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16384 ? ' ✓' : ' ✗ ' + new TextDecoder().decode(b.slice(0, 160))));
-      } catch (e) { z.push('Stück ' + wo + ' (' + von + '+16384): FEHLER ' + e.name + ' ' + (e.message || e)); }
+      // beide Wege einzeln: nur Adresse (so liest die App) und nur Kopfzeile (zum Vergleich)
+      for (const [weg, adresse, kopf] of [['Adresse', url + '?von=' + von + '&bis=' + bis, {}], ['Kopfzeile', url, { range: 'bytes=' + von + '-' + bis }]]) {
+        try {
+          const r = await fetch(adresse, { headers: kopf, cache: 'no-store' });
+          const b = await r.arrayBuffer();
+          z.push('Stück ' + wo + ' über ' + weg + ' (' + von + '+16384): Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16384 ? ' ✓' : ' ✗ ' + new TextDecoder().decode(b.slice(0, 160))));
+        } catch (e) { z.push('Stück ' + wo + ' über ' + weg + ' (' + von + '+16384): FEHLER ' + e.name + ' ' + (e.message || e)); }
+      }
     }
     if (!window.GugOffline) continue;
     try {
@@ -364,7 +368,7 @@ async function offlinePruefen() {
     } catch (e) { z.push('Kopf oder Kachel: FEHLER ' + (e.message || e)); }
     for (const datei of ['hoehe.pmtiles', 'orte.json.gz']) {
       if (!(p.dateien || []).some(d => d.name === datei)) continue;
-      try { const r = await fetch('/_karten_/' + p.id + '/' + datei + '?von=0&bis=15', { headers: { range: 'bytes=0-15' }, cache: 'no-store' }); await r.arrayBuffer(); z.push(datei + ': Status ' + r.status + (r.status === 206 ? ' ✓' : ' ✗')); }
+      try { const r = await fetch('/_karten_/' + p.id + '/' + datei + '?von=1000&bis=1015', { cache: 'no-store' }); const b = await r.arrayBuffer(); z.push(datei + ': Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16 ? ' ✓' : ' ✗')); }
       catch (e) { z.push(datei + ': FEHLER ' + (e.message || e)); }
     }
   }

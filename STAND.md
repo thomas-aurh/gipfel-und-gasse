@@ -50,7 +50,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Offline-Karte leer auf dem Pixel (02.11., Thomas, Bau 98):** Prüfung gemessen: Lesen in Teilen über Kopfzeile und
   Adresse geht (206, „PMTiles“ v3), der Kopf ist lesbar, die erste Kachel scheitert mit „Failed to fetch“; 45 Kacheln
   „gezeichnet“ (leer, grau). Die Vermutung „Range-Kopfzeile fehlt“ ist damit widerlegt. #31 lässt den Kartenserver Fehler
-  als Text melden und die Prüfung Stücke aus Mitte und Ende sowie die letzten Lesevorgänge zeigen; Ergebnis steht aus.
+  als Text melden. Neuer Verdacht (#32): mit Range-Kopfzeile springt das WebView selbst noch einmal an den Anfang des
+  Bereichs (ab Byte 0 unauffällig, Kopf und Prüfung bei 0 gingen); darum liest die App nur noch über `?von=&bis=`.
+  Bestätigt ist das erst mit der Prüfung aus Bau 101 oder neuer (Zeilen „Stück Mitte/Ende über Adresse/Kopfzeile“).
+  Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
