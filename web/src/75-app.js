@@ -172,6 +172,8 @@ if (NATIV) {
 
   // GPX: WebView kann nichts herunterladen, darum über das Teilen-Menü (z. B. an CoMaps, Drive, Mail)
   // Standort im Notfall: Text über das Teilen-Menü (SMS, Messenger, Mail)
+  fotoInGalerie = (daten, name, mime) => Navi.fotoInGalerie({ daten, name, mime });
+  document.querySelectorAll('.nur-app').forEach(e => { e.hidden = false; });
   textTeilen = function (text) {
     return Navi.textTeilen({ text }).catch(err => melde(err.message || String(err), 6));
   };

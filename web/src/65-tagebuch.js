@@ -303,6 +303,21 @@ async function fotosNeuZeigen(alte) {
 }
 const alteFotos = () => { const e = TB.eintrag && tagebuchLesen().eintraege.find(x => x.id === TB.eintrag); return e ? e.fotos : []; };
 
+// Original eines aufgenommenen Fotos in die Galerie: setzt die App (75-app.js), im Browser gibt es das nicht
+let fotoInGalerie = null;
+async function inGalerie(datei) {
+  if (!fotoInGalerie || !$('tbGalerieAuch').checked) return;
+  try {
+    const url = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => nein(r.error); r.readAsDataURL(datei); });
+    const z = new Date(), zwei = n => String(n).padStart(2, '0');
+    const name = 'Gipfel-und-Gasse_' + z.getFullYear() + zwei(z.getMonth() + 1) + zwei(z.getDate()) + '_' + zwei(z.getHours()) + zwei(z.getMinutes()) + zwei(z.getSeconds()) + '.jpg';
+    await fotoInGalerie(String(url).split(',')[1], name, datei.type || 'image/jpeg');
+    melde('Foto auch in der Galerie gespeichert (Bilder › Gipfel und Gasse).', 4);
+  } catch (err) { melde((err && err.message) || 'Foto nicht in der Galerie gespeichert.', 6); }
+}
+$('tbGalerieAuch').onchange = e => SPEICHER.schreiben('tbGalerieAuch', e.target.checked);
+$('tbGalerieAuch').checked = SPEICHER.lesen('tbGalerieAuch', true) !== false;
+
 function fotoStatus() {
   const n = TB.laufend.length;
   $('tbFotoStatus').hidden = !n;
@@ -313,6 +328,8 @@ $('tbGalerie').onclick = () => $('tbFotoDatei').click();
 $('tbFotoKamera').onchange = $('tbFotoDatei').onchange = ev => {
   const dateien = [...ev.target.files];
   ev.target.value = '';
+  // mit der Kamera aufgenommen: das Original zusätzlich in die Galerie (in der App), wie ein normales Kamerafoto
+  if (ev.target.id === 'tbFotoKamera') dateien.forEach(inGalerie);
   const meins = TB.entwurf;
   const arbeit = (async () => {
     for (const f of dateien) {
