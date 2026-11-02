@@ -224,7 +224,7 @@ function zielAufKarte(id) {
   karte.setView(m.getLatLng(), Math.max(karte.getZoom(), 13));
 }
 
-// ---------- Datei laden: lesen, Orte ohne Koordinaten suchen, ansehen, übernehmen ----------
+// ---------- Liste einfügen oder Datei laden: lesen, Orte ohne Koordinaten suchen, ansehen, übernehmen ----------
 $('zlLaden').onclick = () => $('zlDatei').click();
 $('zlDatei').onchange = async e => {
   const f = e.target.files[0];
@@ -233,8 +233,24 @@ $('zlDatei').onchange = async e => {
   let gelesen;
   try { gelesen = R.zieleLesen(await f.text(), f.name); } catch (err) { melde('Datei nicht lesbar: ' + err.message, 6); return; }
   if (!gelesen.ziele.length) { melde('In der Datei stehen keine Ziele (' + gelesen.art + ').', 6); return; }
+  zlImport(gelesen, f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, 120) || 'Aus Datei', 'Aus der Datei');
+};
+// Liste einfügen: derselbe Weg wie eine Textdatei (Zeile je Ziel, auch „Name; Ort; Notiz“)
+$('zlEinfuegen').onclick = () => {
+  const auf = $('zlEinfuegenFeld').hidden;
+  $('zlEinfuegenFeld').hidden = !auf;
+  $('zlEinfuegen').setAttribute('aria-expanded', String(auf));
+  if (auf) $('zlText').focus();
+};
+$('zlTextLos').onclick = () => {
+  const gelesen = R.zieleLesen($('zlText').value, 'eingefuegt.txt');
+  if (!gelesen.ziele.length) { melde('Erst Ziele eintragen, eine Zeile je Ziel.'); $('zlText').focus(); return; }
+  $('zlText').value = ''; $('zlEinfuegenFeld').hidden = true; $('zlEinfuegen').setAttribute('aria-expanded', 'false');
+  zlImport({ art: 'Eingefügt', ziele: gelesen.ziele }, 'Eingefügt ' + new Date().toLocaleDateString('de-DE'), 'Eingefügte Ziele');
+};
+async function zlImport(gelesen, neuName, titel) {
   const d = zieleMitListe();
-  const neuName = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, 120) || 'Aus Datei';
+  $('zlImportTitel').textContent = titel;
   ZL.import = { punkte: gelesen.ziele.map(z => Object.assign({ an: z.lat != null, status: z.lat != null ? 'ok' : 'suche' }, z)), neuName, nr: (ZL.import ? ZL.import.nr : 0) + 1 };
   $('zlImportZiel').innerHTML = '<option value="neu">Neue Liste „' + R.esc(neuName) + '“</option>' + d.listen.map(l => '<option value="' + R.esc(l.id) + '">' + R.esc(l.name) + '</option>').join('');
   zlAnsicht('zlImport');
@@ -251,7 +267,7 @@ $('zlDatei').onchange = async e => {
     zlImportZeigen(gelesen.art);
     await new Promise(r => setTimeout(r, 1000));
   }
-};
+}
 function zlImportZeigen(art) {
   const imp = ZL.import, ul = $('zlImportListe');
   const offen = imp.punkte.filter(p => p.status === 'suche').length, ok = imp.punkte.filter(p => p.status === 'ok').length;

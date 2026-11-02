@@ -48,8 +48,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
-  aus Google My Maps nur mit einem nachgebauten Beispiel. Offen aus Thomas' Auswahl: „automatisch besucht“ (Tour oder
-  Tagebuch in der Nähe) und „Liste einfügen“ (Text ohne Datei) nicht gebaut.
+  aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
+  der Nähe).
 - **Info auf der Karte (#27) nicht auf dem Handy geprüft:** Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Google-Maps-Link
@@ -137,7 +137,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 ## Erledigt
 
 - **02.11.** Reiseziele (Menü ⭐): Listen mit Zielen (Ortssuche, Notiz, Link, Stichworte, Stand), ⭐ auf der Karte mit
-  Anreise, Wetter dort und „Als Stopp“; Datei laden (Text, CSV, GPX, KML, GeoJSON; Orte ohne Koordinaten sucht die App,
+  Anreise, Wetter dort und „Als Stopp“; Liste einfügen und Datei laden (Text, CSV, GPX, KML, GeoJSON; Orte ohne Koordinaten sucht die App,
   eine Anfrage je Sekunde), als GPX weitergeben, „⭐ Merken“ im Info-Fenster, in der Sicherung (#28).
 
 - **02.11.** Info auf der Karte (Knopf ⓘ): Antippen zeigt, was dort ist (benannte Objekte aus dem Kartenpaket und von

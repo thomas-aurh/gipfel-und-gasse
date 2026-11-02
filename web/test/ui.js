@@ -667,6 +667,16 @@ function pruef(name, bed, info) {
   const zl1 = await page.textContent('#zlZiele');
   pruef('Reiseziele: Ziel gespeichert, mit Stichwort und Entfernung, Stern auf der Karte', zl1.includes('Testgipfel') && zl1.includes('Berg') && zl1.includes('Idee') && /km|m/.test(zl1) &&
     (await page.$$('.zl-mk')).length === 1, zl1);
+  // Liste einfügen: Zeilen aus einer Notiz, Orte werden gesucht, Abbrechen ändert nichts
+  await page.click('#zlEinfuegen');
+  await page.fill('#zlText', 'Testgipfel West\nKloster Test; Testg; mit Biergarten\n');
+  await page.click('#zlTextLos');
+  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 8000 }).catch(() => {});
+  pruef('Liste einfügen: jede Zeile ein Ziel, Orte gesucht, zum Abhaken', (await page.textContent('#zlImportTitel')) === 'Eingefügte Ziele' &&
+    (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportListe')).includes('Kloster Test') &&
+    (await page.textContent('#zlImportZiel')).includes('Neue Liste „Eingefügt'), await page.textContent('#zlImportStatus'));
+  await page.click('#zlImportAbbrechen');
+  pruef('Liste einfügen: Abbrechen übernimmt nichts', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.length)) === 1 && await page.isVisible('#zlUebersicht'));
   // Datei laden: Text (Orte werden gesucht) und GPX (mit Koordinaten)
   const txtPfad = path.join(OUT, 'Sommerziele.txt');
   fs.writeFileSync(txtPfad, '# Ideen\nTestgipfel Süd\nStadtplatz https://beispiel.de\n');
