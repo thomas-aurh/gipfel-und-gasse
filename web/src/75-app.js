@@ -8,9 +8,7 @@ if (NATIV) {
   document.body.classList.add('app');
   // „Link teilen“ zeigt in der App auf die lokale Adresse der App, die niemand sonst öffnen kann: ausblenden, GPX nehmen
   $('bTeilen').hidden = true;
-  $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>: Android zeigt dann die Mitteilung „Navigation läuft“, ' +
-    'dort lässt sie sich auch beenden. Ansagen kommen über die Sprachausgabe des Handys. Ohne Netz helfen Kartenpakete ' +
-    '(Kartenwahl 🗺️ › Kartenpakete): Karte, Routen, Suche und Orte gehen dann offline.';
+  $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>, mit Ansagen. Beenden auch über die Mitteilung „Navigation läuft“.';
   $('tourenHinweis').innerHTML = 'Touren liegen in der App auf dem Handy; wer die App deinstalliert, löscht sie mit. ' +
     '„Sicherung speichern“ gibt alle Touren samt Planung als eine Datei weiter (z. B. an Drive oder per Mail); „Sicherung laden“ holt sie zurück.';
 

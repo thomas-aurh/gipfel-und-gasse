@@ -25,6 +25,7 @@
     <button data-ziel="notfall">🆘 Notfall</button>
     <button data-ziel="daten">💾 Sicherung und GPX</button>
     <button data-ziel="info">ℹ️ Info</button>
+    <button id="bThema">🌓 Darstellung: automatisch</button>
   </nav>
 
   <div id="kartenknoepfe">
@@ -88,8 +89,7 @@
           <button class="knopf neben" id="bTeilen">🔗 Link</button>
           <button class="knopf neben" id="bDrucken">🖨 Drucken</button>
         </div>
-        <div id="leerHinweis" class="hinweis">Tippe auf die Karte: Der erste Punkt ist der Start, jeder weitere ein Zwischenziel.
-          Punkte lassen sich ziehen; antippen zeigt „Punkt entfernen“. Ein Tipp auf die Route fügt dort einen Punkt ein.</div>
+        <div id="leerHinweis" class="tipp">👆 Tippe auf die Karte, um den Start zu setzen.</div>
         <div class="zeile">
           <label>Art<select id="profilwahl">
             <option value="wandern">Wandern</option>
@@ -115,8 +115,7 @@
         </div>
         <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="status"></div>
-        <p id="planHinweis" class="klein" hidden>Weitere Punkte: Karte antippen setzt ein neues Ziel, Antippen der Route fügt
-          dort ein Zwischenziel ein. Punkte lassen sich verschieben; antippen zeigt „Punkt entfernen“. In der Suche: „Als Zwischenziel“.</p>
+        <p id="planHinweis" class="tipp" hidden>💡 Route antippen fügt einen Zwischenpunkt ein, Punkte lassen sich ziehen.</p>
         <div id="ergebnis" hidden>
           <div class="zahlen">
             <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
@@ -132,8 +131,7 @@
           <div id="kinderwagen" class="urteil"></div>
           <h3>Wegtypen</h3><div id="wege" class="balken"></div>
           <h3>Untergrund</h3><div id="boden" class="balken"></div>
-          <p class="klein">Antippen hebt die Stellen auf der Karte hervor. Wegtyp, Untergrund und Schwierigkeit stammen aus
-            OpenStreetMap und sind dort nicht überall erfasst.</p>
+          <p class="klein">Antippen zeigt die Stellen auf der Karte.</p>
         </div>
       </section>
 
@@ -150,7 +148,7 @@
             </select></label>
             <button class="knopf haupt" id="bRundgang">✨ Rundgang vorschlagen</button>
           </div>
-          <p class="klein">Verbindet die bekanntesten Orte im Ausschnitt zu einer kurzen Runde ab deinem Start (sonst ab der Kartenmitte).</p>
+
           <div id="stadtChips" class="chips"></div>
           <ul id="stadtListe" class="liste"></ul>
         </div>
@@ -172,9 +170,7 @@
 
       <!-- Unterwegs -->
       <section data-reiter="unterwegs">
-        <div class="hinweis" id="unterwegsHinweis">Lass den Bildschirm an: Browser halten GPS an, sobald das Telefon gesperrt ist. Gipfel &amp; Gasse hält den
-          Bildschirm wach, solange Navigation oder Aufzeichnung laufen. Für lange Touren lieber die GPX-Datei in eine App mit
-          Offline-Karten laden.</div>
+        <div class="tipp" id="unterwegsHinweis">Im Browser den Bildschirm anlassen: gesperrt hält der Browser das GPS an.</div>
         <div id="gpsStatus" class="klein" style="margin-top:8px">GPS aus.</div>
         <h3>Route folgen</h3>
         <div class="zahlen unterwegs-zahlen">
@@ -218,8 +214,7 @@
       <section data-reiter="offline">
         <p class="klein nur-browser">Offline-Karten gibt es in der Android-App: Karte, Routen, Suche und Orte gehen dort auch ohne Netz.</p>
         <div id="offlineBox" hidden>
-          <p class="klein">Karte, Höhenlinien und Relief, Routendaten und Orte für eine Region aufs Handy laden; danach gehen
-            Karte, Routen planen, Suche und Orte auch ohne Netz. Nur das Wetter braucht Netz. Ein Update lädt nur geänderte Dateien.</p>
+          <p class="klein">Mit einem Paket gehen Karte, Routen, Suche und Orte der Region auch ohne Netz.</p>
           <label class="klein" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="offlineMobil"> auch über Mobilfunk laden (sonst nur WLAN)</label>
           <ul id="paketliste" class="liste"></ul>
           <div id="paketStatus" class="klein"></div>
@@ -258,6 +253,14 @@
         <p>Ein Tourenplaner auf OpenStreetMap: Route planen, Höhenprofil, Gehzeit nach DIN 33466, Wegtypen und Untergrund,
           Orte entlang der Strecke, Wetter, GPX, unterwegs der Route folgen und aufzeichnen. Ohne Konto, ohne eigenen Server;
           Touren bleiben auf dem Gerät.</p>
+        <h3>Bedienung</h3>
+        <ul class="klein">
+          <li>Karte antippen: der erste Punkt ist der Start, jeder weitere ein neues Ziel.</li>
+          <li>Route antippen fügt dort ein Zwischenziel ein; Punkte lassen sich ziehen, antippen zeigt „Punkt entfernen“.</li>
+          <li>In der Suche: „Als Zwischenziel“ oder „Als neues Ziel“.</li>
+          <li>Wegtyp, Untergrund und Schwierigkeit stammen aus OpenStreetMap und sind dort nicht überall erfasst.</li>
+          <li>Rundgang (Stadt): verbindet die bekanntesten Orte im Ausschnitt zu einer kurzen Runde ab deinem Start.</li>
+        </ul>
         <h3>Gehzeit</h3>
         <p class="klein">Wie auf den Wegweisern der Alpenvereine (DIN 33466): 4 km je Stunde in der Ebene, 300 Höhenmeter je
           Stunde bergauf, 500 bergab; gerechnet wird die größere Zeit plus die Hälfte der kleineren. Ohne Pausen. „Mit Kind“

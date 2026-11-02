@@ -134,6 +134,13 @@ function pruef(name, bed, info) {
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
   await page.keyboard.press('Escape');
   pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
+  // Darstellung: automatisch → hell → dunkel, gespeichert; Farben aus den Variablen
+  await page.click('#bMenue'); await page.click('#bThema'); await page.click('#bThema');
+  pruef('Dunkelmodus über das Menü, gespeichert', await page.evaluate(() => document.documentElement.dataset.thema === 'dunkel' &&
+    JSON.parse(localStorage.getItem('gug.thema')) === 'dunkel' && getComputedStyle(document.body).backgroundColor === 'rgb(17, 21, 23)'));
+  await page.click('#bThema');
+  pruef('Darstellung zurück auf automatisch', await page.evaluate(() => !document.documentElement.dataset.thema) && (await page.textContent('#bThema')).includes('automatisch'));
+  await page.keyboard.press('Escape');
   await page.click('[data-reiter=karte]');
   pruef('Karte: keine Seite mehr aktiv (nichts per Tastatur erreichbar)', await page.evaluate(() => !document.querySelector('.inhalt>section.an') && document.body.classList.contains('ohneBlatt')));
   await page.click('[data-reiter=planen]');
@@ -688,6 +695,7 @@ function pruef(name, bed, info) {
   await po.evaluate(() => { delete navigator.onLine; });
   // Suchtreffer außerhalb des Pakets: Kartenwahl bleibt „Offline-Karte“, gezeigt wird die topografische Karte
   pruef('Plan-Hinweis zu Zwischenzielen sichtbar', await po.evaluate(() => !document.querySelector('#planHinweis').hidden));
+  await po.evaluate(() => localStorage.setItem('gug.tippGesehen', 'true'));
   await po.fill('#suchfeld', 'Teststadt');
   await po.waitForFunction(() => [...document.querySelectorAll('#treffer button')].some(b => b.textContent.includes('Teststadt')), null, { timeout: 8000 });
   await po.click('#treffer button:has-text("Teststadt")');
