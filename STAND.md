@@ -22,7 +22,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   prüfen: Link liefert die APK, Titel nennt den neuen Bau).
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
   der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
-- **Reisetagebuch (#16) nicht auf dem Handy geprüft:** Kamera und Galerie aus der App (Dateiauswahl im WebView),
+- **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
+  die Kamera nicht, Korrektur in #18 auf dem Handy noch nicht geprüft. Offen:
   Größe der Sicherung mit vielen Fotos. Fotos liegen im Speicher der App (IndexedDB): wer die App deinstalliert, löscht
   sie mit, darum vorher „Sicherung speichern“.
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
@@ -147,6 +148,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Laufen: Art „Laufen“ mit Lauftempo (min/km, 100 Hm wie 1 km), Ø Tempo und Kilometer-Ansage beim Aufzeichnen (#17).
   Reisetagebuch als Menüpunkt: Reisen mit Zeitraum, Einträge mit Text und Fotos, Ort und Wetter von selbst, gegangene
   Touren der Reise; Fotos kommen mit in die Sicherung (#16).
+  Kamera aus dem Tagebuch: Kamera-App im Manifest angemeldet (ohne sie wich Capacitor ab Android 11 still auf die
+  Dateiauswahl aus, Befund von Thomas in Verona) (#18).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,
