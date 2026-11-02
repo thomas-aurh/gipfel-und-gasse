@@ -651,6 +651,14 @@ function pruef(name, bed, info) {
   await pa2.waitForTimeout(150);
   const kmAufrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten')));
   pruef('App: Kilometer-Ansage umgeschaltet an den Dienst', kmAufrufe.length >= vorKm + 2 && kmAufrufe[kmAufrufe.length - 1][1].kmAnsage === (await pa2.isChecked('#kmAnsage')));
+  // während der Aufzeichnung (ohne Routenführung) auf Laufen: Lauf-Kennung, Tempo und Ansage gehen an den Dienst
+  await pa2.evaluate(() => { localStorage.removeItem('gug.kmAnsageGewaehlt'); const k = document.querySelector('#kmAnsage'); k.checked = false;
+    const p = document.querySelector('#profilwahl'); p.value = 'laufen'; p.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(200);
+  const nachLauf = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
+  pruef('App: Laufen während der Aufzeichnung an den Dienst', nachLauf.lauf === true && nachLauf.kmAnsage === true && nachLauf.tempo === 6, [nachLauf.lauf, nachLauf.kmAnsage, nachLauf.tempo]);
+  await pa2.evaluate(() => { const p = document.querySelector('#profilwahl'); p.value = 'wandern'; p.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(200);
   await pa2.click('#bAufz');
   await pa2.waitForTimeout(150);
   await pa2.click('#bAufzSpeichern');

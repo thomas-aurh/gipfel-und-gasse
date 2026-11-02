@@ -634,6 +634,7 @@ var R = (function () {
     if (['wandern', 'stadt', 'laufen', 'rad', 'kurz', 'linie'].includes(t.profil)) out.profil = t.profil;
     if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
     if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
+    if (zahl(t.pace) != null && t.pace >= 2 && t.pace <= 20) out.pace = t.pace;
     if (t.zeit && typeof t.zeit === 'object') {
       const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
         pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };

@@ -126,6 +126,9 @@ if (NATIV) {
   Navi.addListener('position', anzeigen);
   // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
   $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  // Art gewechselt (z. B. auf Laufen, das die Kilometer-Ansage einschaltet) während einer Aufzeichnung ohne Routenführung:
+  // Einstellungen gleich an den Dienst; mit Routenführung schickt die Neuberechnung sie mit
+  $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });
 
   $('bNavi').onclick = async () => {
     if (app.folgen) { app.folgen = false; await senden(false).catch(() => {}); return; }

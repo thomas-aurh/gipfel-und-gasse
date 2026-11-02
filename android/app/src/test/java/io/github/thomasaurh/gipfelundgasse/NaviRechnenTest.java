@@ -88,4 +88,12 @@ public class NaviRechnenTest {
         assertEquals("3 Kilometer. Zeit 17 Minuten 5 Sekunden. Letzter Kilometer 5:42.", NaviRechnen.kmAnsage(3, 1025000, 342000));
         assertEquals("12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.", NaviRechnen.kmAnsage(12, 4100000, 305000));
     }
+
+    @Test public void kmGrenzzeitAusDerSpur() {
+        // nach Norden je 0,005° (~556 m) alle 3 Minuten: der 1. km fällt auf Punkt 2 (1112 m), der 2. auf Punkt 4 (2224 m)
+        java.util.List<double[]> spur = new java.util.ArrayList<>();
+        for (int i = 0; i <= 5; i++) spur.add(new double[] { 47 + i * 0.005, 11, Double.NaN, 1000000 + i * 180000 });
+        assertEquals(1000000 + 4 * 180000, NaviRechnen.kmGrenzzeit(spur, 1000000));
+        assertEquals(7, NaviRechnen.kmGrenzzeit(spur.subList(0, 2), 7));   // noch kein voller Kilometer
+    }
 }

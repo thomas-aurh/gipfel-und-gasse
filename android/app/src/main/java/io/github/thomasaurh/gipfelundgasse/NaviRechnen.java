@@ -121,6 +121,23 @@ public final class NaviRechnen {
         return km + " Kilometer. Zeit " + dauer + ". Letzter Kilometer " + (k / 60) + ":" + String.format(Locale.ROOT, "%02d", k % 60) + ".";
     }
 
+    /**
+     * Wann der letzte volle Kilometer einer Aufzeichnung erreicht war, aus den Zeitstempeln der Spur {lat, lon, ele, zeit}
+     * (Wege wie beim Aufzeichnen summiert); vor dem ersten Kilometer oder ohne Zeitstempel: start.
+     */
+    public static long kmGrenzzeit(java.util.List<double[]> spur, long start) {
+        double m = 0;
+        int km = 0;
+        long zeit = start;
+        for (int i = 1; i < spur.size(); i++) {
+            double[] a = spur.get(i - 1), b = spur.get(i);
+            m += abstand(a[0], a[1], b[0], b[1]);
+            int k = (int) Math.floor(m / 1000);
+            if (k > km) { km = k; if (b[3] > 0) zeit = (long) b[3]; }
+        }
+        return zeit;
+    }
+
     public static Rest rest(Strecke s, double d, double tempo, boolean rad) { return rest(s, d, tempo, rad, false); }
 
     /** Was ab Meter d noch kommt; die Höhe an der Stelle selbst wird zwischen den Nachbarpunkten eingerechnet. */

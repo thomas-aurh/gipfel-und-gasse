@@ -489,9 +489,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                         Z.spur.add(q);
                     }
                 }
-                // nach einem Neustart: angesagte Kilometer nicht wiederholen
+                // nach einem Neustart: angesagte Kilometer nicht wiederholen, Tempo des laufenden ab seiner echten Grenze
                 Z.aufzKm = (int) Math.floor(Z.aufzMeter / 1000);
-                Z.aufzKmZeit = System.currentTimeMillis();
+                Z.aufzKmZeit = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : System.currentTimeMillis());
             }
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht lesbar", e);
