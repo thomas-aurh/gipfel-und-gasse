@@ -64,7 +64,9 @@ async function dienste(ctx) {
     if (ll.startsWith('0.0')) return r.fulfill({ status: 400, contentType: 'text/plain', body: 'position not mapped in existing datafile' });
     r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(brouter(u)) });
   });
-  await ctx.route(/photon\.komoot\.io/, r => { zaehler.photon++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ features: [
+  await ctx.route(/photon\.komoot\.io\/reverse/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ features: [{ geometry: { coordinates: [11.3747, 47.7535] }, properties: { name: 'Stadtplatz', city: 'Teststadt' } }] }) }));
+  await ctx.route(/photon\.komoot\.io\/api/, r => { zaehler.photon++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ features: [
     { geometry: { coordinates: [11.2578, 47.6262] }, properties: { name: 'Testgipfel', osm_key: 'natural', osm_value: 'peak', state: 'Bayern', country: 'Deutschland' } },
     { geometry: { coordinates: [11.3747, 47.7535] }, properties: { name: 'Teststadt', osm_key: 'place', osm_value: 'town', state: 'Bayern', country: 'Deutschland', extent: [11.33, 47.78, 11.42, 47.73] } }
   ] }) }); });
@@ -96,7 +98,9 @@ async function dienste(ctx) {
       { type: 'node', id: 14, lat: lat + 0.006, lon: lon, tags: { natural: 'peak', name: 'Testberg', ele: '1234' } }
     ] }) });
   });
-  await ctx.route(/api\.open-meteo\.com\/v1\/forecast/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ daily: {
+  await ctx.route(/api\.open-meteo\.com\/v1\/forecast.*current=/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ current: { time: '2026-11-02T12:00', temperature_2m: 18.4, weather_code: 1 } }) }));
+  await ctx.route(/api\.open-meteo\.com\/v1\/forecast(?!.*current=)/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ daily: {
     time: ['2026-11-01', '2026-11-02', '2026-11-03'], weather_code: [1, 61, 95], temperature_2m_max: [14.2, 9.1, 11], temperature_2m_min: [3.1, 4, 2],
     precipitation_probability_max: [5, 80, 60], wind_speed_10m_max: [12, 25, 30], sunset: ['2026-11-01T16:52', '2026-11-02T16:50', '2026-11-03T16:49'] } }) }); });
   await ctx.route(/api\.open-meteo\.com\/v1\/elevation/, r => {
@@ -417,6 +421,48 @@ function pruef(name, bed, info) {
   pruef('Tour-Punkt: Fenster mit Art und Öffnen', (await page.textContent('.leaflet-popup')).includes('gegangen'));
   await page.click('.leaflet-popup button:has-text("Öffnen")');
   await page.waitForTimeout(300);
+  // ---------- Reisetagebuch ----------
+  await zuSeite(page, 'tagebuch');
+  pruef('Tagebuch: leer mit Hinweis', (await page.textContent('#tbReisen')).includes('Noch keine Reise') && await page.isHidden('#tbHeute'));
+  const tagPlus = n => page.evaluate(n => { const d = new Date(Date.now() + n * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }, n);
+  await page.click('#tbNeueReise');
+  await page.fill('#tbName', 'Testurlaub');
+  await page.fill('#tbVon', await tagPlus(-1));
+  await page.fill('#tbBis', await tagPlus(-3));
+  await page.click('#tbReiseForm button[type=submit]');
+  pruef('Tagebuch: „bis“ vor „von“ abgelehnt', await page.isVisible('#tbReiseForm') && (await page.textContent('#meldung')).includes('vor'));
+  await page.fill('#tbBis', await tagPlus(1));
+  await page.click('#tbReiseForm button[type=submit]');
+  pruef('Tagebuch: Reise angelegt, 3 Tage', (await page.textContent('#tbTitel')) === 'Testurlaub' && (await page.textContent('#tbZeitraum')).includes('3 Tage'), await page.textContent('#tbZeitraum'));
+  pruef('Tagebuch: heutige Aufzeichnung bei der Reise', (await page.$$('#tbTouren li[data-tour]')).length >= 1);
+  await page.click('#tbZurueck');
+  pruef('Tagebuch: Reise läuft heute, Knopf „Eintrag für heute“', (await page.textContent('#tbHeute')).includes('Testurlaub') && (await page.textContent('#tbReisen')).includes('0 Einträge'));
+  await page.click('#tbHeute');
+  await page.waitForFunction(() => document.querySelector('#tbOrtWetter').textContent.includes('°C'), null, { timeout: 15000 });
+  pruef('Tagebuch: Ort und Wetter von selbst', (await page.textContent('#tbOrtWetter')).includes('Stadtplatz, Teststadt') && (await page.textContent('#tbOrtWetter')).includes('18 °C'), await page.textContent('#tbOrtWetter'));
+  await page.fill('#tbText', 'Erster Tag: <b>Sonne</b> und Eis am See.');
+  const fotoPng = fs.readFileSync(path.join(OUT, '1-route.png'));
+  await page.setInputFiles('#tbFotoDatei', [{ name: 'see.png', mimeType: 'image/png', buffer: fotoPng }, { name: 'eis.png', mimeType: 'image/png', buffer: fotoPng }]);
+  await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 2, null, { timeout: 8000 });
+  await page.click('#tbFotosNeu figure >> nth=1 >> button');
+  await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1);
+  await page.click('#tbEintragSpeichern');
+  await page.waitForSelector('.tb-eintrag');
+  await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag .tb-fotos img').length === 1, null, { timeout: 5000 });
+  const karteTb = await page.textContent('.tb-eintrag');
+  pruef('Tagebuch: Eintrag mit Text (als Text), Ort, Wetter, einem Foto', karteTb.includes('<b>Sonne</b>') && karteTb.includes('Teststadt') && karteTb.includes('heiter'), karteTb);
+  const fotoGroesse = await page.evaluate(async () => { const img = document.querySelector('.tb-eintrag .tb-fotos img'); const b = await (await fetch(img.src)).blob(); return [b.type, img.naturalWidth]; });
+  pruef('Tagebuch: Foto verkleinert als JPEG gespeichert', fotoGroesse[0] === 'image/jpeg' && fotoGroesse[1] <= 1600, fotoGroesse);
+  await page.click('.tb-eintrag .tb-fotos img');
+  pruef('Tagebuch: Foto groß', await page.isVisible('#tbBild'));
+  await page.click('#tbBild');
+  await page.click('.tb-eintrag button[title="Eintrag bearbeiten"]');
+  await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Tagebuch: Bearbeiten zeigt Text und Foto', (await page.inputValue('#tbText')).startsWith('Erster Tag') && (await page.$$('#tbFotosNeu figure')).length === 1);
+  await page.fill('#tbText', 'Erster Tag: Sonne, Eis und Baden.');
+  await page.click('#tbEintragSpeichern');
+  await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
+  pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
   // Sicherung: alle Touren samt Planung in einer Datei; eine verlorene Tour kommt beim Laden zurück
   await zuSeite(page, 'daten');
   const alleTouren = () => page.$$eval('#tourliste li[data-tour], #gangliste li[data-tour]', l => l.length);
@@ -427,14 +473,31 @@ function pruef(name, bed, info) {
   await page.click('[data-reiter=touren]');
   const tourenVorher = await alleTouren();
   await zuSeite(page, 'daten');
+  const fotoIds = Object.keys(sichDaten.fotos || {});
+  pruef('Sicherung: Tagebuch samt Foto dabei', sichDaten.tagebuch && sichDaten.tagebuch.eintraege.length === 1 && fotoIds.length === 1 && sichDaten.fotos[fotoIds[0]].startsWith('data:image/jpeg;base64,'),
+    sichDaten.tagebuch);
   pruef('Sicherung: eine Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.json') && sichDaten.app === 'gipfel-und-gasse' &&
     sichDaten.touren.length === tourenVorher && sichDaten.touren.some(t => t.wps && t.wps.length >= 2), [sich.suggestedFilename(), sichDaten.touren.length, tourenVorher]);
   await page.evaluate(() => { const l = JSON.parse(localStorage.getItem('gug.touren')); l.shift(); localStorage.setItem('gug.touren', JSON.stringify(l)); });
+  // Tagebuch samt Fotospeicher weg (wie nach einer Neuinstallation)
+  await page.evaluate(() => new Promise(ok => { localStorage.removeItem('gug.tagebuch'); const r = indexedDB.open('gug-tagebuch'); r.onsuccess = () => { const t = r.result.transaction('fotos', 'readwrite'); t.objectStore('fotos').clear(); t.oncomplete = ok; }; }));
   await page.click('[data-reiter=planen]'); await zuSeite(page, 'daten');
   await page.setInputFiles('#sicherungDatei', sichPfad);
   await page.waitForTimeout(300);
   pruef('Sicherung laden: fehlende Tour zurück, keine doppelt', (await alleTouren()) === tourenVorher && (await page.textContent('#meldung')).includes('1 Touren'),
     [await alleTouren(), await page.textContent('#meldung')]);
+  await zuSeite(page, 'tagebuch');
+  // das Tagebuch öffnet die zuletzt angesehene Reise wieder
+  pruef('Tagebuch: zurück in der zuletzt offenen Reise', await page.isVisible('#tbReise') && (await page.textContent('#tbTitel')) === 'Testurlaub');
+  await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag .tb-fotos img').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Sicherung laden: Tagebuch mit Foto zurück', (await page.textContent('#tbEintraege')).includes('Baden') && (await page.$$('.tb-eintrag .tb-fotos img')).length === 1);
+  // Löschen mit Rückfrage
+  await page.click('.tb-eintrag button[title="Eintrag löschen"]');
+  await page.click('.tb-eintrag button[title="Eintrag löschen"]');
+  await page.waitForFunction(() => !document.querySelector('.tb-eintrag'));
+  await page.click('#tbReiseLoeschen'); await page.click('#tbReiseLoeschen');
+  await page.waitForTimeout(200);
+  pruef('Tagebuch: Eintrag und Reise gelöscht', await page.isVisible('#tbUebersicht') && (await page.textContent('#tbReisen')).includes('Noch keine Reise'));
 
   // ---------- Stadt ----------
   await page.click('[data-reiter=planen]');
