@@ -363,5 +363,43 @@ pruef('Statistik: Woche ab Montag, Aufnahmetag zählt, Planungen nicht', stat.wo
 pruef('Statistik: Monat und Vormonat', stat.monat.km === 8 && stat.vormonat.km === 10 && stat.monat.auf === 150);
 pruef('Statistik: 12 Monate bis zum aktuellen', stat.monate.length === 12 && stat.monate[11].monat === 10 && stat.monate[11].km === 8 && stat.monate[10].km === 10);
 
+// Öffnungszeiten: der übliche Teil von opening_hours, alles andere „unbekannt“
+const oj = (oh, t) => R.oeffnungJetzt(oh, new Date(t));
+pruef('Öffnung: geöffnet bis', oj('Mo-Fr 10:00-18:00', '2026-11-02T12:00').text === 'geöffnet bis 18:00');
+pruef('Öffnung: schließt bald (30 min)', oj('Mo-Fr 10:00-18:00', '2026-11-02T17:45').zustand === 'bald');
+pruef('Öffnung: abends zu, öffnet morgen', oj('Mo-Fr 10:00-18:00', '2026-11-02T19:00').text === 'geschlossen, öffnet morgen 10:00');
+pruef('Öffnung: Freitagabend, öffnet Mo', oj('Mo-Fr 10:00-18:00', '2026-11-06T19:00').text === 'geschlossen, öffnet Mo 10:00');
+pruef('Öffnung: Ruhetag Montag', oj('Tu-Su 10:00-12:00,14:00-17:00', '2026-11-02T13:00').text === 'heute geschlossen, öffnet morgen 10:00');
+pruef('Öffnung: Mittagspause, auch mit Leerzeichen', oj('Tu-Su 10:00-12:00, 14:00-17:00', '2026-11-03T13:00').text === 'geschlossen, öffnet um 14:00');
+pruef('Öffnung: Tagesliste mit Leerzeichen', oj('Mo, We 09:00-12:00', '2026-11-04T10:00').zustand === 'offen' && oj('Mo, We 09:00-12:00', '2026-11-03T10:00').zustand === 'zu');
+pruef('Öffnung: über Mitternacht (Vortag)', oj('Fr-Sa 18:00-02:00', '2026-11-07T01:00').text === 'geöffnet bis 02:00' && oj('Fr-Sa 18:00-02:00', '2026-11-06T20:00').text === 'geöffnet bis morgen 02:00');
+pruef('Öffnung: Saison nach Monaten', oj('Apr-Oct Mo-Su 09:00-18:00; Nov-Mar Sa-Su 10:00-16:00', '2026-11-02T12:00').text === 'heute geschlossen, öffnet Sa 10:00' &&
+  oj('Apr-Oct Mo-Su 09:00-18:00; Nov-Mar Sa-Su 10:00-16:00', '2026-07-01T12:00').zustand === 'offen');
+pruef('Öffnung: spätere Regel ersetzt den Tag', oj('Mo-Fr 08:00-12:00; We off', '2026-11-04T09:00').zustand === 'zu' && oj('Mo-Fr 08:00-12:00; We off', '2026-11-05T09:00').zustand === 'offen');
+pruef('Öffnung: Komma-Regel kommt dazu', oj('Mo-Fr 10:00-18:00, Sa 10:00-14:00', '2026-11-07T11:00').text === 'geöffnet bis 14:00');
+pruef('Öffnung: Feiertage genannt, nicht ausgewertet', oj('Mo-Fr 10:00-18:00; PH off', '2026-11-02T12:00').text === 'geöffnet bis 18:00 (Feiertage nicht berücksichtigt)');
+pruef('Öffnung: 24/7 und durchgehend', oj('24/7', '2026-11-02T03:00').text === 'rund um die Uhr geöffnet' && oj('Mo-Su 00:00-24:00', '2026-11-02T12:00').text === 'durchgehend geöffnet');
+pruef('Öffnung: Unverstandenes bleibt unbekannt', ['sunrise-sunset', 'Mo-Fr 10:00+', 'Dec 24 off', '2026 Mo-Fr 10:00-12:00', 'Mo[1] 10:00-12:00', '', null, 'nach Vereinbarung']
+  .every(x => R.oeffnungJetzt(x, new Date('2026-11-02T12:00')).zustand === 'unbekannt'));
+// Wikipedia: Quelle aus OSM, Wikidata-Sitelinks, Kurzfassung
+pruef('Wiki: Titel aus OSM', JSON.stringify(R.wikiQuelle({ wikipedia: 'de:Kloster Benediktbeuern' })) === '{"sprache":"de","titel":"Kloster_Benediktbeuern"}' &&
+  R.wikiQuelle({ wikidata: 'Q12345' }).wikidata === 'Q12345' && R.wikiQuelle({ wikidata: 'x' }) === null && R.wikiQuelle({}) === null);
+pruef('Wiki: Wikidata deutsch vor englisch', R.wikiAusWikidata({ entities: { Q1: { sitelinks: { enwiki: { title: 'A b' }, dewiki: { title: 'C d' } } } } }, 'Q1').titel === 'C_d' &&
+  R.wikiAusWikidata({ entities: { Q1: { sitelinks: { enwiki: { title: 'A b' } } } } }, 'Q1').sprache === 'en' && R.wikiAusWikidata({ entities: {} }, 'Q1') === null);
+const wk = R.wikiKurz({ type: 'standard', extract: ' Ein Kloster. ', thumbnail: { source: 'https://upload.wikimedia.org/x.jpg' }, content_urls: { mobile: { page: 'https://de.m.wikipedia.org/wiki/K' } } });
+pruef('Wiki: Kurzfassung mit Bild und Link', wk.text === 'Ein Kloster.' && wk.bild.endsWith('x.jpg') && wk.url.startsWith('https://de.m.'));
+pruef('Wiki: Begriffsklärung und fremde Bildquellen nicht', R.wikiKurz({ type: 'disambiguation', extract: 'x' }) === null && R.wikiKurz({ extract: 'x', thumbnail: { source: 'javascript:1' } }).bild === null);
+// Regenplan
+pruef('Regen: Codes und Wahrscheinlichkeit', R.regenTag(61, 10) && R.regenTag(81, 0) && R.regenTag(95, 0) && R.regenTag(3, 70) && !R.regenTag(3, 30) && !R.regenTag(1, null));
+pruef('Regen: Abfrage im Umkreis', /around:3000,47\.75350,11\.37470/.test(R.regenAbfrage(47.7535, 11.3747, 3000)) && R.regenAbfrage(1, 2, 3).includes('museum'));
+const drin = R.regenLesen({ elements: [
+  { type: 'node', id: 1, lat: 47.76, lon: 11.37, tags: { tourism: 'museum', name: 'Fern' } },
+  { type: 'way', id: 2, center: { lat: 47.754, lon: 11.375 }, tags: { leisure: 'sports_centre', sport: 'swimming', name: 'Hallenbad' } },
+  { type: 'node', id: 3, lat: 47.75, lon: 11.37, tags: { tourism: 'museum' } },
+  { type: 'node', id: 4, lat: 47.75, lon: 11.37, tags: { amenity: 'cinema', name: 'Privat', access: 'private' } }] }, { lat: 47.7535, lon: 11.3747 });
+pruef('Regen: nach Abstand, ohne Namenlose und Private', drin.length === 2 && drin[0].name === "Hallenbad" && drin[0].kat === "bad" && drin[1].id === "node/1");
+pruef('Anreise: Link für Bus und Bahn und Auto', R.anreiseLink(47.7535, 11.3747) === 'https://www.google.com/maps/dir/?api=1&destination=47.75350,11.37470&travelmode=transit' &&
+  R.anreiseLink(47.7535, 11.3747, 'auto').endsWith('travelmode=driving'));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

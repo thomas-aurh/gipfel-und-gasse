@@ -28,6 +28,12 @@ und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipf
 
 **Zeitplan:** In *Planen* Tag, Startzeit und Pausen eintragen: die App nennt die Ankunft und den Sonnenuntergang am Ziel
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
+Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
+
+**Orte und Sehenswürdigkeiten:** Das Ort-Fenster zeigt, ob jetzt geöffnet ist (aus den Öffnungszeiten in OpenStreetMap,
+ohne Feiertage), und bei Orten mit Wikipedia-Artikel eine Kurzinfo mit Bild, auf Wunsch vorgelesen. In *Entdecken* sucht
+„☔ Drinnen in der Nähe“ Museen, Bäder, Kino und Ähnliches rund um den Wetterort; bei Regen heute oder morgen ist der Knopf
+hervorgehoben.
 
 **Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 

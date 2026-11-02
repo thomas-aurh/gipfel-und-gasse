@@ -314,7 +314,11 @@ function zeigen() {
 // Zeitplan: Tag, Startzeit und Pausen gegen den Sonnenuntergang am Ziel (ohne Netz gerechnet)
 function zeitplanZeigen() {
   const e = S.ergebnis, box = $('zeitplan');
+  $('anreise').hidden = !e || !e.pts.length;
   if (!e || !e.pts.length) { box.hidden = true; return; }
+  // Anreise zum Start (Fahrplan und Weg rechnet Google Maps; am Telefon öffnet sich die App)
+  $('anreiseOepnv').href = R.anreiseLink(e.pts[0].lat, e.pts[0].lon, 'oepnv');
+  $('anreiseAuto').href = R.anreiseLink(e.pts[0].lat, e.pts[0].lon, 'auto');
   const tag = $('startTag').value ? new Date($('startTag').value + 'T12:00') : new Date();
   const ziel = e.pts[e.pts.length - 1];
   const unter = R.sonnenuntergang(tag, ziel.lat, ziel.lon);
