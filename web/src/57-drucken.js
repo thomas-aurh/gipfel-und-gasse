@@ -2,6 +2,7 @@
 // Die Seite bekommt dafür die Klasse „druck“; die Karte hat dann schon auf dem Bildschirm A4-Maße,
 // damit Leaflet die Kacheln für genau diesen Ausschnitt lädt.
 let druckLaeuft = false;
+let druckName = null;   // Titel des Druckauftrags in der App (das Heft einer Reise setzt ihn kurz)
 $('bDrucken').onclick = async () => {
   const e = S.ergebnis;
   if (!e || druckLaeuft) return;

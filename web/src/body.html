@@ -59,6 +59,7 @@
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
     <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
+    <label><input type="checkbox" id="lageTagebuch"> Reisetagebuch (Einträge mit Ort)</label>
     <button class="knopf nur-app" id="bPakete" hidden>🗺️ Kartenpakete laden und verwalten</button>
   </div>
 
@@ -287,6 +288,7 @@
           <h3 id="tbTitel"></h3>
           <p id="tbZeitraum" class="klein"></p>
           <div class="zeile"><button class="knopf haupt" id="tbNeuerEintrag">✍️ Eintrag schreiben</button>
+            <button class="knopf" id="tbHeftKnopf" title="Reise als Heft drucken oder als PDF speichern">🖨 Als Heft</button>
             <button class="knopf" id="tbReiseBearbeiten" title="Reise bearbeiten">✏️</button>
             <button class="knopf" id="tbReiseLoeschen" title="Reise löschen">🗑</button></div>
           <div id="tbEintraege"></div>
@@ -373,3 +375,5 @@
   <div id="druckfuss"></div>
   <div id="meldung" role="status" aria-live="polite"></div>
 </div>
+<!-- Reise als Heft: außerhalb von #app, das beim Heft-Druck ausgeblendet wird (65-tagebuch.js füllt es) -->
+<div id="tbHeft" hidden></div>
