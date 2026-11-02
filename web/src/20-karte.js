@@ -54,17 +54,20 @@ karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_bla
 
 // Darstellung: automatisch (wie das Gerät), hell oder dunkel; gespeichert, im Menü umschaltbar
 const THEMEN = { auto: '🌓 Darstellung: automatisch', hell: '☀️ Darstellung: hell', dunkel: '🌙 Darstellung: dunkel' };
-function themaSetzen(t) {
+// thema ist die laufende Wahl; der Speicher dient nur zum Merken (kann gesperrt oder voll sein)
+let thema = 'auto';
+function themaSetzen(t, merken = true) {
   if (!THEMEN[t]) t = 'auto';
+  thema = t;
   if (t === 'auto') delete document.documentElement.dataset.thema; else document.documentElement.dataset.thema = t;
-  SPEICHER.schreiben('thema', t);
+  if (merken) SPEICHER.schreiben('thema', t);
   const dunkel = t === 'dunkel' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
   const meta = document.querySelector('meta[name=theme-color]');
   if (meta) meta.content = dunkel ? '#111517' : '#2f6b3a';
   if ($('bThema')) $('bThema').textContent = THEMEN[t];
   if (typeof profilZeichnen === 'function' && window.__gugBereit) profilZeichnen();
 }
-themaSetzen(SPEICHER.lesen('thema', 'auto'));
+themaSetzen(SPEICHER.lesen('thema', 'auto'), false);
 const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true }, SPEICHER.lesen('lagen', {}));
 // gespeicherte Touren als Punkte am Start (60-touren.js füllt die Ebene)
 const ebeneTouren = L.layerGroup();

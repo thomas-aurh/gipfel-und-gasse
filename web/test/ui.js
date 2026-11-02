@@ -139,6 +139,12 @@ function pruef(name, bed, info) {
   pruef('Dunkelmodus über das Menü, gespeichert', await page.evaluate(() => document.documentElement.dataset.thema === 'dunkel' &&
     JSON.parse(localStorage.getItem('gug.thema')) === 'dunkel' && getComputedStyle(document.body).backgroundColor === 'rgb(17, 21, 23)'));
   await page.click('#bThema');
+  // Speicher gesperrt: Umschalten folgt trotzdem der laufenden Wahl
+  await page.evaluate(() => { window.__setItem = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('voll'); }; });
+  await page.click('#bThema'); await page.click('#bThema');
+  pruef('Umschalten auch bei gesperrtem Speicher', await page.evaluate(() => document.documentElement.dataset.thema === 'dunkel'), await page.evaluate(() => [document.documentElement.dataset.thema, document.querySelector('#bThema').textContent, localStorage.getItem('gug.thema')]));
+  await page.click('#bThema');
+  await page.evaluate(() => { Storage.prototype.setItem = window.__setItem; });
   pruef('Darstellung zurück auf automatisch', await page.evaluate(() => !document.documentElement.dataset.thema) && (await page.textContent('#bThema')).includes('automatisch'));
   await page.keyboard.press('Escape');
   await page.click('[data-reiter=karte]');
@@ -453,14 +459,18 @@ function pruef(name, bed, info) {
     window.setTimeout = (f, ms, ...a) => ms === 500 && window.__gedruckt ? 0 : st(f, ms, ...a);
   });
   await page.click('[data-reiter=planen]');
+  // aus dem Dunkelmodus drucken: Papier bekommt trotzdem die helle Palette
+  const themaWahl = async w => { await page.click('#bMenue'); while (!(await page.textContent('#bThema')).includes(w)) await page.click('#bThema'); await page.keyboard.press('Escape'); };
+  await themaWahl('dunkel');
   await page.click('#bDrucken');
   await page.waitForFunction(() => window.__gedruckt, null, { timeout: 8000 });
-  const druck = await page.evaluate(() => ({ klasse: document.body.classList.contains('druck'), kopf: document.querySelector('#druckkopf').textContent, profil: !!document.querySelector('#druckfuss img') }));
+  const druck = await page.evaluate(() => ({ hell: document.documentElement.dataset.thema === 'hell' && getComputedStyle(document.querySelector('#druckkopf')).color !== 'rgb(230, 235, 231)', klasse: document.body.classList.contains('druck'), kopf: document.querySelector('#druckkopf').textContent, profil: !!document.querySelector('#druckfuss img') }));
   const pdf = await page.pdf({ path: path.join(OUT, '10-druck.pdf'), format: 'A4', printBackground: true });
-  pruef('Druckansicht mit Kopf, Stopps und Profil', druck.klasse && druck.kopf.includes('Altstadt-Runde') && druck.kopf.includes('Stopps:') && druck.profil, druck);
+  pruef('Druckansicht mit Kopf, Stopps und Profil, hell auch aus dem Dunkelmodus', druck.hell && druck.klasse && druck.kopf.includes('Altstadt-Runde') && druck.kopf.includes('Stopps:') && druck.profil, druck);
   pruef('PDF hat genau eine Seite', (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length === 1);
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
-  pruef('Nach dem Drucken wieder normal', !(await page.evaluate(() => document.body.classList.contains('druck'))));
+  pruef('Nach dem Drucken wieder normal, Dunkelmodus zurück', await page.evaluate(() => !document.body.classList.contains('druck') && document.documentElement.dataset.thema === 'dunkel'));
+  await themaWahl('automatisch');
   await page.click('.modus [data-modus=berg]');
   pruef('Zurück in Berg: topografisch, Wanderwege', await page.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked && document.querySelector('#lageWander').checked && !document.querySelector('#lageSehens').checked));
 

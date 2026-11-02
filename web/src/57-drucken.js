@@ -6,6 +6,9 @@ $('bDrucken').onclick = async () => {
   const e = S.ergebnis;
   if (!e || druckLaeuft) return;
   druckLaeuft = true;
+  // Papier ist weiß: für den Druck die helle Palette, das Profil damit neu zeichnen (druckEnde stellt zurück)
+  document.documentElement.dataset.thema = 'hell';
+  if (!$('profilbox').hidden) profilZeichnen();
   const besicht = S.fest ? 0 : besichtigung();
   const teile = [R.kmText(e.laenge), R.zeitText(e.zeit + besicht / 60) + (besicht ? ' inkl. Besichtigung' : '')];
   if (e.tief != null) teile.push('↑ ' + e.auf + ' m', '↓ ' + e.ab + ' m', 'höchster Punkt ' + e.hoch + ' m');
@@ -47,6 +50,7 @@ function kachelnGeladen(ms) {
 function druckEnde() {
   if (!document.body.classList.contains('druck')) return;
   document.body.classList.remove('druck');
+  themaSetzen(thema, false);
   karte.invalidateSize();
 }
 window.addEventListener('afterprint', druckEnde);
