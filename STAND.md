@@ -18,8 +18,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   gesperrtem Bildschirm, Rechenzeit offline auf dem Pixel, Abruf bei brouter.de aus dem Dienst. Im Browser wird nicht
   umgeplant (dort nur die Abseits-Warnung).
 - **Pfeil in Blickrichtung (#15) nicht auf dem Handy geprüft:** Kompass im WebView der App und Querformat nur im
-  Klicktest nachgebildet. Der neue Schritt „Download-Seite erneuern“ läuft erst beim ersten Bau auf `main` (danach
-  prüfen: Link liefert die APK, Titel nennt den neuen Bau).
+  Klicktest nachgebildet.
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
   der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
 - **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
@@ -33,7 +32,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Pause zählen, wie gut die Runde die Wunschlänge trifft (im Klicktest mit nachgebildetem Routing).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
-  der Orte-Datei auf dem Handy. Die Datei kommt erst mit dem nächsten Lauf „Kartenpakete“ nach dem Merge ins Paket.
+  der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
 - **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
 - **Web mit den echten Diensten nicht geprüft:** die Cloud-Umgebung sperrt brouter.de, die Kachelserver, Photon,
   Overpass und Open-Meteo. Offen: CORS bei BRouter aus dem Browser, `WayTags` mit `sac_scale` und `surface`, Kacheln
@@ -43,7 +42,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
 - **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Wetter je Stunde
-  und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern; Berg/Stadt und „Art“ zusammenführen.
+  und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
@@ -52,23 +51,31 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   „gezeichnet“ (leer, grau). Die Vermutung „Range-Kopfzeile fehlt“ ist damit widerlegt. #31 lässt den Kartenserver Fehler
   als Text melden. Neuer Verdacht (#32): mit Range-Kopfzeile springt das WebView selbst noch einmal an den Anfang des
   Bereichs (ab Byte 0 unauffällig, Kopf und Prüfung bei 0 gingen); darum liest die App nur noch über `?von=&bis=`.
-  Bestätigt ist das erst mit der Prüfung aus Bau 101 oder neuer (Zeilen „Stück Mitte/Ende über Adresse/Kopfzeile“).
+  Bestätigt ist das erst mit der Prüfung aus dem Bau nach #32 (Zeilen „Stück Mitte/Ende über Adresse/Kopfzeile“); Thomas'
+  letztes Ergebnis (22:00) kam noch ohne diese Zeilen, also aus einem älteren Bau. Nächster Schritt: neue APK, Karte auf
+  „Offline-Karte“, „🔍 Offline-Karte prüfen“, Ergebnis senden.
   Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
   aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
   der Nähe).
-- **Info auf der Karte (#27) nicht auf dem Handy geprüft:** Antwortzeit von Overpass beim Antippen, ob der Umkreis
+- **Info auf der Karte (#27):** auf dem Pixel am 02.11. „zu viele Anfragen“ (429) vom Overpass-Hauptserver; seit #31
+  fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
-- **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Google-Maps-Link
-  in der App (öffnet er die Maps-App?), Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
+- **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
   Wie viele Orte in Oberbayern `opening_hours` in der verstandenen Form tragen, ist nicht gemessen (sonst Rohtext).
 - **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
   oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
 
 ## Entscheidungen
 
+- **Dopplungen** (02.11.): Menü ☰ zeigt nur, was die Leiste unten nicht hat; Berg/Stadt und „Art“ bleiben getrennt
+  (Thomas: „gar nicht so schlecht“), ebenso die drei Runden-Funktionen. Läden nicht ins Kartenpaket, dafür der Link zu
+  Google Maps (Thomas schaut Öffnungszeiten lieber dort).
+- **Kartenpakete in Teilen nur über die Adresse lesen** (02.11.): `?von=&bis=` statt Range-Kopfzeile, weil das WebView
+  bei Kopfzeile in der Antwort der App selbst springt (Verdacht aus der Messung, siehe Offen); der Kartenserver versteht
+  beides. Overpass mit einem zweiten öffentlichen Server (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
 - **Orte-Infos** (02.11.): Öffnungszeiten mit eigenem kleinem Leser (Wochentage, Monate, Zeiten, `;` und `,`), alles
   andere bleibt Rohtext; verworfen die Bibliothek opening_hours.js (groß, für eine HTML-Datei zu schwer). Anreise über die
   dokumentierte URL-Schnittstelle von Google Maps (öffnet am Telefon die App, rechnet Bus und Bahn); verworfen Links zu
@@ -134,8 +141,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Auslieferung
 
-- **Android:** Merge auf `main` ⇒ GitHub Actions (`app.yml`) baut und ersetzt die Download-Seite
-  https://github.com/thomas-aurh/gipfel-und-gasse/releases/latest (Datei `Gipfel-und-Gasse.apk`).
+- **Android:** Merge auf `main` ⇒ GitHub Actions (`app.yml`) baut, signiert mit dem festen Schlüssel (Entwurfs-Release
+  `signierschluessel` + Geheimnis `KEYSTORE_PASSWORT`, beide nie löschen) und ersetzt die APK im Release `neueste`:
+  https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste (Datei `Gipfel-und-Gasse.apk`, Titel nennt den
+  Bau). Nach jedem Bau geprüft: Fingerabdruck `20:D3:8E:B0…59:48:B2`.
 - **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
   Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
   dort und in der App-Liste. Die App holt die Liste von dort.
@@ -145,34 +154,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **02.11.** Overpass: weist der Hauptserver ab (429, „zu viele Anfragen“ bei Thomas im Info-Modus), fragt die App einmal
-  overpass.private.coffee (öffentlicher Server laut OSM-Wiki). Google-Maps-Link von Thomas auf dem Pixel bestätigt (#31).
-
-- **02.11.** Link „🔎 In Google Maps“ in allen Ort-Fenstern (Info, Sehenswürdigkeiten, Orte, drinnen, Reiseziele):
-  Name mit Adresse aus OSM, sonst mit dem Ortsnamen; Öffnungszeiten und Bewertungen schaut Thomas lieber dort nach.
-  Fenster an Sehenswürdigkeiten gehen nicht mehr zu, wenn Leaflet die Karte für sie verschiebt (#30).
-
-- **02.11.** Offline-Karte: Pakete werden in Teilen über Kopfzeile und Adresse gelesen (Ausweg, falls das WebView die
-  Range-Kopfzeile nicht an die App weiterreicht), „🔍 Offline-Karte prüfen“ misst auf dem Gerät Lesen, Kopf, Kachel und
-  Zeichenfehler (#29). Anlass: Thomas' Pixel zeigte am 02.11. mit Oberbayern-Paket eine leere graue Karte.
-
-- **02.11.** Reiseziele (Menü ⭐): Listen mit Zielen (Ortssuche, Notiz, Link, Stichworte, Stand), ⭐ auf der Karte mit
-  Anreise, Wetter dort und „Als Stopp“; Liste einfügen und Datei laden (Text, CSV, GPX, KML, GeoJSON; Orte ohne Koordinaten sucht die App,
-  eine Anfrage je Sekunde), als GPX weitergeben, „⭐ Merken“ im Info-Fenster, in der Sicherung (#28).
-
-- **02.11.** Info auf der Karte (Knopf ⓘ): Antippen zeigt, was dort ist (benannte Objekte aus dem Kartenpaket und von
-  Overpass, mit Öffnungszeit, Eintritt und Wikipedia) statt einen Punkt zu setzen; Fenster gehen am Telefon nicht mehr
-  hinter Blatt oder Suchleiste auf (#27). Anlass: Thomas' Rückmeldung, Sehenswürdigkeiten und „geöffnet“ gingen auf
-  dem Handy nicht recht; die Symbole der Kartenbilder sind nicht antippbar, ein Tipp setzte dort den Start.
-
-- **02.11.** Ort-Fenster zeigt „geöffnet bis …“ / „schließt bald“ / „öffnet morgen 10:00“ aus `opening_hours` (der
-  übliche Teil; Feiertage nicht), Wikipedia-Kurzinfo mit Bild und Vorlesen (in der App über die Sprachausgabe von
-  Android), „Anreise zum Start“ (Google Maps, Bus und Bahn oder Auto), „☔ Drinnen in der Nähe“ in Entdecken, bei Regen
-  hervorgehoben (#26). Nicht auf dem Handy geprüft (Klicktest mit nachgebildeten Diensten).
-
-- **02.11.** Blatt unten am Telefon zieht am ganzen Kopf mit dem Finger mit und rastet ein, Wisch nach unten im Inhalt
-  klappt es zu; Kartenart mit eigenem Zeichen (vorher dieselbe Karte wie „Karte“ in der Leiste), Menü „Sicherung“ statt
-  „Sicherung und GPX“ (dort lag kein GPX); Menü ☰ ohne die Seiten der Leiste unten (#25). Nicht auf dem Handy geprüft (Klicktest mit Maus- und Touch-Nachbildung).
+- **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
+  eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt
+  Vorlesen, Anreise zum Start, „☔ Drinnen in der Nähe“ (#26). Info-Modus ⓘ: Antippen zeigt, was dort ist, statt einen
+  Punkt zu setzen; Fenster nicht mehr hinter Blatt oder Suche (#27). Reiseziele mit Listen, ⭐-Ebene, eintippen,
+  einfügen, Datei laden (Text, CSV, GPX, KML, GeoJSON), als GPX weitergeben (#28). Link „In Google Maps“ in allen
+  Ort-Fenstern, von Thomas auf dem Pixel bestätigt (#30). Overpass mit zweitem Server bei 429 (#31). Offline-Karte:
+  Prüfung auf dem Gerät (#29, #31), Lesen nur über `?von=&bis=` (#32); behoben ist die leere Karte damit erst, wenn
+  Thomas' Prüfung es zeigt (siehe Offen).
 
 - **02.11.** Ablauf „Kartenpakete“ bei Pull Requests, die nur die App betreffen: prüft die veröffentlichten Pakete statt
   neu zu bauen (Minuten statt einer halben Stunde) (#11).
