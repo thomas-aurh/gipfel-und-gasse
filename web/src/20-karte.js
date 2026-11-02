@@ -48,6 +48,8 @@ const LAGEN = {
 // Start: zuletzt gesehener Ausschnitt, sonst Penzberg und das Voralpenland
 const blick = SPEICHER.lesen('blick', { lat: 47.70, lon: 11.37, z: 11 });
 const karte = L.map('karte', { zoomControl: false, attributionControl: true, maxZoom: 19 }).setView([blick.lat, blick.lon], blick.z);
+// am Telefon links unten über dem Blatt, damit rechts die Kartenknöpfe frei bleiben
+if (window.innerWidth <= 760) karte.attributionControl.setPosition('bottomleft');
 karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
 
 const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true }, SPEICHER.lesen('lagen', {}));

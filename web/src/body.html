@@ -2,11 +2,30 @@
   <div id="karte" aria-label="Karte"></div>
 
   <div id="oben">
+    <button id="bMenue" aria-label="Menü" aria-expanded="false">☰</button>
     <div class="suche">
       <input id="suchfeld" type="search" placeholder="Ort, Gipfel oder Hütte suchen" autocomplete="off" aria-label="Suche">
       <div id="treffer" role="listbox"></div>
     </div>
   </div>
+
+  <div id="menueHg" hidden></div>
+  <nav id="menue" hidden aria-label="Menü">
+    <div class="menue-kopf">Gipfel &amp; Gasse</div>
+    <button data-ziel="karte">🗺️ Karte</button>
+    <h4>Tour</h4>
+    <button data-ziel="planen">✏️ Tour planen</button>
+    <button data-ziel="unterwegs">🧭 Unterwegs</button>
+    <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
+    <h4>Meine Touren</h4>
+    <button data-ziel="touren">🥾 Geplante Touren</button>
+    <button data-ziel="gegangen">✅ Gegangene Touren</button>
+    <h4>Werkzeuge</h4>
+    <button data-ziel="offline">⬇️ Offline-Karten</button>
+    <button data-ziel="notfall">🆘 Notfall</button>
+    <button data-ziel="daten">💾 Sicherung und GPX</button>
+    <button data-ziel="info">ℹ️ Info</button>
+  </nav>
 
   <div id="kartenknoepfe">
     <button id="bLagen" title="Kartenart" aria-label="Kartenart">🗺️</button>
@@ -39,15 +58,14 @@
         <span id="logo" class="logo">
 <!--LOGO-->
         </span>
-        Gipfel &amp; Gasse
+        <span id="seitenTitel">Tour planen</span>
         <span id="kopfZahlen" class="klein" style="margin-left:auto;font-weight:600"></span>
       </div>
-      <nav class="reiter" role="tablist">
-        <button data-reiter="planen" class="an">Planen</button>
-        <button data-reiter="entdecken">Entdecken</button>
-        <button data-reiter="unterwegs">Unterwegs</button>
-        <button data-reiter="touren">Touren</button>
-        <button data-reiter="info">Info</button>
+      <nav class="reiter" id="leiste" aria-label="Hauptbereiche">
+        <button data-reiter="karte"><span>🗺️</span>Karte</button>
+        <button data-reiter="planen" class="an"><span>✏️</span>Planen</button>
+        <button data-reiter="unterwegs"><span>🧭</span>Unterwegs</button>
+        <button data-reiter="touren"><span>🥾</span>Touren</button>
       </nav>
     </header>
 
@@ -166,18 +184,6 @@
         </div>
         <div id="uAnkunft" class="klein"></div>
         <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
-        <h3>Notfall</h3>
-        <div id="notfall">
-          <div id="notfallOrt" class="klein">Standort noch unbekannt.</div>
-          <div class="knopfreihe">
-            <a class="knopf haupt" id="bNotruf" href="tel:112">📞 112 anrufen</a>
-            <button class="knopf" id="bStandortSenden">📍 Standort senden</button>
-            <button class="knopf" id="bStandortHolen">🛰 Standort bestimmen</button>
-          </div>
-          <p class="klein">112 gilt in ganz Europa, auch ohne Guthaben und in fremden Netzen. In Österreich erreicht 140 direkt die
-            Bergrettung, in der Schweiz 1414 die Rega. Am Telefon: was passiert ist, wo (Koordinaten vorlesen), wie viele Verletzte.
-            Bleibt der Empfang schwach, hilft oft ein Ortswechsel von wenigen Metern oder eine SMS mit dem Standort.</p>
-        </div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
           <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>
@@ -190,23 +196,57 @@
         </div>
       </section>
 
-      <!-- Meine Touren -->
+
+      <!-- Geplante Touren -->
       <section data-reiter="touren">
+        <div class="umschalter" role="group" aria-label="Touren"><button data-ziel="touren" class="an">Geplant</button><button data-ziel="gegangen">Gegangen</button></div>
         <div class="knopfreihe">
           <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
-          <button class="knopf" id="bSichern" title="Alle Touren samt Planung in eine Datei">💾 Sicherung speichern</button>
-          <button class="knopf" id="bSicherungLaden">📥 Sicherung laden</button>
-          <input type="file" id="sicherungDatei" accept=".json,application/json" hidden>
         </div>
         <ul id="tourliste" class="liste"></ul>
+      </section>
+
+      <!-- Gegangene Touren -->
+      <section data-reiter="gegangen">
+        <div class="umschalter" role="group" aria-label="Touren"><button data-ziel="touren">Geplant</button><button data-ziel="gegangen" class="an">Gegangen</button></div>
+        <div id="gangStatistik" class="zahlen"></div>
+        <ul id="gangliste" class="liste"></ul>
+      </section>
+
+      <!-- Offline-Karten -->
+      <section data-reiter="offline">
+        <p class="klein nur-browser">Offline-Karten gibt es in der Android-App: Karte, Routen, Suche und Orte gehen dort auch ohne Netz.</p>
         <div id="offlineBox" hidden>
-          <h3>Offline-Karten</h3>
           <p class="klein">Karte, Höhenlinien und Relief, Routendaten und Orte für eine Region aufs Handy laden; danach gehen
             Karte, Routen planen, Suche und Orte auch ohne Netz. Nur das Wetter braucht Netz. Ein Update lädt nur geänderte Dateien.</p>
           <label class="klein" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="offlineMobil"> auch über Mobilfunk laden (sonst nur WLAN)</label>
           <ul id="paketliste" class="liste"></ul>
           <div id="paketStatus" class="klein"></div>
+        </div>
+      </section>
+
+      <!-- Notfall -->
+      <section data-reiter="notfall">
+        <div id="notfall">
+          <div id="notfallOrt" class="klein">Standort noch unbekannt.</div>
+          <div class="knopfreihe">
+            <a class="knopf haupt" id="bNotruf" href="tel:112">📞 112 anrufen</a>
+            <button class="knopf" id="bStandortSenden">📍 Standort senden</button>
+            <button class="knopf" id="bStandortHolen">🛰 Standort bestimmen</button>
+          </div>
+          <p class="klein">112 gilt in ganz Europa, auch ohne Guthaben und in fremden Netzen. In Österreich erreicht 140 direkt die
+            Bergrettung, in der Schweiz 1414 die Rega. Am Telefon: was passiert ist, wo (Koordinaten vorlesen), wie viele Verletzte.
+            Bleibt der Empfang schwach, hilft oft ein Ortswechsel von wenigen Metern oder eine SMS mit dem Standort.</p>
+        </div>
+      </section>
+
+      <!-- Sicherung und Daten -->
+      <section data-reiter="daten">
+        <div class="knopfreihe">
+          <button class="knopf haupt" id="bSichern" title="Alle Touren samt Planung in eine Datei">💾 Sicherung speichern</button>
+          <button class="knopf" id="bSicherungLaden">📥 Sicherung laden</button>
+          <input type="file" id="sicherungDatei" accept=".json,application/json" hidden>
         </div>
         <p class="klein" id="tourenHinweis">Touren liegen nur in diesem Browser. Wer den Browserverlauf samt Website-Daten löscht, löscht sie mit.
           „Sicherung speichern“ schreibt alle Touren samt Planung in eine Datei; „Sicherung laden“ holt sie zurück.</p>

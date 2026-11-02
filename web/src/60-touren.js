@@ -144,11 +144,25 @@ function tourenPunkte(liste) {
   }
 }
 
+// Touren getrennt: geplante (Planungen und geöffnete GPX-Spuren) und gegangene (Aufzeichnungen) mit Statistik
 function tourenZeigen() {
-  const liste = tourenLesen(), ul = $('tourliste');
+  const liste = tourenLesen();
   tourenPunkte(liste);
+  const gegangen = liste.filter(t => t.art === 'aufzeichnung'), geplant = liste.filter(t => t.art !== 'aufzeichnung');
+  listeZeigen($('tourliste'), geplant, 'Noch keine geplanten Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.');
+  listeZeigen($('gangliste'), gegangen, 'Noch keine gegangenen Touren. Unter „Unterwegs“ aufzeichnen, danach „Als Tour speichern“.');
+  const sum = (f) => gegangen.reduce((s, t) => s + (+t.kurz[f] || 0), 0);
+  const jahr = new Date().getFullYear(), diesesJahr = gegangen.filter(t => new Date(t.datum).getFullYear() === jahr);
+  $('gangStatistik').innerHTML = gegangen.length ? [
+    [gegangen.length, gegangen.length === 1 ? 'Tour' : 'Touren'], [R.kmText(sum('laenge')), 'Strecke'], [Math.round(sum('auf')) + ' m', 'bergauf'],
+    [R.zeitText(sum('zeit')), 'unterwegs'], [diesesJahr.length, 'Touren ' + jahr], [R.kmText(diesesJahr.reduce((s, t) => s + (+t.kurz.laenge || 0), 0)), 'Strecke ' + jahr]
+  ].map(([w, t]) => '<div class="zahl"><b>' + R.esc(String(w)) + '</b><span>' + R.esc(t) + '</span></div>').join('') : '';
+  $('gangStatistik').hidden = !gegangen.length;
+}
+
+function listeZeigen(ul, liste, leer) {
   ul.innerHTML = '';
-  if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">Noch keine Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.</span></li>'; return; }
+  if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc(leer) + '</span></li>'; return; }
   for (const t of liste) {
     const li = document.createElement('li');
     li.dataset.tour = t.id;

@@ -14,7 +14,11 @@ Sehenswürdigkeiten und Stadtrundgänge, Wetter, GPX, Karte drucken. Als **Web-A
 
 Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben erhalten.
 
-**Offline-Karten:** Kartenwahl 🗺️ › „Kartenpakete laden und verwalten“ (oder Reiter *Touren* › *Offline-Karten*): Region
+**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit allen Seiten:
+Tour planen, Unterwegs, Entdecken (Orte und Wetter), Geplante und Gegangene Touren (mit Statistik), Offline-Karten, Notfall,
+Sicherung und GPX, Info.
+
+**Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenwahl 🗺️ › „Kartenpakete laden und verwalten“): Region
 herunterladen (Oberbayern mit München, Allgäu und Bodensee; die Größe steht
 in der Liste). Danach in der Kartenwahl 🗺️ „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
 schaltet die App selbst um. Auch Höhen für gerade Linien und GPX-Dateien kommen dann aus dem Paket. Enthält das Paket Routendaten,
@@ -25,9 +29,9 @@ und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipf
 **Zeitplan:** In *Planen* Tag, Startzeit und Pausen eintragen: die App nennt die Ankunft und den Sonnenuntergang am Ziel
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 
-**Notfall:** Reiter *Unterwegs* › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
+**Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
-**Unterwegs:** Reiter *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
+**Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
 abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an, warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
 App oder direkt in der Mitteilung.

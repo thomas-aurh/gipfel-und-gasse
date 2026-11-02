@@ -204,6 +204,6 @@ $('bAufzSpeichern').onclick = async () => {
   const name = 'Aufzeichnung ' + new Date(a.start).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
   $('bAufzSpeichern').disabled = true;
-  $('bAufzSpeichern').textContent = '✓ In „Touren“';
+  $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
   setTimeout(() => { $('bAufzSpeichern').textContent = '💾 Als Tour speichern'; }, 4000);
 };

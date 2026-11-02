@@ -107,6 +107,8 @@ async function dienste(ctx) {
 }
 
 let ok = 0, fehler = 0;
+// Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
+async function zuSeite(seite, ziel) { await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']'); }
 function pruef(name, bed, info) {
   if (bed) { ok++; console.log('✓ ' + name); }
   else { fehler++; console.error('✗ ' + name + (info !== undefined ? ' → ' + JSON.stringify(info) : '')); }
@@ -127,7 +129,8 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#karte .leaflet-tile-loaded', { timeout: 10000 });
   pruef('Seite lädt ohne Fehler', konsole.length === 0, konsole);
   pruef('Hinweis ohne Route sichtbar', await page.isVisible('#leerHinweis'));
-  pruef('Logo und Name im Kopf', await page.evaluate(() => !!document.querySelector('#logo svg') && document.querySelector('.marke').textContent.includes('Gipfel & Gasse')));
+  pruef('Logo und Seitentitel im Kopf, Name im Menü', await page.evaluate(() => !!document.querySelector('#logo svg') && document.querySelector('.marke').textContent.includes('Tour planen') &&
+    document.querySelector('.menue-kopf').textContent.includes('Gipfel & Gasse')));
   pruef('Browser-Symbol gesetzt', await page.evaluate(() => (document.querySelector('link[rel=icon]') || {}).href.startsWith('data:image/svg+xml;base64,')));
   pruef('Kopfzeile nennt den ersten Schritt', (await page.textContent('#kopfZahlen')).includes('Start'));
 
@@ -232,7 +235,7 @@ function pruef(name, bed, info) {
 
   pruef('Zeitplan im Entwurf gespeichert', await page.evaluate(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf')); return e.zeit && e.zeit.start === '08:00' && e.zeit.pause === 45 && e.zeit.tag === '2026-11-01'; }));
   // Entdecken: Wetter und Orte
-  await page.click('[data-reiter=entdecken]');
+  await zuSeite(page, 'entdecken');
   await page.waitForSelector('#wetter .wetter');
   pruef('Wetter: Gewitterwarnung mit Tag', (await page.textContent('#wetter')).includes('Gewitter am Di'), await page.textContent('#wetter .warnung'));
   await page.click('#bOrte');
@@ -339,6 +342,8 @@ function pruef(name, bed, info) {
   await page.click('#bAufz');
   pruef('Aufzeichnung gemessen', (await page.textContent('#aStrecke')) !== '–' && !(await page.isDisabled('#bAufzSpeichern')), await page.textContent('#aStrecke'));
   // Notfall: Koordinaten zum Vorlesen, Senden über die Zwischenablage (ohne Teilen-Menü im Browser), 112 als Telefon-Link
+  await zuSeite(page, 'notfall');
+  pruef('Notfall: eigene Seite über das Menü', (await page.textContent('#seitenTitel')) === 'Notfall' && await page.isVisible('#bNotruf'));
   const notOrt = await page.textContent('#notfallOrt');
   pruef('Notfall: Koordinaten in Dezimalgrad und Grad/Minuten', /47\.76\d{3}, 11\.39\d{3}/.test(notOrt) && notOrt.includes('° ') && notOrt.includes('N'), notOrt);
   await page.evaluate(() => { try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) {} });
@@ -347,13 +352,17 @@ function pruef(name, bed, info) {
   const ablage = await page.evaluate(() => navigator.clipboard.readText());
   pruef('Notfall: Standort-Text mit Koordinaten und Kartenlink', ablage.startsWith('Mein Standort: 47.76') && ablage.includes('openstreetmap.org/?mlat='), ablage);
   pruef('Notfall: 112 als Telefon-Link', (await page.getAttribute('#bNotruf', 'href')) === 'tel:112');
+  await page.click('[data-reiter=unterwegs]');
   await page.screenshot({ path: path.join(OUT, '4-unterwegs.png') });
   await page.click('#bAufzSpeichern');
   await page.waitForTimeout(300);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
   await page.click('[data-reiter=touren]');
-  pruef('Aufzeichnung als Tour', (await page.textContent('#tourliste')).includes('Aufzeichnung'));
+  pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
+  await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
+  pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Aufzeichnung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
+    (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('[data-reiter=touren]', 'class')).includes('an'));
   // gespeicherte Touren als Punkte: geplante und gegangene getrennt, Öffnen aus dem Fenster
   const tourMk = await page.$$eval('.tour-mk', l => l.map(e => e.className));
   pruef('Touren als Punkte auf der Karte (geplant und gegangen)', tourMk.some(c => c.includes('geplant')) && tourMk.some(c => c.includes('gegangen')), tourMk);
@@ -363,20 +372,23 @@ function pruef(name, bed, info) {
   await page.click('.leaflet-popup button:has-text("Öffnen")');
   await page.waitForTimeout(300);
   // Sicherung: alle Touren samt Planung in einer Datei; eine verlorene Tour kommt beim Laden zurück
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'daten');
+  const alleTouren = () => page.$$eval('#tourliste li[data-tour], #gangliste li[data-tour]', l => l.length);
   const [sich] = await Promise.all([page.waitForEvent('download'), page.click('#bSichern')]);
   const sichPfad = path.join(OUT, 'sicherung.json');
   await sich.saveAs(sichPfad);
   const sichDaten = JSON.parse(fs.readFileSync(sichPfad, 'utf8'));
-  const tourenVorher = await page.$$eval('#tourliste li', l => l.length);
+  await page.click('[data-reiter=touren]');
+  const tourenVorher = await alleTouren();
+  await zuSeite(page, 'daten');
   pruef('Sicherung: eine Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.json') && sichDaten.app === 'gipfel-und-gasse' &&
     sichDaten.touren.length === tourenVorher && sichDaten.touren.some(t => t.wps && t.wps.length >= 2), [sich.suggestedFilename(), sichDaten.touren.length, tourenVorher]);
   await page.evaluate(() => { const l = JSON.parse(localStorage.getItem('gug.touren')); l.shift(); localStorage.setItem('gug.touren', JSON.stringify(l)); });
-  await page.click('[data-reiter=planen]'); await page.click('[data-reiter=touren]');
+  await page.click('[data-reiter=planen]'); await zuSeite(page, 'daten');
   await page.setInputFiles('#sicherungDatei', sichPfad);
   await page.waitForTimeout(300);
-  pruef('Sicherung laden: fehlende Tour zurück, keine doppelt', (await page.$$eval('#tourliste li', l => l.length)) === tourenVorher && (await page.textContent('#meldung')).includes('1 Touren'),
-    [await page.$$eval('#tourliste li', l => l.length), await page.textContent('#meldung')]);
+  pruef('Sicherung laden: fehlende Tour zurück, keine doppelt', (await alleTouren()) === tourenVorher && (await page.textContent('#meldung')).includes('1 Touren'),
+    [await alleTouren(), await page.textContent('#meldung')]);
 
   // ---------- Stadt ----------
   await page.click('[data-reiter=planen]');
@@ -391,7 +403,7 @@ function pruef(name, bed, info) {
   await page.waitForSelector('.ort-mk.bekannt', { timeout: 8000 });
   pruef('Sehenswürdigkeiten auf der Karte, bekannte hervorgehoben', (await page.$$('.ort-mk.bekannt')).length === 3 && (await page.$$('.ort-mk')).length === 7, (await page.$$('.ort-mk')).length);
   await page.screenshot({ path: path.join(OUT, '8-stadt-karte.png') });
-  await page.click('[data-reiter=entdecken]');
+  await zuSeite(page, 'entdecken');
   pruef('Stadt-Liste im Entdecken', (await page.textContent('#stadtListe')).includes('⭐ Stadtmuseum') && !(await page.isVisible('#bergBox')));
   await page.click('#stadtListe li >> nth=0 >> button');
   pruef('Stopp aus der Liste', (await page.$$('.wp')).length === 1 && (await page.textContent('#meldung')).includes('Start'));
@@ -508,8 +520,8 @@ function pruef(name, bed, info) {
   // beim Start fragt die App einmal nach einer liegengebliebenen Aufzeichnung; beim Speichern holt sie und leert danach
   const a2 = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'aufzeichnungHolen');
   pruef('App: Aufzeichnung geholt und danach geleert', a2.length >= 2 && a2[a2.length - 1][1].leeren === true && a2[a2.length - 2][1].leeren === false, a2);
-  await pa2.click('[data-reiter=touren]');
-  pruef('App: Aufzeichnung als Tour', (await pa2.textContent('#tourliste')).includes('Aufzeichnung'));
+  await zuSeite(pa2, 'gegangen');
+  pruef('App: Aufzeichnung bei den gegangenen Touren', (await pa2.textContent('#gangliste')).includes('Aufzeichnung'));
   await pa2.click('[data-reiter=planen]');
   // Telefon: weitere Funktionen hinter „Mehr“, aufgeklappt sichtbar
   pruef('Telefon: GPX, Drucken & Co. erst hinter „Mehr“', await pa2.isHidden('#bGpx') && await pa2.isVisible('#bMehr') && await pa2.isVisible('#bSpeichern'));
@@ -521,13 +533,13 @@ function pruef(name, bed, info) {
   pruef('App: GPX über das Teilen-Menü', teilen && teilen[1].gpx && teilen[1].name.endsWith('.gpx'), teilen);
   // Notfall in der App: Standort aus dem Dienst, Senden über das Teilen-Menü von Android
   await pa2.evaluate(() => window.__navi.melden({ laeuft: false, lat: 47.6122, lon: 11.3117, gen: 9, t: Date.now() }));
-  await pa2.click('[data-reiter=unterwegs]');
+  await zuSeite(pa2, 'notfall');
   await pa2.click('#bStandortSenden');
   await pa2.waitForTimeout(200);
   const notApp = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'textTeilen');
   pruef('App: Standort senden über das Teilen-Menü', notApp.length === 1 && notApp[0][1].text.includes('47.61220, 11.31170'), notApp);
   // Sicherung in der App: genau ein Teilen-Fenster mit einer JSON-Datei
-  await pa2.click('[data-reiter=touren]');
+  await zuSeite(pa2, 'daten');
   const vorTeilen = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;
   await pa2.click('#bSichern');
   await pa2.waitForTimeout(200);
@@ -647,7 +659,7 @@ function pruef(name, bed, info) {
   const hw = naviStart.length ? naviStart[naviStart.length - 1].hinweise : null;
   pruef('Abbiegehinweise an den Navigationsdienst', hw && hw.length === 2 && hw[0][1] === 2 && hw[1][1] === 6 && hw[0][0] < hw[1][0], hw);
   // Orte entlang der Route aus dem Paket: Overpass wird nicht gefragt
-  await po.click('[data-reiter=entdecken]');
+  await zuSeite(po, 'entdecken');
   const vorOverpass = zaehler.overpass;
   await po.click('#bOrte');
   await po.waitForFunction(() => /Orte|Keine/.test(document.querySelector('#orteStatus').textContent) && !document.querySelector('#bOrte').disabled, null, { timeout: 8000 });
