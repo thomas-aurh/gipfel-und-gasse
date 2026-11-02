@@ -562,6 +562,12 @@ var R = (function () {
     return d.touren.map(tourPruefen).filter(Boolean);
   }
 
+  // Tagebuch derselben Sicherung (fehlt es, ist es leer)
+  function sicherungTagebuch(text) {
+    const d = JSON.parse(text);
+    return tagebuchPruefen(d && d.tagebuch, d && d.fotos);
+  }
+
   function tourPruefen(t) {
     const zahl = x => (typeof x === 'number' && isFinite(x) ? x : null);
     const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : null);
@@ -615,6 +621,59 @@ var R = (function () {
       const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
         pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };
       if (z.tag || z.start || z.pause) out.zeit = z;
+    }
+    return out;
+  }
+
+  // ---------- Reisetagebuch ----------
+  // Datum als JJJJ-MM-TT in Ortszeit (nicht UTC: ein Eintrag um 0:30 gehört zum neuen Tag)
+  function tagIso(d) {
+    d = new Date(d);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  // Einträge nach Tagen, neuester Tag zuerst, innerhalb des Tages der Reihe nach
+  function tagebuchTage(eintraege) {
+    const tage = {};
+    for (const e of eintraege) (tage[tagIso(e.zeit)] = tage[tagIso(e.zeit)] || []).push(e);
+    return Object.keys(tage).sort().reverse().map(tag => ({ tag, eintraege: tage[tag].sort((a, b) => a.zeit - b.zeit) }));
+  }
+  // Aufnahmezeit einer Tour: erster Zeitstempel der Spur, ohne Zeitstempel das Speicherdatum (wie in der Statistik)
+  function tourZeit(t) { return t.spur && t.spur[0] && t.spur[0][3] ? +t.spur[0][3] : new Date(t.datum).getTime(); }
+  // gegangene Touren (Aufzeichnungen), die in den Zeitraum der Reise fallen
+  function reiseTouren(touren, reise) {
+    return touren.filter(t => t.art === 'aufzeichnung' && tagIso(tourZeit(t)) >= reise.von && tagIso(tourZeit(t)) <= reise.bis)
+      .sort((a, b) => tourZeit(a) - tourZeit(b));
+  }
+  // Reise, die heute läuft (für „Eintrag schreiben“ ohne Umweg); bei mehreren die zuletzt begonnene
+  function reiseHeute(reisen, heute) {
+    return reisen.filter(r => r.von <= heute && r.bis >= heute).sort((a, b) => (a.von < b.von ? 1 : -1))[0] || null;
+  }
+  // Tagebuch aus einer Sicherung: Feld für Feld neu aufgebaut wie die Touren; Fotos als JPEG-Daten-Adressen
+  function tagebuchPruefen(tb, fotos) {
+    const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : null);
+    const zahl = x => (typeof x === 'number' && isFinite(x) ? x : null);
+    const tag = x => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
+    const id = x => (typeof x === 'string' && /^[\w-]{1,64}$/.test(x) ? x : null);
+    const out = { reisen: [], eintraege: [], fotos: {} };
+    if (!tb || typeof tb !== 'object') return out;
+    for (const r of Array.isArray(tb.reisen) ? tb.reisen : []) {
+      const o = r && { id: id(r.id), name: text(r.name, 120), von: tag(r.von), bis: tag(r.bis) };
+      if (o && o.id && o.name && o.von && o.bis && o.von <= o.bis) out.reisen.push(o);
+    }
+    const reiseIds = new Set(out.reisen.map(r => r.id));
+    const fotoOk = x => typeof x === 'string' && x.length < 8e6 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(x);
+    for (const e of Array.isArray(tb.eintraege) ? tb.eintraege : []) {
+      if (!e || !id(e.id) || !reiseIds.has(e.reise) || zahl(e.zeit) == null) continue;
+      const o = { id: e.id, reise: e.reise, zeit: e.zeit, text: text(e.text, 20000) || '', fotos: [] };
+      if (e.ort && zahl(e.ort.lat) != null && zahl(e.ort.lon) != null && Math.abs(e.ort.lat) <= 90 && Math.abs(e.ort.lon) <= 180) {
+        o.ort = { lat: e.ort.lat, lon: e.ort.lon };
+        if (text(e.ort.name, 120)) o.ort.name = text(e.ort.name, 120);
+      }
+      if (e.wetter && zahl(e.wetter.temp) != null && Number.isInteger(e.wetter.code)) o.wetter = { temp: e.wetter.temp, code: e.wetter.code };
+      for (const f of Array.isArray(e.fotos) ? e.fotos : []) {
+        if (id(f) && fotos && fotoOk(fotos[f])) { o.fotos.push(f); out.fotos[f] = fotos[f]; }
+      }
+      out.eintraege.push(o);
     }
     return out;
   }
@@ -963,7 +1022,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();
