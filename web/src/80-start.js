@@ -52,12 +52,13 @@ function blatt(stufe) {
   const p = $('panel');
   p.classList.toggle('klein', stufe === 'klein');
   p.classList.toggle('gross', stufe === 'gross');
-  setTimeout(() => { karte.invalidateSize(); profilZeichnen(); }, 230);
+  setTimeout(() => { karte.invalidateSize(); profilZeichnen(); kreuzZeigen(); }, 230);
 }
 // Höhe des Blatts für den Kartennachweis (er steht am Telefon darüber, damit er sichtbar bleibt)
 if (window.ResizeObserver) new ResizeObserver(() => {
   // Abstand vom unteren Rand bis zur Oberkante des Blatts (inklusive der Leiste unten)
   document.documentElement.style.setProperty('--blatt', (window.innerWidth <= 760 ? Math.max(0, window.innerHeight - $('panel').getBoundingClientRect().top) : 0) + 'px');
+  kreuzZeigen();
 }).observe($('panel'));
 (function griff() {
   const g = $('griff');

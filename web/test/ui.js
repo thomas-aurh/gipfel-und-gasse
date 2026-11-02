@@ -191,6 +191,22 @@ function pruef(name, bed, info) {
   await page.click('#bZurueck');
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 2);
   pruef('Rückgängig', (await page.textContent('#zLaenge')) === laenge, [l3, laenge]);
+  // Fadenkreuz: Tipp setzt nichts, holt die Stelle unter das Kreuz; „Punkt hier“ setzt genau dort
+  await page.click('#bKreuz');
+  pruef('Fadenkreuz mit Koordinaten und Abstand', await page.isVisible('#kreuz') && /^\d+\.\d{5}, \d+\.\d{5} · /.test(await page.textContent('#kreuzText')));
+  await page.mouse.click(kb.x + kb.width * 0.85, kb.y + kb.height * 0.8);
+  await page.waitForTimeout(600);
+  pruef('Fadenkreuz: Tipp setzt keinen Punkt', (await page.$$('.wp')).length === 2);
+  const kreuzMitte = async () => page.evaluate(() => { const r = document.querySelector('#kreuz').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  const [kx, ky] = await kreuzMitte();
+  await page.click('#bKreuzSetzen');
+  await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3);
+  const neu = await page.evaluate(() => { const m = [...document.querySelectorAll('.wp')].pop().getBoundingClientRect(); return [m.left + m.width / 2, m.top + m.height / 2]; });
+  pruef('Fadenkreuz: Punkt genau unter dem Kreuz', Math.abs(neu[0] - kx) < 2 && Math.abs(neu[1] - ky) < 2, { neu, kreuz: [kx, ky] });
+  await page.click('#bZurueck');
+  await page.waitForFunction(() => document.querySelectorAll('.wp').length === 2);
+  await page.click('#bKreuz');
+  pruef('Fadenkreuz aus', await page.isHidden('#kreuz') && await page.isHidden('#kreuzFeld'));
   const vorher = zaehler.brouter;
   await page.click('#bZurueck'); await page.click('#bZurueck');  // bis leer und wieder…
   await page.keyboard.press('Control+z');
@@ -739,6 +755,9 @@ function pruef(name, bed, info) {
   await pt.tap('#griff');
   await pt.waitForTimeout(400);
   await pt.screenshot({ path: path.join(OUT, '7-telefon-klein.png') });
+  await pt.tap('#bKreuz');
+  pruef('Telefon: Fadenkreuz über dem Blatt', await pt.evaluate(() => { const k = document.querySelector('#kreuzFeld').getBoundingClientRect(); return k.bottom < document.querySelector('#panel').getBoundingClientRect().top && k.left >= 0 && k.right <= innerWidth; }));
+  await pt.screenshot({ path: path.join(OUT, '8-telefon-kreuz.png') });
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

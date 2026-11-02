@@ -72,6 +72,18 @@ body.ohneBlatt{--panel:0px}
 #kartenknoepfe{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1000;display:flex;flex-direction:column;gap:8px}
 #kartenknoepfe button{width:44px;height:44px;border:0;border-radius:12px;background:var(--karte);box-shadow:var(--schatten);font-size:20px;line-height:1}
 #kartenknoepfe button.an{background:var(--haupt);color:#fff}
+#kartenknoepfe button{-webkit-tap-highlight-color:transparent}
+#bKreuz{font-size:28px!important}
+/* Fadenkreuz: zwei Linien mit Lücke in der Mitte, heller Rand für jede Karte */
+#kreuz{position:absolute;z-index:900;width:56px;height:56px;margin:-28px 0 0 -28px;pointer-events:none}
+#kreuz::before,#kreuz::after{content:"";position:absolute;background:
+  linear-gradient(var(--route),var(--route)) 0 0/100% 100% no-repeat;box-shadow:0 0 0 1.5px #fffd}
+#kreuz::before{left:27px;top:0;width:2px;height:56px;-webkit-mask:linear-gradient(#000 0 21px,#0000 21px 35px,#000 35px);mask:linear-gradient(#000 0 21px,#0000 21px 35px,#000 35px)}
+#kreuz::after{top:27px;left:0;height:2px;width:56px;-webkit-mask:linear-gradient(90deg,#000 0 21px,#0000 21px 35px,#000 35px);mask:linear-gradient(90deg,#000 0 21px,#0000 21px 35px,#000 35px)}
+#kreuzFeld{position:absolute;z-index:1000;transform:translate(-50%,0);display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;
+  border-radius:12px;background:var(--karte);color:var(--text);box-shadow:var(--schatten);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#kreuzFeld .knopf{padding:6px 10px;min-height:36px;font-size:13px}
+body.druck #kreuz,body.druck #kreuzFeld{display:none!important}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
 #lagenwahl label{display:flex;gap:8px;align-items:center;padding:5px 0}
 #lagenwahl h4{margin:8px 0 2px;font-size:12px;text-transform:uppercase;color:var(--grau);letter-spacing:.04em}

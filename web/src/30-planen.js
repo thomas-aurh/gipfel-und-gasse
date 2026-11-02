@@ -42,8 +42,50 @@ function wegpunktWeg(i) {
 karte.on('click', e => {
   if (Date.now() - popupZuSeit < 400) return;
   if (!$('lagenwahl').hidden) return;
+  // mit Fadenkreuz setzt ein Tipp nichts, er holt die Stelle unter das Kreuz
+  if (kreuzAn) { kreuzHin(e.latlng); return; }
   wegpunktDazu(e.latlng.lat, e.latlng.lng);
 });
+
+// Fadenkreuz wie in Locus: steht in der Mitte des sichtbaren Kartenteils (am Telefon über dem Blatt)
+let kreuzAn = false;
+function kreuzPunkt() {
+  const k = $('karte').getBoundingClientRect();
+  const tel = window.innerWidth <= 760;
+  const unten = tel ? Math.min(k.bottom, $('panel').getBoundingClientRect().top) : k.bottom;
+  return L.point(k.width / 2, Math.max(60, (unten - k.top) / 2));
+}
+function kreuzHin(ll) {
+  // die angetippte Stelle unter das Kreuz schieben
+  const p = kreuzPunkt(), mitte = karte.getSize().divideBy(2);
+  karte.panTo(karte.containerPointToLatLng(karte.latLngToContainerPoint(ll).subtract(p.subtract(mitte))));
+}
+function kreuzZeigen() {
+  if (!kreuzAn) return;
+  const p = kreuzPunkt(), k = $('karte').getBoundingClientRect(), ll = karte.containerPointToLatLng(p);
+  const x = k.left + p.x, y = k.top + p.y;
+  Object.assign($('kreuz').style, { left: x + 'px', top: y + 'px' });
+  Object.assign($('kreuzFeld').style, { left: x + 'px', top: (y + 36) + 'px' });
+  const letzter = S.wps[S.wps.length - 1];
+  $('kreuzText').textContent = ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5) +
+    (letzter ? ' · ' + R.kmText(R.abstand(letzter, { lat: ll.lat, lon: ll.lng })) : '');
+  $('bKreuzSetzen').textContent = S.wps.length ? '📍 Punkt hier' : '📍 Start hier';
+}
+function kreuz(an) {
+  kreuzAn = an;
+  $('kreuz').hidden = $('kreuzFeld').hidden = !an;
+  $('bKreuz').classList.toggle('an', an);
+  $('bKreuz').setAttribute('aria-pressed', String(an));
+  kreuzZeigen();
+}
+$('bKreuz').onclick = () => kreuz(!kreuzAn);
+$('bKreuzSetzen').onclick = () => {
+  const ll = karte.containerPointToLatLng(kreuzPunkt());
+  wegpunktDazu(ll.lat, ll.lng);
+  kreuzZeigen();
+};
+karte.on('move zoom resize', kreuzZeigen);
+window.addEventListener('resize', kreuzZeigen);
 
 function zeichenWegpunkte() {
   ebenePunkte.clearLayers();
