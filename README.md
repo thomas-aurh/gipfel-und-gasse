@@ -14,13 +14,13 @@ Sehenswürdigkeiten und Stadtrundgänge, Wetter, GPX, Karte drucken. Als **Web-A
 
 Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben erhalten.
 
-**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit allen Seiten:
-Tour planen, Unterwegs, Entdecken (Orte und Wetter), Geplante und Gegangene Touren (mit Statistik), Offline-Karten, Notfall,
-Sicherung und GPX, Info.
+**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit den übrigen
+Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
+im Inhalt nach unten wischen, wenn er ganz oben steht.
 
-**Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenwahl 🗺️ › „Kartenpakete laden und verwalten“): Region
+**Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
 herunterladen (Oberbayern mit München, Allgäu und Bodensee; die Größe steht
-in der Liste). Danach in der Kartenwahl 🗺️ „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
+in der Liste). Danach unter Kartenart und Ebenen (rechts an der Karte) „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
 schaltet die App selbst um. Auch Höhen für gerade Linien und GPX-Dateien kommen dann aus dem Paket. Enthält das Paket Routendaten,
 plant die App auch Routen ohne Netz (BRouter läuft im Handy). Mit der Orte-Datei des Pakets kommen „Orte entlang der Route“
 und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipfel, Hütten, Straßen und Haltestellen auch ohne Netz

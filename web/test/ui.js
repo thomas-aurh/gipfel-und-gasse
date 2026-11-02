@@ -112,7 +112,15 @@ async function dienste(ctx) {
 
 let ok = 0, fehler = 0;
 // Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
-async function zuSeite(seite, ziel) { await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']'); }
+// Karte, Planen, Unterwegs und Touren stehen in der Leiste (Gegangen über den Umschalter unter Touren), der Rest im Menü
+async function zuSeite(seite, ziel) {
+  if (['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(ziel)) {
+    await seite.click('#leiste [data-reiter=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
+    if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
+    return;
+  }
+  await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
+}
 function pruef(name, bed, info) {
   if (bed) { ok++; console.log('✓ ' + name); }
   else { fehler++; console.error('✗ ' + name + (info !== undefined ? ' → ' + JSON.stringify(info) : '')); }
@@ -136,6 +144,8 @@ function pruef(name, bed, info) {
   // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
+  pruef('Menü ohne Dopplung zur Leiste', await page.evaluate(() => { const m = [...document.querySelectorAll('#menue [data-ziel]')].map(b => b.dataset.ziel);
+    return m.length > 0 && !m.some(z => ['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(z)); }));
   await page.keyboard.press('Escape');
   pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
   // Darstellung: automatisch → hell → dunkel, gespeichert; Farben aus den Variablen
@@ -1065,6 +1075,49 @@ function pruef(name, bed, info) {
   pruef('Telefon: großes Blatt blendet Fadenkreuz aus, nichts verdeckt', await pt.isHidden('#kreuzFeld'));
   await blattStufe(false);
   pruef('Telefon: kleineres Blatt zeigt Fadenkreuz wieder', await pt.isVisible('#kreuzFeld'));
+  // Blatt ziehen: am Kopf (Titel) folgt es dem Finger und rastet ein; im Inhalt nach unten, wenn er oben steht
+  const stufe = () => pt.evaluate(() => { const c = document.querySelector('#panel').classList; return c.contains('klein') ? 'klein' : c.contains('gross') ? 'gross' : 'mittel'; });
+  const ziehen = async (sel, dy, schritte) => {
+    const r = await pt.locator(sel).boundingBox(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+    await pt.mouse.move(x, y); await pt.mouse.down();
+    for (let i = 1; i <= schritte; i++) { await pt.mouse.move(x, y + dy * i / schritte); await pt.waitForTimeout(16); }
+    await pt.mouse.up(); await pt.waitForTimeout(400);
+  };
+  const zuStufe = async ziel => { for (let i = 0; i < 4 && await stufe() !== ziel; i++) { await pt.tap('#griff'); await pt.waitForTimeout(400); } };
+  await zuStufe('mittel');
+  await pt.mouse.move(195, 760);
+  const hVor = await pt.evaluate(() => document.querySelector('#panel').getBoundingClientRect().height);
+  {
+    const r = await pt.locator('#seitenTitel').boundingBox();
+    await pt.mouse.move(r.x + 5, r.y + 5); await pt.mouse.down(); await pt.mouse.move(r.x + 5, r.y + 65, { steps: 5 });
+    const hMitte = await pt.evaluate(() => document.querySelector('#panel').getBoundingClientRect().height);
+    pruef('Blatt folgt beim Ziehen dem Finger', Math.abs(hVor - 60 - hMitte) < 12, [hVor, hMitte]);
+    await pt.mouse.up(); await pt.waitForTimeout(400);
+  }
+  pruef('Blatt: am Titel langsam ein Stück nach unten rastet wieder ein', ['mittel', 'klein'].includes(await stufe()) && await pt.evaluate(() => !document.querySelector('#panel').style.height), await stufe());
+  await zuStufe('mittel');
+  await ziehen('#seitenTitel', 250, 4);
+  pruef('Blatt: am Titel nach unten ziehen klappt es zu', await stufe() === 'klein', await stufe());
+  await pt.tap('#seitenTitel'); await pt.waitForTimeout(400);
+  pruef('Blatt: Titel antippen klappt es wieder auf', await stufe() === 'mittel', await stufe());
+  await ziehen('#seitenTitel', -320, 30);
+  pruef('Blatt: am Titel nach oben ziehen macht es groß', await stufe() === 'gross', await stufe());
+  // Wisch im Inhalt (Touch): steht er oben, klappt das Blatt eine Stufe zu; ist er gescrollt, scrollt er nur
+  const wisch = (dy, scroll) => pt.evaluate(([dy, scroll]) => new Promise(fertig => {
+    const el = document.querySelector('#panel .inhalt'); el.scrollTop = scroll;
+    const ziel = document.querySelector('#zeitplan') || el, r = el.getBoundingClientRect(), x = r.left + 100, y0 = r.top + 60;
+    const t = y => new Touch({ identifier: 1, target: ziel, clientX: x, clientY: y });
+    const send = (typ, y) => ziel.dispatchEvent(new TouchEvent(typ, { bubbles: true, cancelable: true, touches: typ === 'touchend' ? [] : [t(y)], changedTouches: [t(y)] }));
+    send('touchstart', y0);
+    let i = 0;
+    const schritt = () => { i++; send('touchmove', y0 + dy * i / 6); if (i < 6) setTimeout(schritt, 16); else { send('touchend', y0 + dy); setTimeout(fertig, 400); } };
+    setTimeout(schritt, 16);
+  }), [dy, scroll]);
+  await wisch(260, 40);
+  pruef('Blatt: Wisch im gescrollten Inhalt klappt nicht zu', await stufe() === 'gross', await stufe());
+  await wisch(260, 0);
+  pruef('Blatt: Wisch nach unten im Inhalt (oben) klappt eine Stufe zu', await stufe() === 'mittel', await stufe());
+  await zuStufe('mittel');
   // Runde mit Wunschlänge ab dem Start: vier Punkte (Start, zwei Ecken, Start), andere Richtung ändert die Ecken
   await pt.tap('#bKreuz');
   await blattStufe(false);

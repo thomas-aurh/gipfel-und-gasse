@@ -303,6 +303,12 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   nav.reiter#leiste{background:var(--karte)}
   #panel header{padding-top:4px;border-radius:16px 16px 0 0}
   #griff{display:block;width:44px;height:5px;border-radius:3px;background:#c9d1c6;margin:4px auto 6px;cursor:grab;touch-action:none}
+  /* der ganze Kopf zieht; der Griff hat eine große unsichtbare Fläche (oben und unten je 10 px mehr) */
+  #panel header{touch-action:none;cursor:grab}
+  #griff{position:relative}
+  #griff::before{content:'';position:absolute;inset:-10px -40px}
+  #panel.zieht{transition:none}
+  #panel .inhalt{overscroll-behavior-y:contain}
   .marke{font-size:16px}
   #meldung{bottom:calc(46vh + 70px)}
   #panel.gross ~ #meldung,body:has(#panel.gross) #meldung{bottom:auto;top:calc(76px + env(safe-area-inset-top,0px))}
