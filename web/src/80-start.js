@@ -13,9 +13,10 @@ function reiter(name) {
   const vorher = document.body.classList.contains('ohneBlatt');
   document.body.classList.toggle('ohneBlatt', name === 'karte');
   if (vorher !== (name === 'karte')) setTimeout(() => karte.invalidateSize(), 230);
-  if (name === 'karte') return;
+  // auch bei „Karte“ alle Seiten aus: unsichtbare Knöpfe dürfen nicht per Tastatur erreichbar bleiben
   document.querySelectorAll('.inhalt>section').forEach(s => s.classList.toggle('an', s.dataset.reiter === name));
   $('seitenTitel').textContent = SEITEN[name];
+  if (name === 'karte') return;
   $('kopfZahlen').hidden = name !== 'planen' && name !== 'unterwegs';
   $('panel').querySelector('.inhalt').scrollTop = 0;
   if (name === 'entdecken') wetterLaden();
@@ -28,9 +29,15 @@ document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach
 
 // Menü links oben
 function menue(auf) {
+  const warAuf = !$('menue').hidden;
   $('menue').hidden = !auf; $('menueHg').hidden = !auf;
-  if (auf) document.querySelectorAll('#menue [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === seite));
   $('bMenue').setAttribute('aria-expanded', String(!!auf));
+  // solange das Menü offen ist, ist der Rest nicht bedienbar (auch nicht per Tastatur); Fokus ins Menü und zurück
+  ['oben', 'panel', 'kartenknoepfe', 'karte'].forEach(id => { $(id).inert = !!auf; });
+  if (auf) {
+    document.querySelectorAll('#menue [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === seite));
+    ($('menue').querySelector('button.an') || $('menue').querySelector('button')).focus();
+  } else if (warAuf && $('menue').contains(document.activeElement)) $('bMenue').focus();
 }
 $('bMenue').addEventListener('click', e => { e.stopPropagation(); menue($('menue').hidden); });
 $('menueHg').addEventListener('click', () => menue(false));

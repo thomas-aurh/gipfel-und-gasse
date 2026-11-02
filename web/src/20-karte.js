@@ -107,6 +107,7 @@ karte.on('popupclose', () => { popupZuSeit = Date.now(); });
 // Auf dem Telefon verdeckt das Blatt unten einen Teil der Karte: beim Einpassen Rand lassen
 function einpassen(grenzen) {
   const tel = window.innerWidth <= 760;
-  const unten = tel ? $('panel').getBoundingClientRect().height : 0;
+  // Abstand bis zur Oberkante des Blatts, samt Leiste unten und Rand des Geräts
+  const unten = tel ? Math.max(0, window.innerHeight - $('panel').getBoundingClientRect().top) : 0;
   karte.fitBounds(grenzen, { paddingTopLeft: [30, 80], paddingBottomRight: [70, unten + 30], maxZoom: 16 });
 }

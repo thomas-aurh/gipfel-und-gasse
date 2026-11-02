@@ -129,6 +129,14 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#karte .leaflet-tile-loaded', { timeout: 10000 });
   pruef('Seite lädt ohne Fehler', konsole.length === 0, konsole);
   pruef('Hinweis ohne Route sichtbar', await page.isVisible('#leerHinweis'));
+  // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
+  await page.click('#bMenue');
+  pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
+  await page.keyboard.press('Escape');
+  pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
+  await page.click('[data-reiter=karte]');
+  pruef('Karte: keine Seite mehr aktiv (nichts per Tastatur erreichbar)', await page.evaluate(() => !document.querySelector('.inhalt>section.an') && document.body.classList.contains('ohneBlatt')));
+  await page.click('[data-reiter=planen]');
   pruef('Logo und Seitentitel im Kopf, Name im Menü', await page.evaluate(() => !!document.querySelector('#logo svg') && document.querySelector('.marke').textContent.includes('Tour planen') &&
     document.querySelector('.menue-kopf').textContent.includes('Gipfel & Gasse')));
   pruef('Browser-Symbol gesetzt', await page.evaluate(() => (document.querySelector('link[rel=icon]') || {}).href.startsWith('data:image/svg+xml;base64,')));

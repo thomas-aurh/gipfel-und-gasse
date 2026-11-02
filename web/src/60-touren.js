@@ -26,7 +26,8 @@ function tourSpeichern() {
   const name = (S.name || '').trim() || (S.fest ? 'Spur' : 'Tour') + ' vom ' + new Date().toLocaleDateString('de-DE');
   const tour = {
     id: S.tourId || ('t' + Date.now().toString(36)),
-    name, datum: new Date().toISOString(),
+    // erneutes Speichern behält das ursprüngliche Datum (Statistik je Jahr)
+    name, datum: ((liste.find(t => t.id === (S.tourId || '')) || {}).datum) || new Date().toISOString(),
     profil: S.profil, tempo: S.tempo,
     wps: S.fest ? null : S.wps.map(w => (w.name || w.min) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0] : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
@@ -152,10 +153,13 @@ function tourenZeigen() {
   listeZeigen($('tourliste'), geplant, 'Noch keine geplanten Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.');
   listeZeigen($('gangliste'), gegangen, 'Noch keine gegangenen Touren. Unter „Unterwegs“ aufzeichnen, danach „Als Tour speichern“.');
   const sum = (f) => gegangen.reduce((s, t) => s + (+t.kurz[f] || 0), 0);
-  const jahr = new Date().getFullYear(), diesesJahr = gegangen.filter(t => new Date(t.datum).getFullYear() === jahr);
+  // gemessene Dauer und Aufnahmetag aus den Zeitstempeln der Spur; ohne Zeitstempel die geschätzte Gehzeit und das Speicherdatum
+  const dauer = t => { const a = t.spur[0] && t.spur[0][3], b = t.spur[t.spur.length - 1] && t.spur[t.spur.length - 1][3]; return a && b > a ? (b - a) / 3.6e6 : (+t.kurz.zeit || 0); };
+  const tag = t => (t.spur[0] && t.spur[0][3]) ? new Date(t.spur[0][3]) : new Date(t.datum);
+  const jahr = new Date().getFullYear(), diesesJahr = gegangen.filter(t => tag(t).getFullYear() === jahr);
   $('gangStatistik').innerHTML = gegangen.length ? [
     [gegangen.length, gegangen.length === 1 ? 'Tour' : 'Touren'], [R.kmText(sum('laenge')), 'Strecke'], [Math.round(sum('auf')) + ' m', 'bergauf'],
-    [R.zeitText(sum('zeit')), 'unterwegs'], [diesesJahr.length, 'Touren ' + jahr], [R.kmText(diesesJahr.reduce((s, t) => s + (+t.kurz.laenge || 0), 0)), 'Strecke ' + jahr]
+    [R.zeitText(gegangen.reduce((s, t) => s + dauer(t), 0), true), 'unterwegs'], [diesesJahr.length, 'Touren ' + jahr], [R.kmText(diesesJahr.reduce((s, t) => s + (+t.kurz.laenge || 0), 0)), 'Strecke ' + jahr]
   ].map(([w, t]) => '<div class="zahl"><b>' + R.esc(String(w)) + '</b><span>' + R.esc(t) + '</span></div>').join('') : '';
   $('gangStatistik').hidden = !gegangen.length;
 }
