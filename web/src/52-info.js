@@ -109,6 +109,7 @@ function infoDetail(popup, o, ll, zurueck) {
   if (t.ele && !isNaN(parseFloat(t.ele))) z.push(Math.round(parseFloat(t.ele)) + ' m hoch');
   const web = t.website || t['contact:website'];
   if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
+  z.push(googleLinkHtml(o.name, t, o.lat, o.lon));
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
   box.innerHTML = z.join('<br>');
   const knoepfe = document.createElement('div');

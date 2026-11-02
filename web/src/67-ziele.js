@@ -195,6 +195,7 @@ function zielPopup(z, liste, lage) {
   t.push('<b>' + (z.stand === 'besucht' ? '✅ ' : '⭐ ') + R.esc(z.name) + '</b>', '<span class="klein">' + R.esc([z.wo, liste, R.ZIEL_STAND[z.stand]].concat(z.stich).filter(Boolean).join(' · ')) + '</span>');
   if (z.notiz) t.push('<span>' + R.esc(z.notiz).replace(/\n/g, '<br>') + '</span>');
   if (z.link) t.push('<a href="' + R.esc(z.link) + '" target="_blank" rel="noopener">' + R.esc(z.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40)) + '</a>');
+  t.push(googleLinkHtml(z.name, {}, z.lat, z.lon));
   t.push('<span class="klein">Anreise: <a href="' + R.esc(R.anreiseLink(z.lat, z.lon, 'oepnv')) + '" target="_blank" rel="noopener">🚆 Bus und Bahn</a> · <a href="' +
     R.esc(R.anreiseLink(z.lat, z.lon, 'auto')) + '" target="_blank" rel="noopener">🚗 Auto</a></span>');
   box.innerHTML = t.join('<br>');

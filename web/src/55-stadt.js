@@ -44,8 +44,12 @@ function sehensPruefen() {
     $('stadtStatus').textContent = 'Bis Zoomstufe 14 heranzoomen, dann erscheinen sie auf der Karte.';
     return;
   }
-  // schon geladen für diesen Ausschnitt: nur neu zeichnen
-  if (sehensGrenze && sehensGrenze.contains(karte.getBounds())) { sehensZeichnen(); return; }
+  // schon geladen für diesen Ausschnitt: nur neu zeichnen; nicht, solange ein Fenster an einer Marke offen ist (Neuzeichnen
+  // nähme die Marke und damit das Fenster weg, z. B. wenn Leaflet die Karte für ein großes Fenster verschiebt)
+  if (sehensGrenze && sehensGrenze.contains(karte.getBounds())) {
+    if (!ebeneSehens.getLayers().some(m => m.isPopupOpen && m.isPopupOpen())) sehensZeichnen();
+    return;
+  }
   sehensUhr = setTimeout(sehensLaden, 700);   // erst laden, wenn die Karte ruht
 }
 karte.on('moveend', () => { if (stadtBereit) sehensPruefen(); });
@@ -127,6 +131,7 @@ function sehensPopup(o, kat, lage) {
   if (wiki) z.push('<a href="' + R.esc(wiki) + '" target="_blank" rel="noopener">Wikipedia</a>');
   const web = t.website || t['contact:website'];
   if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
+  z.push(googleLinkHtml(o.name, t, o.lat, o.lon));
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
   box.innerHTML = z.join('<br>');
   wikiAnhaengen(box, t, lage);

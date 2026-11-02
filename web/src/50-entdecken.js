@@ -129,6 +129,7 @@ function ortPopup(o, kat, lage) {
     if (/^https?:\/\//.test(url)) z.push('<a href="' + R.esc(url) + '" target="_blank" rel="noopener">Webseite</a>');
   }
   if (o.d != null) z.push('<span class="klein">bei ' + R.kmText(o.d) + ' der Route</span>');
+  z.push(googleLinkHtml(o.name, t, o.lat, o.lon));
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
   box.innerHTML = z.join('<br>');
   wikiAnhaengen(box, t, lage);
@@ -145,6 +146,18 @@ function oeffnungHtml(roh) {
 function oeffnungKurz(roh) {
   const j = R.oeffnungJetzt(roh, new Date());
   return j.zustand === 'unbekannt' ? R.esc(roh) : '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.replace(/ \(Feiertage nicht berücksichtigt\)$/, '')) + '</span>';
+}
+
+// Link „in Google Maps“ für ein Ort-Fenster: Öffnungszeiten und Bewertungen schaut man dort nach. Fehlt in OSM die
+// Adresse, kommt der Ortsname (Photon, nur mit Netz) dazu, sobald er da ist; bis dahin sucht der Link die Stelle.
+function googleLinkHtml(name, t, lat, lon) {
+  const id = 'g' + Math.random().toString(36).slice(2, 9);
+  const hatAdresse = t && (t['addr:city'] || t['addr:postcode'] || t['addr:street']);
+  if (!hatAdresse && name) ortsname(lat, lon).then(ort => {
+    const a = document.getElementById(id);
+    if (a && ort) a.href = R.googleSuche(name, t, ort, lat, lon);
+  }).catch(() => {});
+  return '<a id="' + id + '" href="' + R.esc(R.googleSuche(name, t, '', lat, lon)) + '" target="_blank" rel="noopener">🔎 In Google Maps (Öffnungszeiten, Bewertungen)</a>';
 }
 
 // Vorlesen: im Browser die Sprachausgabe des Browsers; die App ersetzt das durch die von Android (75-app.js)
@@ -325,6 +338,7 @@ function drinnenPopup(o, kat, lage) {
   if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
   const web = t.website || t['contact:website'];
   if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
+  z.push(googleLinkHtml(o.name, t, o.lat, o.lon));
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
   box.innerHTML = z.join('<br>');
   wikiAnhaengen(box, t, lage);

@@ -1195,6 +1195,15 @@ var R = (function () {
     return aus.sort((a, b) => a.d - b.d);
   }
 
+  // Ort in Google Maps suchen (Öffnungszeiten, Bewertungen, Fotos stehen dort): Name mit Adresse aus OSM, sonst mit dem
+  // Ortsnamen; ohne beides die Koordinaten (Google zeigt dann die Stelle). URL-Schnittstelle von Google (api=1).
+  function googleSuche(name, t, ort, lat, lon) {
+    t = t || {};
+    const strasse = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
+    const stadt = [t['addr:postcode'], t['addr:city'] || t['addr:place']].filter(Boolean).join(' ') || ort || '';
+    const q = name && (strasse || stadt) ? [name, strasse, stadt].filter(Boolean).join(', ') : lat.toFixed(6) + ',' + lon.toFixed(6);
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+  }
   // Anreise zum Start in Google Maps (URL-Schnittstelle von Google, öffnet am Telefon die App): Bus und Bahn oder Auto
   function anreiseLink(lat, lon, art) {
     return 'https://www.google.com/maps/dir/?api=1&destination=' + lat.toFixed(5) + ',' + lon.toFixed(5) + '&travelmode=' + (art === 'auto' ? 'driving' : 'transit');
@@ -1461,7 +1470,7 @@ var R = (function () {
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
-    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx
+    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;
