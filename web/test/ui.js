@@ -100,7 +100,7 @@ async function dienste(ctx) {
   });
   await ctx.route(/api\.open-meteo\.com\/v1\/forecast.*current=/, r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
     body: JSON.stringify({ current: { time: '2026-11-02T12:00', temperature_2m: 18.4, weather_code: 1 } }) }));
-  await ctx.route(/api\.open-meteo\.com\/v1\/forecast(?!.*current=)/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ daily: {
+  await ctx.route(/api\.open-meteo\.com\/v1\/forecast(?!.*current=)/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elevation: 612, daily: {
     time: ['2026-11-01', '2026-11-02', '2026-11-03'], weather_code: [1, 61, 95], temperature_2m_max: [14.2, 9.1, 11], temperature_2m_min: [3.1, 4, 2],
     precipitation_probability_max: [5, 80, 60], wind_speed_10m_max: [12, 25, 30], sunset: ['2026-11-01T16:52', '2026-11-02T16:50', '2026-11-03T16:49'] } }) }); });
   await ctx.route(/api\.open-meteo\.com\/v1\/elevation/, r => {
@@ -302,6 +302,28 @@ function pruef(name, bed, info) {
   await zuSeite(page, 'entdecken');
   await page.waitForSelector('#wetter .wetter');
   pruef('Wetter: Gewitterwarnung mit Tag', (await page.textContent('#wetter')).includes('Gewitter am Di'), await page.textContent('#wetter .warnung'));
+  // Wetter für: Start der Route (mit Ortsname und Höhe), Kartenmitte, gesuchter Ort
+  await page.waitForFunction(() => document.querySelector('#wetter').textContent.includes('Vorhersage für'));
+  const wStart = await page.textContent('#wetter p.klein');
+  pruef('Wetter: am Start der Route, mit Ortsname und Höhe', wStart.includes('Stadtplatz, Teststadt') && wStart.includes('Start der Route') && wStart.includes('auf 612 m'), wStart);
+  await page.selectOption('#wetterOrt', 'mitte');
+  await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('Kartenmitte'));
+  pruef('Wetter: Kartenmitte wählbar', (await page.textContent('#wetter p.klein')).includes('Kartenmitte'));
+  await page.selectOption('#wetterOrt', 'standort');
+  await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('dein Standort'), null, { timeout: 15000 });
+  pruef('Wetter: am eigenen Standort', (await page.textContent('#wetter p.klein')).includes('dein Standort'));
+  await page.selectOption('#wetterOrt', 'ort');
+  pruef('Wetter: Ort suchen zeigt das Suchfeld', await page.isVisible('#wetterSuchfeld') && (await page.textContent('#wetter')).includes('suchen'));
+  await page.fill('#wetterSuchfeld', 'Testg');
+  await page.click('#bWetterSuche');
+  await page.waitForSelector('#wetterTreffer li button');
+  await page.click('#wetterTreffer li button:has-text("Testgipfel")');
+  await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('Testgipfel'));
+  const wOrt = await page.textContent('#wetter p.klein');
+  pruef('Wetter: für den gesuchten Gipfel, gespeichert', wOrt.includes('Testgipfel (Gipfel') && wOrt.includes('gesuchter Ort') && await page.isHidden('#wetterTreffer') &&
+    (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.wetterPlatz')).name)) === 'Testgipfel', wOrt);
+  await page.selectOption('#wetterOrt', 'start');
+  await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('Start der Route'));
   await page.click('#bOrte');
   await page.waitForSelector('#ortliste li');
   const orteText = await page.textContent('#ortliste');

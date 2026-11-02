@@ -31,11 +31,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   die Vorhersage (WMO-Code ab 95) zu oft oder zu selten warnt.
 - **Auto-Pause und Runde (#22) nicht auf dem Handy geprüft:** ob 10 s an der Ampel im Takt des Dienstes sauber als
   Pause zählen, wie gut die Runde die Wunschlänge trifft (im Klicktest mit nachgebildetem Routing).
-- **Fester Signierschlüssel (#20) wartet auf Thomas:** Geheimnis `KEYSTORE_PASSWORT` anlegen (GitHub › Settings ›
-  Secrets and variables › Actions, langes Zufallspasswort aus dem Passwortmanager). Der nächste Bau auf `main` legt den
-  Schlüssel an und bewahrt ihn verschlüsselt im Entwurfs-Release `signierschluessel` auf (nicht löschen, nicht
-  veröffentlichen). Diese eine APK einmal neu installieren: vorher „Sicherung speichern“, danach „Sicherung laden“.
-  Bis dahin signiert der Ersatzschlüssel aus dem Cache (wird er geräumt, gilt dasselbe).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy. Die Datei kommt erst mit dem nächsten Lauf „Kartenpakete“ nach dem Merge ins Paket.
@@ -165,6 +160,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   abschaltbar, ab Android 10) (#19).
   Gewitterwarnung unterwegs (alle 30 min beim Folgen oder Aufzeichnen, nächste drei Stunden, Ansage; in der App aus dem
   Dienst) und Statistik je Woche und Monat mit Säulen der letzten 12 Monate (#23).
+  Fester Signierschlüssel aktiv (#20): angelegt in Lauf 79, Lauf 80 holte denselben aus dem Entwurfs-Release
+  (Fingerabdruck `20:D3:8E:B0:…:59:48:B2` in beiden); Thomas hat einmal neu installiert (Bau 80). Wetter für Start,
+  eigenen Standort, Kartenmitte oder einen gesuchten Ort, mit Ortsname und Höhe der Vorhersage (#24).
   Tagebuch: Einträge als Punkte auf der Karte (Ebene abschaltbar, „Öffnen“ springt zum Eintrag) und Reise als Heft
   zum Drucken oder als PDF (Kennzahlen, Skizze der Wege und Orte, Tage mit Einträgen und Fotos) (#21).
 
