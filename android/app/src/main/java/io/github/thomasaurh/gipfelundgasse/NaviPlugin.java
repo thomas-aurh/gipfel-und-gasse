@@ -138,6 +138,8 @@ public class NaviPlugin extends Plugin {
             }
             z.tempo = call.getDouble("tempo", z.tempo);
             z.rad = call.getBoolean("rad", z.rad);
+            z.lauf = call.getBoolean("lauf", z.lauf);
+            z.kmAnsage = call.getBoolean("kmAnsage", z.kmAnsage);
             z.ansagen = call.getBoolean("ansagen", z.ansagen);
             boolean warFolgen = z.folgen;
             z.folgen = call.getBoolean("folgen", z.folgen) && z.strecke != null;

@@ -86,6 +86,11 @@ S.tempo = SPEICHER.lesen('tempo', 1);
 $('profilwahl').value = S.profil;
 $('tempowahl').value = String(S.tempo);
 if ($('tempowahl').value !== String(S.tempo)) { S.tempo = 1; $('tempowahl').value = '1'; }
+S.pace = SPEICHER.lesen('pace', 6);
+$('pacewahl').value = String(S.pace);
+if ($('pacewahl').value !== String(S.pace)) { S.pace = 6; $('pacewahl').value = '6'; }
+$('kmAnsage').checked = !!SPEICHER.lesen('kmAnsage', false);
+tempoFelder();
 
 // Teilen-Link hat Vorrang vor dem Entwurf
 function ausLink() {

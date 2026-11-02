@@ -170,7 +170,7 @@ function naviNeu() {
   if (!e || !U.pos) return;
   const lage = R.aufStrecke(e.pts, U.pos, U.fortschritt);
   if (lage.abw < 80) U.fortschritt = lage.d;
-  const rest = R.rest(e.pts, lage.d, S.tempo, (PROFILE[S.profil] || PROFILE.wandern).art);
+  const rest = R.rest(e.pts, lage.d, tempoAktuell(), artAktuell());
   $('uRest').textContent = R.kmText(rest.meter);
   // noch offene Stopps: deren Teilstück endet hinter der aktuellen Stelle
   const offenAb = (e.stueckEnde || []).findIndex(d => d > lage.d + 20);
@@ -210,7 +210,7 @@ $('bAufz').onclick = () => {
     return;
   }
   if (!gpsAn()) return;
-  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [] };
+  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: Date.now() };
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
@@ -228,10 +228,25 @@ function aufzNeu() {
   const p = { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t };
   const letzt = a.pts[a.pts.length - 1];
   if (letzt && R.abstand(letzt, p) < Math.max(8, U.pos.gen / 2)) return;   // stehen bleiben zählt nicht als Weg
+  if (letzt) a.meter += R.abstand(letzt, p);
   a.pts.push(p);
   aufzLinie.addLatLng([p.lat, p.lon]);
+  kmAnsagen(a.meter, a.start, a);
   aufzZahlen();
 }
+
+// jeden vollen Kilometer der Aufzeichnung: Zeit und Tempo des letzten Kilometers (im Browser per Sprachausgabe;
+// in der App sagt das der Navigationsdienst an, auch bei gesperrtem Bildschirm)
+function kmAnsagen(meter, start, zaehler) {
+  const km = Math.floor(meter / 1000);
+  if (km <= zaehler.km) return;
+  const jetzt = Date.now();
+  const text = R.kmAnsage(km, jetzt - start, (jetzt - zaehler.kmZeit) / (km - zaehler.km));
+  zaehler.km = km; zaehler.kmZeit = jetzt;
+  if (!$('kmAnsage').checked || NATIV || !window.speechSynthesis) return;
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; speechSynthesis.speak(u); } catch (e) { /* ohne Sprachausgabe */ }
+}
+$('kmAnsage').onchange = e => { SPEICHER.schreiben('kmAnsage', e.target.checked); SPEICHER.schreiben('kmAnsageGewaehlt', true); };
 
 function aufzZahlen() {
   const a = U.aufz;
@@ -242,6 +257,7 @@ function aufzZahlen() {
   const dauer = ((a.ende || Date.now()) - a.start) / 3600e3;
   $('aDauer').textContent = R.zeitText(dauer, true);
   $('aAuf').textContent = R.hoehenmeter(pts.map(p => p.ele), 8).auf + ' m';
+  $('aTempo').textContent = m > 50 ? R.paceText(dauer * 60 / (m / 1000)) : '–';
 }
 setInterval(() => { if (U.aufz && U.aufz.laeuft) aufzZahlen(); }, 30000);
 

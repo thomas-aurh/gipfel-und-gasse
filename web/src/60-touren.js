@@ -28,7 +28,7 @@ function tourSpeichern() {
     id: S.tourId || ('t' + Date.now().toString(36)),
     // erneutes Speichern behält das ursprüngliche Datum (Statistik je Jahr)
     name, datum: ((liste.find(t => t.id === (S.tourId || '')) || {}).datum) || new Date().toISOString(),
-    profil: S.profil, tempo: S.tempo,
+    profil: S.profil, tempo: S.tempo, pace: S.pace,
     wps: S.fest ? null : S.wps.map(w => (w.name || w.min) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0] : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
     zeit: S.fest ? null : zeitplanLesen(),
@@ -67,6 +67,7 @@ function tourOeffnen(id) {
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
   if (t.tempo && [...$('tempowahl').options].some(o => +o.value === +t.tempo)) { S.tempo = +t.tempo; $('tempowahl').value = String(S.tempo); }
+  if (t.pace && [...$('pacewahl').options].some(o => +o.value === +t.pace)) { S.pace = +t.pace; $('pacewahl').value = String(S.pace); }
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
     S.fest = null;

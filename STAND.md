@@ -20,6 +20,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Pfeil in Blickrichtung (#15) nicht auf dem Handy geprüft:** Kompass im WebView der App und Querformat nur im
   Klicktest nachgebildet. Der neue Schritt „Download-Seite erneuern“ läuft erst beim ersten Bau auf `main` (danach
   prüfen: Link liefert die APK, Titel nennt den neuen Bau).
+- **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
+  der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
 - **Reisetagebuch (#16) nicht auf dem Handy geprüft:** Kamera und Galerie aus der App (Dateiauswahl im WebView),
   Größe der Sicherung mit vielen Fotos. Fotos liegen im Speicher der App (IndexedDB): wer die App deinstalliert, löscht
   sie mit, darum vorher „Sicherung speichern“.
@@ -58,6 +60,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Standort neu zum nächsten offenen Ziel, danach wie geplant; ohne Netz mit den Routendaten der Pakete, sonst
   brouter.de; höchstens ein Versuch je Minute. Im Dienst statt in der Oberfläche, damit es bei gesperrtem Bildschirm
   läuft. Verworfen: zurück auf die Route (führt zurück, auch wenn ein Parallelweg passt), erst fragen.
+- **Laufen mit Leistungs-Kilometern** (02.11., Thomas' Wahl: Lauf-Profil mit Pace, Kilometer-Ansagen): Zeit =
+  (km + Hm/100) × Lauftempo, wie die Leistungs-km im Trailrunning (ITRA). Zurückgestellt: Auto-Pause, Rundkurs mit
+  Wunschlänge.
 - **Reisetagebuch** (02.11., Thomas' Wahl aus Vorbild Polarsteps/Day One): Reisen mit Zeitraum, Einträge mit Text und
   Fotos, Ort, Uhrzeit und Wetter automatisch; Fotos auf 1600 px verkleinert in IndexedDB, in der Sicherung als
   Daten-Adresse. Zurückgestellt: Einträge auf der Karte, Heft zum Drucken.
@@ -139,6 +144,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Automatisches Umplanen beim Navigieren zum nächsten Ziel, neue Strecke blau auf der Karte (#14).
   Standortpunkt mit Pfeil in Blickrichtung (Kompass, beim Gehen GPS-Richtung); Download-Link bleibt beim Bau
   erreichbar (APK wird ersetzt statt die Seite neu anzulegen) (#15).
+  Laufen: Art „Laufen“ mit Lauftempo (min/km, 100 Hm wie 1 km), Ø Tempo und Kilometer-Ansage beim Aufzeichnen (#17).
   Reisetagebuch als Menüpunkt: Reisen mit Zeitraum, Einträge mit Text und Fotos, Ort und Wetter von selbst, gegangene
   Touren der Reise; Fotos kommen mit in die Sicherung (#16).
 

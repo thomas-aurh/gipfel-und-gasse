@@ -33,7 +33,9 @@ if (NATIV) {
   async function senden(mitRoute) {
     const e = S.ergebnis;
     if (mitRoute && e) app.plan = planKennung();
-    const opt = { tempo: S.tempo, rad: (PROFILE[S.profil] || PROFILE.wandern).art === 'rad', ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz };
+    // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen
+    const opt = { tempo: tempoAktuell(), rad: artAktuell() === 'rad', lauf: artAktuell() === 'lauf', kmAnsage: $('kmAnsage').checked,
+      ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
@@ -117,9 +119,16 @@ if (NATIV) {
       // auch wenn sie über „Beenden“ in der Mitteilung gestoppt wurde: jetzt speicherbar
       if (warAufz && !app.aufz && st.aufz.punkte > 1) $('bAufzSpeichern').disabled = false;
       $('aAuf').textContent = Math.round(st.aufz.auf) + ' m';
+      const std = ((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3;
+      $('aTempo').textContent = st.aufz.meter > 50 ? R.paceText(std * 60 / (st.aufz.meter / 1000)) : '–';
     }
   }
   Navi.addListener('position', anzeigen);
+  // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
+  $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  // Art gewechselt (z. B. auf Laufen, das die Kilometer-Ansage einschaltet) während einer Aufzeichnung ohne Routenführung:
+  // Einstellungen gleich an den Dienst; mit Routenführung schickt die Neuberechnung sie mit
+  $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });
 
   $('bNavi').onclick = async () => {
     if (app.folgen) { app.folgen = false; await senden(false).catch(() => {}); return; }
