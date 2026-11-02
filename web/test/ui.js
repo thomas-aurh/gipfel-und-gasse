@@ -322,6 +322,24 @@ function pruef(name, bed, info) {
   const wOrt = await page.textContent('#wetter p.klein');
   pruef('Wetter: für den gesuchten Gipfel, gespeichert', wOrt.includes('Testgipfel (Gipfel') && wOrt.includes('gesuchter Ort') && await page.isHidden('#wetterTreffer') &&
     (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.wetterPlatz')).name)) === 'Testgipfel', wOrt);
+  // verspätete Antworten überschreiben nichts: alte Suche nach neuer, GPS nach Wechsel zur Kartenmitte
+  await ctx.route(/photon\.komoot\.io\/api.*q=Altsuche/, async r => { await new Promise(x => setTimeout(x, 800)); r.fulfill({ status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ features: [{ geometry: { coordinates: [11.3, 47.7] }, properties: { name: 'Altort', osm_key: 'place', osm_value: 'village' } }] }) }); });
+  await page.fill('#wetterSuchfeld', 'Altsuche');
+  await page.click('#bWetterSuche');
+  await page.fill('#wetterSuchfeld', 'Testg');
+  await page.click('#bWetterSuche');
+  await page.waitForTimeout(1200);
+  const wTreffer = await page.textContent('#wetterTreffer');
+  pruef('Wetter-Suche: ältere Antwort überschreibt die neuere nicht', wTreffer.includes('Testgipfel') && !wTreffer.includes('Altort'), wTreffer);
+  await page.evaluate(() => { const g = navigator.geolocation, alt = g.getCurrentPosition.bind(g); window.__gpsAlt = alt;
+    g.getCurrentPosition = (ok, f, o) => setTimeout(() => ok({ coords: { latitude: 47.9, longitude: 11.9, accuracy: 10 } }), 700); });
+  await page.selectOption('#wetterOrt', 'standort');
+  await page.selectOption('#wetterOrt', 'mitte');
+  await page.waitForTimeout(1300);
+  const wRennen = await page.textContent('#wetter p.klein');
+  pruef('Wetter: verspäteter Standort überschreibt die Kartenmitte nicht', wRennen.includes('Kartenmitte') && !wRennen.includes('dein Standort'), wRennen);
+  await page.evaluate(() => { navigator.geolocation.getCurrentPosition = window.__gpsAlt; });
   await page.selectOption('#wetterOrt', 'start');
   await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('Start der Route'));
   await page.click('#bOrte');

@@ -135,6 +135,7 @@ function ortPopup(o, kat) {
 
 // ---------- Wetter ----------
 let wetterFuer = '';
+let wetterNr = 0, wetterFuerNr = 0, wetterSuchNr = 0;   // jüngste Anfrage gewinnt; verspätete Antworten werden verworfen
 // Wofür das Wetter gilt: Start der Route, eigener Standort, Kartenmitte oder ein gesuchter Ort (gespeichert)
 let wetterWahl = SPEICHER.lesen('wetterOrt', 'start');
 let wetterPlatz = SPEICHER.lesen('wetterPlatz', null);
@@ -146,7 +147,8 @@ $('wetterOrt').onchange = e => {
   SPEICHER.schreiben('wetterOrt', wetterWahl);
   $('wetterSuche').hidden = wetterWahl !== 'ort';
   $('wetterTreffer').hidden = true;
-  if (wetterWahl === 'ort' && !wetterPlatz) { $('wetter').textContent = 'Einen Gipfel, eine Stadt oder eine Hütte suchen.'; $('wetterSuchfeld').focus(); return; }
+  wetterSuchNr++;
+  if (wetterWahl === 'ort' && !wetterPlatz) { wetterNr++; wetterFuer = ''; $('wetter').textContent = 'Einen Gipfel, eine Stadt oder eine Hütte suchen.'; $('wetterSuchfeld').focus(); return; }
   wetterLaden(true);
 };
 $('wetterSuche').onsubmit = async ev => {
@@ -156,8 +158,10 @@ $('wetterSuche').onsubmit = async ev => {
   const ul = $('wetterTreffer');
   ul.hidden = false;
   ul.innerHTML = '<li style="cursor:default"><span class="was klein">Suche …</span></li>';
+  const nr = ++wetterSuchNr;
   let treffer;
-  try { treffer = await suchen(text, karte.getCenter()); } catch (err) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc('Suche nicht möglich: ' + err.message) + '</span></li>'; return; }
+  try { treffer = await suchen(text, karte.getCenter()); } catch (err) { if (nr !== wetterSuchNr) return; ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc('Suche nicht möglich: ' + err.message) + '</span></li>'; return; }
+  if (nr !== wetterSuchNr) return;   // inzwischen neuer gesucht
   ul.innerHTML = treffer.length ? '' : '<li style="cursor:default"><span class="was klein">Nichts gefunden.</span></li>';
   for (const t of treffer) {
     const li = document.createElement('li');
@@ -191,16 +195,18 @@ async function wetterPunkt() {
 }
 
 async function wetterLaden(neu) {
+  const nr = ++wetterNr;
   const p = await wetterPunkt();
+  if (nr !== wetterNr) return;   // inzwischen andere Wahl
   if (!p) { $('wetter').textContent = 'Einen Gipfel, eine Stadt oder eine Hütte suchen.'; return; }
   const k = wetterWahl + ':' + p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
-  if (k === wetterFuer && !neu) return;
-  wetterFuer = k;
+  if (k === wetterFuer && !neu) { wetterNr = wetterFuerNr; return; }   // derselbe Ort: die laufende Anfrage gilt weiter
+  wetterFuer = k; wetterFuerNr = nr;
   $('wetter').textContent = 'Wetter wird geladen …';
   try {
     // Ortsname nur, wo er nicht schon bekannt ist (nur mit Netz; sonst bleiben die Koordinaten)
     const [j, name] = await Promise.all([wetterHolen(p.lat, p.lon), p.name ? Promise.resolve(p.name) : ortsname(p.lat, p.lon).catch(() => null)]);
-    if (k !== wetterFuer) return;   // inzwischen anderer Ort gewählt
+    if (nr !== wetterNr) return;   // inzwischen anderer Ort gewählt
     const d = j.daily, tage = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     let html = '<div class="wetter">';
     for (let i = 0; i < d.time.length; i++) {
@@ -218,6 +224,7 @@ async function wetterLaden(neu) {
     $('wetter').innerHTML = html + '<p class="klein">' + R.esc((p.hinweis || '') + 'Vorhersage für ' + wo + ', ' + p.art + hoehe +
       ' (Open-Meteo). Gerechnet für die Geländehöhe an diesem Punkt; je 100 m höher etwa 0,65 °C kälter.') + '</p>';
   } catch (err) {
+    if (nr !== wetterNr) return;
     wetterFuer = '';
     $('wetter').textContent = 'Wetter nicht erreichbar: ' + err.message;
   }
