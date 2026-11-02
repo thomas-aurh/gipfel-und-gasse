@@ -47,6 +47,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
+- **Info auf der Karte (#27) nicht auf dem Handy geprüft:** Antwortzeit von Overpass beim Antippen, ob der Umkreis
+  (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Google-Maps-Link
   in der App (öffnet er die Maps-App?), Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
   Wie viele Orte in Oberbayern `opening_hours` in der verstandenen Form tragen, ist nicht gemessen (sonst Rohtext).
@@ -130,6 +132,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Info auf der Karte (Knopf ⓘ): Antippen zeigt, was dort ist (benannte Objekte aus dem Kartenpaket und von
+  Overpass, mit Öffnungszeit, Eintritt und Wikipedia) statt einen Punkt zu setzen; Fenster gehen am Telefon nicht mehr
+  hinter Blatt oder Suchleiste auf (#27). Anlass: Thomas' Rückmeldung, Sehenswürdigkeiten und „geöffnet“ gingen auf
+  dem Handy nicht recht; die Symbole der Kartenbilder sind nicht antippbar, ein Tipp setzte dort den Start.
 
 - **02.11.** Ort-Fenster zeigt „geöffnet bis …“ / „schließt bald“ / „öffnet morgen 10:00“ aus `opening_hours` (der
   übliche Teil; Feiertage nicht), Wikipedia-Kurzinfo mit Bild und Vorlesen (in der App über die Sprachausgabe von

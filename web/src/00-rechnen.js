@@ -1023,6 +1023,49 @@ var R = (function () {
     return { zustand: 'zu', text: heuteZu + ', öffnet ' + wann + hhmm(naechst[0]) + zusatz };
   }
 
+  // ---------- Was ist hier? (Info beim Antippen der Karte) ----------
+  // benannte Objekte im Umkreis, ohne Straßen, Grenzen, Routen, Flächennutzung, Gewässer und Orte (Dörfer kennt die Suche)
+  function infoAbfrage(lat, lon, radius) {
+    return '[out:json][timeout:12];nwr(around:' + Math.round(radius) + ',' + lat.toFixed(6) + ',' + lon.toFixed(6) + ')["name"][!"highway"][!"boundary"][!"route"]' +
+      '[!"landuse"][!"waterway"][!"railway"][!"place"][!"power"];out center tags 40;';
+  }
+  const INFO_ART = {
+    historic: { castle: 'Burg oder Schloss', monument: 'Denkmal', memorial: 'Gedenkstätte', ruins: 'Ruine', church: 'historische Kirche', monastery: 'Kloster', wayside_shrine: 'Bildstock', wayside_cross: 'Wegkreuz', archaeological_site: 'Ausgrabung', city_gate: 'Stadttor', tower: 'Turm' },
+    tourism: { hotel: 'Hotel', guest_house: 'Pension', hostel: 'Herberge', camp_site: 'Campingplatz', zoo: 'Zoo', aquarium: 'Aquarium', theme_park: 'Freizeitpark', chalet: 'Ferienhaus' },
+    amenity: { restaurant: 'Gasthaus', pub: 'Kneipe', bar: 'Bar', fast_food: 'Imbiss', pharmacy: 'Apotheke', theatre: 'Theater', cinema: 'Kino', library: 'Bücherei',
+      townhall: 'Rathaus', marketplace: 'Markt', hospital: 'Krankenhaus', doctors: 'Arztpraxis', bank: 'Bank', post_office: 'Post', school: 'Schule', fuel: 'Tankstelle', planetarium: 'Planetarium' },
+    leisure: { sports_centre: 'Sportanlage', water_park: 'Bad', swimming_pool: 'Schwimmbad', nature_reserve: 'Naturschutzgebiet', stadium: 'Stadion' },
+    natural: { peak: 'Gipfel', saddle: 'Sattel', cave_entrance: 'Höhle', spring: 'Quelle', tree: 'Baum', rock: 'Fels', water: 'See' }
+  };
+  function infoArt(t) {
+    const s = stadtArt(t);
+    if (s !== 'Ort' && !(s === 'Denkmal' && INFO_ART.historic[t.historic])) return s;
+    for (const k of ['historic', 'tourism', 'amenity', 'leisure', 'natural']) if (INFO_ART[k][t[k]]) return INFO_ART[k][t[k]];
+    const o = ortArt(t);
+    if (o !== 'Ort') return o;
+    if (t.shop) return 'Geschäft';
+    if (t.building || t['building:part']) return 'Gebäude';
+    if (t.office) return 'Büro';
+    return 'Ort';
+  }
+  // Treffer nach Nähe; was etwas zu erzählen hat (Wikipedia, Sehenswürdigkeit), rückt etwas vor. Mehrfache (online und
+  // aus dem Kartenpaket) nur einmal. Höchstens 6.
+  function infoLesen(listen, punkt) {
+    const gesehen = new Map();
+    for (const json of listen) for (const e of (json && json.elements) || []) {
+      const t = e.tags || {}, lat = e.lat != null ? e.lat : e.center && e.center.lat, lon = e.lon != null ? e.lon : e.center && e.center.lon;
+      if (lat == null || !t.name) continue;
+      const id = e.type + '/' + e.id;
+      if (gesehen.has(id) && Object.keys(gesehen.get(id).tags).length >= Object.keys(t).length) continue;
+      const d = abstand(punkt, { lat, lon });
+      const wert = d - (t.wikipedia || t.wikidata ? 15 : 0) - (t.tourism || t.historic ? 10 : 0) - (t.building && Object.keys(t).length < 4 ? -10 : 0);
+      gesehen.set(id, { id, lat, lon, name: t.name, tags: t, art: infoArt(t), d, wert });
+    }
+    return [...gesehen.values()].sort((a, b) => a.wert - b.wert).slice(0, 6);
+  }
+  // Umkreis für das Antippen: etwa 30 Bildpunkte am Bildschirm, mindestens 15 m, höchstens 150 m
+  function infoRadius(meterJePixel) { return Math.max(15, Math.min(150, Math.round(meterJePixel * 30))); }
+
   // ---------- Regenplan: drinnen in der Nähe ----------
   // Regen oder Gewitter erwartet: Wettercode Regen/Schauer/Gewitter oder Regenwahrscheinlichkeit ab 60 %
   function regenTag(code, wahrsch) { return (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 || (wahrsch != null && wahrsch >= 60); }
@@ -1319,7 +1362,8 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    infoAbfrage, infoArt, infoLesen, infoRadius
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

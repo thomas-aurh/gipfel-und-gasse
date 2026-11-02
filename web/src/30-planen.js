@@ -45,6 +45,8 @@ karte.on('click', e => {
   if (!$('lagenwahl').hidden) return;
   // mit Fadenkreuz setzt ein Tipp nichts, er holt die Stelle unter das Kreuz
   if (kreuzAn) { kreuzHin(e.latlng); return; }
+  // Info-Modus (52-info.js): Antippen zeigt, was dort ist, statt einen Punkt zu setzen
+  if (infoAn) { infoZeigen(e.latlng); return; }
   wegpunktDazu(e.latlng.lat, e.latlng.lng);
 });
 
@@ -147,6 +149,7 @@ function zeichenRoute() {
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }
+      if (infoAn) { infoZeigen(ev.latlng); return; }
       if (S.fest) return;
       wegpunktDazu(ev.latlng.lat, ev.latlng.lng, k + 1);
     });

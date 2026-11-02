@@ -211,6 +211,14 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .unterwegs-zahlen .zahl b{font-size:22px}
 #meldung{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:3000;background:#1f2a22;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,520px);box-shadow:0 4px 16px #0004;transition:opacity .25s;pointer-events:none}
 #meldung:empty{opacity:0}
+#infoHinweis{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);z-index:999;background:var(--karte);color:var(--text);padding:6px 6px 6px 12px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:var(--schatten);display:flex;align-items:center;gap:8px}
+#infoHinweis[hidden]{display:none}
+#infoHinweis button{border:0;border-radius:8px;background:var(--haupt);color:#fff;font-weight:700;padding:6px 10px}
+.info-liste{list-style:none;margin:6px 0 0;padding:0;max-height:230px;overflow:auto}
+.info-liste button{display:block;width:100%;text-align:left;border:1px solid var(--linie);background:var(--feld);color:var(--text);border-radius:8px;padding:6px 8px;margin:0 0 4px;font-weight:600}
+.info-liste small{display:block;font-weight:400;color:var(--grau)}
+.info-fuss{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.info-fuss .klein{flex-basis:100%}
 #abseits{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);z-index:1000;background:#c0392b;color:#fff;padding:8px 14px;border-radius:10px;font-weight:600;box-shadow:var(--schatten)}
 a{color:var(--gruen)}
 /* ---------- Gestaltung: ruhige Karten statt Rahmen, klare Überschriften ---------- */
@@ -302,6 +310,7 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   #karte{inset:0}
   #oben{left:10px;right:62px}
   #abseits{left:10px}
+  #infoHinweis{left:10px;right:62px}
   #panel{top:auto;width:auto;right:0;height:46vh;border-radius:16px 16px 0 0;box-shadow:0 -2px 14px #0003;transition:height .2s}
   #panel{bottom:calc(58px + env(safe-area-inset-bottom,0px))}
   #panel.klein{height:62px}

@@ -104,6 +104,10 @@ async function dienste(ctx) {
     }
     const m = /around:\d+,(-?[\d.]+),(-?[\d.]+)/.exec(q);
     const lat = +m[1], lon = +m[2];
+    if (q.includes('[!"highway"]')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'way', id: 41, center: { lat: lat + 0.0001, lon }, tags: { name: 'Schloss Test', historic: 'castle', wikidata: 'Q2', opening_hours: 'Mo-Su 00:00-24:00', fee: 'yes' } },
+      { type: 'node', id: 42, lat: lat - 0.0001, lon: lon + 0.0001, tags: { name: 'Bäckerei Test', shop: 'bakery' } }
+    ] }) });
     if (q.includes('planetarium')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
       { type: 'node', id: 31, lat: lat + 0.01, lon, tags: { tourism: 'museum', name: 'Heimatmuseum', opening_hours: 'Mo-Su 00:00-24:00', wikipedia: 'de:Heimatmuseum' } },
       { type: 'way', id: 32, center: { lat: lat + 0.002, lon }, tags: { leisure: 'sports_centre', sport: 'swimming', name: 'Hallenbad Test' } },
@@ -329,6 +333,33 @@ function pruef(name, bed, info) {
     const o = document.querySelector('#anreiseOepnv').href, a = document.querySelector('#anreiseAuto').href;
     return /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=-?\d+\.\d{5},-?\d+\.\d{5}&travelmode=transit$/.test(o) && a.endsWith('travelmode=driving') && o.split('&')[1] === a.split('&')[1]; }));
   pruef('Zeitplan im Entwurf gespeichert', await page.evaluate(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf')); return e.zeit && e.zeit.start === '08:00' && e.zeit.pause === 45 && e.zeit.tag === '2026-11-01'; }));
+  // Info auf der Karte: Antippen zeigt, was dort ist, statt einen Punkt zu setzen
+  const wpVorInfo = (await page.$$('.wp')).length;
+  await page.click('#bInfo');
+  pruef('Info-Modus an: Hinweis sichtbar, gespeichert', await page.isVisible('#infoHinweis') && (await page.getAttribute('#bInfo', 'aria-pressed')) === 'true' &&
+    (await page.evaluate(() => localStorage.getItem('gug.infoModus'))) === 'true');
+  const kbInfo = await page.locator("#karte").boundingBox();
+  await page.waitForTimeout(500);
+  await page.mouse.click(kbInfo.x + kbInfo.width * 0.75, kbInfo.y + kbInfo.height * 0.35);
+  await page.waitForSelector('.info-liste button', { timeout: 8000 });
+  const infoListe = await page.$$eval('.info-liste button', l => l.map(x => x.textContent));
+  pruef('Info: Liste der Orte an der Stelle, kein neuer Punkt', infoListe.length === 2 && infoListe[0].includes('Schloss Test') && infoListe[0].includes('Burg oder Schloss') &&
+    infoListe[0].includes('durchgehend geöffnet') && (await page.$$('.wp')).length === wpVorInfo, infoListe);
+  await page.click('.info-liste button >> nth=0');
+  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-popup .wiki p')].some(p => p.textContent.includes('Alte Burg')), null, { timeout: 5000 }).catch(() => {});
+  const infoText = await page.textContent('.leaflet-popup-content');
+  pruef('Info: Fenster mit Art, geöffnet jetzt, Eintritt und Wikipedia', infoText.includes('Schloss Test') && infoText.includes('Durchgehend geöffnet') && infoText.includes('Eintritt: ja') &&
+    infoText.includes('Das Alte Burg (Teststadt) ist') && infoText.includes('Als Stopp'), infoText);
+  await page.click('.leaflet-popup button:has-text("Liste")');
+  pruef('Info: zurück zur Liste', (await page.$$('.info-liste button')).length === 2);
+  await page.click('.leaflet-popup-close-button');
+  await page.click('#bInfoAus');
+  await page.waitForTimeout(500);
+  await page.mouse.click(kbInfo.x + kbInfo.width * 0.75, kbInfo.y + kbInfo.height * 0.35);
+  await page.waitForTimeout(300);
+  pruef('Info aus: Antippen setzt wieder einen Punkt', (await page.$$('.wp')).length === wpVorInfo + 1 && !(await page.isVisible('#infoHinweis')));
+  await page.click('#bZurueck');
+  await page.waitForTimeout(300);
   // Entdecken: Wetter und Orte
   await zuSeite(page, 'entdecken');
   await page.waitForSelector('#wetter .wetter');
@@ -1180,6 +1211,23 @@ function pruef(name, bed, info) {
   await wisch(260, 0);
   pruef('Blatt: Wisch nach unten im Inhalt (oben) klappt eine Stufe zu', await stufe() === 'mittel', await stufe());
   await zuStufe('mittel');
+  // Info-Fenster am Telefon: geht über dem Blatt auf, nicht dahinter (auch wenn knapp über dem Blatt angetippt)
+  // (das Fadenkreuz ist hier noch an; mit ihm holt ein Tipp die Stelle unters Kreuz, darum kurz aus)
+  await pt.evaluate(() => { document.querySelector('#bKreuz').click(); document.querySelector('#bInfo').click(); });
+  await pt.waitForTimeout(500);
+  {
+    // knapp unter der Suche angetippt: das Fenster ginge nach oben unter die Suchleiste, die Karte muss es herunterschieben
+    // (unter dem Info-Hinweis, der unter der Suche steht)
+    const hinweisUnten = await pt.evaluate(() => document.querySelector('#infoHinweis').getBoundingClientRect().bottom);
+    await pt.touchscreen.tap(150, hinweisUnten + 20);
+    await pt.waitForSelector('.info-liste button', { timeout: 8000 });
+    await pt.waitForTimeout(600);
+    const lage = await pt.evaluate(() => { const p = document.querySelector('.leaflet-popup').getBoundingClientRect(); return { oben: p.top, unten: p.bottom,
+      blatt: document.querySelector('#panel').getBoundingClientRect().top, suche: document.querySelector('#infoHinweis').getBoundingClientRect().bottom }; });
+    pruef("Telefon: Info-Fenster über dem Blatt und unter Suche und Hinweis", lage.unten <= lage.blatt && lage.oben >= lage.suche, lage);
+    await pt.evaluate(() => { document.querySelector('.leaflet-popup-close-button').click(); document.querySelector('#bInfoAus').click(); document.querySelector('#bKreuz').click(); });
+    await pt.waitForTimeout(500);
+  }
   // Runde mit Wunschlänge ab dem Start: vier Punkte (Start, zwei Ecken, Start), andere Richtung ändert die Ecken
   await pt.tap('#bKreuz');
   await blattStufe(false);
