@@ -162,16 +162,22 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.beiNeuem != null) Z.beiNeuem.run();
     }
 
-    private void folgen(Location loc) {
+    /** Lage auf der Strecke, Fortschritt und Rest (samt offener Besichtigungen) aus einem Standort; unter der Sperre von Z. */
+    private static NaviRechnen.Lage lageRechnen(Location loc) {
         NaviRechnen.Lage lage = NaviRechnen.aufStrecke(Z.strecke, loc.getLatitude(), loc.getLongitude(), Z.fortschritt);
         Z.abw = lage.abw;
         if (lage.abw < 80) Z.fortschritt = lage.d;
         double d = Double.isNaN(Z.fortschritt) ? lage.d : Z.fortschritt;
         Z.rest = NaviRechnen.rest(Z.strecke, d, Z.tempo, Z.rad);
-        // noch offene Besichtigungen zur Restzeit
         double min = 0;
         for (int i = 0; i < Z.stopps.size(); i++) if (Z.stopps.get(i)[0] > d + 20) min += Z.stopps.get(i)[1];
         if (min > 0) Z.rest = NaviRechnen.restMit(Z.rest.meter, Z.rest.auf, Z.rest.ab, Z.rest.stunden + min / 60);
+        return lage;
+    }
+
+    private void folgen(Location loc) {
+        NaviRechnen.Lage lage = lageRechnen(loc);
+        double d = Double.isNaN(Z.fortschritt) ? lage.d : Z.fortschritt;
 
         long jetzt = System.currentTimeMillis();
         double grenze = Math.max(50, loc.getAccuracy() * 1.5);
@@ -284,7 +290,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     /** Neue Route übernehmen, wenn noch dieselbe Navigation läuft; liefert die Ansage oder null. */
     private static String uebernehmen(Umplanen.Neu n, NaviRechnen.Strecke alt, List<double[]> offen, List<String> namen) {
         synchronized (Z) {
-            if (!Z.folgen || Z.strecke != alt) return null;   // inzwischen beendet oder eine andere Route aus der App
+            // inzwischen beendet, eine andere Route aus der App oder wieder auf der Route: Ergebnis verwerfen
+            if (!Z.folgen || Z.strecke != alt || !Z.abseitsGemeldet) return null;
             Z.strecke = n.strecke;
             Z.hinweise = n.hinweise;
             Z.hinweisVorab = new boolean[n.hinweise.size()];
@@ -306,6 +313,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.zielGemeldet = false;
             Z.naechsterKm = -1;
             Z.umgeplant++;
+            if (Z.letzte != null) lageRechnen(Z.letzte);   // Rest und Abstand gleich auf der neuen Strecke, nicht erst beim nächsten Fix
             return "Neue Route: noch " + NaviRechnen.kmSprache(n.strecke.laenge()) + ".";
         }
     }

@@ -537,7 +537,11 @@ function pruef(name, bed, info) {
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
-        route: async () => { aufrufe.push(['route', {}]); return { pts: [[47.76, 11.385], [47.765, 11.39], [47.77, 11.4]], laenge: 1830, umgeplant: 1 }; },
+        route: async () => {
+          aufrufe.push(['route', {}]);
+          if (window.__routeLangsam) await new Promise(r => setTimeout(r, 400));
+          return { pts: [[47.76, 11.385], [47.765, 11.39], [47.77, 11.4]], laenge: 1830, umgeplant: window.__routeFassung || 1 };
+        },
         addListener: (n, f) => { if (n === 'position') hoerer = f; }
       }
     });
@@ -569,9 +573,22 @@ function pruef(name, bed, info) {
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 1800, auf: 80, stunden: 0.6 }, abw: 3, abseits: false, umgeplant: 1 }));
   await pa2.waitForTimeout(100);
   pruef('App: gleiche Meldung holt die Strecke nicht noch einmal', (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'route').length)) === 1);
+  // anderes Tempo: nur Einstellungen an den Dienst, die umgeplante Strecke bleibt
+  await pa2.evaluate(() => { const t = document.querySelector('#tempowahl'); t.value = '0.7'; t.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(300);
+  const nachTempo = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop();
+  pruef('App: Tempo ändern schickt keine Route (Umplanung bleibt)', nachTempo[1].tempo === 0.7 && !nachTempo[1].pts && (await blau()) === 1, Object.keys(nachTempo[1]));
   await pa2.click('#bNavi');
   await pa2.waitForTimeout(200);
   pruef('App: Folgen beendet, neu geplante Strecke weg', (await blau()) === 0);
+  // verspätete Antwort nach dem Beenden zeichnet nichts mehr
+  await pa2.click('#bNavi');
+  await pa2.waitForTimeout(200);
+  await pa2.evaluate(() => { window.__routeLangsam = true; window.__routeFassung = 2; window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 1800, auf: 80, stunden: 0.6 }, abw: 3, abseits: false, umgeplant: 2 }); });
+  await pa2.click('#bNavi');
+  await pa2.waitForTimeout(600);
+  pruef('App: verspätete Antwort nach dem Beenden wird verworfen', (await blau()) === 0);
+  await pa2.evaluate(() => { window.__routeLangsam = false; window.__routeFassung = 1; });
   await pa2.click('#bNavi');
   await pa2.waitForTimeout(200);
   // Aufzeichnung über „Beenden“ in der Mitteilung gestoppt: Speichern wird frei, Dauer bis zum Ende

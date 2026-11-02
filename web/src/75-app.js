@@ -27,8 +27,12 @@ if (NATIV) {
     return out;
   }
 
+  // Kennung des Plans, der zuletzt an den Dienst ging: Neuberechnungen ohne Planänderung (z. B. anderes Tempo) schicken
+  // nur Einstellungen, sonst ersetzte die geplante Strecke eine unterwegs umgeplante
+  const planKennung = () => JSON.stringify([S.wps, S.profil, S.fest, S.ergebnis ? S.ergebnis.pts.length : 0, S.ergebnis ? S.ergebnis.laenge : 0]);
   async function senden(mitRoute) {
     const e = S.ergebnis;
+    if (mitRoute && e) app.plan = planKennung();
     const opt = { tempo: S.tempo, rad: (PROFILE[S.profil] || PROFILE.wandern).art === 'rad', ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
@@ -64,10 +68,13 @@ if (NATIV) {
   async function umplanZeigen(st) {
     if (!st.umgeplant || st.umgeplant === app.umgeplant) return;
     app.umgeplant = st.umgeplant;
+    const fassung = st.umgeplant;
     try {
       const r = await Navi.route();
+      // inzwischen Folgen beendet, neue Route aus der App oder schon wieder umgeplant: diese Antwort nicht zeigen
+      if (!app.folgen || app.umgeplant !== fassung || !r || r.umgeplant !== fassung) return;
       ebeneUmplan.clearLayers();
-      if (!r || !r.pts || r.pts.length < 2) return;
+      if (!r.pts || r.pts.length < 2) return;
       L.polyline(r.pts, { color: '#fff', weight: 9, opacity: 0.9, interactive: false }).addTo(ebeneUmplan);
       L.polyline(r.pts, { color: '#1a73e8', weight: 5, opacity: 0.95, interactive: false, className: 'umplan' }).addTo(ebeneUmplan);
       melde('Neu geplant ab deinem Standort zum nächsten Ziel: noch ' + R.kmText(r.laenge || 0) + '.', 6);
@@ -149,7 +156,7 @@ if (NATIV) {
   const altesAuswerten = auswertenUndZeigen;
   auswertenUndZeigen = function () {
     altesAuswerten();
-    if (app.folgen && S.ergebnis) senden(true).catch(() => {});
+    if (app.folgen && S.ergebnis) senden(planKennung() !== app.plan).catch(() => {});
   };
 
   // GPX: WebView kann nichts herunterladen, darum über das Teilen-Menü (z. B. an CoMaps, Drive, Mail)
