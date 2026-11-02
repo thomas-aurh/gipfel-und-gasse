@@ -93,7 +93,10 @@ jobs:
       - name: Veröffentlichte Pakete holen (statt neu bauen)
         if: steps.art.outputs.neu != 'true'
         run: |
-          gh release download kartenpakete -D ausgabe
+          # nur die Dateien der aktuellen Liste, jede einmal (der Release hält auch noch die der vorigen Liste)
+          gh release download kartenpakete --pattern pakete.json -D ausgabe
+          python3 -c "import json, os; print('\n'.join(sorted({os.path.basename(f['url']) for p in json.load(open('ausgabe/pakete.json'))['pakete'] for f in p['dateien']})))" > /tmp/dateien.txt
+          while read -r f; do gh release download kartenpakete --pattern "$f" -D ausgabe; done < /tmp/dateien.txt
           # alle Regionen der Liste gelten als gebaut, damit die Proben sie prüfen
           python3 -c "import json; json.dump([p['id'] for p in json.load(open('ausgabe/pakete.json'))['pakete']], open('ausgabe/gebaut.json', 'w'))"
           ls -la ausgabe
