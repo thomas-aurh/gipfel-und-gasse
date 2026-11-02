@@ -25,7 +25,10 @@ const server = http.createServer((req, res) => {
   const eintrag = paket && (paket.dateien || []).find(d => d.name === m[2]);
   const datei = eintrag ? path.join(ordner, path.basename(eintrag.url)) : path.join(ordner, m[1] + '-' + m[2]);
   if (!fs.existsSync(datei)) { res.writeHead(404); return res.end(); }
-  const laenge = fs.statSync(datei).size, t = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
+  // Bereich wie im Kartenserver der App: aus der Range-Kopfzeile oder aus ?von=&bis= (so liest die App seit #32)
+  const q = new URL(req.url, 'http://x').searchParams;
+  const bereich = req.headers.range || (q.has('von') ? 'bytes=' + q.get('von') + '-' + (q.get('bis') || '') : '');
+  const laenge = fs.statSync(datei).size, t = /bytes=(\d+)-(\d*)/.exec(bereich);
   if (!t) { res.writeHead(200, { 'Content-Length': laenge, 'Accept-Ranges': 'bytes' }); return fs.createReadStream(datei).pipe(res); }
   const von = +t[1], bis = Math.min(laenge - 1, t[2] ? +t[2] : laenge - 1);
   res.writeHead(206, { 'Content-Range': `bytes ${von}-${bis}/${laenge}`, 'Content-Length': bis - von + 1, 'Accept-Ranges': 'bytes' });
