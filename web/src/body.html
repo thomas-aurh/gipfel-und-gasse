@@ -166,7 +166,20 @@
 
       <!-- Entdecken -->
       <section data-reiter="entdecken">
-        <h3>Wetter am Start</h3>
+        <h3>Wetter</h3>
+        <div class="zeile">
+          <label>Wetter für<select id="wetterOrt">
+            <option value="start">Start der Route</option>
+            <option value="standort">Mein Standort</option>
+            <option value="mitte">Kartenmitte</option>
+            <option value="ort">Ort suchen (Gipfel, Stadt, Hütte) …</option>
+          </select></label>
+        </div>
+        <form id="wetterSuche" class="zeile" hidden>
+          <label style="flex:1">Ort<input type="text" id="wetterSuchfeld" placeholder="z. B. Herzogstand, Lindau, Kärlingerhaus" autocomplete="off"></label>
+          <button class="knopf" type="submit" id="bWetterSuche">Suchen</button>
+        </form>
+        <ul id="wetterTreffer" class="liste" hidden></ul>
         <div id="wetter" class="klein">Erst eine Route planen oder die Karte auf das Gebiet schieben.</div>
         <div id="stadtBox" hidden>
           <h3>Sehenswürdigkeiten im Kartenausschnitt</h3>

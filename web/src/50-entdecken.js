@@ -135,15 +135,78 @@ function ortPopup(o, kat) {
 
 // ---------- Wetter ----------
 let wetterFuer = '';
-async function wetterLaden() {
-  const e = S.ergebnis;
-  const p = e && e.pts.length ? e.pts[0] : (() => { const c = karte.getCenter(); return { lat: c.lat, lon: c.lng }; })();
-  const k = p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
-  if (k === wetterFuer) return;
-  wetterFuer = k;
+let wetterNr = 0, wetterFuerNr = 0, wetterSuchNr = 0;   // jüngste Anfrage gewinnt; verspätete Antworten werden verworfen
+// Wofür das Wetter gilt: Start der Route, eigener Standort, Kartenmitte oder ein gesuchter Ort (gespeichert)
+let wetterWahl = SPEICHER.lesen('wetterOrt', 'start');
+let wetterPlatz = SPEICHER.lesen('wetterPlatz', null);
+if (!['start', 'standort', 'mitte', 'ort'].includes(wetterWahl)) wetterWahl = 'start';
+$('wetterOrt').value = wetterWahl;
+$('wetterSuche').hidden = wetterWahl !== 'ort';
+$('wetterOrt').onchange = e => {
+  wetterWahl = e.target.value;
+  SPEICHER.schreiben('wetterOrt', wetterWahl);
+  $('wetterSuche').hidden = wetterWahl !== 'ort';
+  $('wetterTreffer').hidden = true;
+  wetterSuchNr++;
+  if (wetterWahl === 'ort' && !wetterPlatz) { wetterNr++; wetterFuer = ''; $('wetter').textContent = 'Einen Gipfel, eine Stadt oder eine Hütte suchen.'; $('wetterSuchfeld').focus(); return; }
+  wetterLaden(true);
+};
+$('wetterSuche').onsubmit = async ev => {
+  ev.preventDefault();
+  const text = $('wetterSuchfeld').value.trim();
+  if (text.length < 2) return;
+  const ul = $('wetterTreffer');
+  ul.hidden = false;
+  ul.innerHTML = '<li style="cursor:default"><span class="was klein">Suche …</span></li>';
+  const nr = ++wetterSuchNr;
+  let treffer;
+  try { treffer = await suchen(text, karte.getCenter()); } catch (err) { if (nr !== wetterSuchNr) return; ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc('Suche nicht möglich: ' + err.message) + '</span></li>'; return; }
+  if (nr !== wetterSuchNr) return;   // inzwischen neuer gesucht
+  ul.innerHTML = treffer.length ? '' : '<li style="cursor:default"><span class="was klein">Nichts gefunden.</span></li>';
+  for (const t of treffer) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="zeichen">📍</span><button class="was oeffnen">' + R.esc(t.name) + '<small>' + R.esc(t.wo || '') + '</small></button>';
+    li.onclick = () => {
+      wetterPlatz = { name: t.name, wo: t.wo || '', lat: t.lat, lon: t.lon };
+      SPEICHER.schreiben('wetterPlatz', wetterPlatz);
+      ul.hidden = true;
+      $('wetterSuchfeld').value = t.name;
+      wetterLaden(true);
+    };
+    ul.appendChild(li);
+  }
+};
+
+// Punkt und Bezeichnung zur Wahl; null mit Grund, wenn es (noch) keinen gibt
+async function wetterPunkt() {
+  const mitte = () => { const c = karte.getCenter(); return { lat: c.lat, lon: c.lng, art: 'Kartenmitte' }; };
+  if (wetterWahl === 'ort') return wetterPlatz ? { lat: wetterPlatz.lat, lon: wetterPlatz.lon, name: wetterPlatz.name, wo: wetterPlatz.wo, art: 'gesuchter Ort' } : null;
+  if (wetterWahl === 'mitte') return mitte();
+  if (wetterWahl === 'standort') {
+    if (standortFrisch()) return { lat: U.pos.lat, lon: U.pos.lon, art: 'dein Standort' };
+    const p = await new Promise(ok => navigator.geolocation ? navigator.geolocation.getCurrentPosition(
+      x => ok({ lat: x.coords.latitude, lon: x.coords.longitude, art: 'dein Standort' }), () => ok(null), { timeout: 12000, maximumAge: 300000 }) : ok(null));
+    return p || Object.assign(mitte(), { hinweis: 'Kein Standort verfügbar, darum die Kartenmitte. ' });
+  }
+  const e = S.ergebnis, w = S.wps[0];
+  if (e && e.pts.length) return { lat: e.pts[0].lat, lon: e.pts[0].lon, art: 'Start der Route' };
+  if (w) return { lat: w.lat, lon: w.lon, art: 'Start der Route' };
+  return Object.assign(mitte(), { hinweis: 'Noch keine Route, darum die Kartenmitte. ' });
+}
+
+async function wetterLaden(neu) {
+  const nr = ++wetterNr;
+  const p = await wetterPunkt();
+  if (nr !== wetterNr) return;   // inzwischen andere Wahl
+  if (!p) { $('wetter').textContent = 'Einen Gipfel, eine Stadt oder eine Hütte suchen.'; return; }
+  const k = wetterWahl + ':' + p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
+  if (k === wetterFuer && !neu) { wetterNr = wetterFuerNr; return; }   // derselbe Ort: die laufende Anfrage gilt weiter
+  wetterFuer = k; wetterFuerNr = nr;
   $('wetter').textContent = 'Wetter wird geladen …';
   try {
-    const j = await wetterHolen(p.lat, p.lon);
+    // Ortsname nur, wo er nicht schon bekannt ist (nur mit Netz; sonst bleiben die Koordinaten)
+    const [j, name] = await Promise.all([wetterHolen(p.lat, p.lon), p.name ? Promise.resolve(p.name) : ortsname(p.lat, p.lon).catch(() => null)]);
+    if (nr !== wetterNr) return;   // inzwischen anderer Ort gewählt
     const d = j.daily, tage = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     let html = '<div class="wetter">';
     for (let i = 0; i < d.time.length; i++) {
@@ -156,8 +219,12 @@ async function wetterLaden() {
     html += '</div>';
     const gw = R.gewitterTage(d.weather_code, d.time);
     if (gw.length) html = '<div class="warnung">⛈️ Gewitter ' + gw.join(', ') + ': In den Bergen früh starten und Grate am Nachmittag meiden.</div>' + html;
-    $('wetter').innerHTML = html + '<p class="klein">Vorhersage für ' + p.lat.toFixed(3) + ', ' + p.lon.toFixed(3) + ' (Open-Meteo). Am Gipfel ist es kälter und windiger: je 100 m etwa 0,65 °C weniger.</p>';
+    const wo = (name ? name + (p.wo ? ' (' + p.wo + ')' : '') : p.lat.toFixed(3) + ', ' + p.lon.toFixed(3));
+    const hoehe = typeof j.elevation === 'number' ? ' auf ' + Math.round(j.elevation) + ' m' : '';
+    $('wetter').innerHTML = html + '<p class="klein">' + R.esc((p.hinweis || '') + 'Vorhersage für ' + wo + ', ' + p.art + hoehe +
+      ' (Open-Meteo). Gerechnet für die Geländehöhe an diesem Punkt; je 100 m höher etwa 0,65 °C kälter.') + '</p>';
   } catch (err) {
+    if (nr !== wetterNr) return;
     wetterFuer = '';
     $('wetter').textContent = 'Wetter nicht erreichbar: ' + err.message;
   }
