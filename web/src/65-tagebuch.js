@@ -473,6 +473,7 @@ async function eintragZeigen(reiseId, eintragId) {
 
 // ---------- Reise als Heft (Drucken oder „Als PDF speichern“) ----------
 let heftUrls = [];
+
 async function heftBauen(reiseId) {
   const d = tagebuchLesen();
   const r = d.reisen.find(x => x.id === reiseId);
@@ -484,7 +485,7 @@ async function heftBauen(reiseId) {
   let nr = 0;
   const nummer = new Map(eintraege.filter(e => e.ort).map(e => [e.id, ++nr]));
   const skizze = R.heftSkizze(eintraege.filter(e => e.ort).map(e => ({ lat: e.ort.lat, lon: e.ort.lon, nr: nummer.get(e.id) })),
-    touren.map(t => spurEntpacken(t.spur)), 700, 380);
+    touren.flatMap(t => R.spurTeile(spurEntpacken(t.spur))), 700, 380);
   const fotos = eintraege.reduce((n, e) => n + (e.fotos || []).length, 0);
   const km = touren.reduce((s, t) => s + (+t.kurz.laenge || 0), 0);
   const h = $('tbHeft');
@@ -532,6 +533,9 @@ function heftEnde() {
   if (!document.documentElement.classList.contains('heft')) return;
   document.documentElement.classList.remove('heft');
   $('tbHeft').hidden = true;
+  // Fotos des Hefts freigeben (bei fotoreichen Reisen sonst bis zum nächsten Heft im Speicher)
+  $('tbHeft').innerHTML = '';
+  heftUrls.forEach(u => URL.revokeObjectURL(u)); heftUrls = [];
   druckName = null;
   themaSetzen(thema, false);   // Darstellung zurück (fürs Heft auf hell gestellt)
   karte.invalidateSize();

@@ -325,6 +325,8 @@ const kreise = [...sk.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)].map(m =>
 pruef('Heft-Skizze: Orte innerhalb, Nord oben, Ost rechts', kreise.length === 2 && kreise.every(([x, y]) => x >= 24 && x <= 576 && y >= 24 && y <= 276) &&
   kreise[1][0] > kreise[0][0] && kreise[1][1] < kreise[0][1], kreise);
 pruef('Heft-Skizze: Weg und Maßstab', sk.includes('<polyline') && /<text x="12"[^>]*>\d+(,\d)? k?m<\/text>/.test(sk), sk.slice(-160));
+const teile = R.spurTeile([{ lat: 1, lon: 1 }, { lat: 1.1, lon: 1 }, { lat: 2, lon: 2, luecke: true }, { lat: 2.1, lon: 2 }, { lat: 3, lon: 3, luecke: true }]);
+pruef('Spur an Lücken geteilt, Einzelpunkte fallen weg', teile.length === 2 && teile[0].length === 2 && teile[1][0].lat === 2);
 pruef('Heft-Skizze: ein einzelner Ort geht, leer gibt nichts', R.heftSkizze([{ lat: 45.6, lon: 10.6, nr: 1 }], [], 600, 300).includes('<circle') && R.heftSkizze([], [], 600, 300) === '');
 pruef('Sicherung ohne Tagebuch: leer', R.sicherungTagebuch('{"app":"gipfel-und-gasse","touren":[]}').reisen.length === 0);
 

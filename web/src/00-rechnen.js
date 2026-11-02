@@ -674,6 +674,12 @@ var R = (function () {
   }
   // Übersicht fürs Heft einer Reise: Wege (Touren) und nummerierte Orte (Einträge) als SVG ohne Kartenkacheln, winkeltreu
   // genug für eine Skizze (Länge mit cos(Breite) gestaucht), mit Maßstab. orte: [{lat, lon, nr}], linien: [[{lat, lon}, …]]
+  // Spur an Lücken (mehrteilige Aufzeichnung oder GPX) in Abschnitte teilen, damit eine Skizze keine nicht gegangenen Wege zeigt
+  function spurTeile(pts) {
+    const teile = [[]];
+    for (const p of pts) { if (p.luecke && teile[teile.length - 1].length) teile.push([]); teile[teile.length - 1].push(p); }
+    return teile.filter(t => t.length > 1);
+  }
   function heftSkizze(orte, linien, breite, hoehe) {
     const alle = orte.concat(...linien);
     if (!alle.length) return '';
@@ -1079,7 +1085,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

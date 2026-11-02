@@ -507,7 +507,8 @@ function pruef(name, bed, info) {
   const heftPdf = await page.pdf({ path: path.join(OUT, '11-heft.pdf'), format: 'A4', printBackground: true });
   pruef('Heft: PDF entsteht', heftPdf.length > 5000);
   await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); window.print = window.__altPrint; window.setTimeout = window.__altTimeout; });
-  pruef('Heft: danach wieder die App', !(await page.evaluate(() => document.documentElement.classList.contains('heft'))) && await page.isVisible('#tbReise'));
+  pruef('Heft: danach wieder die App, Heft geleert', !(await page.evaluate(() => document.documentElement.classList.contains('heft'))) && await page.isVisible('#tbReise') &&
+    (await page.evaluate(() => document.querySelector('#tbHeft').children.length)) === 0);
   // Speichern, während ein Foto noch verkleinert wird, und doppelt getippt: ein Eintrag, mit Foto
   await page.click('#tbNeuerEintrag');
   await page.fill('#tbText', 'Zweiter Tag');
