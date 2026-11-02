@@ -347,5 +347,21 @@ pruef('Spur an Lücken geteilt, Einzelpunkte fallen weg', teile.length === 2 && 
 pruef('Heft-Skizze: ein einzelner Ort geht, leer gibt nichts', R.heftSkizze([{ lat: 45.6, lon: 10.6, nr: 1 }], [], 600, 300).includes('<circle') && R.heftSkizze([], [], 600, 300) === '');
 pruef('Sicherung ohne Tagebuch: leer', R.sicherungTagebuch('{"app":"gipfel-und-gasse","touren":[]}').reisen.length === 0);
 
+// Gewitter in den nächsten Stunden
+const jetztG = Date.UTC(2026, 6, 10, 12, 0) ;
+const zeitenG = [0, 1, 2, 3].map(h => jetztG / 1000 + h * 3600);
+pruef('Gewitter: erste Stunde mit Code ≥ 95 im Fenster', R.gewitterAb(zeitenG, [1, 3, 95, 96], jetztG, 3 * 3600e3) === jetztG + 2 * 3600e3);
+pruef('Gewitter: außerhalb des Fensters zählt nicht', R.gewitterAb(zeitenG, [1, 3, 61, 95], jetztG, 2 * 3600e3) === null);
+// Statistik: Mittwoch, 11.11.2026; Woche ab Montag 9.11.
+const stat = R.statistik([
+  { art: 'aufzeichnung', datum: '2026-11-10T10:00:00', kurz: { laenge: 5000, auf: 100 }, spur: [[47, 11, null]] },
+  { art: 'aufzeichnung', datum: '2026-11-11T10:00:00', kurz: { laenge: 3000, auf: 50 }, spur: [[47, 11, null, new Date(2026, 10, 4, 9).getTime()]] },
+  { art: 'aufzeichnung', datum: '2026-10-20T10:00:00', kurz: { laenge: 10000, auf: 400 }, spur: [[47, 11, null]] },
+  { art: 'plan', datum: '2026-11-10T10:00:00', kurz: { laenge: 99000, auf: 0 }, spur: [[47, 11, null]] }
+], new Date(2026, 10, 11, 18).getTime());
+pruef('Statistik: Woche ab Montag, Aufnahmetag zählt, Planungen nicht', stat.woche.touren === 1 && stat.woche.km === 5 && stat.vorwoche.touren === 1 && stat.vorwoche.km === 3, st);
+pruef('Statistik: Monat und Vormonat', stat.monat.km === 8 && stat.vormonat.km === 10 && stat.monat.auf === 150);
+pruef('Statistik: 12 Monate bis zum aktuellen', stat.monate.length === 12 && stat.monate[11].monat === 10 && stat.monate[11].km === 8 && stat.monate[10].km === 10);
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -101,6 +101,23 @@ body.druck #kreuz,body.druck #kreuzFeld{display:none!important}
 .tb-eintrag .kopf .aktionen{margin-left:auto;display:flex;gap:4px}
 .tb-eintrag .kopf .aktionen button{border:0;background:none;font-size:16px;padding:2px 6px;color:inherit}
 .tb-eintrag .text{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 2px}
+/* Statistik: Kilometer je Monat (ein Wert je Balken, eine Farbe, Werte an höchstem und aktuellem Monat) */
+:root{--balken:#2a7d3d}
+:root[data-thema=dunkel]{--balken:#55a664}
+@media (prefers-color-scheme:dark){:root:not([data-thema=hell]){--balken:#55a664}}
+#gangZeitraum{margin:2px 0 8px;line-height:1.6}
+.monate{margin:8px 0 14px}
+.monate figcaption{font-size:13px;font-weight:600;margin-bottom:6px}
+.monate .saeulen{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;align-items:end;height:110px;border-bottom:1px solid var(--linie);padding-top:16px}
+.monate .saeule{position:relative;height:100%;display:flex;align-items:flex-end;border:0;background:none;padding:0;cursor:default}
+.monate .saeule i{display:block;width:100%;min-height:0;background:var(--balken);border-radius:4px 4px 0 0}
+.monate .saeule:hover i,.monate .saeule:focus-visible i{filter:brightness(1.15)}
+.monate .saeule b{position:absolute;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:600;color:var(--text);white-space:nowrap}
+.monate .namen{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;font-size:10.5px;color:var(--grau);text-align:center;margin-top:3px}
+.monate details{margin-top:6px;font-size:12.5px}
+.monate table{border-collapse:collapse;margin-top:4px}
+.monate td,.monate th{padding:2px 10px 2px 0;text-align:left;font-variant-numeric:tabular-nums}
+#uWetter{margin:8px 0;padding:8px 10px;border-radius:9px;background:var(--fehlerhg);color:var(--fehlertext);font-weight:600}
 .tb-mk{width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid var(--haupt);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px #0005}
 .tb-eintrag.hervor{outline:3px solid var(--haupt);outline-offset:2px}
 /* Heft einer Reise: ersetzt beim Drucken die ganze Seite, mehrseitig, immer hell */

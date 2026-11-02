@@ -65,6 +65,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         double tempo = 1;
         boolean rad, lauf, folgen, aufzeichnen, ansagen = true;
         boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
+        String gewitter;             // Warnung „Gewitter möglich gegen …“ für die Anzeige, null = keine
+        long gewitterGemeldet;       // wann zuletzt angesagt (höchstens alle zwei Stunden)
         int aufzKm;                  // zuletzt angesagter Kilometer der Aufzeichnung
         long aufzKmZeit;             // Bewegungszeit (ms), als er erreicht war
         AutoPause pause;             // Auto-Pause der Aufzeichnung: Stehen zählt nicht zur Bewegungszeit
@@ -87,6 +89,50 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     static final Zustand Z = new Zustand();
 
     private LocationManager lm;
+    // alle 30 min beim Folgen oder Aufzeichnen: Gewitter in den nächsten drei Stunden am Standort (Open-Meteo)?
+    private final Handler wetter = new Handler(Looper.getMainLooper());
+    private final Runnable wetterLauf = new Runnable() {
+        @Override public void run() { wetterPruefen(); wetter.postDelayed(this, 30 * 60000); }
+    };
+
+    private void wetterPruefen() {
+        final double lat, lon;
+        synchronized (Z) {
+            if (!(Z.folgen || Z.aufzeichnen) || Z.letzte == null) return;
+            lat = Z.letzte.getLatitude(); lon = Z.letzte.getLongitude();
+        }
+        new Thread(() -> {
+            try {
+                JSONObject h = new JSONObject(holen(String.format(Locale.ROOT,
+                    "https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&hourly=weather_code&forecast_hours=4&timeformat=unixtime", lat, lon)))
+                    .getJSONObject("hourly");
+                JSONArray zt = h.getJSONArray("time"), cd = h.getJSONArray("weather_code");
+                long[] zeiten = new long[zt.length()];
+                int[] codes = new int[cd.length()];
+                for (int i = 0; i < zeiten.length; i++) zeiten[i] = zt.getLong(i);
+                for (int i = 0; i < codes.length; i++) codes[i] = cd.optInt(i, 0);
+                long jetzt = System.currentTimeMillis();
+                long ab = NaviRechnen.gewitterAb(zeiten, codes, jetzt, 3 * 3600000L);
+                final String text = ab < 0 ? null : ab <= jetzt ? "Gewitter möglich, jetzt" :
+                    "Gewitter möglich gegen " + new java.text.SimpleDateFormat("H", Locale.GERMANY).format(new java.util.Date(ab)) + " Uhr";
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    boolean ansagen;
+                    synchronized (Z) {
+                        // inzwischen beendet: diese Antwort gehört zu keiner laufenden Sitzung mehr
+                        if (!Z.laeuft || !(Z.folgen || Z.aufzeichnen)) { Z.gewitter = null; return; }
+                        Z.gewitter = text;
+                        ansagen = text != null && Z.ansagen && jetzt - Z.gewitterGemeldet > 2 * 3600000L;
+                        if (ansagen) Z.gewitterGemeldet = jetzt;
+                    }
+                    if (ansagen) { vibrieren(); sagen("Achtung: " + text + "."); }
+                    benachrichtigungAktualisieren();
+                    if (Z.beiNeuem != null) Z.beiNeuem.run();
+                });
+            } catch (Throwable e) {
+                Log.w(TAG, "Wetter nicht abrufbar", e);   // ohne Netz: keine Warnung, beim nächsten Mal wieder
+            }
+        }, "wetter").start();
+    }
     // alle 5 s: Auto-Pause prüfen (im Stehen liefert das GPS keine neuen Punkte, weil es erst ab 3 m meldet)
     private final Handler takt = new Handler(Looper.getMainLooper());
     private final Runnable taktLauf = new Runnable() {
@@ -137,7 +183,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         } else {
             startForeground(NR, n);
         }
-        if (!Z.laeuft) { gpsAn(); takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000); }
+        if (!Z.laeuft) {
+            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; }   // neue Sitzung: keine alte Warnung zeigen
+            gpsAn();
+            takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000);
+            wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
+        }
         synchronized (Z) {
             Z.laeuft = true;
             if (Z.folgen && Z.folgenSeit == 0) {
@@ -559,6 +610,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     private void beenden() {
+        wetter.removeCallbacks(wetterLauf);
+        synchronized (Z) { Z.gewitter = null; }
         takt.removeCallbacks(taktLauf);
         if (Z.aufzStart != 0) spurSichern(this);
         if (lm != null) lm.removeUpdates(this);
@@ -570,6 +623,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
 
     @Override
     public void onDestroy() {
+        wetter.removeCallbacks(wetterLauf);
         takt.removeCallbacks(taktLauf);
         if (lm != null) lm.removeUpdates(this);
         if (Z.aufzStart != 0) spurSichern(this);
