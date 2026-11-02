@@ -1,6 +1,7 @@
 // Reisetagebuch: Reisen mit Zeitraum, je Reise Einträge mit Text und Fotos; Ort, Uhrzeit und Wetter kommen von selbst.
 // Texte und Reisen liegen im Speicher wie die Touren, Fotos verkleinert in IndexedDB (zu groß für localStorage).
-const TB = { ansicht: 'liste', reise: null, eintrag: null, neu: [], weg: [], ort: null, wetter: null, urls: [] };
+// entwurf: Kennung des offenen Formulars; späte Antworten (Ort, Wetter, verkleinerte Fotos) gehören nur zu ihm
+const TB = { ansicht: 'liste', reise: null, eintrag: null, neu: [], weg: [], ort: null, wetter: null, urls: [], entwurf: 0, laufend: [], speichert: false };
 
 function tagebuchLesen() {
   const d = SPEICHER.lesen('tagebuch', null);
@@ -69,20 +70,39 @@ function tbUrl(blob) { const u = URL.createObjectURL(blob); TB.urls.push(u); ret
 // Foto als Kachel; groß beim Antippen
 function fotoKachel(blob, weg) {
   const fig = document.createElement('figure');
+  const gross = document.createElement('button');
+  gross.type = 'button'; gross.className = 'gross'; gross.setAttribute('aria-label', 'Foto groß zeigen');
   const img = document.createElement('img');
-  img.alt = 'Foto';
+  img.alt = '';
   img.src = tbUrl(blob);
-  img.onclick = () => { $('tbBild').querySelector('img').src = img.src; $('tbBild').hidden = false; };
-  fig.appendChild(img);
+  gross.appendChild(img);
+  gross.onclick = () => bildZeigen(img.src, gross);
+  fig.appendChild(gross);
   if (weg) {
     const b = document.createElement('button');
-    b.type = 'button'; b.title = 'Foto entfernen'; b.textContent = '✕';
+    b.type = 'button'; b.className = 'weg'; b.title = 'Foto entfernen'; b.setAttribute('aria-label', 'Foto entfernen'); b.textContent = '✕';
     b.onclick = weg;
     fig.appendChild(b);
   }
   return fig;
 }
-$('tbBild').onclick = () => { $('tbBild').hidden = true; $('tbBild').querySelector('img').removeAttribute('src'); };
+let bildVon = null;
+function bildZeigen(src, von) {
+  bildVon = von;
+  $('tbBild').querySelector('img').src = src;
+  $('tbBild').hidden = false;
+  $('tbBildZu').focus();
+}
+function bildZu() {
+  if ($('tbBild').hidden) return false;
+  $('tbBild').hidden = true;
+  $('tbBild').querySelector('img').removeAttribute('src');
+  if (bildVon && bildVon.isConnected) bildVon.focus();
+  bildVon = null;
+  return true;
+}
+$('tbBild').onclick = bildZu;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') bildZu(); });
 
 // ---------- Ansichten ----------
 function tbAnsicht(a) {
@@ -232,6 +252,7 @@ $('tbReiseLoeschen').onclick = async () => {
 // ---------- Eintrag schreiben ----------
 // Ort: frischer Standort aus „Unterwegs“, sonst einmal fragen; dazu das Wetter jetzt und der Ortsname (beides nur mit Netz)
 async function ortUndWetter() {
+  const meins = TB.entwurf;
   const zeile = $('tbOrtWetter');
   zeile.textContent = '📍 Ort wird bestimmt …';
   let p = standortFrisch() ? { lat: U.pos.lat, lon: U.pos.lon } : null;
@@ -239,12 +260,12 @@ async function ortUndWetter() {
     p = await new Promise(ok => navigator.geolocation.getCurrentPosition(
       x => ok({ lat: x.coords.latitude, lon: x.coords.longitude }), () => ok(null), { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }));
   }
-  if (TB.ansicht !== 'eintrag' || TB.eintrag) return;   // inzwischen verlassen oder es ist ein alter Eintrag
+  if (TB.entwurf !== meins) return;   // inzwischen verlassen oder ein anderer Entwurf
   if (!p) { zeile.textContent = 'Ohne Ort (kein Standort).'; return; }
   TB.ort = { lat: p.lat, lon: p.lon };
   zeile.textContent = ortWetterText({ ort: TB.ort });
   const [w, n] = await Promise.all([wetterJetzt(p.lat, p.lon).catch(() => null), ortsname(p.lat, p.lon).catch(() => null)]);
-  if (TB.ansicht !== 'eintrag' || TB.eintrag || !TB.ort) return;
+  if (TB.entwurf !== meins || !TB.ort) return;
   if (n) TB.ort.name = n;
   if (w) TB.wetter = w;
   zeile.textContent = ortWetterText({ ort: TB.ort, wetter: TB.wetter });
@@ -254,7 +275,9 @@ function eintragFormular(id) {
   const d = tagebuchLesen();
   const e = id ? d.eintraege.find(x => x.id === id) : null;
   TB.eintrag = e ? e.id : null;
-  TB.neu = []; TB.weg = []; TB.ort = null; TB.wetter = null;
+  TB.entwurf++;
+  TB.neu = []; TB.weg = []; TB.ort = null; TB.wetter = null; TB.laufend = []; TB.speichert = false;
+  fotoStatus();
   $('tbEintragTitel').textContent = e ? 'Eintrag bearbeiten' : 'Neuer Eintrag';
   $('tbText').value = e ? e.text : '';
   tbAnsicht('eintrag');
@@ -280,13 +303,29 @@ async function fotosNeuZeigen(alte) {
 }
 const alteFotos = () => { const e = TB.eintrag && tagebuchLesen().eintraege.find(x => x.id === TB.eintrag); return e ? e.fotos : []; };
 
-$('tbFotoKamera').onchange = $('tbFotoDatei').onchange = async ev => {
+function fotoStatus() {
+  const n = TB.laufend.length;
+  $('tbFotoStatus').hidden = !n;
+  $('tbFotoStatus').textContent = n ? 'Fotos werden vorbereitet …' : '';
+}
+$('tbKamera').onclick = () => $('tbFotoKamera').click();
+$('tbGalerie').onclick = () => $('tbFotoDatei').click();
+$('tbFotoKamera').onchange = $('tbFotoDatei').onchange = ev => {
   const dateien = [...ev.target.files];
   ev.target.value = '';
-  for (const f of dateien) {
-    try { TB.neu.push({ id: 'f' + tbId(), blob: await fotoVerkleinern(f) }); } catch (err) { melde(err.message, 5); }
-  }
-  fotosNeuZeigen(alteFotos());
+  const meins = TB.entwurf;
+  const arbeit = (async () => {
+    for (const f of dateien) {
+      let blob;
+      try { blob = await fotoVerkleinern(f); } catch (err) { melde(err.message, 5); continue; }
+      if (TB.entwurf !== meins) return;   // Formular inzwischen verlassen: Ergebnis verwerfen
+      TB.neu.push({ id: 'f' + tbId(), blob });
+    }
+    if (TB.entwurf === meins) fotosNeuZeigen(alteFotos());
+  })();
+  TB.laufend.push(arbeit);
+  fotoStatus();
+  arbeit.finally(() => { TB.laufend = TB.laufend.filter(x => x !== arbeit); if (TB.entwurf === meins) fotoStatus(); });
 };
 
 $('tbNeuerEintrag').onclick = () => eintragFormular(null);
@@ -296,8 +335,18 @@ $('tbHeute').onclick = () => {
   TB.reise = r.id;
   eintragFormular(null);
 };
-$('tbEintragAbbrechen').onclick = () => { TB.neu = []; reiseZeigen(TB.reise); };
+$('tbEintragAbbrechen').onclick = () => { TB.entwurf++; TB.neu = []; TB.laufend = []; reiseZeigen(TB.reise); };
 $('tbEintragSpeichern').onclick = async () => {
+  if (TB.speichert) return;
+  TB.speichert = true;
+  $('tbEintragSpeichern').disabled = true;
+  try { await eintragSpeichern(); } finally { TB.speichert = false; $('tbEintragSpeichern').disabled = false; }
+};
+async function eintragSpeichern() {
+  const meins = TB.entwurf;
+  // noch laufendes Verkleinern abwarten, sonst fehlen diese Fotos
+  while (TB.laufend.length) await Promise.allSettled(TB.laufend.slice());
+  if (TB.entwurf !== meins) return;
   const text = $('tbText').value.trim();
   if (!text && !TB.neu.length && !TB.eintrag) { melde('Text oder Foto fehlt noch.'); return; }
   // Fotos zuerst ablegen: scheitert das, bleibt der Eintrag ungespeichert und nichts zeigt ins Leere
@@ -314,10 +363,10 @@ $('tbEintragSpeichern').onclick = async () => {
   e.fotos = (e.fotos || []).filter(f => !TB.weg.includes(f)).concat(TB.neu.map(n => n.id));
   if (!tagebuchSchreiben(d)) return;
   for (const f of TB.weg) await FOTOS.weg(f).catch(() => {});
-  TB.neu = []; TB.weg = []; TB.eintrag = null;
+  TB.neu = []; TB.weg = []; TB.eintrag = null; TB.entwurf++;
   reiseZeigen(TB.reise);
   melde('Eintrag gespeichert.');
-};
+}
 
 async function eintragLoeschen(id, knopf) {
   if (!knopf.dataset.sicher) {
@@ -338,15 +387,17 @@ async function eintragLoeschen(id, knopf) {
 async function tagebuchFuerSicherung() {
   const d = tagebuchLesen();
   const fotos = {};
+  let fehlen = 0;
   for (const e of d.eintraege) {
     for (const f of e.fotos || []) {
       try {
         const b = await FOTOS.holen(f);
-        if (b) fotos[f] = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => nein(r.error); r.readAsDataURL(b); });
-      } catch (err) { /* fehlendes Foto: Eintrag trotzdem sichern */ }
+        if (!b) { fehlen++; continue; }
+        fotos[f] = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => nein(r.error); r.readAsDataURL(b); });
+      } catch (err) { fehlen++; }
     }
   }
-  return { tagebuch: d, fotos };
+  return { tagebuch: d, fotos, fehlen };
 }
 
 async function tagebuchEinlesen(text) {
@@ -355,9 +406,10 @@ async function tagebuchEinlesen(text) {
   const reisen = new Set(d.reisen.map(r => r.id)), eintraege = new Set(d.eintraege.map(e => e.id));
   const rDazu = neu.reisen.filter(r => !reisen.has(r.id)), eDazu = neu.eintraege.filter(e => !eintraege.has(e.id));
   if (!rDazu.length && !eDazu.length) return 0;
-  for (const e of eDazu) {
-    for (const f of e.fotos) await FOTOS.ablegen(f, await (await fetch(neu.fotos[f])).blob()).catch(() => {});
-  }
+  // Fotos zuerst; scheitert eines, bleibt das Tagebuch unverändert und das Laden lässt sich wiederholen
+  try {
+    for (const e of eDazu) for (const f of e.fotos) await FOTOS.ablegen(f, await (await fetch(neu.fotos[f])).blob());
+  } catch (err) { throw new Error('Fotos nicht gespeichert (' + (err.message || err) + '), Tagebuch nicht übernommen'); }
   d.reisen = d.reisen.concat(rDazu);
   d.eintraege = d.eintraege.concat(eDazu);
   return tagebuchSchreiben(d) ? eDazu.length + rDazu.length : 0;

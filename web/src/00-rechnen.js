@@ -637,10 +637,12 @@ var R = (function () {
     for (const e of eintraege) (tage[tagIso(e.zeit)] = tage[tagIso(e.zeit)] || []).push(e);
     return Object.keys(tage).sort().reverse().map(tag => ({ tag, eintraege: tage[tag].sort((a, b) => a.zeit - b.zeit) }));
   }
+  // Aufnahmezeit einer Tour: erster Zeitstempel der Spur, ohne Zeitstempel das Speicherdatum (wie in der Statistik)
+  function tourZeit(t) { return t.spur && t.spur[0] && t.spur[0][3] ? +t.spur[0][3] : new Date(t.datum).getTime(); }
   // gegangene Touren (Aufzeichnungen), die in den Zeitraum der Reise fallen
   function reiseTouren(touren, reise) {
-    return touren.filter(t => t.art === 'aufzeichnung' && tagIso(t.datum) >= reise.von && tagIso(t.datum) <= reise.bis)
-      .sort((a, b) => new Date(a.datum) - new Date(b.datum));
+    return touren.filter(t => t.art === 'aufzeichnung' && tagIso(tourZeit(t)) >= reise.von && tagIso(tourZeit(t)) <= reise.bis)
+      .sort((a, b) => tourZeit(a) - tourZeit(b));
   }
   // Reise, die heute läuft (für „Eintrag schreiben“ ohne Umweg); bei mehreren die zuletzt begonnene
   function reiseHeute(reisen, heute) {
@@ -668,7 +670,7 @@ var R = (function () {
         if (text(e.ort.name, 120)) o.ort.name = text(e.ort.name, 120);
       }
       if (e.wetter && zahl(e.wetter.temp) != null && Number.isInteger(e.wetter.code)) o.wetter = { temp: e.wetter.temp, code: e.wetter.code };
-      for (const f of Array.isArray(e.fotos) ? e.fotos.slice(0, 50) : []) {
+      for (const f of Array.isArray(e.fotos) ? e.fotos : []) {
         if (id(f) && fotos && fotoOk(fotos[f])) { o.fotos.push(f); out.fotos[f] = fotos[f]; }
       }
       out.eintraege.push(o);
@@ -1020,7 +1022,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

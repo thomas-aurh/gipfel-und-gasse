@@ -294,6 +294,9 @@ pruef('Tagebuch: neuester Tag zuerst, im Tag der Reihe nach', tbT.length === 2 &
 const reise = { id: 'r1', name: 'Gardasee', von: '2026-08-01', bis: '2026-08-03' };
 const tourenT = [{ id: 't1', art: 'aufzeichnung', datum: '2026-08-02T10:00:00' }, { id: 't2', art: 'tour', datum: '2026-08-02T10:00:00' }, { id: 't3', art: 'aufzeichnung', datum: '2026-08-05T10:00:00' }];
 pruef('Reise: nur gegangene Touren im Zeitraum', R.reiseTouren(tourenT, reise).map(t => t.id).join() === 't1');
+// nach der Reise gespeicherte Aufzeichnung: zählt der Aufnahmetag aus der Spur, nicht das Speicherdatum
+const spaet = { id: 't4', art: 'aufzeichnung', datum: '2026-08-09T10:00:00', spur: [[45.6, 10.6, null, ms('2026-08-02T09:00')]] };
+pruef('Reise: Aufnahmetag aus der Spur', R.reiseTouren([spaet], reise).length === 1 && R.tourZeit(spaet) === ms('2026-08-02T09:00'));
 pruef('Reise heute', R.reiseHeute([reise, { id: 'r2', name: 'X', von: '2026-07-30', bis: '2026-08-10' }], '2026-08-02').id === 'r1' && R.reiseHeute([reise], '2026-09-01') === null);
 const jpg = 'data:image/jpeg;base64,/9j/AAAA';
 const tbP = R.tagebuchPruefen({
@@ -306,6 +309,9 @@ const tbP = R.tagebuchPruefen({
 pruef('Tagebuch aus Sicherung: nur gültige Reisen und Einträge', tbP.reisen.length === 1 && tbP.eintraege.length === 2, tbP);
 pruef('Tagebuch aus Sicherung: Text bleibt Text, nur JPEG/PNG/WebP-Fotos', tbP.eintraege[0].text === 'Schön <b>' && tbP.eintraege[0].fotos.join() === 'f1' && Object.keys(tbP.fotos).join() === 'f1');
 pruef('Tagebuch aus Sicherung: falscher Ort und falsches Wetter fallen weg', !tbP.eintraege[1].ort && !tbP.eintraege[1].wetter && tbP.eintraege[1].text === '');
+const vieleFotos = {}, vieleIds = [];
+for (let i = 0; i < 60; i++) { vieleFotos["g" + i] = jpg; vieleIds.push('g' + i); }
+pruef('Tagebuch aus Sicherung: mehr als 50 Fotos je Eintrag bleiben', R.tagebuchPruefen({ reisen: [reise], eintraege: [{ id: 'e9', reise: 'r1', zeit: 1, fotos: vieleIds }] }, vieleFotos).eintraege[0].fotos.length === 60);
 pruef('Sicherung ohne Tagebuch: leer', R.sicherungTagebuch('{"app":"gipfel-und-gasse","touren":[]}').reisen.length === 0);
 
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');

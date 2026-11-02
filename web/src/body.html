@@ -45,7 +45,7 @@
   </div>
 
   <!-- Foto aus dem Reisetagebuch groß (über allem, darum nicht im Blatt) -->
-  <div id="tbBild" hidden role="dialog" aria-label="Foto"><img alt="Foto"></div>
+  <div id="tbBild" hidden role="dialog" aria-modal="true" aria-label="Foto"><img alt="Foto"><button type="button" id="tbBildZu" aria-label="Foto schließen">✕</button></div>
 
   <div id="lagenwahl" hidden>
     <h4>Karte</h4>
@@ -278,8 +278,11 @@
           <h3 id="tbEintragTitel">Neuer Eintrag</h3>
           <textarea id="tbText" rows="7" maxlength="20000" placeholder="Was war heute? Wo wart ihr, was habt ihr gesehen, gegessen, erlebt?"></textarea>
           <div id="tbFotosNeu" class="tb-fotos"></div>
-          <div class="zeile"><label class="knopf tb-foto-knopf">📸 Foto aufnehmen<input type="file" id="tbFotoKamera" accept="image/*" capture="environment" hidden></label>
-            <label class="knopf tb-foto-knopf">🖼️ Aus der Galerie<input type="file" id="tbFotoDatei" accept="image/*" multiple hidden></label></div>
+          <div class="zeile"><button type="button" class="knopf" id="tbKamera">📸 Foto aufnehmen</button>
+            <button type="button" class="knopf" id="tbGalerie">🖼️ Aus der Galerie</button></div>
+          <input type="file" id="tbFotoKamera" accept="image/*" capture="environment" hidden>
+          <input type="file" id="tbFotoDatei" accept="image/*" multiple hidden>
+          <p id="tbFotoStatus" class="klein" hidden></p>
           <p id="tbOrtWetter" class="klein"></p>
           <div class="zeile"><button class="knopf haupt" id="tbEintragSpeichern">Speichern</button><button class="knopf" id="tbEintragAbbrechen">Abbrechen</button></div>
         </div>

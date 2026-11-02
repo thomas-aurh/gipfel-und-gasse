@@ -208,6 +208,8 @@ async function sicherungSpeichern() {
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
     JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos }), 'application/json');
+  // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
+  if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
 
 async function sicherungEinlesen(text) {

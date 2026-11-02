@@ -444,7 +444,7 @@ function pruef(name, bed, info) {
   const fotoPng = fs.readFileSync(path.join(OUT, '1-route.png'));
   await page.setInputFiles('#tbFotoDatei', [{ name: 'see.png', mimeType: 'image/png', buffer: fotoPng }, { name: 'eis.png', mimeType: 'image/png', buffer: fotoPng }]);
   await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 2, null, { timeout: 8000 });
-  await page.click('#tbFotosNeu figure >> nth=1 >> button');
+  await page.click('#tbFotosNeu figure >> nth=1 >> button.weg');
   await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1);
   await page.click('#tbEintragSpeichern');
   await page.waitForSelector('.tb-eintrag');
@@ -453,9 +453,10 @@ function pruef(name, bed, info) {
   pruef('Tagebuch: Eintrag mit Text (als Text), Ort, Wetter, einem Foto', karteTb.includes('<b>Sonne</b>') && karteTb.includes('Teststadt') && karteTb.includes('heiter'), karteTb);
   const fotoGroesse = await page.evaluate(async () => { const img = document.querySelector('.tb-eintrag .tb-fotos img'); const b = await (await fetch(img.src)).blob(); return [b.type, img.naturalWidth]; });
   pruef('Tagebuch: Foto verkleinert als JPEG gespeichert', fotoGroesse[0] === 'image/jpeg' && fotoGroesse[1] <= 1600, fotoGroesse);
-  await page.click('.tb-eintrag .tb-fotos img');
-  pruef('Tagebuch: Foto groß', await page.isVisible('#tbBild'));
-  await page.click('#tbBild');
+  await page.click('.tb-eintrag .tb-fotos button.gross');
+  pruef('Tagebuch: Foto groß, Fokus auf Schließen', await page.isVisible('#tbBild') && await page.evaluate(() => document.activeElement.id === 'tbBildZu'));
+  await page.keyboard.press('Escape');
+  pruef('Tagebuch: Escape schließt, Fokus zurück aufs Foto', await page.isHidden('#tbBild') && await page.evaluate(() => document.activeElement.classList.contains('gross')));
   await page.click('.tb-eintrag button[title="Eintrag bearbeiten"]');
   await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1, null, { timeout: 5000 }).catch(() => {});
   pruef('Tagebuch: Bearbeiten zeigt Text und Foto', (await page.inputValue('#tbText')).startsWith('Erster Tag') && (await page.$$('#tbFotosNeu figure')).length === 1);
@@ -463,6 +464,18 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Speichern, während ein Foto noch verkleinert wird, und doppelt getippt: ein Eintrag, mit Foto
+  await page.click('#tbNeuerEintrag');
+  await page.fill('#tbText', 'Zweiter Tag');
+  await page.setInputFiles('#tbFotoDatei', { name: 'b.png', mimeType: 'image/png', buffer: fotoPng });
+  await page.evaluate(() => { const b = document.querySelector('#tbEintragSpeichern'); b.click(); b.click(); });
+  await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag').length >= 2, null, { timeout: 8000 });
+  await page.waitForTimeout(400);
+  const zweiter = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.tagebuch')).eintraege.filter(e => e.text === 'Zweiter Tag'));
+  pruef('Tagebuch: Doppeltipp legt einen Eintrag an, wartendes Foto ist dabei', zweiter.length === 1 && zweiter[0].fotos.length === 1, zweiter);
+  await page.click('.tb-eintrag:has-text("Zweiter Tag") button[title="Eintrag löschen"]');
+  await page.click('.tb-eintrag:has-text("Zweiter Tag") button[title="Eintrag löschen"]');
+  await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag').length === 1);
   // Sicherung: alle Touren samt Planung in einer Datei; eine verlorene Tour kommt beim Laden zurück
   await zuSeite(page, 'daten');
   const alleTouren = () => page.$$eval('#tourliste li[data-tour], #gangliste li[data-tour]', l => l.length);
