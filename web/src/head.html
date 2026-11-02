@@ -1,19 +1,28 @@
 <style>
-:root{--gruen:#2f6b3a;--gruen2:#e6f0e3;--route:#e5532d;--text:#1f2a22;--grau:#6b756d;--linie:#dfe5dc;--hg:#fbfcf9;--panel:400px;
-  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text)}
+:root{--gruen:#2f6b3a;--haupt:#2f6b3a;--gruen2:#e7f1e4;--route:#e5532d;--text:#1c2620;--grau:#68736b;--linie:#e3e8e0;--hg:#f4f6f2;
+  --karte:#fff;--feld:#fff;--spur:#edf1ea;--kartengrund:#e9ede6;--warn:#fff3d9;--fehlerhg:#fde7e1;--fehlertext:#7a1f14;
+  --schatten:0 1px 2px #0000000f,0 3px 10px #00000014;--schatten-gross:0 6px 24px #00000026;--radius:14px;--panel:400px;
+  font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text);color-scheme:light}
+/* Dunkelmodus: nach der Einstellung des Geräts oder fest gewählt (Menü › Darstellung) */
+:root[data-thema=dunkel]{--gruen:#86d394;--haupt:#3e8a4c;--gruen2:#23382a;--text:#e6ebe7;--grau:#9aa69d;--linie:#2c3538;--hg:#111517;
+  --karte:#1b2124;--feld:#232a2e;--spur:#283034;--kartengrund:#1d2326;--warn:#3a3220;--fehlerhg:#3d2420;--fehlertext:#ffb4a8;
+  --schatten:0 1px 2px #0006,0 3px 12px #0005;--schatten-gross:0 6px 24px #0009;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-thema=hell]){--gruen:#86d394;--haupt:#3e8a4c;--gruen2:#23382a;--text:#e6ebe7;--grau:#9aa69d;
+  --linie:#2c3538;--hg:#111517;--karte:#1b2124;--feld:#232a2e;--spur:#283034;--kartengrund:#1d2326;--warn:#3a3220;--fehlerhg:#3d2420;
+  --fehlertext:#ffb4a8;--schatten:0 1px 2px #0006,0 3px 12px #0005;--schatten-gross:0 6px 24px #0009;color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 button.oeffnen{border:0;background:none;text-align:left;padding:0;font:inherit;color:inherit;cursor:pointer}
-html,body{margin:0;height:100%;overflow:hidden;background:#dfe5dc}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--hg)}
 button,select,input{font:inherit;color:inherit}
 button{cursor:pointer}
 #app{position:fixed;inset:0}
-#karte{position:absolute;inset:0 0 0 var(--panel);background:#e9ede6}
+#karte{position:absolute;inset:0 0 0 var(--panel);background:var(--kartengrund)}
 .leaflet-container{font:inherit}
 .leaflet-control-attribution{font-size:11px}
 #planZeit>label{min-width:92px}
-#zeitplan{margin:8px 0;padding:8px 10px;border-radius:9px;background:#eef4ec}
-#zeitplan.warnung{background:#fdecea;color:#7a1f14}
+#zeitplan{margin:8px 0;padding:8px 10px;border-radius:9px;background:var(--gruen2)}
+#zeitplan.warnung{background:var(--fehlerhg);color:var(--fehlertext)}
 #notfallOrt{font-variant-numeric:tabular-nums;margin:4px 0 8px;user-select:text}
 #notfallOrt b{font-size:17px;color:var(--text)}
 a.knopf{text-decoration:none;display:inline-flex;align-items:center}
@@ -28,20 +37,20 @@ a.knopf{text-decoration:none;display:inline-flex;align-items:center}
 /* Suche oben, Menü-Knopf links davon */
 #oben{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);right:64px;max-width:510px;z-index:1000;display:flex;gap:8px;align-items:flex-start}
 .suche{position:relative;flex:1}
-#bMenue{width:44px;height:44px;flex:none;border:0;border-radius:12px;background:#fff;box-shadow:0 2px 10px #0003;font-size:21px;line-height:1;color:var(--text)}
+#bMenue{width:44px;height:44px;flex:none;border:0;border-radius:12px;background:var(--karte);box-shadow:var(--schatten);font-size:21px;line-height:1;color:var(--text)}
 /* Seitenmenü: alle Bereiche als eigene Seiten */
 #menueHg{position:fixed;inset:0;background:#0006;z-index:3500}
-#menue{position:fixed;left:0;top:0;bottom:0;width:min(300px,84vw);background:#fff;z-index:3600;overflow-y:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 8px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:4px 0 20px #0004}
+#menue{position:fixed;left:0;top:0;bottom:0;width:min(300px,84vw);background:var(--karte);z-index:3600;overflow-y:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 8px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:4px 0 20px #0004}
 #menue[hidden],#menueHg[hidden]{display:none}
 .menue-kopf{font-weight:700;color:var(--gruen);font-size:19px;padding:6px 14px 12px}
 #menue h4{margin:14px 14px 4px;font-size:12px;text-transform:uppercase;color:var(--grau);letter-spacing:.04em}
 #menue button{display:block;width:100%;text-align:left;border:0;background:none;padding:12px 14px;font-size:16px;border-radius:10px;color:var(--text)}
-#menue button:hover{background:#f2f5f0}
+#menue button:hover{background:var(--spur)}
 #menue button.an{background:var(--gruen2);color:var(--gruen);font-weight:700}
 /* Umschalter Geplant | Gegangen */
-.umschalter{display:flex;background:#eef1ec;border-radius:12px;padding:4px;margin:2px 0 12px}
+.umschalter{display:flex;background:var(--spur);border-radius:12px;padding:4px;margin:2px 0 12px}
 .umschalter button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font-weight:600;color:var(--grau);font-size:15px}
-.umschalter button.an{background:#fff;color:var(--gruen);box-shadow:0 1px 4px #0002}
+.umschalter button.an{background:var(--karte);color:var(--gruen);box-shadow:0 1px 4px #0002}
 /* nur Karte: Seitenleiste zu */
 body.ohneBlatt{--panel:0px}
 @media (min-width:761px){
@@ -50,9 +59,9 @@ body.ohneBlatt{--panel:0px}
   body.ohneBlatt #panel .inhalt{display:none}
   body.ohneBlatt #oben{left:412px}
 }
-#suchfeld{width:100%;padding:11px 14px 11px 38px;border:0;border-radius:12px;box-shadow:0 2px 10px #0003;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%236b756d' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M12.5 12.5L17 17'/%3E%3C/svg%3E") 12px 50% no-repeat}
+#suchfeld{width:100%;padding:11px 14px 11px 38px;border:0;border-radius:12px;box-shadow:var(--schatten);background:var(--karte) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%236b756d' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M12.5 12.5L17 17'/%3E%3C/svg%3E") 12px 50% no-repeat}
 #suchfeld:focus{outline:2px solid var(--gruen)}
-#treffer{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border-radius:12px;box-shadow:0 4px 16px #0003;overflow:hidden}
+#treffer{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;overflow:hidden}
 #treffer:empty{display:none}
 #treffer button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 14px;border-top:1px solid var(--linie)}
 #treffer button:first-child{border-top:0}
@@ -61,16 +70,16 @@ body.ohneBlatt{--panel:0px}
 
 /* Knöpfe rechts auf der Karte */
 #kartenknoepfe{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1000;display:flex;flex-direction:column;gap:8px}
-#kartenknoepfe button{width:44px;height:44px;border:0;border-radius:12px;background:#fff;box-shadow:0 2px 10px #0003;font-size:20px;line-height:1}
-#kartenknoepfe button.an{background:var(--gruen);color:#fff}
-#lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:#fff;border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
+#kartenknoepfe button{width:44px;height:44px;border:0;border-radius:12px;background:var(--karte);box-shadow:var(--schatten);font-size:20px;line-height:1}
+#kartenknoepfe button.an{background:var(--haupt);color:#fff}
+#lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
 #lagenwahl label{display:flex;gap:8px;align-items:center;padding:5px 0}
 #lagenwahl h4{margin:8px 0 2px;font-size:12px;text-transform:uppercase;color:var(--grau);letter-spacing:.04em}
 #lagenwahl h4:first-child{margin-top:0}
 
 /* Seitenleiste bzw. Blatt unten */
 #panel{position:absolute;left:0;top:0;bottom:0;width:var(--panel);background:var(--hg);z-index:1002;display:flex;flex-direction:column;box-shadow:2px 0 12px #0002}
-#panel header{padding:calc(12px + env(safe-area-inset-top,0px)) 14px 0;border-bottom:1px solid var(--linie);background:#fff}
+#panel header{padding:calc(12px + env(safe-area-inset-top,0px)) 14px 0;border-bottom:1px solid var(--linie);background:var(--karte)}
 #griff{display:none}
 .marke{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;color:var(--gruen)}
 .marke svg{flex:none}
@@ -85,31 +94,31 @@ nav.reiter button.an{color:var(--gruen);border-bottom-color:var(--gruen)}
 .inhalt>section.an{display:block}
 h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau);margin:18px 0 8px}
 .hinweis{background:var(--gruen2);border-radius:10px;padding:10px 12px;font-size:14px}
-.warnung{background:#fff2d6;border-radius:10px;padding:8px 12px;font-size:14px;margin:8px 0}
-.fehler{background:#fde3dc;border-radius:10px;padding:8px 12px;font-size:14px;margin:8px 0}
+.warnung{background:var(--warn);border-radius:10px;padding:8px 12px;font-size:14px;margin:8px 0}
+.fehler{background:var(--fehlerhg);border-radius:10px;padding:8px 12px;font-size:14px;margin:8px 0}
 .zeile{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
 .zeile>label{flex:1;min-width:130px;font-size:12px;color:var(--grau)}
-.zeile select,.zeile input[type=text],.zeile input[type=date],.zeile input[type=time],input.feld{display:block;width:100%;margin-top:3px;padding:8px 10px;border:1px solid var(--linie);border-radius:9px;background:#fff;color:var(--text);font-size:15px}
-.knopf{border:1px solid var(--linie);background:#fff;border-radius:10px;padding:8px 12px;font-weight:600}
+.zeile select,.zeile input[type=text],.zeile input[type=date],.zeile input[type=time],input.feld{display:block;width:100%;margin-top:3px;padding:8px 10px;border:1px solid var(--linie);border-radius:9px;background:var(--karte);color:var(--text);font-size:15px}
+.knopf{border:1px solid var(--linie);background:var(--karte);border-radius:10px;padding:8px 12px;font-weight:600}
 .knopf:hover{border-color:var(--gruen)}
-.knopf.haupt{background:var(--gruen);color:#fff;border-color:var(--gruen)}
+.knopf.haupt{background:var(--haupt);color:#fff;border-color:var(--haupt);box-shadow:0 2px 6px #2f6b3a40}
 .knopf:disabled{opacity:.45;cursor:default}
 .knopfreihe{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .zahlen{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-.zahl{background:#fff;border:1px solid var(--linie);border-radius:10px;padding:8px 10px}
+.zahl{background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px 10px}
 .zahl b{display:block;font-size:18px}
 .zahl span{font-size:12px;color:var(--grau)}
 #status{font-size:13px;color:var(--grau)}
 #status:empty{display:none}
-#profilbox{position:relative;background:#fff;border:1px solid var(--linie);border-radius:10px;padding:6px 6px 2px;margin:10px 0}
+#profilbox{position:relative;background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:6px 6px 2px;margin:10px 0}
 #profil{width:100%;height:140px;display:block;touch-action:pan-y}
 #profilinfo{font-size:12px;color:var(--grau);padding:2px 4px 4px;min-height:20px}
 .balken{margin:6px 0}
 .balken .eintrag{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:13px;padding:4px 6px;border-radius:8px;cursor:pointer}
 .balken .eintrag:hover,.balken .eintrag.an{background:var(--gruen2)}
-.balken .spur{grid-column:1/3;height:7px;background:#eef1ec;border-radius:4px;overflow:hidden}
+.balken .spur{grid-column:1/3;height:7px;background:var(--spur);border-radius:4px;overflow:hidden}
 .balken .spur i{display:block;height:100%;border-radius:4px}
-.urteil{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--linie);border-radius:10px;padding:8px 10px;font-size:14px;margin:8px 0}
+.urteil{display:flex;gap:10px;align-items:flex-start;background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px 10px;font-size:14px;margin:8px 0}
 .urteil .gross{font-size:22px}
 .liste{list-style:none;margin:0;padding:0}
 .liste li{display:flex;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--linie);cursor:pointer}
@@ -119,44 +128,73 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .liste .was small{display:block;color:var(--grau)}
 .liste .aktionen{display:flex;gap:4px}
 .liste .aktionen button{border:0;background:none;font-size:17px;padding:4px 6px;border-radius:6px;min-width:40px;min-height:40px}
-.liste .aktionen button:hover{background:#fff}
-.paket-balken{height:6px;background:#eef1ec;border-radius:3px;overflow:hidden;margin-top:4px}
-.paket-balken i{display:block;height:100%;background:var(--gruen)}
+.liste .aktionen button:hover{background:var(--karte)}
+.paket-balken{height:6px;background:var(--spur);border-radius:3px;overflow:hidden;margin-top:4px}
+.paket-balken i{display:block;height:100%;background:var(--haupt)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.chips button{border:1px solid var(--linie);background:#fff;border-radius:16px;padding:4px 10px;font-size:13px}
+.chips button{border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:4px 10px;font-size:13px}
 .chips button.aus{opacity:.45}
 .wetter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.wetter div{background:#fff;border:1px solid var(--linie);border-radius:10px;padding:8px;text-align:center;font-size:13px}
+.wetter div{background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px;text-align:center;font-size:13px}
 .wetter b{display:block;font-size:24px}
 .klein{font-size:12px;color:var(--grau)}
 .unterwegs-zahlen .zahl b{font-size:22px}
 #meldung{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:3000;background:#1f2a22;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,520px);box-shadow:0 4px 16px #0004;transition:opacity .25s;pointer-events:none}
 #meldung:empty{opacity:0}
-#abseits{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);z-index:1000;background:#c0392b;color:#fff;padding:8px 14px;border-radius:10px;font-weight:600;box-shadow:0 2px 10px #0003}
+#abseits{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);z-index:1000;background:#c0392b;color:#fff;padding:8px 14px;border-radius:10px;font-weight:600;box-shadow:var(--schatten)}
 a{color:var(--gruen)}
+/* ---------- Gestaltung: ruhige Karten statt Rahmen, klare Überschriften ---------- */
+h3{font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:700;margin:20px 0 8px}
+.marke{font-size:19px;font-weight:750;letter-spacing:-.01em}
+.zahl,.wetter div,#profilbox,.urteil{border:0;box-shadow:var(--schatten);border-radius:var(--radius)}
+.zahl{padding:10px 12px}
+.zahl b{font-size:20px;font-weight:750;letter-spacing:-.01em}
+.knopf{border-radius:12px;min-height:40px;transition:background .15s,border-color .15s,transform .05s}
+.knopf:active{transform:scale(.97)}
+.zeile select,.zeile input[type=text],.zeile input[type=date],.zeile input[type=time],input.feld{background:var(--feld);border-radius:11px;color:var(--text)}
+.tipp{background:var(--gruen2);color:var(--text);border-radius:12px;padding:10px 12px;font-size:14px;margin:6px 0 10px}
+.hinweis{border-radius:12px}
+.liste li{border-radius:12px;border-bottom:0;margin-bottom:6px;background:var(--karte);box-shadow:var(--schatten);padding:10px 10px}
+.liste li:hover{background:var(--gruen2)}
+.modus,.umschalter{background:var(--spur)}
+.modus button.an,.umschalter button.an{background:var(--karte)}
+#kartenknoepfe button,#bMenue{border-radius:14px;background:var(--karte);color:var(--text)}
+#suchfeld{background-color:var(--karte);color:var(--text);border-radius:14px}
+#treffer,#lagenwahl,#menue{background:var(--karte);color:var(--text)}
+#lagenwahl{border-radius:16px;box-shadow:var(--schatten-gross)}
+#panel header{background:var(--karte)}
+/* Fenster und Hinweise auf der Karte im gleichen Stil (auch dunkel) */
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--karte);color:var(--text);box-shadow:var(--schatten-gross)}
+.leaflet-popup-content-wrapper{border-radius:14px}
+.leaflet-container a.leaflet-popup-close-button{color:var(--grau)}
+.leaflet-control-attribution{background:color-mix(in srgb,var(--karte) 80%,transparent)!important;color:var(--grau)}
+.leaflet-tooltip{background:var(--karte);color:var(--text);border-color:var(--linie)}
+/* nachts die Karte etwas dämpfen, damit sie nicht blendet (Farben bleiben erkennbar) */
+:root[data-thema=dunkel] .leaflet-tile-pane{filter:brightness(.78) contrast(1.06) saturate(.9)}
+@media (prefers-color-scheme:dark){:root:not([data-thema=hell]) .leaflet-tile-pane{filter:brightness(.78) contrast(1.06) saturate(.9)}}
 
 /* Markierungen auf der Karte */
-.wp{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--route);box-shadow:0 1px 4px #0006;display:flex;align-items:center;justify-content:center;font:700 12px/1 sans-serif;color:var(--route)}
+.wp{width:26px;height:26px;border-radius:50%;background:var(--karte);border:3px solid var(--route);box-shadow:0 1px 4px #0006;display:flex;align-items:center;justify-content:center;font:700 12px/1 sans-serif;color:var(--route)}
 .wp.start{background:#2e8b47;border-color:#fff;color:#fff}
 .wp.ziel{background:var(--route);border-color:#fff;color:#fff}
-.ort-mk{width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 1px 5px #0006;display:flex;align-items:center;justify-content:center;font-size:16px}
-.tour-mk{width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 5px #0006;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #2b6cb0}
+.ort-mk{width:30px;height:30px;border-radius:50%;background:var(--karte);box-shadow:0 1px 5px #0006;display:flex;align-items:center;justify-content:center;font-size:16px}
+.tour-mk{width:28px;height:28px;border-radius:50%;background:var(--karte);box-shadow:0 1px 5px #0006;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #2b6cb0}
 .tour-mk.gegangen{border-color:#2f6b3a;background:#2f6b3a;color:#fff;font-weight:700}
 .ort-mk.bekannt{width:36px;height:36px;font-size:19px;border:2px solid #e0a800}
 .wp-name{font:600 12px/1.2 sans-serif;padding:2px 6px;border-radius:6px;box-shadow:0 1px 3px #0004}
 .wp-name:before{display:none}
-.modus{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#eef1ec;border-radius:12px;padding:4px;margin-bottom:6px}
+.modus{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--spur);border-radius:12px;padding:4px;margin-bottom:6px}
 .modus button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--grau)}
-.modus button.an{background:#fff;color:var(--gruen);box-shadow:0 1px 4px #0002}
+.modus button.an{background:var(--karte);color:var(--gruen);box-shadow:0 1px 4px #0002}
 #stopps .stopp{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid var(--linie);font-size:14px}
 #stopps .nr{width:22px;height:22px;border-radius:50%;background:var(--route);color:#fff;font:700 11px/22px sans-serif;text-align:center;flex:none}
 #stopps .nr.s{background:#2e8b47}
 #stopps .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#stopps select{min-height:36px;padding:3px 4px;border:1px solid var(--linie);border-radius:7px;background:#fff;font-size:13px}
+#stopps select{min-height:36px;padding:3px 4px;border:1px solid var(--linie);border-radius:7px;background:var(--karte);font-size:13px}
 #stopps button{border:0;background:none;font-size:15px;padding:2px 4px;min-width:40px;min-height:40px}
 #druckkopf,#druckfuss{display:none}
 .ich{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e855,0 1px 4px #0006}
-.popup-knopf{margin-top:6px;border:1px solid var(--linie);background:#fff;border-radius:8px;padding:5px 10px;font-weight:600}
+.popup-knopf{margin-top:6px;border:1px solid var(--linie);background:var(--karte);border-radius:8px;padding:5px 10px;font-weight:600}
 
 /* Drucken: Karte über die Seite, Kopf mit Kennzahlen, Höhenprofil unten */
 body.druck #panel,body.druck #oben,body.druck #kartenknoepfe,body.druck #lagenwahl,body.druck #abseits,body.druck #meldung{display:none!important}
@@ -184,10 +222,11 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   #panel.gross{height:calc(88vh - 58px)}
   body.ohneBlatt #panel{height:0;overflow:hidden;box-shadow:none}
   /* untere Leiste mit den vier Hauptbereichen */
-  nav.reiter#leiste{position:fixed;left:0;right:0;bottom:0;margin:0;height:calc(58px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);background:#fff;border-top:1px solid var(--linie);z-index:3000;gap:0;overflow:visible}
+  nav.reiter#leiste{position:fixed;left:0;right:0;bottom:0;margin:0;height:calc(58px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);background:var(--karte);border-top:1px solid var(--linie);z-index:3000;gap:0;overflow:visible}
   nav.reiter#leiste button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 2px;font-size:12px;border-bottom:0}
   nav.reiter#leiste button span{font-size:20px;margin:0;line-height:1.1;filter:grayscale(1);opacity:.7}
-  nav.reiter#leiste button.an span{filter:none;opacity:1}
+  nav.reiter#leiste button.an span{filter:none;opacity:1;background:var(--gruen2);border-radius:14px;padding:3px 18px}
+  nav.reiter#leiste{background:var(--karte)}
   #panel header{padding-top:4px;border-radius:16px 16px 0 0}
   #griff{display:block;width:44px;height:5px;border-radius:3px;background:#c9d1c6;margin:4px auto 6px;cursor:grab;touch-action:none}
   .marke{font-size:16px}

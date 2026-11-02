@@ -212,7 +212,9 @@ const FARBE_BODEN = { 'Befestigt': '#6d7884', 'Schotter': '#c9a66b', 'Naturboden
 function zeigen() {
   const e = S.ergebnis;
   $('leerHinweis').hidden = S.wps.length > 0 || !!S.fest;
-  $('planHinweis').hidden = S.wps.length < 2 || !!S.fest;
+  // Tipp zu Zwischenpunkten nur, bis man es einmal gemacht hat (drei Punkte)
+  if (S.wps.length >= 3 && !SPEICHER.lesen('tippGesehen', false)) SPEICHER.schreiben('tippGesehen', true);
+  $('planHinweis').hidden = S.wps.length < 2 || !!S.fest || SPEICHER.lesen('tippGesehen', false);
   $('ergebnis').hidden = !e;
   $('bZurueck').disabled = !S.verlauf.length || !!S.fest;
   $('bRund').disabled = S.wps.length < 2 || !!S.fest;

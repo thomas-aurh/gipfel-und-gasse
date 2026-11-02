@@ -41,6 +41,10 @@ function menue(auf) {
 }
 $('bMenue').addEventListener('click', e => { e.stopPropagation(); menue($('menue').hidden); });
 $('menueHg').addEventListener('click', () => menue(false));
+// Darstellung umschalten: automatisch → hell → dunkel
+$('bThema').addEventListener('click', () => themaSetzen({ auto: 'hell', hell: 'dunkel', dunkel: 'auto' }[thema]));
+window.__gugBereit = true;
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => themaSetzen(thema, false));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('menue').hidden) menue(false); });
 
 // Blatt unten: klein (nur Kopf), mittel, groß. Am Griff ziehen oder tippen.

@@ -1,3 +1,5 @@
+// Farben der gewählten Darstellung (hell oder dunkel) aus den CSS-Variablen
+function farbe(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#68736b'; }
 // Höhenprofil: Fläche nach Steigung gefärbt, Zeigen und Tippen markiert die Stelle auf der Karte
 const profilMarke = L.circleMarker([0, 0], { radius: 7, color: '#fff', weight: 3, fillColor: '#1f2a22', fillOpacity: 1, interactive: false });
 let profilGeo = null;   // Maße der letzten Zeichnung, für das Zeigen
@@ -30,7 +32,7 @@ function profilZeichnen(markeD) {
   profilGeo = { L0, bw, gesamt };
 
   // Gitter und Beschriftung
-  g.font = '10px sans-serif'; g.fillStyle = '#6b756d'; g.strokeStyle = '#eef1ec'; g.lineWidth = 1;
+  g.font = '10px sans-serif'; g.fillStyle = farbe('--grau'); g.strokeStyle = farbe('--spur'); g.lineWidth = 1;
   const stufe = [10, 20, 50, 100, 200, 250, 500, 1000].find(s => (oben - unten) / s <= 4) || 1000;
   for (let v = Math.ceil(unten / stufe) * stufe; v <= oben; v += stufe) {
     g.beginPath(); g.moveTo(L0, Y(v)); g.lineTo(w - R0, Y(v)); g.stroke();
@@ -53,7 +55,7 @@ function profilZeichnen(markeD) {
     g.lineTo(X(pts[j].d), Y(unten));
     g.closePath(); g.fill();
   }
-  g.strokeStyle = '#3c4a40'; g.lineWidth = 1.5; g.beginPath();
+  g.strokeStyle = farbe('--text'); g.lineWidth = 1.5; g.beginPath();
   pts.forEach((p, i) => i ? g.lineTo(X(p.d), Y(p.ele)) : g.moveTo(X(p.d), Y(p.ele)));
   g.stroke();
 
@@ -63,9 +65,9 @@ function profilZeichnen(markeD) {
 
   if (markeD != null) {
     const p = punktBei(markeD);
-    g.strokeStyle = '#1f2a22'; g.lineWidth = 1;
+    g.strokeStyle = farbe('--text'); g.lineWidth = 1;
     g.beginPath(); g.moveTo(X(markeD), T0); g.lineTo(X(markeD), T0 + bh); g.stroke();
-    if (p && p.ele != null) { g.fillStyle = '#1f2a22'; g.beginPath(); g.arc(X(markeD), Y(p.ele), 4, 0, 7); g.fill(); }
+    if (p && p.ele != null) { g.fillStyle = farbe('--text'); g.beginPath(); g.arc(X(markeD), Y(p.ele), 4, 0, 7); g.fill(); }
   }
 }
 
