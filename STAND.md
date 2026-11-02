@@ -47,9 +47,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
-- **Offline-Karte leer auf dem Pixel (02.11., Thomas):** Ursache nicht gemessen; Verdacht: Range-Kopfzeile kommt im
-  KartenServer nicht an (dann käme die ganze Datei). #29 liest zusätzlich über `?von=&bis=` und bringt die Prüfung; deren
-  Ergebnis von Thomas steht aus.
+- **Offline-Karte leer auf dem Pixel (02.11., Thomas, Bau 98):** Prüfung gemessen: Lesen in Teilen über Kopfzeile und
+  Adresse geht (206, „PMTiles“ v3), der Kopf ist lesbar, die erste Kachel scheitert mit „Failed to fetch“; 45 Kacheln
+  „gezeichnet“ (leer, grau). Die Vermutung „Range-Kopfzeile fehlt“ ist damit widerlegt. #31 lässt den Kartenserver Fehler
+  als Text melden und die Prüfung Stücke aus Mitte und Ende sowie die letzten Lesevorgänge zeigen; Ergebnis steht aus.
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -140,6 +141,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Overpass: weist der Hauptserver ab (429, „zu viele Anfragen“ bei Thomas im Info-Modus), fragt die App einmal
+  overpass.private.coffee (öffentlicher Server laut OSM-Wiki). Google-Maps-Link von Thomas auf dem Pixel bestätigt (#31).
 
 - **02.11.** Link „🔎 In Google Maps“ in allen Ort-Fenstern (Info, Sehenswürdigkeiten, Orte, drinnen, Reiseziele):
   Name mit Adresse aus OSM, sonst mit dem Ortsnamen; Öffnungszeiten und Bewertungen schaut Thomas lieber dort nach.

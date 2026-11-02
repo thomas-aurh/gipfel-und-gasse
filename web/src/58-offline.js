@@ -10,16 +10,32 @@ function paketFuer(lat, lon) { return OFF.installiert.find(p => p.bbox && lon >=
 // Lesen aus einer Paketdatei in Teilen: der Bereich steht in der Range-Kopfzeile UND in der Adresse (?von=&bis=).
 // Reicht ein WebView die Kopfzeile nicht an die App weiter, käme sonst die ganze Datei (Hunderte MB) und die
 // Kartenbibliothek bräche ab; der Kartenserver der App nimmt dann den Bereich aus der Adresse.
+const LESEN = [];   // letzte Lesevorgänge aller Paketdateien, für „Offline-Karte prüfen“
+function lesenMerken(text) { LESEN.push(new Date().toLocaleTimeString('de-DE') + ' ' + text); if (LESEN.length > 12) LESEN.shift(); }
 class PaketQuelle {
   constructor(url) { this.url = url; }
   getKey() { return this.url; }
   async getBytes(offset, length, signal) {
-    const bis = offset + length - 1;
-    const r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, headers: { range: 'bytes=' + offset + '-' + bis } });
+    const bis = offset + length - 1, name = this.url.split('/').slice(-2).join('/'), t0 = Date.now();
+    let r;
+    try { r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, cache: 'no-store', headers: { range: 'bytes=' + offset + '-' + bis } }); }
+    catch (e) {
+      if (e.name !== 'AbortError') lesenMerken(name + ' ' + offset + '+' + length + ': ' + e.name + ' ' + e.message);
+      throw e;
+    }
     const n = +r.headers.get('Content-Length');
-    if (r.status === 200 && (!n || n > length)) throw new Error('Kartenserver liefert die ganze Datei statt eines Teils');
-    if (r.status !== 206 && r.status !== 200) throw new Error('Kartendatei: Status ' + r.status);
-    return { data: await r.arrayBuffer() };
+    if (r.status === 200 && (!n || n > length)) { lesenMerken(name + ' ' + offset + '+' + length + ': ganze Datei'); throw new Error('Kartenserver liefert die ganze Datei statt eines Teils'); }
+    if (r.status !== 206 && r.status !== 200) {
+      const text = await r.text().catch(() => '');
+      lesenMerken(name + ' ' + offset + '+' + length + ': Status ' + r.status + ' ' + text.slice(0, 160));
+      throw new Error('Kartendatei: Status ' + r.status + (text ? ' (' + text.slice(0, 160) + ')' : ''));
+    }
+    let data;
+    try { data = await r.arrayBuffer(); }
+    catch (e) { lesenMerken(name + ' ' + offset + '+' + length + ': Lesen abgebrochen ' + e.name + ' ' + e.message); throw e; }
+    if (data.byteLength !== length) lesenMerken(name + ' ' + offset + '+' + length + ': ' + data.byteLength + ' Bytes erhalten');
+    else if (LESEN.length < 3 || Date.now() - t0 > 2000) lesenMerken(name + ' ' + offset + '+' + length + ': ok in ' + (Date.now() - t0) + ' ms');
+    return { data };
   }
 }
 function paketPmtiles(url) { return new window.GugOffline.PMTiles(new PaketQuelle(url)); }
@@ -323,6 +339,17 @@ async function offlinePruefen() {
           (r.status === 206 && b.length === 127 && kennung === 'PMTiles' ? ' ✓' : ' ✗'));
       } catch (e) { z.push('Lesen in Teilen (' + weg + '): FEHLER ' + (e.message || e)); }
     }
+    // Stücke weit hinten und in der Mitte der Datei (dort liegen die Kacheln)
+    const gesamt = ((p.dateien || []).find(d => d.name === 'karte.pmtiles') || {}).groesse || 0;
+    for (const [wo, von] of [['Mitte', Math.floor(gesamt / 2)], ['Ende', gesamt - 16384]]) {
+      if (!gesamt || von < 0) continue;
+      const bis = von + 16383;
+      try {
+        const r = await fetch(url + '?von=' + von + '&bis=' + bis, { headers: { range: 'bytes=' + von + '-' + bis }, cache: 'no-store' });
+        const b = await r.arrayBuffer();
+        z.push('Stück ' + wo + ' (' + von + '+16384): Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16384 ? ' ✓' : ' ✗ ' + new TextDecoder().decode(b.slice(0, 160))));
+      } catch (e) { z.push('Stück ' + wo + ' (' + von + '+16384): FEHLER ' + e.name + ' ' + (e.message || e)); }
+    }
     if (!window.GugOffline) continue;
     try {
       const pm = paketPmtiles(url), k = await pm.getHeader();
@@ -341,6 +368,7 @@ async function offlinePruefen() {
       catch (e) { z.push(datei + ': FEHLER ' + (e.message || e)); }
     }
   }
+  if (LESEN.length) z.push('Letzte Lesevorgänge:', ...LESEN);
   if (OFF.fehler.length) z.push('Letzte Fehler:', ...OFF.fehler);
   return z.join('\n');
 }
