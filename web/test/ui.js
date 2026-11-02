@@ -205,6 +205,15 @@ function pruef(name, bed, info) {
   pruef('Fadenkreuz: Punkt genau unter dem Kreuz', Math.abs(neu[0] - kx) < 2 && Math.abs(neu[1] - ky) < 2, { neu, kreuz: [kx, ky] });
   await page.click('#bZurueck');
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 2);
+  pruef('Fadenkreuz: Abstand nach Rückgängig zum neuen letzten Punkt', (await page.textContent('#kreuzText')) !== '' && (await page.textContent('#bKreuzSetzen')).includes('Punkt hier'));
+  // Tipp auf die Route setzt mit Fadenkreuz kein Zwischenziel
+  const routenMitte = await page.evaluate(() => { const p = document.querySelector('.leaflet-overlay-pane path[stroke="#e5532d"].leaflet-interactive'); const l = p.getTotalLength(); const q = p.getPointAtLength(l / 2); const m = p.getScreenCTM(); const x = q.x * m.a + m.e, y = q.y * m.d + m.f; return [x, y, document.elementFromPoint(x, y) === p]; });
+  await page.mouse.click(routenMitte[0], routenMitte[1]);
+  await page.waitForTimeout(500);
+  pruef('Fadenkreuz: Tipp auf die Route setzt nichts', routenMitte[2] && (await page.$$('.wp')).length === 2, routenMitte);
+  await page.click('#bMenue');
+  pruef('Fadenkreuz-Feld bei offenem Menü gesperrt', await page.evaluate(() => document.querySelector('#kreuzFeld').inert));
+  await page.keyboard.press('Escape');
   await page.click('#bKreuz');
   pruef('Fadenkreuz aus', await page.isHidden('#kreuz') && await page.isHidden('#kreuzFeld'));
   const vorher = zaehler.brouter;
@@ -758,6 +767,11 @@ function pruef(name, bed, info) {
   await pt.tap('#bKreuz');
   pruef('Telefon: Fadenkreuz über dem Blatt', await pt.evaluate(() => { const k = document.querySelector('#kreuzFeld').getBoundingClientRect(); return k.bottom < document.querySelector('#panel').getBoundingClientRect().top && k.left >= 0 && k.right <= innerWidth; }));
   await pt.screenshot({ path: path.join(OUT, '8-telefon-kreuz.png') });
+  const blattStufe = async gross => { for (let i = 0; i < 4 && (await pt.evaluate(() => document.querySelector('#panel').classList.contains('gross'))) !== gross; i++) { await pt.tap('#griff'); await pt.waitForTimeout(400); } };
+  await blattStufe(true);
+  pruef('Telefon: großes Blatt blendet Fadenkreuz aus, nichts verdeckt', await pt.isHidden('#kreuzFeld'));
+  await blattStufe(false);
+  pruef('Telefon: kleineres Blatt zeigt Fadenkreuz wieder', await pt.isVisible('#kreuzFeld'));
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

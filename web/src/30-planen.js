@@ -64,6 +64,10 @@ function kreuzZeigen() {
   if (!kreuzAn) return;
   const p = kreuzPunkt(), k = $('karte').getBoundingClientRect(), ll = karte.containerPointToLatLng(p);
   const x = k.left + p.x, y = k.top + p.y;
+  // großes Blatt am Telefon: kein Platz über dem Blatt, dann Kreuz und Feld ausblenden, bis es wieder kleiner ist
+  const platz = window.innerWidth > 760 || y + 36 + 52 <= $('panel').getBoundingClientRect().top;
+  $('kreuz').hidden = $('kreuzFeld').hidden = !platz;
+  if (!platz) return;
   Object.assign($('kreuz').style, { left: x + 'px', top: y + 'px' });
   Object.assign($('kreuzFeld').style, { left: x + 'px', top: (y + 36) + 'px' });
   const letzter = S.wps[S.wps.length - 1];
@@ -88,6 +92,7 @@ karte.on('move zoom resize', kreuzZeigen);
 window.addEventListener('resize', kreuzZeigen);
 
 function zeichenWegpunkte() {
+  kreuzZeigen();   // Abstand und „Start/Punkt hier“ hängen an den Wegpunkten (Neu, Rückgängig, Ziehen)
   ebenePunkte.clearLayers();
   const n = S.wps.length;
   S.wps.forEach((w, i) => {
@@ -140,6 +145,7 @@ function zeichenRoute() {
     const linie = L.polyline(teil, { color: '#e5532d', weight: 5, opacity: 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
+      if (kreuzAn) { kreuzHin(ev.latlng); return; }
       if (S.fest) return;
       wegpunktDazu(ev.latlng.lat, ev.latlng.lng, k + 1);
     });
