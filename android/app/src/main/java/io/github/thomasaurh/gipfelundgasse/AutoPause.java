@@ -16,7 +16,8 @@ public final class AutoPause {
     /** Weg gemacht; liefert true, wenn damit eine Pause endet („Weiter“). */
     public boolean bewegt(long t) {
         boolean weiter = pausiert;
-        if (pausiert) { pauseMs += Math.max(0, t - letzteBewegung); pausiert = false; }
+        // auch ohne Takt dazwischen: wer länger als STILL stand, hat pausiert (sonst hinge es an der Taktphase)
+        if (pausiert || t - letzteBewegung > STILL) { pauseMs += Math.max(0, t - letzteBewegung); pausiert = false; }
         letzteBewegung = t;
         return weiter;
     }

@@ -49,7 +49,7 @@ function posNeu(p) {
   if (U.ersterFix) { U.ersterFix = false; karte.setView(ll, Math.max(karte.getZoom(), 15)); }
   else if (U.folgen) karte.panTo(ll, { animate: true });
   if (U.navi) naviNeu();
-  if (U.aufz) aufzNeu();
+  if (U.aufz) aufzNeu(c);
   notfallZeigen();
 }
 
@@ -222,9 +222,11 @@ $('bAufz').onclick = () => {
   if (U.pos) aufzNeu();
 };
 
-function aufzNeu() {
+function aufzNeu(c) {
   const a = U.aufz;
   if (!a || !a.laeuft || !U.pos) return;
+  // Bewegung für die Auto-Pause auch an der GPS-Geschwindigkeit (unabhängig vom Ausdünnen der Spur)
+  if (a.pause && c && c.speed > 0.6 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   if (U.pos.gen > 40) return;                     // zu ungenau
   const p = { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t };
   const letzt = a.pts[a.pts.length - 1];

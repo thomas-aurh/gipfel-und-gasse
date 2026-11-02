@@ -360,6 +360,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     private void aufzeichnen(Location loc) {
+        // Bewegung für die Auto-Pause: GPS-Geschwindigkeit über 0,6 m/s, unabhängig davon, ob der Punkt in die Spur kommt
+        // (bei ungenauem GPS kommt erst nach vielen Metern ein Punkt dazu, das Gehen ist trotzdem Bewegung)
+        if (Z.pause != null && loc.hasSpeed() && loc.getSpeed() > 0.6f && Z.pause.bewegt(System.currentTimeMillis()) && Z.lauf && Z.ansagen) sagen("Weiter.");
         if (loc.hasAccuracy() && loc.getAccuracy() > 40) return;   // zu ungenau
         double[] p = { loc.getLatitude(), loc.getLongitude(), loc.hasAltitude() ? loc.getAltitude() : Double.NaN, loc.getTime() };
         if (!Z.spur.isEmpty()) {
@@ -380,7 +383,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.aufzKm = km; Z.aufzKmZeit = bewegung;
         }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
-        if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); }
+        if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); sitzungSichern(this); }
     }
 
     /**
@@ -393,7 +396,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             synchronized (Z) {
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
                 o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
-                o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, System.currentTimeMillis() - Z.pause.letzteBewegung) : 0) : 0);
+                long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
+                o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
+                // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
+                o.put("aufzKm", Z.aufzKm); o.put("aufzKmZeit", Z.aufzKmZeit);
                 JSONArray pts = new JSONArray();
                 if (Z.strecke != null) for (int i = 0; i < Z.strecke.groesse(); i++) {
                     JSONArray p = new JSONArray();
@@ -517,8 +523,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.pause = Z.aufzStart > 0 ? new AutoPause(Z.aufzStart, o.optLong("aufzPauseMs", 0)) : null;
                 if (Z.pause != null) Z.pause.letzteBewegung = jetzt;
                 Z.aufzKm = (int) Math.floor(Z.aufzMeter / 1000);
-                long grenze = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : jetzt);
-                Z.aufzKmZeit = Z.pause != null ? Math.max(0, Z.pause.bewegungMs(jetzt) - Math.max(0, jetzt - grenze)) : 0;
+                if (o.optInt("aufzKm", -1) == Z.aufzKm) {
+                    Z.aufzKmZeit = o.optLong("aufzKmZeit", 0);   // gesichert mit dem Pausenstand: passt zusammen
+                } else {
+                    // älterer Stand ohne diese Werte: aus den Zeitstempeln der Spur schätzen
+                    long grenze = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : jetzt);
+                    Z.aufzKmZeit = Z.pause != null ? Math.max(0, Z.pause.bewegungMs(jetzt) - Math.max(0, jetzt - grenze)) : 0;
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht lesbar", e);

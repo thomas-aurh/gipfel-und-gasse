@@ -258,7 +258,7 @@ var R = (function () {
   // Auto-Pause (wie AutoPause.java): länger als still ms ohne Weg = Pause ab der letzten Bewegung
   function autoPause(start, pauseMs, still) {
     const p = { start, pauseMs: pauseMs || 0, letzte: start, pausiert: false, still: still || 10000 };
-    p.bewegt = t => { const weiter = p.pausiert; if (p.pausiert) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
+    p.bewegt = t => { const weiter = p.pausiert; if (p.pausiert || t - p.letzte > p.still) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
     p.takt = t => { if (p.pausiert || t - p.letzte <= p.still) return false; p.pausiert = true; return true; };
     p.bewegungMs = t => Math.max(0, t - p.start - p.pauseMs - (p.pausiert ? Math.max(0, t - p.letzte) : 0));
     return p;

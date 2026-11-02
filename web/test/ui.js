@@ -1004,6 +1004,11 @@ function pruef(name, bed, info) {
   pruef('Runde: andere Richtung, gleicher Start', runde2.length === 4 && runde2[0].lat === runde[0].lat && (runde2[1].lat !== runde[1].lat || runde2[1].lon !== runde[1].lon));
   await klick('#bZurueck'); await pt.waitForTimeout(600);
   pruef('Runde: Rückgängig holt die vorige Runde zurück', JSON.stringify((await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps))) === JSON.stringify(runde));
+  // während die Runde noch rechnet, „Neu“: die überholte Runde darf die neue (leere) Planung nicht überschreiben
+  await pt.evaluate(() => { document.querySelector('#bRundeLos').click(); setTimeout(() => document.querySelector('#bNeu').click(), 30); });
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
+  await pt.waitForTimeout(800);
+  pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

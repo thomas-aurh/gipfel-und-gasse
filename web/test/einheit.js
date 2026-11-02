@@ -289,10 +289,14 @@ pruef('Sicherung: Zeitplan geprüft übernommen', JSON.stringify(R.sicherungLese
 const mitPace = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'l1', name: 'Lauf', spur: [[47, 11, null]], kurz: {}, pace: 5 }, { id: 'l2', name: 'Unsinn', spur: [[47, 11, null]], kurz: {}, pace: 999 }] }));
 pruef('Sicherung: Lauftempo je Tour, unsinniges fällt weg', mitPace[0].pace === 5 && mitPace[1].pace === undefined);
 // Auto-Pause (gleich wie AutoPauseTest.java)
+const gehen = (p, bis) => { for (let t = 5000; t <= bis; t += 5000) p.bewegt(t); };   // GPS meldet alle 5 s Bewegung
 const ap = R.autoPause(0, 0);
-ap.bewegt(60000);
+gehen(ap, 60000);
 pruef('Auto-Pause: 5 s Stehen ist keine Pause, 11 s schon (einmal gemeldet)', !ap.takt(65000) && ap.takt(71000) && !ap.takt(80000));
 pruef('Auto-Pause: Pause ab der letzten Bewegung', ap.bewegungMs(90000) === 60000);
+const ap2 = R.autoPause(0, 0);
+gehen(ap2, 60000); ap2.takt(65000); ap2.takt(70000);
+pruef('Auto-Pause: Schwelle auch ohne Takt dazwischen (12 s Stehen zählen nicht)', ap2.bewegt(72000) === false && ap2.pauseMs === 12000 && ap2.bewegungMs(72000) === 60000);
 pruef('Auto-Pause: weiter nach einer Minute Ampel', ap.bewegt(120000) === true && ap.pauseMs === 60000 && ap.bewegungMs(180000) === 120000);
 // Rundkurs: Ecken auf einem Kreis, Start mit dabei, Umfang passt zur Wunschlänge
 const rs = { lat: 47.75, lon: 11.37 };

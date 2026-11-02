@@ -445,8 +445,11 @@ async function rundkurs(andereRichtung) {
     let umweg = 1.3;
     for (let versuch = 0; versuch < 3; versuch++) {
       const [p1, p2] = R.rundkursPunkte(start, soll, rundRichtung, umweg);
-      S.wps = [{ lat: start.lat, lon: start.lon }, p1, p2, { lat: start.lat, lon: start.lon }];
+      const meine = [{ lat: start.lat, lon: start.lon }, p1, p2, { lat: start.lat, lon: start.lon }];
+      S.wps = meine;
       await neuBerechnen();
+      // inzwischen anders geplant (Punkt gezogen, Tour geöffnet, Neu): diese Runde nicht weiter verfolgen
+      if (S.wps !== meine) return;
       if (!S.ergebnis || S.stuecke.some(s => s.quelle === 'linie')) break;
       const ist = S.ergebnis.laenge;
       if (Math.abs(ist - soll) / soll <= 0.12) break;
