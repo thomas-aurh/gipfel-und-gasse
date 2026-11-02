@@ -1,13 +1,47 @@
-// Start: Reiter, Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
+// Start: Seiten (Menü links oben, Leiste unten), Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
+const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren',
+  gegangen: 'Gegangene Touren', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung und GPX', info: 'Info' };
+let seite = 'planen';
 function reiter(name) {
-  document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === name));
+  if (!SEITEN[name]) name = 'planen';
+  seite = name;
+  menue(false);
+  // in der Leiste stehen nur die vier Hauptbereiche; Geplant und Gegangen gehören zu „Touren“
+  const leiste = name === 'gegangen' ? 'touren' : name;
+  document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
+  document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === name));
+  const vorher = document.body.classList.contains('ohneBlatt');
+  document.body.classList.toggle('ohneBlatt', name === 'karte');
+  if (vorher !== (name === 'karte')) setTimeout(() => karte.invalidateSize(), 230);
+  // auch bei „Karte“ alle Seiten aus: unsichtbare Knöpfe dürfen nicht per Tastatur erreichbar bleiben
   document.querySelectorAll('.inhalt>section').forEach(s => s.classList.toggle('an', s.dataset.reiter === name));
+  $('seitenTitel').textContent = SEITEN[name];
+  if (name === 'karte') return;
+  $('kopfZahlen').hidden = name !== 'planen' && name !== 'unterwegs';
+  $('panel').querySelector('.inhalt').scrollTop = 0;
   if (name === 'entdecken') wetterLaden();
-  if (name === 'touren') tourenZeigen();
+  if (name === 'touren' || name === 'gegangen') tourenZeigen();
   if (name === 'planen') requestAnimationFrame(() => profilZeichnen());
   if ($('panel').classList.contains('klein')) blatt('mittel');
 }
 document.querySelectorAll('nav.reiter button').forEach(b => b.addEventListener('click', () => reiter(b.dataset.reiter)));
+document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.addEventListener('click', () => reiter(b.dataset.ziel)));
+
+// Menü links oben
+function menue(auf) {
+  const warAuf = !$('menue').hidden;
+  $('menue').hidden = !auf; $('menueHg').hidden = !auf;
+  $('bMenue').setAttribute('aria-expanded', String(!!auf));
+  // solange das Menü offen ist, ist der Rest nicht bedienbar (auch nicht per Tastatur); Fokus ins Menü und zurück
+  ['oben', 'panel', 'kartenknoepfe', 'karte'].forEach(id => { $(id).inert = !!auf; });
+  if (auf) {
+    document.querySelectorAll('#menue [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === seite));
+    ($('menue').querySelector('button.an') || $('menue').querySelector('button')).focus();
+  } else if (warAuf && $('menue').contains(document.activeElement)) $('bMenue').focus();
+}
+$('bMenue').addEventListener('click', e => { e.stopPropagation(); menue($('menue').hidden); });
+$('menueHg').addEventListener('click', () => menue(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('menue').hidden) menue(false); });
 
 // Blatt unten: klein (nur Kopf), mittel, groß. Am Griff ziehen oder tippen.
 function blatt(stufe) {
@@ -18,7 +52,8 @@ function blatt(stufe) {
 }
 // Höhe des Blatts für den Kartennachweis (er steht am Telefon darüber, damit er sichtbar bleibt)
 if (window.ResizeObserver) new ResizeObserver(() => {
-  document.documentElement.style.setProperty('--blatt', (window.innerWidth <= 760 ? $('panel').getBoundingClientRect().height : 0) + 'px');
+  // Abstand vom unteren Rand bis zur Oberkante des Blatts (inklusive der Leiste unten)
+  document.documentElement.style.setProperty('--blatt', (window.innerWidth <= 760 ? Math.max(0, window.innerHeight - $('panel').getBoundingClientRect().top) : 0) + 'px');
 }).observe($('panel'));
 (function griff() {
   const g = $('griff');
