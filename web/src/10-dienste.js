@@ -134,6 +134,22 @@ async function stadtHolen(bbox) {
   return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
 }
 
+// Wetter jetzt (Tagebuch): Temperatur und WMO-Code
+async function wetterJetzt(lat, lon) {
+  const j = await holen(DIENST.wetter + '?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) + '&current=temperature_2m,weather_code&timezone=auto', null, 10);
+  const c = j && j.current;
+  return c && typeof c.temperature_2m === 'number' && Number.isInteger(c.weather_code) ? { temp: c.temperature_2m, code: c.weather_code } : null;
+}
+
+// Ortsname zu einer Stelle (Photon, umgekehrte Suche): Ort, sonst Name des Platzes
+async function ortsname(lat, lon) {
+  const j = await holen(DIENST.photon.replace(/api\/?$/, 'reverse') + '?lat=' + lat.toFixed(5) + '&lon=' + lon.toFixed(5) + '&lang=de', null, 10);
+  const p = j && j.features && j.features[0] && j.features[0].properties;
+  if (!p) return null;
+  const ort = p.city || p.town || p.village || p.locality || p.district;
+  return [p.name && p.name !== ort ? p.name : null, ort].filter(Boolean).join(', ').slice(0, 120) || null;
+}
+
 async function wetterHolen(lat, lon) {
   const url = DIENST.wetter + '?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunset&timezone=auto&forecast_days=3';

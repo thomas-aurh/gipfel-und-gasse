@@ -20,6 +20,7 @@
     <h4>Meine Touren</h4>
     <button data-ziel="touren">🥾 Geplante Touren</button>
     <button data-ziel="gegangen">✅ Gegangene Touren</button>
+    <button data-ziel="tagebuch">📔 Reisetagebuch</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -42,6 +43,9 @@
     <span id="kreuzText"></span>
     <button class="knopf haupt" id="bKreuzSetzen">📍 Punkt hier</button>
   </div>
+
+  <!-- Foto aus dem Reisetagebuch groß (über allem, darum nicht im Blatt) -->
+  <div id="tbBild" hidden role="dialog" aria-modal="true" aria-label="Foto"><img alt="Foto"><button type="button" id="tbBildZu" aria-label="Foto schließen">✕</button></div>
 
   <div id="lagenwahl" hidden>
     <h4>Karte</h4>
@@ -250,6 +254,46 @@
           <p class="klein">112 gilt in ganz Europa, auch ohne Guthaben und in fremden Netzen. In Österreich erreicht 140 direkt die
             Bergrettung, in der Schweiz 1414 die Rega. Am Telefon: was passiert ist, wo (Koordinaten vorlesen), wie viele Verletzte.
             Bleibt der Empfang schwach, hilft oft ein Ortswechsel von wenigen Metern oder eine SMS mit dem Standort.</p>
+        </div>
+      </section>
+
+      <!-- Reisetagebuch: Reisen mit Zeitraum, Einträge mit Text, Fotos, Ort und Wetter -->
+      <section data-reiter="tagebuch">
+        <div id="tbUebersicht">
+          <p class="tipp">Für Urlaub und Ausflüge: je Reise Einträge mit Text und Fotos, Ort und Wetter kommen von selbst dazu.
+            Alles bleibt auf diesem Gerät; „Sicherung speichern“ nimmt es mit.</p>
+          <div class="zeile"><button class="knopf haupt" id="tbHeute" hidden>✍️ Eintrag für heute</button>
+            <button class="knopf" id="tbNeueReise">＋ Neue Reise</button></div>
+          <ul id="tbReisen" class="liste"></ul>
+        </div>
+        <form id="tbReiseForm" hidden>
+          <h3 id="tbReiseFormTitel">Neue Reise</h3>
+          <div class="zeile"><label style="flex:1">Name<input type="text" id="tbName" maxlength="120" placeholder="z. B. Gardasee Pfingsten" required></label></div>
+          <div class="zeile"><label>von<input type="date" id="tbVon" required></label><label>bis<input type="date" id="tbBis" required></label></div>
+          <div class="zeile"><button class="knopf haupt" type="submit">Speichern</button><button class="knopf" type="button" id="tbReiseAbbrechen">Abbrechen</button></div>
+        </form>
+        <div id="tbReise" hidden>
+          <button class="knopf" id="tbZurueck">‹ Alle Reisen</button>
+          <h3 id="tbTitel"></h3>
+          <p id="tbZeitraum" class="klein"></p>
+          <div class="zeile"><button class="knopf haupt" id="tbNeuerEintrag">✍️ Eintrag schreiben</button>
+            <button class="knopf" id="tbReiseBearbeiten" title="Reise bearbeiten">✏️</button>
+            <button class="knopf" id="tbReiseLoeschen" title="Reise löschen">🗑</button></div>
+          <div id="tbEintraege"></div>
+          <h3>Gegangene Touren in dieser Zeit</h3>
+          <ul id="tbTouren" class="liste"></ul>
+        </div>
+        <div id="tbEintragForm" hidden>
+          <h3 id="tbEintragTitel">Neuer Eintrag</h3>
+          <textarea id="tbText" rows="7" maxlength="20000" placeholder="Was war heute? Wo wart ihr, was habt ihr gesehen, gegessen, erlebt?"></textarea>
+          <div id="tbFotosNeu" class="tb-fotos"></div>
+          <div class="zeile"><button type="button" class="knopf" id="tbKamera">📸 Foto aufnehmen</button>
+            <button type="button" class="knopf" id="tbGalerie">🖼️ Aus der Galerie</button></div>
+          <input type="file" id="tbFotoKamera" accept="image/*" capture="environment" hidden>
+          <input type="file" id="tbFotoDatei" accept="image/*" multiple hidden>
+          <p id="tbFotoStatus" class="klein" hidden></p>
+          <p id="tbOrtWetter" class="klein"></p>
+          <div class="zeile"><button class="knopf haupt" id="tbEintragSpeichern">Speichern</button><button class="knopf" id="tbEintragAbbrechen">Abbrechen</button></div>
         </div>
       </section>
 

@@ -293,6 +293,34 @@ pruef('Zeit je Art', R.zeitFuer('lauf', 10000, 0, 0, 5) === 50 / 60 && R.zeitFue
 pruef('Tempo als Text', R.paceText(5.7) === '5:42 min/km' && R.paceText(Infinity) === '–', R.paceText(5.7));
 pruef('Kilometer-Ansage', R.kmAnsage(3, 1025000, 342000) === '3 Kilometer. Zeit 17 Minuten 5 Sekunden. Letzter Kilometer 5:42.', R.kmAnsage(3, 1025000, 342000));
 pruef('Kilometer-Ansage über eine Stunde', R.kmAnsage(12, 4100000, 305000) === '12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.', R.kmAnsage(12, 4100000, 305000));
+// Reisetagebuch
+const ms = (s) => new Date(s).getTime();
+pruef('Tag in Ortszeit', R.tagIso(new Date(2026, 10, 2, 0, 30)) === '2026-11-02');
+const tbE = [{ id: 'a', zeit: ms('2026-08-01T18:00') }, { id: 'b', zeit: ms('2026-08-02T09:00') }, { id: 'c', zeit: ms('2026-08-01T08:00') }];
+const tbT = R.tagebuchTage(tbE);
+pruef('Tagebuch: neuester Tag zuerst, im Tag der Reihe nach', tbT.length === 2 && tbT[0].tag === '2026-08-02' && tbT[1].eintraege.map(e => e.id).join() === 'c,a', tbT);
+const reise = { id: 'r1', name: 'Gardasee', von: '2026-08-01', bis: '2026-08-03' };
+const tourenT = [{ id: 't1', art: 'aufzeichnung', datum: '2026-08-02T10:00:00' }, { id: 't2', art: 'tour', datum: '2026-08-02T10:00:00' }, { id: 't3', art: 'aufzeichnung', datum: '2026-08-05T10:00:00' }];
+pruef('Reise: nur gegangene Touren im Zeitraum', R.reiseTouren(tourenT, reise).map(t => t.id).join() === 't1');
+// nach der Reise gespeicherte Aufzeichnung: zählt der Aufnahmetag aus der Spur, nicht das Speicherdatum
+const spaet = { id: 't4', art: 'aufzeichnung', datum: '2026-08-09T10:00:00', spur: [[45.6, 10.6, null, ms('2026-08-02T09:00')]] };
+pruef('Reise: Aufnahmetag aus der Spur', R.reiseTouren([spaet], reise).length === 1 && R.tourZeit(spaet) === ms('2026-08-02T09:00'));
+pruef('Reise heute', R.reiseHeute([reise, { id: 'r2', name: 'X', von: '2026-07-30', bis: '2026-08-10' }], '2026-08-02').id === 'r1' && R.reiseHeute([reise], '2026-09-01') === null);
+const jpg = 'data:image/jpeg;base64,/9j/AAAA';
+const tbP = R.tagebuchPruefen({
+  reisen: [reise, { id: 'r<b>', name: 'böse', von: '2026-01-01', bis: '2026-01-02' }, { id: 'r3', name: 'verkehrt', von: '2026-02-02', bis: '2026-02-01' }],
+  eintraege: [
+    { id: 'e1', reise: 'r1', zeit: ms('2026-08-01T10:00'), text: 'Schön <b>', ort: { lat: 45.6, lon: 10.6, name: 'Malcesine' }, wetter: { temp: 27.5, code: 1 }, fotos: ['f1', 'f2', 'f3'] },
+    { id: 'e2', reise: 'fremd', zeit: 1, text: 'x' },
+    { id: 'e3', reise: 'r1', zeit: ms('2026-08-02T10:00'), ort: { lat: 99, lon: 0 }, wetter: { temp: 'warm', code: 1 } }
+  ] }, { f1: jpg, f2: 'javascript:alert(1)', f3: 'data:image/svg+xml;base64,AAAA' });
+pruef('Tagebuch aus Sicherung: nur gültige Reisen und Einträge', tbP.reisen.length === 1 && tbP.eintraege.length === 2, tbP);
+pruef('Tagebuch aus Sicherung: Text bleibt Text, nur JPEG/PNG/WebP-Fotos', tbP.eintraege[0].text === 'Schön <b>' && tbP.eintraege[0].fotos.join() === 'f1' && Object.keys(tbP.fotos).join() === 'f1');
+pruef('Tagebuch aus Sicherung: falscher Ort und falsches Wetter fallen weg', !tbP.eintraege[1].ort && !tbP.eintraege[1].wetter && tbP.eintraege[1].text === '');
+const vieleFotos = {}, vieleIds = [];
+for (let i = 0; i < 60; i++) { vieleFotos["g" + i] = jpg; vieleIds.push('g' + i); }
+pruef('Tagebuch aus Sicherung: mehr als 50 Fotos je Eintrag bleiben', R.tagebuchPruefen({ reisen: [reise], eintraege: [{ id: 'e9', reise: 'r1', zeit: 1, fotos: vieleIds }] }, vieleFotos).eintraege[0].fotos.length === 60);
+pruef('Sicherung ohne Tagebuch: leer', R.sicherungTagebuch('{"app":"gipfel-und-gasse","touren":[]}').reisen.length === 0);
 
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

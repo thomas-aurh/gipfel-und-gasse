@@ -183,6 +183,7 @@ if (NATIV) {
   // dann zum Reiter Planen; erst danach geht die App in den Hintergrund (Navigation läuft weiter)
   window.gugZurueck = function () {
     if (!$('menue').hidden) { menue(false); return true; }
+    if (bildZu()) return true;
     if (document.querySelector('.leaflet-popup')) { karte.closePopup(); return true; }
     if (!$('lagenwahl').hidden) { $('lagenwahl').hidden = true; return true; }
     if (kreuzAn) { kreuz(false); return true; }

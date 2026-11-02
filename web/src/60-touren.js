@@ -201,22 +201,29 @@ function gpxHerunter(name, pts, wps) {
 }
 
 // Sicherung: alle Touren samt Planung (Wegpunkte, Stücke, Hinweise) als eine Datei; Laden ergänzt, was fehlt
-function sicherungSpeichern() {
+// Das Reisetagebuch kommt samt Fotos mit (65-tagebuch.js)
+async function sicherungSpeichern() {
   const liste = tourenLesen();
-  if (!liste.length) { melde('Keine Touren gespeichert.'); return; }
+  const tb = await tagebuchFuerSicherung();
+  if (!liste.length && !tb.tagebuch.reisen.length) { melde('Keine Touren und kein Tagebuch gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
-    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste }), 'application/json');
+    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos }), 'application/json');
+  // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
+  if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
 
-function sicherungEinlesen(text) {
+async function sicherungEinlesen(text) {
   const neu = R.sicherungLesen(text);
   const liste = tourenLesen(), ids = new Set(liste.map(t => t.id));
   const dazu = neu.filter(t => !ids.has(t.id));
   if (dazu.length && !tourenSchreiben(dazu.concat(liste))) return;
+  const tb = await tagebuchEinlesen(text);
   tourenZeigen();
-  melde(dazu.length ? dazu.length + ' Touren aus der Sicherung übernommen' + (neu.length > dazu.length ? ', ' + (neu.length - dazu.length) + ' waren schon da.' : '.') :
-    'Alle Touren der Sicherung sind schon da.', 6);
+  const teile = [];
+  if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
+  if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
+  melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
 }
 
 $('bSpeichern').onclick = tourSpeichern;
@@ -231,7 +238,7 @@ $('sicherungDatei').onchange = async e => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  try { sicherungEinlesen(await f.text()); } catch (err) { melde('Sicherung nicht lesbar: ' + err.message, 6); }
+  try { await sicherungEinlesen(await f.text()); } catch (err) { melde('Sicherung nicht lesbar: ' + err.message, 6); }
 };
 $('bTeilen').onclick = async () => {
   if (!S.wps.length) return;

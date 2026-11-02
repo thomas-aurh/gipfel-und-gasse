@@ -14,7 +14,7 @@ else
   printf 'window.GugOffline=null;\n' > dist/offline.js
   : > dist/offline-lizenzen.txt
 fi
-JS="00-rechnen.js 10-dienste.js 20-karte.js 30-planen.js 40-profil.js 50-entdecken.js 55-stadt.js 57-drucken.js 58-offline.js 60-touren.js 70-unterwegs.js 75-app.js 80-start.js"
+JS="00-rechnen.js 10-dienste.js 20-karte.js 30-planen.js 40-profil.js 50-entdecken.js 55-stadt.js 57-drucken.js 58-offline.js 60-touren.js 65-tagebuch.js 70-unterwegs.js 75-app.js 80-start.js"
 {
   printf '<!doctype html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
   printf '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
