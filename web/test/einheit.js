@@ -288,6 +288,23 @@ pruef('Sicherung: Zeitplan geprüft übernommen', JSON.stringify(R.sicherungLese
 // Laufen: Leistungs-km (100 Hm = 1 km), Tempo als Text, Ansage je km (gleich wie NaviRechnenTest)
 const mitPace = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'l1', name: 'Lauf', spur: [[47, 11, null]], kurz: {}, pace: 5 }, { id: 'l2', name: 'Unsinn', spur: [[47, 11, null]], kurz: {}, pace: 999 }] }));
 pruef('Sicherung: Lauftempo je Tour, unsinniges fällt weg', mitPace[0].pace === 5 && mitPace[1].pace === undefined);
+// Auto-Pause (gleich wie AutoPauseTest.java)
+const gehen = (p, bis) => { for (let t = 5000; t <= bis; t += 5000) p.bewegt(t); };   // GPS meldet alle 5 s Bewegung
+const ap = R.autoPause(0, 0);
+gehen(ap, 60000);
+pruef('Auto-Pause: 5 s Stehen ist keine Pause, 11 s schon (einmal gemeldet)', !ap.takt(65000) && ap.takt(71000) && !ap.takt(80000));
+pruef('Auto-Pause: Pause ab der letzten Bewegung', ap.bewegungMs(90000) === 60000);
+const ap2 = R.autoPause(0, 0);
+gehen(ap2, 60000); ap2.takt(65000); ap2.takt(70000);
+pruef('Auto-Pause: Schwelle auch ohne Takt dazwischen (12 s Stehen zählen nicht)', ap2.bewegt(72000) === false && ap2.pauseMs === 12000 && ap2.bewegungMs(72000) === 60000);
+pruef('Auto-Pause: weiter nach einer Minute Ampel', ap.bewegt(120000) === true && ap.pauseMs === 60000 && ap.bewegungMs(180000) === 120000);
+// Rundkurs: Ecken auf einem Kreis, Start mit dabei, Umfang passt zur Wunschlänge
+const rs = { lat: 47.75, lon: 11.37 };
+const [r1, r2] = R.rundkursPunkte(rs, 8000, 90, 1.3);
+const rUmfang = R.abstand(rs, r1) + R.abstand(r1, r2) + R.abstand(r2, rs);
+pruef('Rundkurs: Dreieck so groß, dass Weg × 1,3 ≈ Wunschlänge', nahe(rUmfang * 1.3, 8000, 80), rUmfang);
+pruef('Rundkurs: in die gewünschte Richtung (Osten)', r1.lon > rs.lon && r2.lon > rs.lon);
+pruef('Versatz: 1000 m nach Norden', nahe(R.abstand(rs, R.versatz(rs, 1000, 0)), 1000, 2) && R.versatz(rs, 1000, 0).lat > rs.lat);
 pruef('Laufzeit mit Höhe', nahe(R.laufzeit(10000, 200, 6), 1.2, 1e-9));
 pruef('Zeit je Art', R.zeitFuer('lauf', 10000, 0, 0, 5) === 50 / 60 && R.zeitFuer('fuss', 12000, 600, 600, 1) === R.gehzeit(12000, 600, 600, 1));
 pruef('Tempo als Text', R.paceText(5.7) === '5:42 min/km' && R.paceText(Infinity) === '–', R.paceText(5.7));
@@ -320,7 +337,31 @@ pruef('Tagebuch aus Sicherung: falscher Ort und falsches Wetter fallen weg', !tb
 const vieleFotos = {}, vieleIds = [];
 for (let i = 0; i < 60; i++) { vieleFotos["g" + i] = jpg; vieleIds.push('g' + i); }
 pruef('Tagebuch aus Sicherung: mehr als 50 Fotos je Eintrag bleiben', R.tagebuchPruefen({ reisen: [reise], eintraege: [{ id: 'e9', reise: 'r1', zeit: 1, fotos: vieleIds }] }, vieleFotos).eintraege[0].fotos.length === 60);
+const sk = R.heftSkizze([{ lat: 45.6, lon: 10.6, nr: 1 }, { lat: 45.7, lon: 10.8, nr: 2 }], [[{ lat: 45.6, lon: 10.6 }, { lat: 45.65, lon: 10.7 }, { lat: 45.7, lon: 10.8 }]], 600, 300);
+const kreise = [...sk.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)].map(m => [+m[1], +m[2]]);
+pruef('Heft-Skizze: Orte innerhalb, Nord oben, Ost rechts', kreise.length === 2 && kreise.every(([x, y]) => x >= 24 && x <= 576 && y >= 24 && y <= 276) &&
+  kreise[1][0] > kreise[0][0] && kreise[1][1] < kreise[0][1], kreise);
+pruef('Heft-Skizze: Weg und Maßstab', sk.includes('<polyline') && /<text x="12"[^>]*>\d+(,\d)? k?m<\/text>/.test(sk), sk.slice(-160));
+const teile = R.spurTeile([{ lat: 1, lon: 1 }, { lat: 1.1, lon: 1 }, { lat: 2, lon: 2, luecke: true }, { lat: 2.1, lon: 2 }, { lat: 3, lon: 3, luecke: true }]);
+pruef('Spur an Lücken geteilt, Einzelpunkte fallen weg', teile.length === 2 && teile[0].length === 2 && teile[1][0].lat === 2);
+pruef('Heft-Skizze: ein einzelner Ort geht, leer gibt nichts', R.heftSkizze([{ lat: 45.6, lon: 10.6, nr: 1 }], [], 600, 300).includes('<circle') && R.heftSkizze([], [], 600, 300) === '');
 pruef('Sicherung ohne Tagebuch: leer', R.sicherungTagebuch('{"app":"gipfel-und-gasse","touren":[]}').reisen.length === 0);
+
+// Gewitter in den nächsten Stunden
+const jetztG = Date.UTC(2026, 6, 10, 12, 0) ;
+const zeitenG = [0, 1, 2, 3].map(h => jetztG / 1000 + h * 3600);
+pruef('Gewitter: erste Stunde mit Code ≥ 95 im Fenster', R.gewitterAb(zeitenG, [1, 3, 95, 96], jetztG, 3 * 3600e3) === jetztG + 2 * 3600e3);
+pruef('Gewitter: außerhalb des Fensters zählt nicht', R.gewitterAb(zeitenG, [1, 3, 61, 95], jetztG, 2 * 3600e3) === null);
+// Statistik: Mittwoch, 11.11.2026; Woche ab Montag 9.11.
+const stat = R.statistik([
+  { art: 'aufzeichnung', datum: '2026-11-10T10:00:00', kurz: { laenge: 5000, auf: 100 }, spur: [[47, 11, null]] },
+  { art: 'aufzeichnung', datum: '2026-11-11T10:00:00', kurz: { laenge: 3000, auf: 50 }, spur: [[47, 11, null, new Date(2026, 10, 4, 9).getTime()]] },
+  { art: 'aufzeichnung', datum: '2026-10-20T10:00:00', kurz: { laenge: 10000, auf: 400 }, spur: [[47, 11, null]] },
+  { art: 'plan', datum: '2026-11-10T10:00:00', kurz: { laenge: 99000, auf: 0 }, spur: [[47, 11, null]] }
+], new Date(2026, 10, 11, 18).getTime());
+pruef('Statistik: Woche ab Montag, Aufnahmetag zählt, Planungen nicht', stat.woche.touren === 1 && stat.woche.km === 5 && stat.vorwoche.touren === 1 && stat.vorwoche.km === 3, st);
+pruef('Statistik: Monat und Vormonat', stat.monat.km === 8 && stat.vormonat.km === 10 && stat.monat.auf === 150);
+pruef('Statistik: 12 Monate bis zum aktuellen', stat.monate.length === 12 && stat.monate[11].monat === 10 && stat.monate[11].km === 8 && stat.monate[10].km === 10);
 
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

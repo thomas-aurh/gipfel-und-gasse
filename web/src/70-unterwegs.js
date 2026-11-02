@@ -49,7 +49,7 @@ function posNeu(p) {
   if (U.ersterFix) { U.ersterFix = false; karte.setView(ll, Math.max(karte.getZoom(), 15)); }
   else if (U.folgen) karte.panTo(ll, { animate: true });
   if (U.navi) naviNeu();
-  if (U.aufz) aufzNeu();
+  if (U.aufz) aufzNeu(c);
   notfallZeigen();
 }
 
@@ -156,6 +156,8 @@ function aufzLaeuft() { return !!(U.aufz && U.aufz.laeuft); }
 
 // ---------- der Route folgen ----------
 $('bNavi').onclick = () => {
+  setTimeout(gewitterPruefen, 60000);
+  setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);
   if (U.navi) { U.navi = false; $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
   if (!gpsAn()) return;
@@ -201,6 +203,8 @@ function naviNeu() {
 
 // ---------- Aufzeichnen ----------
 $('bAufz').onclick = () => {
+  setTimeout(gewitterPruefen, 60000);
+  setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);   // beendet: Warnung weg
   if (U.aufz && U.aufz.laeuft) {
     U.aufz.laeuft = false; U.aufz.ende = Date.now();
     $('bAufz').textContent = '⏺ Neue Aufzeichnung';
@@ -210,7 +214,8 @@ $('bAufz').onclick = () => {
     return;
   }
   if (!gpsAn()) return;
-  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: Date.now() };
+  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0 };
+  U.aufz.pause = R.autoPause(U.aufz.start, 0);
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
@@ -221,9 +226,11 @@ $('bAufz').onclick = () => {
   if (U.pos) aufzNeu();
 };
 
-function aufzNeu() {
+function aufzNeu(c) {
   const a = U.aufz;
   if (!a || !a.laeuft || !U.pos) return;
+  // Bewegung für die Auto-Pause auch an der GPS-Geschwindigkeit (unabhängig vom Ausdünnen der Spur)
+  if (a.pause && c && c.speed > 0.6 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   if (U.pos.gen > 40) return;                     // zu ungenau
   const p = { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t };
   const letzt = a.pts[a.pts.length - 1];
@@ -231,21 +238,33 @@ function aufzNeu() {
   if (letzt) a.meter += R.abstand(letzt, p);
   a.pts.push(p);
   aufzLinie.addLatLng([p.lat, p.lon]);
-  kmAnsagen(a.meter, a.start, a);
+  if (a.pts.length > 1 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
+  kmAnsagen(a.meter, a.pause, a);
   aufzZahlen();
 }
 
 // jeden vollen Kilometer der Aufzeichnung: Zeit und Tempo des letzten Kilometers (im Browser per Sprachausgabe;
 // in der App sagt das der Navigationsdienst an, auch bei gesperrtem Bildschirm)
-function kmAnsagen(meter, start, zaehler) {
+// Zeiten in Bewegungszeit (Auto-Pause: Stehen an der Ampel zählt nicht)
+function kmAnsagen(meter, pause, zaehler) {
   const km = Math.floor(meter / 1000);
   if (km <= zaehler.km) return;
-  const jetzt = Date.now();
-  const text = R.kmAnsage(km, jetzt - start, (jetzt - zaehler.kmZeit) / (km - zaehler.km));
-  zaehler.km = km; zaehler.kmZeit = jetzt;
-  if (!$('kmAnsage').checked || NATIV || !window.speechSynthesis) return;
+  const bewegung = pause.bewegungMs(Date.now());
+  const text = R.kmAnsage(km, bewegung, (bewegung - zaehler.kmZeit) / (km - zaehler.km));
+  zaehler.km = km; zaehler.kmZeit = bewegung;
+  if ($('kmAnsage').checked) sagenBrowser(text);
+}
+// Sprachausgabe im Browser (die App spricht über den Dienst); nurLauf: „Pause“/„Weiter“ nur beim Laufen
+function sagenBrowser(text, nurLauf) {
+  if (NATIV || !window.speechSynthesis || (nurLauf && artAktuell() !== 'lauf')) return;
   try { const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; speechSynthesis.speak(u); } catch (e) { /* ohne Sprachausgabe */ }
 }
+// Auto-Pause auch ohne neuen Standort erkennen (im Stehen kommen kaum Punkte)
+setInterval(() => {
+  const a = U.aufz;
+  if (!a || !a.laeuft || !a.pause) return;
+  if (a.pause.takt(Date.now())) { sagenBrowser('Pause.', true); aufzZahlen(); }
+}, 5000);
 $('kmAnsage').onchange = e => { SPEICHER.schreiben('kmAnsage', e.target.checked); SPEICHER.schreiben('kmAnsageGewaehlt', true); };
 
 function aufzZahlen() {
@@ -255,9 +274,15 @@ function aufzZahlen() {
   const m = R.laengen(pts);
   $('aStrecke').textContent = R.kmText(m);
   const dauer = ((a.ende || Date.now()) - a.start) / 3600e3;
+  const bewegung = a.pause ? a.pause.bewegungMs(a.ende || Date.now()) / 3600e3 : dauer;
   $('aDauer').textContent = R.zeitText(dauer, true);
   $('aAuf').textContent = R.hoehenmeter(pts.map(p => p.ele), 8).auf + ' m';
-  $('aTempo').textContent = m > 50 ? R.paceText(dauer * 60 / (m / 1000)) : '–';
+  bewegungZeigen(m, dauer, bewegung, a.laeuft && a.pause && a.pause.pausiert);
+}
+// Ø Tempo aus der Bewegungszeit; darunter Bewegungszeit und ob gerade Pause ist (auch für die App, 75-app.js)
+function bewegungZeigen(meter, dauer, bewegung, pausiert) {
+  $('aTempo').textContent = meter > 50 && bewegung > 0 ? R.paceText(bewegung * 60 / (meter / 1000)) : '–';
+  $('aBewegung').textContent = (dauer - bewegung > 1 / 60 ? 'Bewegung ' + R.zeitText(bewegung, true) + ' · Stehen zählt nicht' : '') + (pausiert ? (dauer - bewegung > 1 / 60 ? ' · ' : '') + '⏸ Pause' : '');
 }
 setInterval(() => { if (U.aufz && U.aufz.laeuft) aufzZahlen(); }, 30000);
 
@@ -273,3 +298,28 @@ $('bAufzSpeichern').onclick = async () => {
   $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
   setTimeout(() => { $('bAufzSpeichern').textContent = '💾 Als Tour speichern'; }, 4000);
 };
+
+// Gewitterwarnung unterwegs (im Browser; in der App fragt der Navigationsdienst selbst, auch bei gesperrtem Bildschirm):
+// beim Folgen oder Aufzeichnen alle 30 min die nächsten drei Stunden am Standort
+function gewitterZeigen(text) {
+  $('uWetter').hidden = !text;
+  $('uWetter').textContent = text ? '⚡ ' + text + '. Schutz suchen, Grate und Gipfel meiden.' : '';
+}
+let gewitterGemeldet = 0;
+async function gewitterPruefen() {
+  if (NATIV) return;
+  if (!(U.navi || aufzLaeuft())) { gewitterZeigen(null); return; }
+  if (!U.pos) return;
+  let ab;
+  try { ab = await gewitterHolen(U.pos.lat, U.pos.lon); } catch (e) { return; }   // ohne Netz: beim nächsten Mal
+  if (!(U.navi || aufzLaeuft())) { gewitterZeigen(null); return; }   // inzwischen beendet: Antwort verwerfen
+  const text = ab == null ? null : ab <= Date.now() ? 'Gewitter möglich, jetzt' : 'Gewitter möglich gegen ' + new Date(ab).getHours() + ' Uhr';
+  gewitterZeigen(text);
+  if (text && Date.now() - gewitterGemeldet > 2 * 3600e3) {
+    gewitterGemeldet = Date.now();
+    melde('⚡ ' + text + '.', 8);
+    try { if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance('Achtung: ' + text + '.'); u.lang = 'de-DE'; speechSynthesis.speak(u); } } catch (e) { /* stumm */ }
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+  }
+}
+setInterval(gewitterPruefen, 30 * 60000);

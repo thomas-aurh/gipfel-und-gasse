@@ -150,6 +150,12 @@ async function ortsname(lat, lon) {
   return [p.name && p.name !== ort ? p.name : null, ort].filter(Boolean).join(', ').slice(0, 120) || null;
 }
 
+// Gewitter in den nächsten drei Stunden am Standort (stündlich, Unix-Zeiten); null = keins
+async function gewitterHolen(lat, lon) {
+  const j = await holen(DIENST.wetter + '?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) + '&hourly=weather_code&forecast_hours=4&timeformat=unixtime', null, 15);
+  return j && j.hourly ? R.gewitterAb(j.hourly.time, j.hourly.weather_code, Date.now(), 3 * 3600e3) : null;
+}
+
 async function wetterHolen(lat, lon) {
   const url = DIENST.wetter + '?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunset&timezone=auto&forecast_days=3';

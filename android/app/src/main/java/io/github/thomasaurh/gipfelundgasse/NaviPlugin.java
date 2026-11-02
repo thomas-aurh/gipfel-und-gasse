@@ -234,7 +234,7 @@ public class NaviPlugin extends Plugin {
                 }
             }
             if (call.getBoolean("leeren", false) && !z.aufzeichnen) {
-                z.spur.clear(); z.aufzStart = 0; z.aufzEnde = 0; z.aufzMeter = 0;
+                z.spur.clear(); z.aufzStart = 0; z.aufzEnde = 0; z.aufzMeter = 0; z.pause = null;
                 new File(getContext().getFilesDir(), "aufzeichnung.json").delete();
             }
         }
@@ -358,6 +358,7 @@ public class NaviPlugin extends Plugin {
             o.put("laeuft", z.laeuft);
             o.put("folgen", z.folgen);
             o.put("aufzeichnen", z.aufzeichnen);
+            if (z.gewitter != null && z.laeuft && (z.folgen || z.aufzeichnen)) o.put("gewitter", z.gewitter);
             Location l = z.letzte;
             if (l != null) {
                 o.put("lat", l.getLatitude());
@@ -392,6 +393,8 @@ public class NaviPlugin extends Plugin {
                 a.put("start", z.aufzStart);
                 a.put("punkte", z.spur.size());
                 if (z.aufzEnde != 0) a.put("ende", z.aufzEnde);
+                // Bewegungszeit (Auto-Pause: Stehen zählt nicht) und ob gerade Pause ist
+                if (z.pause != null) { a.put("bewegung", z.pause.bewegungMs(z.aufzEnde != 0 ? z.aufzEnde : System.currentTimeMillis())); a.put("pause", z.pause.pausiert && z.aufzEnde == 0); }
                 double[] hm = NaviRechnen.hoehenmeter(eles(z.spur), 0, Double.NaN, 8);
                 a.put("auf", hm[0]);
                 o.put("aufz", a);

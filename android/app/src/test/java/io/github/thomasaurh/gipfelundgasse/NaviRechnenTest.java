@@ -96,4 +96,11 @@ public class NaviRechnenTest {
         assertEquals(1000000 + 4 * 180000, NaviRechnen.kmGrenzzeit(spur, 1000000));
         assertEquals(7, NaviRechnen.kmGrenzzeit(spur.subList(0, 2), 7));   // noch kein voller Kilometer
     }
+
+    @Test public void gewitterInDenNaechstenStunden() {
+        long jetzt = 1783684800000L;   // volle Stunde
+        long[] z = { jetzt / 1000, jetzt / 1000 + 3600, jetzt / 1000 + 7200, jetzt / 1000 + 10800 };
+        assertEquals(jetzt + 7200000, NaviRechnen.gewitterAb(z, new int[] { 1, 3, 95, 96 }, jetzt, 3 * 3600000L));
+        assertEquals(-1, NaviRechnen.gewitterAb(z, new int[] { 1, 3, 61, 95 }, jetzt, 2 * 3600000L));
+    }
 }

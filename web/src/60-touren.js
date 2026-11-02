@@ -163,6 +163,7 @@ function tourenZeigen() {
     [R.zeitText(gegangen.reduce((s, t) => s + dauer(t), 0), true), 'unterwegs'], [diesesJahr.length, 'Touren ' + jahr], [R.kmText(diesesJahr.reduce((s, t) => s + (+t.kurz.laenge || 0), 0)), 'Strecke ' + jahr]
   ].map(([w, t]) => '<div class="zahl"><b>' + R.esc(String(w)) + '</b><span>' + R.esc(t) + '</span></div>').join('') : '';
   $('gangStatistik').hidden = !gegangen.length;
+  zeitraeumeZeigen(gegangen);
 }
 
 function listeZeigen(ul, liste, leer) {
@@ -275,3 +276,31 @@ $('gpxDatei').onchange = async e => {
     melde('GPX nicht lesbar: ' + err.message, 6);
   }
 };
+
+// Woche und Monat im Vergleich, darunter Kilometer der letzten 12 Monate als Säulen (Wert beim Antippen, Tabelle zum Aufklappen)
+function zeitraeumeZeigen(gegangen) {
+  const st = R.statistik(gegangen, Date.now());
+  const km = z => (z.km >= 10 ? Math.round(z.km) : Math.round(z.km * 10) / 10).toLocaleString('de-DE') + ' km';
+  const zeile = (name, z, vor, vorName) => '<b>' + name + ':</b> ' + km(z) + ' · ' + z.touren + (z.touren === 1 ? ' Tour' : ' Touren') +
+    (z.auf ? ' · ↑ ' + Math.round(z.auf) + ' m' : '') + ' <span class="klein">(' + vorName + ' ' + km(vor) + ')</span>';
+  $('gangZeitraum').innerHTML = zeile('Diese Woche', st.woche, st.vorwoche, 'Vorwoche') + '<br>' + zeile('Dieser Monat', st.monat, st.vormonat, 'Vormonat');
+  $('gangZeitraum').hidden = !gegangen.length;
+  const fig = $('gangMonate');
+  fig.hidden = !gegangen.length;
+  if (!gegangen.length) return;
+  const max = Math.max(...st.monate.map(m => m.km));
+  const maxI = st.monate.findIndex(m => m.km === max);
+  const wert = m => km(m) + ', ' + m.touren + (m.touren === 1 ? ' Tour' : ' Touren');
+  fig.innerHTML = '<figcaption>Kilometer je Monat</figcaption><div class="saeulen" role="img" aria-label="Kilometer der letzten 12 Monate">' +
+    st.monate.map((m, i) => {
+      const h = max > 0 ? Math.round(m.km / max * 100) : 0;
+      // Zahl nur am höchsten und am aktuellen Monat (nicht an jeder Säule)
+      const zahl = (i === maxI || i === 11) && m.km > 0 ? '<b style="bottom:calc(' + h + '% + 2px)">' + km(m).replace(' km', '') + '</b>' : '';
+      return '<button type="button" class="saeule" title="' + R.esc(m.name + ' ' + m.jahr + ': ' + wert(m)) + '" aria-label="' + R.esc(m.name + ' ' + m.jahr + ': ' + wert(m)) + '">' +
+        '<i style="height:' + h + '%"></i>' + zahl + '</button>';
+    }).join('') + '</div><div class="namen">' + st.monate.map(m => '<span>' + R.esc(m.name.slice(0, 3)) + '</span>').join('') + '</div>' +
+    '<details><summary>Als Tabelle</summary><table><tr><th>Monat</th><th>Strecke</th><th>Touren</th></tr>' +
+    st.monate.slice().reverse().map(m => '<tr><td>' + R.esc(m.name + ' ' + m.jahr) + '</td><td>' + km(m) + '</td><td>' + m.touren + '</td></tr>').join('') + '</table></details>';
+  // Antippen zeigt den Wert (am Telefon gibt es kein Überfahren)
+  fig.querySelectorAll('.saeule').forEach(b => { b.onclick = () => melde(b.getAttribute('aria-label'), 3); });
+}
