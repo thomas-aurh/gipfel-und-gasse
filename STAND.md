@@ -17,6 +17,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Actions) und die Anzeige in der App (Klicktest mit nachgebildetem Dienst). Ungeprüft: echtes Abweichen mit
   gesperrtem Bildschirm, Rechenzeit offline auf dem Pixel, Abruf bei brouter.de aus dem Dienst. Im Browser wird nicht
   umgeplant (dort nur die Abseits-Warnung).
+- **Pfeil in Blickrichtung (#15) nicht auf dem Handy geprüft:** Kompass im WebView der App und Querformat nur im
+  Klicktest nachgebildet. Der neue Schritt „Download-Seite erneuern“ läuft erst beim ersten Bau auf `main` (danach
+  prüfen: Link liefert die APK, Titel nennt den neuen Bau).
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
   signiert GitHub mit einem Ersatzschlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
   nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
@@ -128,6 +131,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Kartenpakete: App-PRs prüfen die veröffentlichten Pakete statt neu zu bauen (#11). Fadenkreuz zum genauen Setzen
   von Punkten, Koordinaten und Abstand zum letzten Punkt (#13).
   Automatisches Umplanen beim Navigieren zum nächsten Ziel, neue Strecke blau auf der Karte (#14).
+  Standortpunkt mit Pfeil in Blickrichtung (Kompass, beim Gehen GPS-Richtung); Download-Link bleibt beim Bau
+  erreichbar (APK wird ersetzt statt die Seite neu anzulegen) (#15).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

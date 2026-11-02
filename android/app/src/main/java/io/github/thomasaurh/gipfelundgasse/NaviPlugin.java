@@ -316,6 +316,8 @@ public class NaviPlugin extends Plugin {
                 o.put("lon", l.getLongitude());
                 o.put("gen", l.hasAccuracy() ? l.getAccuracy() : null);
                 o.put("t", l.getTime());
+                // Bewegungsrichtung nur, wenn man sich bewegt (im Stehen ist sie Zufall)
+                if (l.hasBearing() && l.hasSpeed() && l.getSpeed() > 0.7f) o.put("richtung", (double) l.getBearing());
             }
             if (z.folgen && z.rest != null) {
                 JSObject r = new JSObject();

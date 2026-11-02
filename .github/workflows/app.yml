@@ -106,8 +106,39 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+        # Der Link …/releases/download/neueste/Gipfel-und-Gasse.apk soll nie ins Leere gehen: die Seite bleibt bestehen,
+        # die neue APK kommt unter einem Zwischennamen dazu und ersetzt die alte erst danach (nur Umbenennen, kein Neuanlegen)
         run: |
-          gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" \
-            --title "Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})" \
-            --notes "Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"
+          titel="Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})"
+          text="Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"
+          if ! gh release view neueste >/dev/null 2>&1; then
+            gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" --title "$titel" --notes "$text"
+            exit 0
+          fi
+          R="repos/${{ github.repository }}"
+          rel=$(gh api "$R/releases/tags/neueste" --jq .id)
+          asset() { gh api "$R/releases/$rel/assets" --jq ".[] | select(.name == \"$1\") | .id"; }
+          umbenennen() { gh api -X PATCH "$R/releases/assets/$1" -f name="$2" >/dev/null; }
+          # Rest eines abgebrochenen Laufs: fehlt die APK, die zur Seite gerückte zurückholen
+          if [ -z "$(asset Gipfel-und-Gasse.apk)" ] && [ -n "$(asset Gipfel-und-Gasse-alt.apk)" ]; then
+            umbenennen "$(asset Gipfel-und-Gasse-alt.apk)" Gipfel-und-Gasse.apk
+          fi
+          a=$(asset Gipfel-und-Gasse-alt.apk); if [ -n "$a" ]; then gh api -X DELETE "$R/releases/assets/$a"; fi
+          cp Gipfel-und-Gasse.apk Gipfel-und-Gasse-neu.apk
+          gh release upload neueste Gipfel-und-Gasse-neu.apk --clobber
+          neu=$(asset Gipfel-und-Gasse-neu.apk); test -n "$neu"
+          alt=$(asset Gipfel-und-Gasse.apk)
+          # alte zur Seite (bleibt für die Wiederherstellung), neue an ihren Platz; scheitert das, alte zurück
+          if [ -n "$alt" ]; then umbenennen "$alt" Gipfel-und-Gasse-alt.apk; fi
+          if ! umbenennen "$neu" Gipfel-und-Gasse.apk; then
+            sleep 3
+            if ! umbenennen "$neu" Gipfel-und-Gasse.apk; then
+              [ -n "$alt" ] && umbenennen "$alt" Gipfel-und-Gasse.apk
+              exit 1
+            fi
+          fi
+          if [ -n "$alt" ]; then gh api -X DELETE "$R/releases/assets/$alt"; fi
+          # Tag auf den gebauten Commit, dann Titel und Text
+          gh api -X PATCH "$R/git/refs/tags/neueste" -f sha="${{ github.sha }}" -F force=true >/dev/null
+          gh release edit neueste --latest --title "$titel" --notes "$text"
+          test -n "$(asset Gipfel-und-Gasse.apk)"

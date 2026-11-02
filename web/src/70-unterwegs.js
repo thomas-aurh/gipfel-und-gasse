@@ -4,6 +4,8 @@ let ichMarke = null, ichKreis = null, aufzLinie = null;
 
 function gpsAn() {
   if (U.watch != null) return true;
+  // iPhone: Kompass nur nach Rückfrage, und die muss aus einem Tipp kommen (Standort, Route folgen, Aufzeichnen)
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().catch(() => {});
   if (!('geolocation' in navigator)) { melde('Dieser Browser kennt kein GPS.'); return false; }
   $('gpsStatus').textContent = 'Suche GPS …';
   U.watch = navigator.geolocation.watchPosition(posNeu, err => {
@@ -21,6 +23,7 @@ function gpsAus() {
   if (U.watch != null) navigator.geolocation.clearWatch(U.watch);
   U.watch = null; U.folgen = false; U.ersterFix = true;
   ebeneIch.clearLayers(); ichMarke = ichKreis = null;
+  kompassAus();
   $('bOrt').classList.remove('an');
   $('gpsStatus').textContent = 'GPS aus.';
 }
@@ -31,14 +34,61 @@ function posNeu(p) {
   const ll = [c.latitude, c.longitude];
   if (!ichMarke) {
     ichKreis = L.circle(ll, { radius: c.accuracy, color: '#1a73e8', weight: 1, fillOpacity: 0.12, interactive: false }).addTo(ebeneIch);
-    ichMarke = L.marker(ll, { interactive: false, icon: L.divIcon({ className: '', html: '<div class="ich"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }) }).addTo(ebeneIch);
+    ichMarke = L.marker(ll, { interactive: false, icon: L.divIcon({ className: '', html: '<div class="ich"><div class="ich-pfeil" hidden></div></div>', iconSize: [18, 18], iconAnchor: [9, 9] }) }).addTo(ebeneIch);
+    kompassAn();
+    blickZeigen();
   } else { ichMarke.setLatLng(ll); ichKreis.setLatLng(ll).setRadius(c.accuracy); }
+  // beim Gehen ohne Kompass: Bewegungsrichtung aus dem GPS
+  // (im Stehen ohne Kompass gibt es keine Richtung: dann Pfeil weg statt der alten Gehrichtung)
+  const kompassFrisch = Date.now() - BLICK.kompassSeit <= 3000;
+  if (!kompassFrisch) {
+    if (c.heading != null && isFinite(c.heading) && (c.speed || 0) > 0.7) blickSetzen(c.heading);
+    else if (BLICK.grad != null) { BLICK.grad = null; blickZeigen(); }
+  }
   $('gpsStatus').textContent = 'GPS an · Genauigkeit ± ' + Math.round(c.accuracy) + ' m';
   if (U.ersterFix) { U.ersterFix = false; karte.setView(ll, Math.max(karte.getZoom(), 15)); }
   else if (U.folgen) karte.panTo(ll, { animate: true });
   if (U.navi) naviNeu();
   if (U.aufz) aufzNeu();
   notfallZeigen();
+}
+
+// ---------- Blickrichtung: Pfeil am Standortpunkt ----------
+// Kompass des Geräts (wohin das Handy zeigt); ohne Kompass beim Gehen die GPS-Richtung. Unbekannt: Punkt ohne Pfeil.
+const BLICK = { grad: null, gedreht: null, kompassSeit: 0, an: false, rahmen: 0 };
+function blickSetzen(grad) {
+  if (BLICK.grad != null && Math.abs(((grad - BLICK.grad + 540) % 360) - 180) < 2) return;   // Zittern unter 2° nicht zeigen
+  BLICK.grad = (grad + 360) % 360;
+  if (!BLICK.rahmen) BLICK.rahmen = requestAnimationFrame(() => { BLICK.rahmen = 0; blickZeigen(); });
+}
+function blickZeigen() {
+  const m = ichMarke && ichMarke.getElement();
+  const pf = m && m.querySelector('.ich-pfeil');
+  if (!pf) return;
+  pf.hidden = BLICK.grad == null;
+  if (BLICK.grad == null) { BLICK.gedreht = null; return; }
+  // fortlaufender Winkel: von 358° auf 1° dreht der Pfeil 3° weiter, nicht 357° zurück (die Drehung ist animiert)
+  BLICK.gedreht = BLICK.gedreht == null ? BLICK.grad : BLICK.gedreht + ((BLICK.grad - BLICK.gedreht % 360 + 540) % 360) - 180;
+  pf.style.transform = 'rotate(' + Math.round(BLICK.gedreht) + 'deg)';
+}
+function kompassEreignis(e) {
+  let g = null;
+  if (typeof e.webkitCompassHeading === 'number') g = e.webkitCompassHeading;          // iPhone
+  else if (e.absolute && e.alpha != null) g = 360 - e.alpha;                            // Android: alpha gegen den Uhrzeigersinn ab Nord
+  if (g == null || !isFinite(g)) return;
+  const dreh = (screen.orientation && screen.orientation.angle) || 0;                    // Querformat: Oberkante des Bildschirms zählt
+  BLICK.kompassSeit = Date.now();
+  blickSetzen(g + dreh);
+}
+const KOMPASS = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+function kompassAn() {
+  if (BLICK.an) return;
+  BLICK.an = true;
+  window.addEventListener(KOMPASS, kompassEreignis);
+}
+function kompassAus() {
+  window.removeEventListener(KOMPASS, kompassEreignis);
+  BLICK.an = false; BLICK.grad = null; BLICK.gedreht = null; BLICK.kompassSeit = 0;
 }
 
 // ---------- Notfall: Standort zum Vorlesen und Senden ----------
