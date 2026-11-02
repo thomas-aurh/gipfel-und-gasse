@@ -23,7 +23,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
   der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
 - **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
-  die Kamera nicht, Korrektur in #18 auf dem Handy noch nicht geprüft. Offen:
+  die Kamera nicht, Korrektur in #18 auf dem Handy noch nicht geprüft; ebenso das Original in der Galerie (#19).
+  Capacitor legt das Kamerafoto zusätzlich im App-Ordner (Android/data/…/Pictures) ab und räumt es nicht weg. Offen:
   Größe der Sicherung mit vielen Fotos. Fotos liegen im Speicher der App (IndexedDB): wer die App deinstalliert, löscht
   sie mit, darum vorher „Sicherung speichern“.
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
@@ -150,6 +151,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Touren der Reise; Fotos kommen mit in die Sicherung (#16).
   Kamera aus dem Tagebuch: Kamera-App im Manifest angemeldet (ohne sie wich Capacitor ab Android 11 still auf die
   Dateiauswahl aus, Befund von Thomas in Verona) (#18).
+  Mit der Kamera aufgenommene Tagebuch-Fotos zusätzlich als Original in die Galerie (Bilder › Gipfel und Gasse,
+  abschaltbar, ab Android 10) (#19).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

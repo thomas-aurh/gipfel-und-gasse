@@ -1,11 +1,16 @@
 package io.github.thomasaurh.gipfelundgasse;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Base64;
 import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
@@ -22,6 +27,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +44,7 @@ import org.json.JSONObject;
  *   Navi.teilen({ name, text, mime }) → Datei über das Teilen-Menü von Android weitergeben (z. B. GPX an CoMaps)
  *   Navi.textTeilen({ text })        → Text über das Teilen-Menü (Standort im Notfall)
  *   Navi.drucken({ name })           → Druckdialog von Android für die aktuelle Seite
+ *   Navi.fotoInGalerie({ daten, name, mime }) → Foto (Base64) in die Galerie unter Bilder/Gipfel und Gasse (ab Android 10)
  *   Ereignis "position": { lat, lon, gen, rest, abw, abseits, umgeplant, aufz }
  */
 @CapacitorPlugin(
@@ -275,6 +282,45 @@ public class NaviPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Teilen ging nicht: " + e.getMessage());
         }
+    }
+
+    /**
+     * Foto aus dem Reisetagebuch als Original in die Galerie (Bilder/Gipfel und Gasse). Über MediaStore, ab Android 10
+     * ohne Speicher-Erlaubnis; die EXIF-Daten der Kamera (Ort, Ausrichtung) bleiben erhalten.
+     */
+    @PluginMethod
+    @android.annotation.TargetApi(Build.VERSION_CODES.Q)   // unter Android 10 bricht die Methode vorher ab (siehe unten)
+    public void fotoInGalerie(PluginCall call) {
+        String daten = call.getString("daten", "");
+        String name = call.getString("name", "Gipfel-und-Gasse.jpg").replaceAll("[^\\w.-]", "_");
+        String mime = call.getString("mime", "image/jpeg");
+        if (daten.isEmpty() || !mime.startsWith("image/")) { call.reject("Kein Foto"); return; }
+        if (Build.VERSION.SDK_INT < 29) { call.reject("In die Galerie speichern geht erst ab Android 10."); return; }
+        new Thread(() -> {
+            ContentResolver cr = getContext().getContentResolver();
+            Uri uri = null;
+            try {
+                byte[] b = Base64.decode(daten, Base64.DEFAULT);
+                ContentValues v = new ContentValues();
+                v.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+                v.put(MediaStore.Images.Media.MIME_TYPE, mime);
+                v.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Gipfel und Gasse");
+                v.put(MediaStore.Images.Media.IS_PENDING, 1);
+                uri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+                if (uri == null) throw new Exception("die Galerie nimmt nichts an");
+                try (OutputStream out = cr.openOutputStream(uri)) {
+                    if (out == null) throw new Exception("nicht schreibbar");
+                    out.write(b);
+                }
+                v.clear();
+                v.put(MediaStore.Images.Media.IS_PENDING, 0);
+                cr.update(uri, v, null, null);
+                call.resolve();
+            } catch (Throwable e) {
+                if (uri != null) try { cr.delete(uri, null, null); } catch (Exception ignoriert) { /* halb angelegt, Android räumt auf */ }
+                call.reject("Foto nicht in der Galerie gespeichert: " + e.getMessage());
+            }
+        }).start();
     }
 
     /** Druckdialog von Android (dort auch „Als PDF speichern“). */

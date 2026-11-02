@@ -438,6 +438,7 @@ function pruef(name, bed, info) {
   // ---------- Reisetagebuch ----------
   await zuSeite(page, 'tagebuch');
   pruef('Tagebuch: leer mit Hinweis', (await page.textContent('#tbReisen')).includes('Noch keine Reise') && await page.isHidden('#tbHeute'));
+  pruef('Tagebuch im Browser: kein Schalter für die Galerie', await page.isHidden('#tbGalerieAuch'));
   const tagPlus = n => page.evaluate(n => { const d = new Date(Date.now() + n * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }, n);
   await page.click('#tbNeueReise');
   await page.fill('#tbName', 'Testurlaub');
@@ -612,7 +613,8 @@ function pruef(name, bed, info) {
 
   // ---------- Android-App: Oberfläche mit nachgebildetem Navi-Plugin ----------
   const bruecke = require('./bruecke');
-  const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true });
+  const UA_ANDROID = v => 'Mozilla/5.0 (Linux; Android ' + v + '; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36';
+  const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(14) });
   await dienste(appCtx);
   await appCtx.addInitScript(bruecke.mit(() => {
     const aufrufe = [];
@@ -627,6 +629,7 @@ function pruef(name, bed, info) {
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
+        fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
         route: async () => {
           aufrufe.push(['route', {}]);
           if (window.__routeLangsam) await new Promise(r => setTimeout(r, 400));
@@ -768,6 +771,38 @@ function pruef(name, bed, info) {
   const teilenS = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen');
   pruef('App: Sicherung als eine Datei über das Teilen-Menü', teilenS.length === vorTeilen + 1 && teilenS[teilenS.length - 1][1].name.endsWith('.json'), teilenS.slice(-1));
   pruef('App: Hinweis zu Touren passt zur App', (await pa2.textContent('#tourenHinweis')).includes('in der App'));
+  // Tagebuch in der App: mit der Kamera aufgenommene Fotos gehen zusätzlich als Original in die Galerie, Galerie-Fotos nicht
+  await zuSeite(pa2, 'tagebuch');
+  await pa2.click('#tbNeueReise');
+  await pa2.fill('#tbName', 'Galerietest');
+  await pa2.click('#tbReiseForm button[type=submit]');
+  await pa2.click('#tbNeuerEintrag');
+  pruef('App: Schalter „auch in der Galerie“ sichtbar und an', await pa2.isVisible('#tbGalerieAuch') && await pa2.isChecked('#tbGalerieAuch'));
+  const bildPng = fs.readFileSync(path.join(OUT, '1-route.png'));
+  await pa2.setInputFiles('#tbFotoKamera', { name: 'kamera.jpg', mimeType: 'image/jpeg', buffer: bildPng });
+  await pa2.waitForFunction(() => window.__navi.aufrufe.some(x => x[0] === 'fotoInGalerie'), null, { timeout: 5000 }).catch(() => {});
+  await pa2.setInputFiles('#tbFotoDatei', { name: 'alt.png', mimeType: 'image/png', buffer: bildPng });
+  await pa2.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 2, null, { timeout: 5000 }).catch(() => {});
+  const galerie = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'fotoInGalerie')));
+  pruef('App: Kamerafoto als Original in die Galerie, Galeriefoto nicht', galerie.length === 1 && galerie[0][1].laenge > 1000 &&
+    /^Gipfel-und-Gasse_\d{8}_\d{6}\.jpg$/.test(galerie[0][1].name) && galerie[0][1].mime === 'image/jpeg', galerie);
+  pruef('App: beide Fotos im Eintrag', (await pa2.$$('#tbFotosNeu figure')).length === 2);
+  await pa2.click('#tbEintragAbbrechen');
+  // Android 9: kein Schalter, kein Versuch (die Galerie geht erst ab Android 10)
+  const alt9 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(9) });
+  await dienste(alt9);
+  await alt9.addInitScript(bruecke.mit(() => { window.__bruecke({ Karten: { liste: async () => ({ installiert: [] }), status: async () => ({ laufend: [] }), addListener: () => {} },
+    Navi: { starten: async () => ({}), status: async () => ({}), aufzeichnungHolen: async () => ({ spur: [] }), fotoInGalerie: async () => { window.__galerie = true; }, addListener: () => {} } }); }));
+  const p9 = await alt9.newPage();
+  await p9.goto(url);
+  await zuSeite(p9, 'tagebuch');
+  await p9.click('#tbNeueReise'); await p9.fill('#tbName', 'Alt'); await p9.click('#tbReiseForm button[type=submit]');
+  await p9.click('#tbNeuerEintrag');
+  await p9.setInputFiles('#tbFotoKamera', { name: 'k.jpg', mimeType: 'image/jpeg', buffer: bildPng });
+  await p9.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('App unter Android 10: kein Galerie-Schalter, kein Versuch, Foto trotzdem im Eintrag', await p9.isHidden('#tbGalerieAuch') &&
+    !(await p9.evaluate(() => window.__galerie)) && (await p9.$$('#tbFotosNeu figure')).length === 1);
+  await alt9.close();
   // Zurück-Taste: erst Kartenwahl schließen, dann zum Reiter Planen, danach darf die App in den Hintergrund
   await pa2.click('#bLagen');
   const zr1 = await pa2.evaluate(() => window.gugZurueck());
