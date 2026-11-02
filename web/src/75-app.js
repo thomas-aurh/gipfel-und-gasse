@@ -120,7 +120,7 @@ if (NATIV) {
     if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
     await Navi.aufzeichnungHolen({ leeren: true });
     $('bAufzSpeichern').disabled = true;
-    $('bAufzSpeichern').textContent = '✓ In „Touren“';
+    $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
   };
 
   // Wird die Route geändert, während der Dienst ihr folgt: neue Route nachreichen
@@ -142,12 +142,12 @@ if (NATIV) {
   // Zurück-Taste von Android (MainActivity fragt hier nach): erst Fenster, Kartenwahl, Suche und großes Blatt schließen,
   // dann zum Reiter Planen; erst danach geht die App in den Hintergrund (Navigation läuft weiter)
   window.gugZurueck = function () {
+    if (!$('menue').hidden) { menue(false); return true; }
     if (document.querySelector('.leaflet-popup')) { karte.closePopup(); return true; }
     if (!$('lagenwahl').hidden) { $('lagenwahl').hidden = true; return true; }
     if ($('treffer').children.length) { sucheSchliessen(); return true; }
     if ($('panel').classList.contains('gross')) { blatt('mittel'); return true; }
-    const an = document.querySelector('nav.reiter button.an');
-    if (an && an.dataset.reiter !== 'planen') { reiter('planen'); return true; }
+    if (seite !== 'planen' && seite !== 'karte') { reiter('planen'); return true; }
     return false;
   };
 

@@ -383,11 +383,12 @@ async function statusFragen() {
 
 if (Karten) {
   $('offlineBox').hidden = false;
+  document.querySelectorAll('.nur-browser').forEach(e => { e.hidden = true; });
   // aus der Kartenwahl direkt zu den Kartenpaketen
   $('bPakete').hidden = false;
   $('bPakete').onclick = () => {
     $('lagenwahl').hidden = true;
-    reiter('touren');
+    reiter('offline');
     if (window.innerWidth <= 760) blatt('gross');
     setTimeout(() => $('offlineBox').scrollIntoView({ behavior: 'smooth', block: 'start' }), 250);
   };
@@ -401,7 +402,7 @@ if (Karten) {
   window.addEventListener('offline', ohneNetzUmschalten);
   // wieder Netz: Angebotsliste nachladen, falls sie beim Start fehlte
   window.addEventListener('online', () => { if (!OFF.verfuegbar) paketeLaden(true); });
-  document.querySelector('nav.reiter [data-reiter=touren]').addEventListener('click', () => { if (!OFF.verfuegbar && navigator.onLine) paketeLaden(true); });
+  document.querySelectorAll('[data-ziel=offline]').forEach(b => b.addEventListener('click', () => { if (!OFF.verfuegbar && navigator.onLine) paketeLaden(true); }));
   // erst die Pakete auf dem Handy (schnell, ohne Netz), danach die Angebotsliste aus dem Netz
   OFF.bereit = paketeLaden(false);
   OFF.bereit.then(() => { statusFragen(); return paketeLaden(true); });
