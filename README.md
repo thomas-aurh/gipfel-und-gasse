@@ -14,9 +14,8 @@ Sehenswürdigkeiten und Stadtrundgänge, Wetter, GPX, Karte drucken. Als **Web-A
 
 Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben erhalten.
 
-**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit allen Seiten:
-Tour planen, Unterwegs, Entdecken (Orte und Wetter), Geplante und Gegangene Touren (mit Statistik), Reisetagebuch,
-Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
+**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit den übrigen
+Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
 im Inhalt nach unten wischen, wenn er ganz oben steht.
 
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region

@@ -112,7 +112,15 @@ async function dienste(ctx) {
 
 let ok = 0, fehler = 0;
 // Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
-async function zuSeite(seite, ziel) { await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']'); }
+// Karte, Planen, Unterwegs und Touren stehen in der Leiste (Gegangen über den Umschalter unter Touren), der Rest im Menü
+async function zuSeite(seite, ziel) {
+  if (['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(ziel)) {
+    await seite.click('#leiste [data-reiter=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
+    if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
+    return;
+  }
+  await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
+}
 function pruef(name, bed, info) {
   if (bed) { ok++; console.log('✓ ' + name); }
   else { fehler++; console.error('✗ ' + name + (info !== undefined ? ' → ' + JSON.stringify(info) : '')); }
@@ -136,6 +144,8 @@ function pruef(name, bed, info) {
   // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
+  pruef('Menü ohne Dopplung zur Leiste', await page.evaluate(() => { const m = [...document.querySelectorAll('#menue [data-ziel]')].map(b => b.dataset.ziel);
+    return m.length > 0 && !m.some(z => ['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(z)); }));
   await page.keyboard.press('Escape');
   pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
   // Darstellung: automatisch → hell → dunkel, gespeichert; Farben aus den Variablen
