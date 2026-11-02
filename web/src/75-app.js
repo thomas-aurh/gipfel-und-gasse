@@ -172,8 +172,13 @@ if (NATIV) {
 
   // GPX: WebView kann nichts herunterladen, darum über das Teilen-Menü (z. B. an CoMaps, Drive, Mail)
   // Standort im Notfall: Text über das Teilen-Menü (SMS, Messenger, Mail)
-  fotoInGalerie = (daten, name, mime) => Navi.fotoInGalerie({ daten, name, mime });
-  document.querySelectorAll('.nur-app').forEach(e => { e.hidden = false; });
+  // Original in die Galerie: der Dienst kann das erst ab Android 10 (MediaStore ohne Speicher-Erlaubnis); darunter weder
+  // Schalter noch Versuch, sonst käme bei jedem Kamerafoto eine Fehlermeldung
+  const androidVersion = +((navigator.userAgent.match(/Android (\d+)/) || [])[1] || 0);
+  if (androidVersion >= 10) {
+    fotoInGalerie = (daten, name, mime) => Navi.fotoInGalerie({ daten, name, mime });
+    $('tbGalerieFeld').hidden = false;
+  }
   textTeilen = function (text) {
     return Navi.textTeilen({ text }).catch(err => melde(err.message || String(err), 6));
   };

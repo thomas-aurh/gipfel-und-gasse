@@ -613,7 +613,8 @@ function pruef(name, bed, info) {
 
   // ---------- Android-App: Oberfläche mit nachgebildetem Navi-Plugin ----------
   const bruecke = require('./bruecke');
-  const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true });
+  const UA_ANDROID = v => 'Mozilla/5.0 (Linux; Android ' + v + '; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36';
+  const appCtx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(14) });
   await dienste(appCtx);
   await appCtx.addInitScript(bruecke.mit(() => {
     const aufrufe = [];
@@ -787,6 +788,21 @@ function pruef(name, bed, info) {
     /^Gipfel-und-Gasse_\d{8}_\d{6}\.jpg$/.test(galerie[0][1].name) && galerie[0][1].mime === 'image/jpeg', galerie);
   pruef('App: beide Fotos im Eintrag', (await pa2.$$('#tbFotosNeu figure')).length === 2);
   await pa2.click('#tbEintragAbbrechen');
+  // Android 9: kein Schalter, kein Versuch (die Galerie geht erst ab Android 10)
+  const alt9 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(9) });
+  await dienste(alt9);
+  await alt9.addInitScript(bruecke.mit(() => { window.__bruecke({ Karten: { liste: async () => ({ installiert: [] }), status: async () => ({ laufend: [] }), addListener: () => {} },
+    Navi: { starten: async () => ({}), status: async () => ({}), aufzeichnungHolen: async () => ({ spur: [] }), fotoInGalerie: async () => { window.__galerie = true; }, addListener: () => {} } }); }));
+  const p9 = await alt9.newPage();
+  await p9.goto(url);
+  await zuSeite(p9, 'tagebuch');
+  await p9.click('#tbNeueReise'); await p9.fill('#tbName', 'Alt'); await p9.click('#tbReiseForm button[type=submit]');
+  await p9.click('#tbNeuerEintrag');
+  await p9.setInputFiles('#tbFotoKamera', { name: 'k.jpg', mimeType: 'image/jpeg', buffer: bildPng });
+  await p9.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('App unter Android 10: kein Galerie-Schalter, kein Versuch, Foto trotzdem im Eintrag', await p9.isHidden('#tbGalerieAuch') &&
+    !(await p9.evaluate(() => window.__galerie)) && (await p9.$$('#tbFotosNeu figure')).length === 1);
+  await alt9.close();
   // Zurück-Taste: erst Kartenwahl schließen, dann zum Reiter Planen, danach darf die App in den Hintergrund
   await pa2.click('#bLagen');
   const zr1 = await pa2.evaluate(() => window.gugZurueck());
