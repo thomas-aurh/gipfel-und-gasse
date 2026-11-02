@@ -38,7 +38,7 @@ const stadtAus = new Set(SPEICHER.lesen('stadtAus', ['wc']));
 function sehensPruefen() {
   clearTimeout(sehensUhr);
   if (!lagenWahl.sehens || karte.getZoom() < 14) sehensNr++;   // laufende Anfrage verwerfen
-  if (!lagenWahl.sehens) { ebeneSehens.clearLayers(); $('stadtStatus').textContent = 'Sehenswürdigkeiten sind ausgeblendet (Kartenknopf 🗺️).'; return; }
+  if (!lagenWahl.sehens) { ebeneSehens.clearLayers(); $('stadtStatus').textContent = 'Sehenswürdigkeiten sind ausgeblendet (Knopf Kartenart und Ebenen rechts an der Karte).'; return; }
   if (karte.getZoom() < 14) {
     ebeneSehens.clearLayers();
     $('stadtStatus').textContent = 'Bis Zoomstufe 14 heranzoomen, dann erscheinen sie auf der Karte.';
@@ -82,7 +82,7 @@ function sehensZeichnen() {
       icon: L.divIcon({ className: '', html: '<div class="ort-mk' + (o.bekannt ? ' bekannt' : '') + '">' + kat.zeichen + '</div>', iconSize: [gr, gr], iconAnchor: [gr / 2, gr / 2] })
     });
     m.bindTooltip(R.esc(o.name), { direction: 'top', offset: [0, -gr / 2] });
-    m.bindPopup(() => sehensPopup(o, kat));
+    m.bindPopup(lage => sehensPopup(o, kat, lage));
     m.addTo(ebeneSehens);
     o.marke = m;
   });
@@ -105,9 +105,10 @@ function sehensZeichnen() {
     const kat = R.STADT.find(k => k.k === o.kat);
     const li = document.createElement('li');
     li.innerHTML = '<span class="zeichen">' + kat.zeichen + '</span><span class="was">' + (o.bekannt ? '⭐ ' : '') + R.esc(o.name) +
-      '<small>' + R.esc(R.stadtArt(o.tags)) + (o.tags.opening_hours ? ' · ' + R.esc(o.tags.opening_hours) : '') + '</small></span>' +
+      '<small>' + R.esc(R.stadtArt(o.tags)) + (o.tags.opening_hours ? ' · ' + oeffnungKurz(o.tags.opening_hours) : '') + '</small></span>' +
       '<span class="aktionen"><button title="Als Stopp in die Tour">➕</button></span>';
-    li.onclick = () => { karte.setView([o.lat, o.lon], Math.max(karte.getZoom(), 16)); if (o.marke) o.marke.openPopup(); };
+    // erst nach dem Verschieben öffnen: moveend zeichnet die Marken neu (sehensPruefen), ein vorher geöffnetes Fenster hinge an der alten
+    li.onclick = () => { karte.once('moveend', () => { if (o.marke) o.marke.openPopup(); }); karte.setView([o.lat, o.lon], Math.max(karte.getZoom(), 16)); };
     li.querySelector('button').onclick = ev => { ev.stopPropagation(); stoppDazu(o); };
     ul.appendChild(li);
   });
@@ -115,10 +116,10 @@ function sehensZeichnen() {
   $('stadtStatus').textContent = anzahl ? anzahl + ' Orte im Ausschnitt' + (anzahl > 250 ? ', die 250 wichtigsten auf der Karte' : '') + '. Antippen zeigt Infos und „Als Stopp“.' : 'Hier sind keine Sehenswürdigkeiten eingetragen.';
 }
 
-function sehensPopup(o, kat) {
+function sehensPopup(o, kat, lage) {
   const t = o.tags, box = document.createElement('div');
   const z = ['<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>' + (o.bekannt ? ' ⭐' : ''), '<span class="klein">' + R.esc(R.stadtArt(t)) + '</span>'];
-  if (t.opening_hours) z.push('Geöffnet: ' + R.esc(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
   if (t.fee === 'yes' || t.charge) z.push('Eintritt: ' + R.esc(t.charge || 'ja'));
   if (t.fee === 'no') z.push('Eintritt frei');
   if (t.wheelchair === 'yes') z.push('♿ rollstuhlgerecht');
@@ -128,6 +129,7 @@ function sehensPopup(o, kat) {
   if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
   box.innerHTML = z.join('<br>');
+  wikiAnhaengen(box, t, lage);
   const k = document.createElement('button');
   k.className = 'popup-knopf';
   k.textContent = '➕ Als Stopp' + (o.min ? ' (' + o.min + ' min)' : '');

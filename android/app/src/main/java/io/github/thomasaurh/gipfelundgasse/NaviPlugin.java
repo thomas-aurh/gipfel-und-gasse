@@ -45,6 +45,7 @@ import org.json.JSONObject;
  *   Navi.textTeilen({ text })        → Text über das Teilen-Menü (Standort im Notfall)
  *   Navi.drucken({ name })           → Druckdialog von Android für die aktuelle Seite
  *   Navi.fotoInGalerie({ daten, name, mime }) → Foto (Base64) in die Galerie unter Bilder/Gipfel und Gasse (ab Android 10)
+ *   Navi.vorlesen({ text }) / Navi.vorlesenStopp() → Text auf Deutsch vorlesen (Wikipedia-Kurzinfo) bzw. abbrechen
  *   Ereignis "position": { lat, lon, gen, rest, abw, abseits, umgeplant, aufz }
  */
 @CapacitorPlugin(
@@ -266,6 +267,43 @@ public class NaviPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Teilen ging nicht: " + e.getMessage());
         }
+    }
+
+    // ---------- Vorlesen (Wikipedia-Kurzinfo): eigene Sprachausgabe, unabhängig vom Navigationsdienst ----------
+    private android.speech.tts.TextToSpeech sprache;
+    private boolean spracheBereit;
+    private String spracheWartet;
+
+    /** Text auf Deutsch vorlesen; ersetzt, was gerade gelesen wird. Beim ersten Mal startet die Sprachausgabe erst. */
+    @PluginMethod
+    public void vorlesen(PluginCall call) {
+        String text = call.getString("text", "");
+        if (text.isEmpty()) { call.reject("Kein Text"); return; }
+        if (sprache == null) {
+            spracheWartet = text;
+            sprache = new android.speech.tts.TextToSpeech(getContext(), status -> {
+                if (status != android.speech.tts.TextToSpeech.SUCCESS) return;
+                int r = sprache.setLanguage(java.util.Locale.GERMANY);
+                spracheBereit = r != android.speech.tts.TextToSpeech.LANG_MISSING_DATA && r != android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED;
+                if (spracheBereit && spracheWartet != null) sprache.speak(spracheWartet, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "vorlesen");
+                spracheWartet = null;
+            });
+        } else if (spracheBereit) sprache.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "vorlesen");
+        else spracheWartet = text;
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void vorlesenStopp(PluginCall call) {
+        spracheWartet = null;
+        if (sprache != null) sprache.stop();
+        call.resolve();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (sprache != null) { sprache.shutdown(); sprache = null; }
+        super.handleOnDestroy();
     }
 
     /** Text über das Teilen-Menü weitergeben (z. B. den Standort im Notfall per SMS oder Messenger). */

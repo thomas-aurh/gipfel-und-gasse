@@ -70,6 +70,19 @@ async function dienste(ctx) {
     { geometry: { coordinates: [11.2578, 47.6262] }, properties: { name: 'Testgipfel', osm_key: 'natural', osm_value: 'peak', state: 'Bayern', country: 'Deutschland' } },
     { geometry: { coordinates: [11.3747, 47.7535] }, properties: { name: 'Teststadt', osm_key: 'place', osm_value: 'town', state: 'Bayern', country: 'Deutschland', extent: [11.33, 47.78, 11.42, 47.73] } }
   ] }) }); });
+  await ctx.route(/wikipedia\.org\/api\/rest_v1\/page\/summary\//, r => {
+    zaehler.wiki = (zaehler.wiki || 0) + 1;
+    const titel = decodeURIComponent(r.request().url().split('/summary/')[1]).replace(/_/g, ' ');
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ type: 'standard', title: titel,
+      extract: 'Das ' + titel + ' ist ein Ort zum Testen.', thumbnail: { source: 'https://upload.wikimedia.org/test/klein.png' }, content_urls: { mobile: { page: 'https://de.m.wikipedia.org/wiki/' + encodeURIComponent(titel) } } }) });
+  });
+  await ctx.route(/upload\.wikimedia\.org/, r => r.fulfill({ status: 200, contentType: 'image/png',
+    body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') }));
+  await ctx.route(/wikidata\.org\/w\/api\.php/, r => {
+    const id = /ids=(Q\d+)/.exec(r.request().url())[1];
+    const sl = { Q2: { dewiki: { title: 'Alte Burg (Teststadt)' } }, Q4: { enwiki: { title: 'Test hut' } } }[id] || {};
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ entities: { [id]: { sitelinks: sl } } }) });
+  });
   await ctx.route(/overpass-api\.de/, r => {
     zaehler.overpass++;
     const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
@@ -78,7 +91,7 @@ async function dienste(ctx) {
       // Stadt: Sehenswürdigkeiten im Ausschnitt, verteilt um die Mitte
       const la = (+bb[1] + +bb[3]) / 2, lo = (+bb[2] + +bb[4]) / 2, dl = (+bb[3] - +bb[1]) / 6, dn = (+bb[4] - +bb[2]) / 6;
       const el = [
-        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Di-So 10-18' } },
+        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00' } },
         { type: 'node', id: 102, lat: la - dl, lon: lo + dn, tags: { historic: 'castle', name: 'Alte Burg', wikidata: 'Q2' } },
         { type: 'node', id: 103, lat: la, lon: lo - dn, tags: { amenity: 'place_of_worship', name: 'Stadtkirche', wikidata: 'Q3' } },
         { type: 'node', id: 104, lat: la + dl, lon: lo + dn, tags: { tourism: 'viewpoint', name: 'Aussicht Schlossberg' } },
@@ -91,9 +104,14 @@ async function dienste(ctx) {
     }
     const m = /around:\d+,(-?[\d.]+),(-?[\d.]+)/.exec(q);
     const lat = +m[1], lon = +m[2];
+    if (q.includes('planetarium')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'node', id: 31, lat: lat + 0.01, lon, tags: { tourism: 'museum', name: 'Heimatmuseum', opening_hours: 'Mo-Su 00:00-24:00', wikipedia: 'de:Heimatmuseum' } },
+      { type: 'way', id: 32, center: { lat: lat + 0.002, lon }, tags: { leisure: 'sports_centre', sport: 'swimming', name: 'Hallenbad Test' } },
+      { type: 'node', id: 33, lat, lon, tags: { amenity: 'cinema' } }
+    ] }) });
     r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
       { type: 'node', id: 11, lat: lat + 0.001, lon: lon + 0.0005, tags: { amenity: 'drinking_water' } },
-      { type: 'node', id: 12, lat: lat + 0.004, lon: lon + 0.001, tags: { tourism: 'alpine_hut', name: 'Testhütte', opening_hours: 'Mai–Okt' } },
+      { type: 'node', id: 12, lat: lat + 0.004, lon: lon + 0.001, tags: { tourism: 'alpine_hut', name: 'Testhütte', opening_hours: 'Mai–Okt', wikidata: 'Q4' } },
       { type: 'way', id: 13, center: { lat: lat + 0.002, lon: lon - 0.001 }, tags: { leisure: 'playground' } },
       { type: 'node', id: 14, lat: lat + 0.006, lon: lon, tags: { natural: 'peak', name: 'Testberg', ele: '1234' } }
     ] }) });
@@ -127,7 +145,7 @@ function pruef(name, bed, info) {
   const page = await ctx.newPage();
   const konsole = [];
   page.on('console', m => { if (m.type() === 'error' && !/status of 400/.test(m.text())) konsole.push(m.text()); });  // 400 = absichtlich „kein Weg“
-  page.on('pageerror', e => konsole.push(e.message));
+  page.on('pageerror', e => { konsole.push(e.message); if (process.env.STAPEL) console.log('STAPEL', e.stack); });
 
   await page.goto(url);
   await page.waitForSelector('#karte .leaflet-tile-loaded', { timeout: 10000 });
@@ -620,6 +638,21 @@ function pruef(name, bed, info) {
   await page.screenshot({ path: path.join(OUT, '8-stadt-karte.png') });
   await zuSeite(page, 'entdecken');
   pruef('Stadt-Liste im Entdecken', (await page.textContent('#stadtListe')).includes('⭐ Stadtmuseum') && !(await page.isVisible('#bergBox')));
+  pruef('Stadt-Liste: Öffnungszeit als Stand jetzt', (await page.textContent('#stadtListe')).includes('● durchgehend geöffnet'), await page.textContent('#stadtListe'));
+  await page.evaluate(() => { window.__gelesen = []; window.speechSynthesis.speak = u => window.__gelesen.push(u.text); window.speechSynthesis.cancel = () => window.__gelesen.push('stopp'); });
+  await page.click('#stadtListe li:has-text("Stadtmuseum") .was');
+  await page.waitForSelector('.leaflet-popup .wiki p', { timeout: 5000 });
+  const popStadt = await page.textContent('.leaflet-popup-content');
+  pruef('Ort-Fenster: geöffnet jetzt und Wikipedia-Kurzinfo mit Bild', popStadt.includes('Durchgehend geöffnet') && popStadt.includes('Das Stadtmuseum ist ein Ort zum Testen.') &&
+    popStadt.includes('CC BY-SA') && !!(await page.$('.leaflet-popup .wiki img')), popStadt);
+  await page.click('.leaflet-popup .wiki-vor');
+  pruef('Ort-Fenster: Vorlesen liest die Kurzinfo', (await page.evaluate(() => window.__gelesen)).includes('Das Stadtmuseum ist ein Ort zum Testen.') && (await page.textContent('.leaflet-popup .wiki-vor')).includes('Stopp'));
+  await page.click('.leaflet-popup-close-button');
+  pruef('Fenster zu beendet das Vorlesen', (await page.evaluate(() => window.__gelesen)).slice(-1)[0] === 'stopp');
+  await page.click('#stadtListe li:has-text("Alte Burg") .was');
+  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-popup .wiki p')].some(p => p.textContent.includes('Alte Burg')), null, { timeout: 5000 }).catch(() => {});
+  pruef('Ort-Fenster: Wikipedia über Wikidata (deutscher Artikel)', await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup .wiki p')].some(p => p.textContent.includes('Das Alte Burg (Teststadt) ist'))));
+  await page.click('.leaflet-popup-close-button');
   await page.click('#stadtListe li >> nth=0 >> button');
   pruef('Stopp aus der Liste', (await page.$$('.wp')).length === 1 && (await page.textContent('#meldung')).includes('Start'));
   await page.click('#bRundgang');

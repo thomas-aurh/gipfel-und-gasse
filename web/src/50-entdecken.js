@@ -108,7 +108,7 @@ function orteZeigen() {
     if (orteAus.has(o.kat)) continue;
     const kat = R.ORTE.find(k => k.k === o.kat);
     const m = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: '', html: '<div class="ort-mk">' + kat.zeichen + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) });
-    m.bindPopup(() => ortPopup(o, kat));
+    m.bindPopup(lage => ortPopup(o, kat, lage));
     m.addTo(ebeneOrte);
     const li = document.createElement('li');
     li.innerHTML = '<span class="zeichen">' + kat.zeichen + '</span><span class="was">' + R.esc(o.name) +
@@ -118,10 +118,10 @@ function orteZeigen() {
   }
 }
 
-function ortPopup(o, kat) {
-  const t = o.tags, z = [];
+function ortPopup(o, kat, lage) {
+  const t = o.tags, z = [], box = document.createElement('div');
   z.push('<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>');
-  if (t.opening_hours) z.push('Geöffnet: ' + R.esc(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
   if (t.ele && t.natural !== 'peak') z.push(Math.round(parseFloat(t.ele)) + ' m');
   if (t.operator) z.push(R.esc(t.operator));
   if (t.website || t['contact:website']) {
@@ -130,11 +130,69 @@ function ortPopup(o, kat) {
   }
   if (o.d != null) z.push('<span class="klein">bei ' + R.kmText(o.d) + ' der Route</span>');
   z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
-  return z.join('<br>');
+  box.innerHTML = z.join('<br>');
+  wikiAnhaengen(box, t, lage);
+  return box;
+}
+
+// Öffnungszeiten: Stand jetzt farbig (geöffnet, schließt bald, geschlossen), darunter der Eintrag aus OSM
+function oeffnungHtml(roh) {
+  const j = R.oeffnungJetzt(roh, new Date());
+  if (j.zustand === 'unbekannt') return 'Geöffnet: ' + R.esc(roh);
+  return '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.charAt(0).toUpperCase() + j.text.slice(1)) + '</span><br><span class="klein">' + R.esc(roh) + '</span>';
+}
+// kurz für Listen: nur der Stand, ohne den Eintrag
+function oeffnungKurz(roh) {
+  const j = R.oeffnungJetzt(roh, new Date());
+  return j.zustand === 'unbekannt' ? R.esc(roh) : '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.replace(/ \(Feiertage nicht berücksichtigt\)$/, '')) + '</span>';
+}
+
+// Vorlesen: im Browser die Sprachausgabe des Browsers; die App ersetzt das durch die von Android (75-app.js)
+let vorlesen = function (text) {
+  if (!window.speechSynthesis) { melde('Vorlesen geht in diesem Browser nicht.'); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; speechSynthesis.speak(u);
+};
+let vorlesenStopp = function () { if (window.speechSynthesis) speechSynthesis.cancel(); };
+karte.on('popupclose', () => vorlesenStopp());
+
+// Kurzinfo aus Wikipedia im Ort-Fenster, sobald es aufgeht (nur Orte mit Wikipedia- oder Wikidata-Eintrag in OSM)
+function wikiAnhaengen(box, tags, lage) {
+  const quelle = R.wikiQuelle(tags);
+  if (!quelle) return;
+  const w = document.createElement('div');
+  w.className = 'wiki klein';
+  w.textContent = 'Kurzinfo aus Wikipedia wird geladen …';
+  box.appendChild(w);
+  // neu ausmessen, ohne den Inhalt neu zu bauen: update() riefe sonst die Inhaltsfunktion und damit diese hier wieder auf.
+  // Darum das fertige Element als Inhalt setzen und beim Schließen die Funktion zurück (nächstes Öffnen rechnet frisch).
+  const neuZeichnen = () => {
+    const p = lage && lage.getPopup && lage.getPopup();
+    if (!p || !p.isOpen() || p.getContent() === box) { if (p && p.isOpen()) p.update(); return; }
+    const fn = p.getContent();
+    p.setContent(box);
+    // erst nach dem Schließen tauschen: währenddessen hinge setContent noch an der Karte und zeichnete neu
+    lage.once('popupclose', () => setTimeout(() => { if (!p.isOpen()) p.setContent(fn); }, 0));
+  };
+  wikiHolen(quelle).then(k => {
+    if (!k) { w.remove(); neuZeichnen(); return; }
+    w.innerHTML = (k.bild ? '<img alt="" src="' + R.esc(k.bild) + '">' : '') + '<p>' + R.esc(k.text.length > 600 ? k.text.slice(0, 600).replace(/\s\S*$/, '') + ' …' : k.text) + '</p>' +
+      '<span>Aus der Wikipedia (CC BY-SA 4.0)' + (k.url ? ' · <a href="' + R.esc(k.url) + '" target="_blank" rel="noopener">Artikel lesen</a>' : '') + '</span> ' +
+      '<button type="button" class="popup-knopf wiki-vor">🔊 Vorlesen</button>';
+    const img = w.querySelector('img');
+    if (img) img.onload = neuZeichnen;
+    w.querySelector('.wiki-vor').onclick = ev => {
+      const b = ev.currentTarget;
+      if (b.dataset.an) { vorlesenStopp(); delete b.dataset.an; b.textContent = '🔊 Vorlesen'; return; }
+      vorlesen(k.text); b.dataset.an = '1'; b.textContent = '⏹ Stopp';
+    };
+    neuZeichnen();
+  }).catch(() => { w.textContent = 'Kurzinfo aus Wikipedia gerade nicht erreichbar.'; neuZeichnen(); });
 }
 
 // ---------- Wetter ----------
 let wetterFuer = '';
+let wetterPunktZuletzt = null;   // Punkt der zuletzt gezeigten Vorhersage (für „drinnen in der Nähe“)
 let wetterNr = 0, wetterFuerNr = 0, wetterSuchNr = 0;   // jüngste Anfrage gewinnt; verspätete Antworten werden verworfen
 // Wofür das Wetter gilt: Start der Route, eigener Standort, Kartenmitte oder ein gesuchter Ort (gespeichert)
 let wetterWahl = SPEICHER.lesen('wetterOrt', 'start');
@@ -220,6 +278,11 @@ async function wetterLaden(neu) {
     const gw = R.gewitterTage(d.weather_code, d.time);
     if (gw.length) html = '<div class="warnung">⛈️ Gewitter ' + gw.join(', ') + ': In den Bergen früh starten und Grate am Nachmittag meiden.</div>' + html;
     const wo = (name ? name + (p.wo ? ' (' + p.wo + ')' : '') : p.lat.toFixed(3) + ', ' + p.lon.toFixed(3));
+    // Regen heute oder morgen: Hinweis und der Knopf für „drinnen in der Nähe“ hervorgehoben
+    wetterPunktZuletzt = { lat: p.lat, lon: p.lon, name: name || '' };
+    const regen = [0, 1].filter(i => i < d.time.length && R.regenTag(d.weather_code[i], d.precipitation_probability_max[i]));
+    $('bDrinnen').classList.toggle('haupt', regen.length > 0);
+    $('bDrinnen').textContent = regen.length ? '☔ Regen ' + (regen[0] === 0 ? 'heute' : 'morgen') + ': drinnen in der Nähe' : '☔ Drinnen in der Nähe';
     const hoehe = typeof j.elevation === 'number' ? ' auf ' + Math.round(j.elevation) + ' m' : '';
     $('wetter').innerHTML = html + '<p class="klein">' + R.esc((p.hinweis || '') + 'Vorhersage für ' + wo + ', ' + p.art + hoehe +
       ' (Open-Meteo). Gerechnet für die Geländehöhe an diesem Punkt; je 100 m höher etwa 0,65 °C kälter.') + '</p>';
@@ -228,4 +291,46 @@ async function wetterLaden(neu) {
     wetterFuer = '';
     $('wetter').textContent = 'Wetter nicht erreichbar: ' + err.message;
   }
+}
+
+// ---------- Regenplan: Museen, Bäder, Kino und Ähnliches rund um den Wetterort ----------
+const ebeneDrinnen = L.layerGroup().addTo(karte);
+let drinnenNr = 0;
+$('bDrinnen').onclick = async () => {
+  const c = karte.getCenter(), p = wetterPunktZuletzt || { lat: c.lat, lon: c.lng, name: '' };
+  const nr = ++drinnenNr, st = $('drinnenStatus'), ul = $('drinnenListe');
+  st.hidden = false; st.textContent = 'Suche drinnen rund um ' + (p.name || 'den Wetterort') + ' …'; ul.innerHTML = '';
+  let liste;
+  try { liste = R.regenLesen(await drinnenHolen(p.lat, p.lon, 6000), p); }
+  catch (e) { if (nr === drinnenNr) st.textContent = 'Nicht erreichbar: ' + e.message + ' (braucht Netz).'; return; }
+  if (nr !== drinnenNr) return;
+  ebeneDrinnen.clearLayers();
+  if (!liste.length) { st.textContent = 'Im Umkreis von 6 km ist nichts eingetragen.'; return; }
+  st.textContent = liste.length + ' Orte im Umkreis von 6 km' + (liste.length > 25 ? ', die 25 nächsten' : '') + '. Antippen zeigt Infos.';
+  for (const o of liste.slice(0, 25)) {
+    const kat = R.DRINNEN.find(k => k.k === o.kat);
+    const m = L.marker([o.lat, o.lon], { icon: L.divIcon({ className: '', html: '<div class="ort-mk">' + kat.zeichen + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) });
+    m.bindPopup(lage => drinnenPopup(o, kat, lage));
+    m.addTo(ebeneDrinnen);
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="zeichen">' + kat.zeichen + '</span><span class="was">' + R.esc(o.name) + '<small>' + R.esc(kat.name) + ' · ' + R.kmText(o.d) +
+      (o.tags.opening_hours ? ' · ' + oeffnungKurz(o.tags.opening_hours) : '') + '</small></span><span class="aktionen"><button title="Als Stopp in die Tour">➕</button></span>';
+    li.onclick = () => { karte.setView([o.lat, o.lon], Math.max(karte.getZoom(), 15)); m.openPopup(); };
+    li.querySelector('button').onclick = ev => { ev.stopPropagation(); stoppDazu(o); };
+    ul.appendChild(li);
+  }
+};
+function drinnenPopup(o, kat, lage) {
+  const t = o.tags, box = document.createElement('div'), z = ['<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>', '<span class="klein">' + R.esc(kat.name) + ' · ' + R.kmText(o.d) + ' entfernt</span>'];
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
+  const web = t.website || t['contact:website'];
+  if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
+  z.push('<a href="https://www.openstreetmap.org/' + o.id + '" target="_blank" rel="noopener" class="klein">in OpenStreetMap ansehen</a>');
+  box.innerHTML = z.join('<br>');
+  wikiAnhaengen(box, t, lage);
+  const k = document.createElement('button');
+  k.className = 'popup-knopf'; k.textContent = '➕ Als Stopp';
+  k.onclick = () => { karte.closePopup(); stoppDazu(o); };
+  box.appendChild(document.createElement('br')); box.appendChild(k);
+  return box;
 }

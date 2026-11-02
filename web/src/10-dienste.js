@@ -134,6 +134,35 @@ async function stadtHolen(bbox) {
   return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
 }
 
+// Wikipedia-Kurzinfo zu einem Ort (nur wenn sein Fenster aufgeht); über Wikidata, wenn OSM nur die Nummer kennt.
+// Ergebnis (auch „nichts“) bleibt für die Sitzung im Speicher, damit erneutes Öffnen nicht wieder fragt.
+const wikiSpeicher = new Map();
+function wikiHolen(quelle) {
+  const schluessel = quelle.wikidata || quelle.sprache + ':' + quelle.titel;
+  if (!wikiSpeicher.has(schluessel)) {
+    const p = (async () => {
+      let q = quelle;
+      if (q.wikidata) {
+        const j = await holen('https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=sitelinks&sitefilter=dewiki|enwiki&ids=' + q.wikidata, null, 15);
+        q = R.wikiAusWikidata(j, q.wikidata);
+        if (!q) return null;
+      }
+      const j = await holen('https://' + q.sprache + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.titel), null, 15);
+      return R.wikiKurz(j);
+    })();
+    // Fehler (kein Netz) nicht merken: beim nächsten Öffnen neu versuchen
+    p.catch(() => wikiSpeicher.delete(schluessel));
+    wikiSpeicher.set(schluessel, p);
+  }
+  return wikiSpeicher.get(schluessel);
+}
+
+// Schlechtwetter: Museen, Bäder, Kino und Ähnliches im Umkreis (Overpass, nur mit Netz)
+async function drinnenHolen(lat, lon, radius) {
+  const q = R.regenAbfrage(lat, lon, radius);
+  return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
+}
+
 // Wetter jetzt (Tagebuch): Temperatur und WMO-Code
 async function wetterJetzt(lat, lon) {
   const j = await holen(DIENST.wetter + '?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) + '&current=temperature_2m,weather_code&timezone=auto', null, 10);

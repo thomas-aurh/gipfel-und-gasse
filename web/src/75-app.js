@@ -180,6 +180,9 @@ if (NATIV) {
     fotoInGalerie = (daten, name, mime) => Navi.fotoInGalerie({ daten, name, mime });
     $('tbGalerieFeld').hidden = false;
   }
+  // Vorlesen über die Sprachausgabe von Android (die des WebViews ist nicht verlässlich)
+  vorlesen = text => { Navi.vorlesen({ text }).catch(err => melde(err.message || String(err), 6)); };
+  vorlesenStopp = () => { Navi.vorlesenStopp().catch(() => {}); };
   textTeilen = function (text) {
     return Navi.textTeilen({ text }).catch(err => melde(err.message || String(err), 6));
   };

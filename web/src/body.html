@@ -155,6 +155,7 @@
             <div class="zahl"><b id="zHoch">–</b><span>Höchster Punkt</span></div>
           </div>
           <div id="zeitplan" class="klein"></div>
+          <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           <div id="stopps"></div>
           <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
           <div id="kinderwagen" class="urteil"></div>
@@ -181,6 +182,11 @@
         </form>
         <ul id="wetterTreffer" class="liste" hidden></ul>
         <div id="wetter" class="klein">Erst eine Route planen oder die Karte auf das Gebiet schieben.</div>
+        <div id="drinnenBox">
+          <button class="knopf" id="bDrinnen">☔ Drinnen in der Nähe</button>
+          <div id="drinnenStatus" class="klein" hidden></div>
+          <ul id="drinnenListe" class="liste"></ul>
+        </div>
         <div id="stadtBox" hidden>
           <h3>Sehenswürdigkeiten im Kartenausschnitt</h3>
           <div id="stadtStatus" class="klein">Bis Zoomstufe 14 heranzoomen, dann erscheinen sie auf der Karte.</div>

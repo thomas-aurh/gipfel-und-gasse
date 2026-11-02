@@ -269,6 +269,18 @@ h3{font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);font-we
 .ich-pfeil::before{content:"";position:absolute;left:50%;top:0;margin-left:-9px;border-style:solid;border-width:0 9px 14px;
   border-color:transparent transparent #1a73e8;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 2px #0006)}
 .popup-knopf{margin-top:6px;border:1px solid var(--linie);background:var(--karte);border-radius:8px;padding:5px 10px;font-weight:600}
+/* Öffnungszeiten jetzt, Wikipedia-Kurzinfo im Ort-Fenster */
+.oh{font-weight:700}
+.oh-offen{color:var(--gruen)}
+.oh-bald{color:#9a5b00}
+.oh-zu{color:var(--fehlertext)}
+:root[data-thema=dunkel] .oh-bald{color:#f0b35a}
+@media (prefers-color-scheme:dark){:root:not([data-thema=hell]) .oh-bald{color:#f0b35a}}
+.wiki{margin-top:8px;max-width:260px}
+.wiki p{margin:0 0 4px;color:var(--text);font-size:13px;line-height:1.4}
+.wiki img{float:right;width:72px;height:72px;object-fit:cover;border-radius:8px;margin:0 0 4px 8px}
+.wiki::after{content:'';display:block;clear:both}
+#drinnenListe .oh{font-weight:600}
 
 /* Drucken: Karte über die Seite, Kopf mit Kennzahlen, Höhenprofil unten */
 body.druck #panel,body.druck #oben,body.druck #kartenknoepfe,body.druck #lagenwahl,body.druck #abseits,body.druck #meldung{display:none!important}

@@ -887,6 +887,179 @@ var R = (function () {
     return 'https://' + m[1] + '.wikipedia.org/wiki/' + encodeURIComponent(m[2].replace(/ /g, '_'));
   }
 
+  // Wikipedia-Artikel zu einem Ort: aus "wikipedia" (Sprache:Titel) oder nur die Wikidata-Nummer zum Nachschlagen
+  function wikiQuelle(t) {
+    const w = t && t.wikipedia, m = w && /^([a-z-]{2,12}):(.+)$/.exec(w);
+    if (m) return { sprache: m[1], titel: m[2].replace(/ /g, '_') };
+    const q = t && /^Q\d+$/.test(t.wikidata || '') ? t.wikidata : null;
+    return q ? { wikidata: q } : null;
+  }
+  // Wikidata-Antwort (wbgetentities, sitelinks): deutscher Artikel bevorzugt, sonst englischer
+  function wikiAusWikidata(json, q) {
+    const s = json && json.entities && json.entities[q] && json.entities[q].sitelinks;
+    if (!s) return null;
+    for (const [site, sprache] of [['dewiki', 'de'], ['enwiki', 'en']]) if (s[site] && s[site].title) return { sprache, titel: s[site].title.replace(/ /g, '_') };
+    return null;
+  }
+  // Zusammenfassung der Wikipedia (REST page/summary) als Kurzinfo; null bei Begriffsklärung oder ohne Text
+  function wikiKurz(json) {
+    if (!json || json.type === 'disambiguation' || !json.extract) return null;
+    const bild = json.thumbnail && /^https:\/\//.test(json.thumbnail.source) ? json.thumbnail.source : null;
+    const url = json.content_urls && json.content_urls.mobile && json.content_urls.mobile.page;
+    return { text: String(json.extract).trim(), bild, url: /^https:\/\//.test(url || '') ? url : null };
+  }
+
+  // ---------- Öffnungszeiten (OSM opening_hours, der übliche Teil) ----------
+  // Verstanden: 24/7; Wochentage (Mo-Fr, Sa,Su), Monate (Apr-Oct), Zeiten (10:00-12:00,14:00-18:00, über Mitternacht),
+  // off/closed; Regeln mit ";" (spätere ersetzt den Tag) und ", " (kommt dazu). Feiertage (PH) und Schulferien (SH)
+  // kennt die App nicht: solche Regeln bleiben außen vor, der Text sagt es dazu. Alles andere: null (dann Rohtext zeigen).
+  const OH_TAGE = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const OH_MONATE = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const TAG_KURZ = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  function ohBereich(text, namen) {
+    // "Mo-Fr,Su" → Menge der Indizes; Bereiche dürfen umlaufen (Fr-Mo, Nov-Mar)
+    const menge = new Set();
+    for (const teil of text.split(',')) {
+      const m = /^([A-Za-z]{2,3})(?:-([A-Za-z]{2,3}))?$/.exec(teil);
+      if (!m) return null;
+      const a = namen.indexOf(m[1]), b = m[2] ? namen.indexOf(m[2]) : a;
+      if (a < 0 || b < 0) return null;
+      for (let i = a; ; i = (i + 1) % namen.length) { menge.add(i); if (i === b) break; }
+    }
+    return menge;
+  }
+  function ohZeiten(text) {
+    const z = [];
+    for (const teil of text.split(',')) {
+      const m = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(teil);
+      if (!m) return null;
+      const a = +m[1] * 60 + +m[2];
+      let b = +m[3] * 60 + +m[4];
+      if (a > 1440 || b > 2880 || +m[2] > 59 || +m[4] > 59) return null;
+      if (b <= a) b += 1440;   // über Mitternacht
+      z.push([a, b]);
+    }
+    return z;
+  }
+  function oeffnungLesen(roh) {
+    if (typeof roh !== 'string') return null;
+    const s = roh.replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+    if (!s) return null;
+    if (s === '24/7') return { regeln: [{ zus: false, monate: null, tage: null, zeiten: [[0, 1440]] }], feiertage: false, immer: true };
+    if (/\|\||"|\[|\+|week|easter|sunrise|sunset|dawn|dusk|\d{4}/.test(s)) return null;
+    const regeln = [];
+    let feiertage = false;
+    const sel = '(?:Mo|Tu|We|Th|Fr|Sa|Su|PH|SH|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\b';
+    for (const gruppe of s.split(';').map(x => x.trim()).filter(Boolean)) {
+      // ", " vor einem Wochentag oder Monat beginnt eine Regel, die dazukommt; "Mo, We 10:00-12:00" gehört zusammen
+      const stuecke = gruppe.split(new RegExp(',\\s*(?=' + sel + ')'));
+      const teile = [];
+      for (const st of stuecke) {
+        if (teile.length && !/\d|off|closed/.test(teile[teile.length - 1])) teile[teile.length - 1] += ',' + st.trim();
+        else teile.push(st.trim());
+      }
+      teile.forEach((teil, i) => {
+        if (regeln === null) return;
+        const m = new RegExp('^(?:((?:' + OH_MONATE.join('|') + ')[A-Za-z,-]*)\\s+)?(?:((?:' + OH_TAGE.join('|') + '|PH|SH)[A-Za-z,-]*)\\s*)?(.*)$').exec(teil);
+        let [, mon, tag, rest] = m;
+        rest = rest.trim();
+        let monate = null, tage = null, zeiten;
+        if (mon) { monate = ohBereich(mon.replace(/\s/g, ''), OH_MONATE); if (!monate) { regeln.length = 0; regeln.push(null); return; } }
+        if (tag) {
+          const liste = tag.replace(/\s/g, '').split(',');
+          const ohne = liste.filter(x => x !== 'PH' && x !== 'SH');
+          if (ohne.length < liste.length) feiertage = true;
+          if (!ohne.length) return;   // nur Feiertage oder Ferien: unbekannt, Regel außen vor
+          tage = ohBereich(ohne.join(','), OH_TAGE);
+          if (!tage) { regeln.length = 0; regeln.push(null); return; }
+        }
+        if (!rest || /^(off|closed)$/i.test(rest)) zeiten = rest ? [] : null;
+        else zeiten = ohZeiten(rest.replace(/\s/g, ''));
+        if (!zeiten) { regeln.length = 0; regeln.push(null); return; }
+        regeln.push({ zus: i > 0, monate, tage, zeiten });
+      });
+      if (regeln[0] === null) return null;
+    }
+    if (!regeln.length) return null;
+    return { regeln, feiertage, immer: false };
+  }
+  // Zeiträume eines Kalendertags (Minuten ab 0:00, Ende bis 2880), ohne den Überhang vom Vortag
+  function ohTag(oh, d) {
+    let z = [];
+    for (const r of oh.regeln) {
+      if (r.monate && !r.monate.has(d.getMonth())) continue;
+      if (r.tage && !r.tage.has(d.getDay())) continue;
+      z = r.zus ? z.concat(r.zeiten) : r.zeiten.slice();
+    }
+    return z;
+  }
+  function hhmm(min) { min = ((min % 1440) + 1440) % 1440; return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+  // Stand jetzt: { zustand: 'offen' | 'bald' | 'zu' | 'unbekannt', text }; „bald“ = schließt in höchstens 30 min
+  function oeffnungJetzt(roh, jetzt) {
+    const oh = oeffnungLesen(roh);
+    if (!oh) return { zustand: 'unbekannt', text: '' };
+    const zusatz = oh.feiertage ? ' (Feiertage nicht berücksichtigt)' : '';
+    if (oh.immer) return { zustand: 'offen', text: 'rund um die Uhr geöffnet' };
+    const tag0 = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate());
+    const tagPlus = n => new Date(tag0.getFullYear(), tag0.getMonth(), tag0.getDate() + n);
+    // alle Zeiträume von gestern bis in 8 Tagen auf einer Achse (Minuten ab heute 0:00), zusammengefügt
+    let alle = [];
+    for (let n = -1; n <= 8; n++) for (const [a, b] of ohTag(oh, tagPlus(n))) alle.push([a + n * 1440, b + n * 1440]);
+    alle.sort((x, y) => x[0] - y[0]);
+    const zus = [];
+    for (const z of alle) { const l = zus[zus.length - 1]; if (l && z[0] <= l[1]) l[1] = Math.max(l[1], z[1]); else zus.push(z.slice()); }
+    const m = jetzt.getHours() * 60 + jetzt.getMinutes();
+    const jetztZ = zus.find(([a, b]) => a <= m && m < b);
+    if (jetztZ) {
+      if (jetztZ[1] - m > 8 * 1440) return { zustand: 'offen', text: 'durchgehend geöffnet' + zusatz };
+      const bis = (jetztZ[1] >= 1440 ? (jetztZ[1] >= 2880 ? TAG_KURZ[tagPlus(Math.floor(jetztZ[1] / 1440)).getDay()] + ' ' : 'morgen ') : '') + hhmm(jetztZ[1]);
+      return jetztZ[1] - m <= 30 ? { zustand: 'bald', text: 'schließt bald, um ' + hhmm(jetztZ[1]) + zusatz } : { zustand: 'offen', text: 'geöffnet bis ' + bis + zusatz };
+    }
+    const naechst = zus.find(([a]) => a > m);
+    const heuteZu = !zus.some(([a, b]) => a < 1440 && b > 0) ? 'heute geschlossen' : 'geschlossen';
+    if (!naechst || naechst[0] >= 8 * 1440) return { zustand: 'zu', text: heuteZu + zusatz };
+    const n = Math.floor(naechst[0] / 1440);
+    const wann = n === 0 ? 'um ' : n === 1 ? 'morgen ' : TAG_KURZ[tagPlus(n).getDay()] + ' ';
+    return { zustand: 'zu', text: heuteZu + ', öffnet ' + wann + hhmm(naechst[0]) + zusatz };
+  }
+
+  // ---------- Regenplan: drinnen in der Nähe ----------
+  // Regen oder Gewitter erwartet: Wettercode Regen/Schauer/Gewitter oder Regenwahrscheinlichkeit ab 60 %
+  function regenTag(code, wahrsch) { return (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 || (wahrsch != null && wahrsch >= 60); }
+  const DRINNEN = [
+    { k: 'museum', name: 'Museum', zeichen: '🖼️', test: t => t.tourism === 'museum' },
+    { k: 'galerie', name: 'Galerie', zeichen: '🎨', test: t => t.tourism === 'gallery' },
+    { k: 'aquarium', name: 'Aquarium', zeichen: '🐠', test: t => t.tourism === 'aquarium' },
+    { k: 'planetarium', name: 'Planetarium', zeichen: '🔭', test: t => t.amenity === 'planetarium' },
+    { k: 'theater', name: 'Theater', zeichen: '🎭', test: t => t.amenity === 'theatre' },
+    { k: 'kino', name: 'Kino', zeichen: '🎬', test: t => t.amenity === 'cinema' },
+    { k: 'bad', name: 'Hallenbad und Therme', zeichen: '🏊', test: t => t.leisure === 'water_park' || (t.leisure === 'sports_centre' && /swimming/.test(t.sport || '')) },
+    { k: 'klettern', name: 'Kletterhalle', zeichen: '🧗', test: t => t.leisure === 'sports_centre' && /climbing/.test(t.sport || '') },
+    { k: 'kirche', name: 'Kirche mit Wikipedia-Artikel', zeichen: '⛪', test: t => t.amenity === 'place_of_worship' && !!(t.wikipedia || t.wikidata) }
+  ];
+  function regenAbfrage(lat, lon, radius) {
+    const um = '(around:' + Math.round(radius) + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ')';
+    const teile = ['nwr["tourism"~"^(museum|gallery|aquarium)$"]', 'nwr["amenity"~"^(planetarium|theatre|cinema)$"]', 'nwr["leisure"="water_park"]',
+      'nwr["leisure"="sports_centre"]["sport"~"swimming|climbing"]', 'nwr["amenity"="place_of_worship"]["wikidata"]'];
+    return '[out:json][timeout:25];(' + teile.map(t => t + um + ';').join('') + ');out center tags 150;';
+  }
+  function regenLesen(json, mitte) {
+    const aus = [];
+    for (const e of (json && json.elements) || []) {
+      const t = e.tags || {}, lat = e.lat != null ? e.lat : e.center && e.center.lat, lon = e.lon != null ? e.lon : e.center && e.center.lon;
+      if (lat == null || !t.name || t.access === 'private') continue;
+      const kat = DRINNEN.find(k => k.test(t));
+      if (!kat) continue;
+      aus.push({ id: e.type + '/' + e.id, lat, lon, name: t.name, kat: kat.k, tags: t, d: abstand(mitte, { lat, lon }) });
+    }
+    return aus.sort((a, b) => a.d - b.d);
+  }
+
+  // Anreise zum Start in Google Maps (URL-Schnittstelle von Google, öffnet am Telefon die App): Bus und Bahn oder Auto
+  function anreiseLink(lat, lon, art) {
+    return 'https://www.google.com/maps/dir/?api=1&destination=' + lat.toFixed(5) + ',' + lon.toFixed(5) + '&travelmode=' + (art === 'auto' ? 'driving' : 'transit');
+  }
+
   // ---------- Orte und Suche ohne Netz (Datei orte.json.gz im Kartenpaket, gebaut von karten/orte.py) ----------
   // Eintrag [lat, lon, "n123", Merkmale] → Element wie in der Antwort von Overpass (für orteLesen und stadtLesen)
   function ortElement(e) {
@@ -1145,7 +1318,8 @@ var R = (function () {
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
-    terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
+    terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;
