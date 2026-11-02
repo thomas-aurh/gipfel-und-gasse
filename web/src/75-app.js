@@ -121,7 +121,7 @@ if (NATIV) {
       if (warAufz && !app.aufz && st.aufz.punkte > 1) $('bAufzSpeichern').disabled = false;
       $('aAuf').textContent = Math.round(st.aufz.auf) + ' m';
       const std = ((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3;
-      $('aTempo').textContent = st.aufz.meter > 50 ? R.paceText(std * 60 / (st.aufz.meter / 1000)) : '–';
+      bewegungZeigen(st.aufz.meter, std, st.aufz.bewegung != null ? st.aufz.bewegung / 3600e3 : std, !!st.aufz.pause);
     }
   }
   Navi.addListener('position', anzeigen);
@@ -202,7 +202,7 @@ if (NATIV) {
   };
 
   // Drucken: Druckdialog von Android; das Versprechen erfüllt sich, wenn der Dialog fertig ist
-  window.print = () => Navi.drucken({ name: (S.name || '').trim() || 'Gipfel und Gasse' });
+  window.print = () => Navi.drucken({ name: druckName || (S.name || '').trim() || 'Gipfel und Gasse' });
 
   // Nach dem Öffnen der App: läuft der Dienst schon (z. B. nach dem Wischen aus der Übersicht)?
   Navi.status().then(st => {

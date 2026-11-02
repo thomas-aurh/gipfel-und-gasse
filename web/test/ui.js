@@ -487,6 +487,36 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Eintrag als Punkt auf der Karte; „Öffnen“ springt zum Eintrag
+  pruef('Tagebuch: Eintrag als Punkt auf der Karte', (await page.$$('.tb-mk')).length === 1);
+  await page.click('[data-reiter=karte]');
+  await page.evaluate(() => document.querySelector('.tb-mk').parentElement.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.waitForSelector('.leaflet-popup button:has-text("Öffnen")');
+  pruef('Tagebuch-Punkt: Fenster mit Reise und Text', (await page.textContent('.leaflet-popup')).includes('Testurlaub') && (await page.textContent('.leaflet-popup')).includes('Baden'));
+  await page.click('.leaflet-popup button:has-text("Öffnen")');
+  await page.waitForTimeout(200);
+  pruef('Tagebuch-Punkt: Öffnen zeigt den Eintrag hervorgehoben', await page.isVisible('#tbReise') && (await page.$$('.tb-eintrag.hervor')).length === 1);
+  await zuSeite(page, 'karte');
+  await page.click('#bLagen');
+  await page.uncheck('#lageTagebuch');
+  pruef('Kartenwahl: Tagebuch-Ebene abschaltbar', (await page.$$('.tb-mk')).length === 0);
+  await page.check('#lageTagebuch');
+  await page.keyboard.press('Escape'); await page.click('#karte', { position: { x: 5, y: 300 } }).catch(() => {});
+  // Heft: Druck abfangen, Inhalt prüfen und als echtes PDF drucken
+  await zuSeite(page, 'tagebuch');
+  await page.evaluate(() => { window.__heftDruck = null; window.__altPrint = window.print; window.print = () => { window.__heftDruck = { klasse: document.documentElement.classList.contains('heft'), thema: document.documentElement.dataset.thema }; };
+    window.__altTimeout = window.setTimeout; window.setTimeout = (f, ms, ...x) => ms === 500 && window.__heftDruck ? 0 : window.__altTimeout(f, ms, ...x); });
+  await page.click('#tbHeftKnopf');
+  await page.waitForFunction(() => window.__heftDruck, null, { timeout: 8000 });
+  const heft = await page.evaluate(() => ({ d: window.__heftDruck, h1: document.querySelector('#tbHeft h1').textContent, svg: !!document.querySelector('#tbHeft svg circle'),
+    tage: document.querySelectorAll('#tbHeft h2').length, fotos: document.querySelectorAll('#tbHeft .heft-fotos img').length, text: document.querySelector('#tbHeft').textContent }));
+  pruef('Heft: Titel, Skizze mit Orten, Tag, Foto, hell', heft.d.klasse && heft.d.thema === 'hell' && heft.h1 === 'Testurlaub' && heft.svg && heft.tage === 1 && heft.fotos === 1 && heft.text.includes('Baden'), heft);
+  await page.screenshot({ path: path.join(OUT, '11-heft.png'), fullPage: true });
+  const heftPdf = await page.pdf({ path: path.join(OUT, '11-heft.pdf'), format: 'A4', printBackground: true });
+  pruef('Heft: PDF entsteht', heftPdf.length > 5000);
+  await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); window.print = window.__altPrint; window.setTimeout = window.__altTimeout; });
+  pruef('Heft: danach wieder die App, Heft geleert', !(await page.evaluate(() => document.documentElement.classList.contains('heft'))) && await page.isVisible('#tbReise') &&
+    (await page.evaluate(() => document.querySelector('#tbHeft').children.length)) === 0);
   // Speichern, während ein Foto noch verkleinert wird, und doppelt getippt: ein Eintrag, mit Foto
   await page.click('#tbNeuerEintrag');
   await page.fill('#tbText', 'Zweiter Tag');
@@ -732,6 +762,11 @@ function pruef(name, bed, info) {
   pruef('App: nach „Beenden“ in der Mitteilung speicherbar', !(await pa2.isDisabled('#bAufzSpeichern')));
   pruef('App: Dauer bis zum Ende der Aufzeichnung', (await pa2.textContent('#aDauer')) === '20 min', await pa2.textContent('#aDauer'));
   pruef('App: Ø Tempo der Aufzeichnung (20 min auf 820 m)', (await pa2.textContent('#aTempo')) === '24:23 min/km', await pa2.textContent('#aTempo'));
+  // Auto-Pause: Tempo aus der Bewegungszeit, Pause sichtbar
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, aufz: { meter: 2000, start: t - 1200000, bewegung: 600000, pause: true, punkte: 50, auf: 10 } }), t0);
+  pruef('App: Ø Tempo aus der Bewegungszeit (10 min auf 2 km), Pause angezeigt', (await pa2.textContent('#aTempo')) === '5:00 min/km' &&
+    (await pa2.textContent('#aBewegung')).includes('Bewegung 10 min') && (await pa2.textContent('#aBewegung')).includes('Pause'), [await pa2.textContent('#aTempo'), await pa2.textContent('#aBewegung')]);
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: false, folgen: false, aufzeichnen: false, aufz: { meter: 820, start: t - 1800000, ende: t - 600000, punkte: 41, auf: 30 } }), t0);
   pruef('App: Gehen schickt Faktor und keine Lauf-Kennung', st1[1].lauf === false && st1[1].tempo === 1 && typeof st1[1].kmAnsage === 'boolean', [st1[1].lauf, st1[1].tempo, st1[1].kmAnsage]);
   // Kilometer-Ansage umschalten geht gleich an den Dienst
   const vorKm = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten').length));
@@ -990,6 +1025,31 @@ function pruef(name, bed, info) {
   pruef('Telefon: großes Blatt blendet Fadenkreuz aus, nichts verdeckt', await pt.isHidden('#kreuzFeld'));
   await blattStufe(false);
   pruef('Telefon: kleineres Blatt zeigt Fadenkreuz wieder', await pt.isVisible('#kreuzFeld'));
+  // Runde mit Wunschlänge ab dem Start: vier Punkte (Start, zwei Ecken, Start), andere Richtung ändert die Ecken
+  await pt.tap('#bKreuz');
+  await blattStufe(false);
+  const klick = sel => pt.evaluate(q => document.querySelector(q).click(), sel);
+  await klick('#bMehr');
+  await klick('#bRunde');
+  pruef('Runde: Auswahl der Länge sichtbar', await pt.evaluate(() => !document.querySelector('#rundFeld').hidden));
+  await pt.selectOption('#rundLaenge', '8');
+  await klick('#bRundeLos');
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled && document.querySelector('#meldung').textContent.includes('Runde'), null, { timeout: 15000 });
+  const runde = await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps);
+  pruef('Runde: Start, zwei Ecken, zurück zum Start', runde.length === 4 && runde[0].lat === runde[3].lat && runde[0].lon === runde[3].lon &&
+    Math.abs(runde[0].lat - 47.7535) < 1e-6, runde);
+  pruef('Runde: Meldung mit Länge', /Runde: [\d,]+ km \(gewünscht 8(,0)? km\)/.test(await pt.textContent('#meldung')), await pt.textContent('#meldung'));
+  await klick('#bRundeAnders');
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
+  const runde2 = await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps);
+  pruef('Runde: andere Richtung, gleicher Start', runde2.length === 4 && runde2[0].lat === runde[0].lat && (runde2[1].lat !== runde[1].lat || runde2[1].lon !== runde[1].lon));
+  await klick('#bZurueck'); await pt.waitForTimeout(600);
+  pruef('Runde: Rückgängig holt die vorige Runde zurück', JSON.stringify((await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps))) === JSON.stringify(runde));
+  // während die Runde noch rechnet, „Neu“: die überholte Runde darf die neue (leere) Planung nicht überschreiben
+  await pt.evaluate(() => { document.querySelector('#bRundeLos').click(); setTimeout(() => document.querySelector('#bNeu').click(), 30); });
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
+  await pt.waitForTimeout(800);
+  pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

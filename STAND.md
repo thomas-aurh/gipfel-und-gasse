@@ -29,6 +29,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   sie mit, darum vorher „Sicherung speichern“.
 - **Gewitterwarnung (#23) nicht auf dem Handy geprüft:** echter Abruf aus dem Dienst bei gesperrtem Bildschirm und ob
   die Vorhersage (WMO-Code ab 95) zu oft oder zu selten warnt.
+- **Auto-Pause und Runde (#22) nicht auf dem Handy geprüft:** ob 10 s an der Ampel im Takt des Dienstes sauber als
+  Pause zählen, wie gut die Runde die Wunschlänge trifft (im Klicktest mit nachgebildetem Routing).
 - **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
   signiert GitHub mit einem Ersatzschlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
   nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
@@ -65,11 +67,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   brouter.de; höchstens ein Versuch je Minute. Im Dienst statt in der Oberfläche, damit es bei gesperrtem Bildschirm
   läuft. Verworfen: zurück auf die Route (führt zurück, auch wenn ein Parallelweg passt), erst fragen.
 - **Laufen mit Leistungs-Kilometern** (02.11., Thomas' Wahl: Lauf-Profil mit Pace, Kilometer-Ansagen): Zeit =
-  (km + Hm/100) × Lauftempo, wie die Leistungs-km im Trailrunning (ITRA). Zurückgestellt: Auto-Pause, Rundkurs mit
-  Wunschlänge.
+  (km + Hm/100) × Lauftempo, wie die Leistungs-km im Trailrunning (ITRA). Auto-Pause und Rundkurs kamen mit #22.
 - **Reisetagebuch** (02.11., Thomas' Wahl aus Vorbild Polarsteps/Day One): Reisen mit Zeitraum, Einträge mit Text und
   Fotos, Ort, Uhrzeit und Wetter automatisch; Fotos auf 1600 px verkleinert in IndexedDB, in der Sicherung als
-  Daten-Adresse. Zurückgestellt: Einträge auf der Karte, Heft zum Drucken.
+  Daten-Adresse. Einträge auf der Karte und Heft kamen mit #21.
 - **Navigation: Menü links oben plus Leiste unten** (02.11., Thomas' Wahl nach Vorbild gängiger Tourenplaner): jede
   Funktion eine eigene Seite, die vier häufigsten mit einem Tipp erreichbar; geplante und gegangene Touren getrennt.
   Verworfen: nur Menü (ein Tipp mehr für Planen und Unterwegs), Reiter im Blatt (wirkte überladen).
@@ -151,12 +152,16 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Laufen: Art „Laufen“ mit Lauftempo (min/km, 100 Hm wie 1 km), Ø Tempo und Kilometer-Ansage beim Aufzeichnen (#17).
   Reisetagebuch als Menüpunkt: Reisen mit Zeitraum, Einträge mit Text und Fotos, Ort und Wetter von selbst, gegangene
   Touren der Reise; Fotos kommen mit in die Sicherung (#16).
+  Laufen: Auto-Pause (Stehen über 10 s zählt nicht zur Bewegungszeit, Ansage „Pause“/„Weiter“) und Runde mit
+  Wunschlänge ab dem Start (Dreieck, nach dem Routen nachbemessen) (#22).
   Kamera aus dem Tagebuch: Kamera-App im Manifest angemeldet (ohne sie wich Capacitor ab Android 11 still auf die
   Dateiauswahl aus, Befund von Thomas in Verona) (#18).
   Mit der Kamera aufgenommene Tagebuch-Fotos zusätzlich als Original in die Galerie (Bilder › Gipfel und Gasse,
   abschaltbar, ab Android 10) (#19).
   Gewitterwarnung unterwegs (alle 30 min beim Folgen oder Aufzeichnen, nächste drei Stunden, Ansage; in der App aus dem
   Dienst) und Statistik je Woche und Monat mit Säulen der letzten 12 Monate (#23).
+  Tagebuch: Einträge als Punkte auf der Karte (Ebene abschaltbar, „Öffnen“ springt zum Eintrag) und Reise als Heft
+  zum Drucken oder als PDF (Kennzahlen, Skizze der Wege und Orte, Tage mit Einträgen und Fotos) (#21).
 
 - **01.11.** Hinweise aus dem Copilot-Review zu #5 behoben: Restaufstieg ab der aktuellen Stelle, GPX-Abschnitte und
   Zeitstempel bleiben erhalten, GPX-Import ersetzt keine geöffnete Tour, Tempo der Tour wird wiederhergestellt,

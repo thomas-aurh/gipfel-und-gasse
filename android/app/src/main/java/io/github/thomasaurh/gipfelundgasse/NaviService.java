@@ -68,7 +68,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         String gewitter;             // Warnung „Gewitter möglich gegen …“ für die Anzeige, null = keine
         long gewitterGemeldet;       // wann zuletzt angesagt (höchstens alle zwei Stunden)
         int aufzKm;                  // zuletzt angesagter Kilometer der Aufzeichnung
-        long aufzKmZeit;             // wann er erreicht war
+        long aufzKmZeit;             // Bewegungszeit (ms), als er erreicht war
+        AutoPause pause;             // Auto-Pause der Aufzeichnung: Stehen zählt nicht zur Bewegungszeit
         // laufend
         boolean laeuft;
         Location letzte;
@@ -132,6 +133,21 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
         }, "wetter").start();
     }
+    // alle 5 s: Auto-Pause prüfen (im Stehen liefert das GPS keine neuen Punkte, weil es erst ab 3 m meldet)
+    private final Handler takt = new Handler(Looper.getMainLooper());
+    private final Runnable taktLauf = new Runnable() {
+        @Override public void run() {
+            boolean neu = false;
+            synchronized (Z) {
+                if (Z.aufzeichnen && Z.pause != null && Z.pause.takt(System.currentTimeMillis())) {
+                    neu = true;
+                    if (Z.lauf && Z.ansagen) sagen("Pause.");
+                }
+            }
+            if (neu) { benachrichtigungAktualisieren(); if (Z.beiNeuem != null) Z.beiNeuem.run(); }
+            takt.postDelayed(this, 5000);
+        }
+    };
     private TextToSpeech tts;
     private boolean ttsBereit;
     private final List<String> ttsWarten = new ArrayList<>();
@@ -169,7 +185,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         }
         if (!Z.laeuft) {
             synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; }   // neue Sitzung: keine alte Warnung zeigen
-            gpsAn(); wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
+            gpsAn();
+            takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000);
+            wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
         }
         synchronized (Z) {
             Z.laeuft = true;
@@ -190,7 +208,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
             if (Z.aufzeichnen && Z.aufzStart == 0) {
                 Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0;
-                Z.aufzKm = 0; Z.aufzKmZeit = Z.aufzStart;
+                Z.aufzKm = 0; Z.aufzKmZeit = 0;
+                Z.pause = new AutoPause(Z.aufzStart, 0);
             }
         }
         return START_STICKY;
@@ -392,6 +411,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     private void aufzeichnen(Location loc) {
+        // Bewegung für die Auto-Pause: GPS-Geschwindigkeit über 0,6 m/s, unabhängig davon, ob der Punkt in die Spur kommt
+        // (bei ungenauem GPS kommt erst nach vielen Metern ein Punkt dazu, das Gehen ist trotzdem Bewegung)
+        if (Z.pause != null && loc.hasSpeed() && loc.getSpeed() > 0.6f && Z.pause.bewegt(System.currentTimeMillis()) && Z.lauf && Z.ansagen) sagen("Weiter.");
         if (loc.hasAccuracy() && loc.getAccuracy() > 40) return;   // zu ungenau
         double[] p = { loc.getLatitude(), loc.getLongitude(), loc.hasAltitude() ? loc.getAltitude() : Double.NaN, loc.getTime() };
         if (!Z.spur.isEmpty()) {
@@ -401,15 +423,18 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.aufzMeter += m;
         }
         Z.spur.add(p);
-        // jeden vollen Kilometer: Zeit und Tempo des letzten (bei Lücken im GPS über die übersprungenen gemittelt)
+        long jetzt = System.currentTimeMillis();
+        if (Z.pause == null) Z.pause = new AutoPause(Z.aufzStart != 0 ? Z.aufzStart : jetzt, 0);
+        if (Z.pause.bewegt(jetzt) && Z.lauf && Z.ansagen) sagen("Weiter.");
+        // jeden vollen Kilometer: Bewegungszeit und Tempo des letzten (bei Lücken im GPS über die übersprungenen gemittelt)
         int km = (int) Math.floor(Z.aufzMeter / 1000);
         if (km > Z.aufzKm) {
-            long jetzt = System.currentTimeMillis();
-            if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, jetzt - Z.aufzStart, (jetzt - Z.aufzKmZeit) / (km - Z.aufzKm)));
-            Z.aufzKm = km; Z.aufzKmZeit = jetzt;
+            long bewegung = Z.pause.bewegungMs(jetzt);
+            if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, bewegung, (bewegung - Z.aufzKmZeit) / (km - Z.aufzKm)));
+            Z.aufzKm = km; Z.aufzKmZeit = bewegung;
         }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
-        if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); }
+        if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); sitzungSichern(this); }
     }
 
     /**
@@ -422,6 +447,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             synchronized (Z) {
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
                 o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
+                o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
+                // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
+                o.put("aufzKm", Z.aufzKm); o.put("aufzKmZeit", Z.aufzKmZeit);
                 JSONArray pts = new JSONArray();
                 if (Z.strecke != null) for (int i = 0; i < Z.strecke.groesse(); i++) {
                     JSONArray p = new JSONArray();
@@ -539,8 +568,19 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     }
                 }
                 // nach einem Neustart: angesagte Kilometer nicht wiederholen, Tempo des laufenden ab seiner echten Grenze
+                // Auto-Pause weiter (die Zeit bis zum Neustart zählt als Bewegung, außer die gesicherte Pause), Grenze des
+                // laufenden Kilometers in Bewegungszeit
+                long jetzt = System.currentTimeMillis();
+                Z.pause = Z.aufzStart > 0 ? new AutoPause(Z.aufzStart, o.optLong("aufzPauseMs", 0)) : null;
+                if (Z.pause != null) Z.pause.letzteBewegung = jetzt;
                 Z.aufzKm = (int) Math.floor(Z.aufzMeter / 1000);
-                Z.aufzKmZeit = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : System.currentTimeMillis());
+                if (o.optInt("aufzKm", -1) == Z.aufzKm) {
+                    Z.aufzKmZeit = o.optLong("aufzKmZeit", 0);   // gesichert mit dem Pausenstand: passt zusammen
+                } else {
+                    // älterer Stand ohne diese Werte: aus den Zeitstempeln der Spur schätzen
+                    long grenze = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : jetzt);
+                    Z.aufzKmZeit = Z.pause != null ? Math.max(0, Z.pause.bewegungMs(jetzt) - Math.max(0, jetzt - grenze)) : 0;
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht lesbar", e);
@@ -572,6 +612,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private void beenden() {
         wetter.removeCallbacks(wetterLauf);
         synchronized (Z) { Z.gewitter = null; }
+        takt.removeCallbacks(taktLauf);
         if (Z.aufzStart != 0) spurSichern(this);
         if (lm != null) lm.removeUpdates(this);
         synchronized (Z) { Z.laeuft = false; Z.folgenSeit = 0; }
@@ -583,6 +624,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     @Override
     public void onDestroy() {
         wetter.removeCallbacks(wetterLauf);
+        takt.removeCallbacks(taktLauf);
         if (lm != null) lm.removeUpdates(this);
         if (Z.aufzStart != 0) spurSichern(this);
         synchronized (Z) { Z.laeuft = false; }

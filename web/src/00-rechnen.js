@@ -255,6 +255,30 @@ var R = (function () {
     let s = Math.round(minProKm * 60);
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' min/km';
   }
+  // Auto-Pause (wie AutoPause.java): länger als still ms ohne Weg = Pause ab der letzten Bewegung
+  function autoPause(start, pauseMs, still) {
+    const p = { start, pauseMs: pauseMs || 0, letzte: start, pausiert: false, still: still || 10000 };
+    p.bewegt = t => { const weiter = p.pausiert; if (p.pausiert || t - p.letzte > p.still) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
+    p.takt = t => { if (p.pausiert || t - p.letzte <= p.still) return false; p.pausiert = true; return true; };
+    p.bewegungMs = t => Math.max(0, t - p.start - p.pauseMs - (p.pausiert ? Math.max(0, t - p.letzte) : 0));
+    return p;
+  }
+
+  // Rundkurs mit Wunschlänge: Dreieck Start–P1–P2–Start. Ein gleichseitiges Dreieck mit Umkreisradius r ist 3·√3·r lang;
+  // Wege sind länger als die Luftlinie (Faktor umweg, anfangs 1,3), daraus r. richtung: Grad ab Nord zur Mitte des Kreises.
+  function rundkursPunkte(start, meter, richtung, umweg) {
+    const r = meter / ((umweg || 1.3) * 3 * Math.sqrt(3));
+    const mitte = versatz(start, r, richtung);
+    // Start liegt auf dem Kreis gegenüber der Richtung; die anderen Ecken 120° weiter
+    const winkel = (richtung + 180) % 360;
+    return [versatz(mitte, r, winkel + 120), versatz(mitte, r, winkel + 240)];
+  }
+  // Punkt d Meter in Richtung grad (0 = Nord) von p
+  function versatz(p, d, grad) {
+    const b = grad * RAD, dLat = d * Math.cos(b) / 111320, dLon = d * Math.sin(b) / (111320 * Math.cos(p.lat * RAD));
+    return { lat: p.lat + dLat, lon: p.lon + dLon };
+  }
+
   // Ansage nach jedem Kilometer: Gesamtzeit und Tempo des letzten Kilometers (Millisekunden)
   function kmAnsage(km, gesamtMs, kmMs) {
     const dauer = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sek = s % 60;
@@ -707,6 +731,45 @@ var R = (function () {
   function reiseHeute(reisen, heute) {
     return reisen.filter(r => r.von <= heute && r.bis >= heute).sort((a, b) => (a.von < b.von ? 1 : -1))[0] || null;
   }
+  // Übersicht fürs Heft einer Reise: Wege (Touren) und nummerierte Orte (Einträge) als SVG ohne Kartenkacheln, winkeltreu
+  // genug für eine Skizze (Länge mit cos(Breite) gestaucht), mit Maßstab. orte: [{lat, lon, nr}], linien: [[{lat, lon}, …]]
+  // Spur an Lücken (mehrteilige Aufzeichnung oder GPX) in Abschnitte teilen, damit eine Skizze keine nicht gegangenen Wege zeigt
+  function spurTeile(pts) {
+    const teile = [[]];
+    for (const p of pts) { if (p.luecke && teile[teile.length - 1].length) teile.push([]); teile[teile.length - 1].push(p); }
+    return teile.filter(t => t.length > 1);
+  }
+  function heftSkizze(orte, linien, breite, hoehe) {
+    const alle = orte.concat(...linien);
+    if (!alle.length) return '';
+    let s = Infinity, n = -Infinity, w = Infinity, o = -Infinity;
+    for (const p of alle) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lon); o = Math.max(o, p.lon); }
+    const k = Math.cos((s + n) / 2 * RAD), rand = 24;
+    const bx = Math.max((o - w) * k, 0.002), by = Math.max(n - s, 0.002);   // ein einzelner Ort: kleiner Ausschnitt drumherum
+    const f = Math.min((breite - 2 * rand) / bx, (hoehe - 2 * rand) / by);
+    const x0 = (breite - bx * f) / 2, y0 = (hoehe - by * f) / 2;
+    const xy = p => [x0 + ((p.lon - w) * k + (bx - (o - w) * k) / 2) * f, y0 + (n - p.lat + (by - (n - s)) / 2) * f];
+    const r1 = v => Math.round(v * 10) / 10;
+    let svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + breite + ' ' + hoehe + '" class="heft-skizze">' +
+      '<rect width="' + breite + '" height="' + hoehe + '" fill="#f4f6f2" rx="8"/>';
+    for (const l of linien) {
+      if (l.length < 2) continue;
+      svg += '<polyline fill="none" stroke="#e5532d" stroke-width="2.5" stroke-linejoin="round" points="' + l.map(p => xy(p).map(r1).join(',')).join(' ') + '"/>';
+    }
+    for (const p of orte) {
+      const [x, y] = xy(p).map(r1);
+      svg += '<circle cx="' + x + '" cy="' + y + '" r="9" fill="#2f6b3a" stroke="#fff" stroke-width="2"/>' +
+        '<text x="' + x + '" y="' + r1(y + 3.5) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">' + esc(String(p.nr)) + '</text>';
+    }
+    // Maßstab: runde Länge, die etwa ein Viertel der Breite füllt
+    const meterJePx = 111320 / f, ziel = meterJePx * breite / 4;
+    const stufe = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000].find(m => m >= ziel) || 1000000;
+    const lpx = r1(stufe / meterJePx);
+    svg += '<g font-size="10" fill="#1c2620"><rect x="12" y="' + (hoehe - 16) + '" width="' + lpx + '" height="4" fill="#1c2620"/>' +
+      '<text x="12" y="' + (hoehe - 20) + '">' + kmText(stufe) + '</text></g></svg>';
+    return svg;
+  }
+
   // Tagebuch aus einer Sicherung: Feld für Feld neu aufgebaut wie die Touren; Fotos als JPEG-Daten-Adressen
   function tagebuchPruefen(tb, fotos) {
     const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : null);
@@ -1078,10 +1141,10 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();

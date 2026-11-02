@@ -68,9 +68,10 @@ function themaSetzen(t, merken = true) {
   if (typeof profilZeichnen === 'function' && window.__gugBereit) profilZeichnen();
 }
 themaSetzen(SPEICHER.lesen('thema', 'auto'), false);
-const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true }, SPEICHER.lesen('lagen', {}));
-// gespeicherte Touren als Punkte am Start (60-touren.js füllt die Ebene)
+const lagenWahl = Object.assign({ basis: 'topo', wander: true, rad: false, sehens: false, touren: true, tagebuch: true }, SPEICHER.lesen('lagen', {}));
+// gespeicherte Touren als Punkte am Start (60-touren.js füllt die Ebene), Tagebuch-Einträge mit Ort (65-tagebuch.js)
 const ebeneTouren = L.layerGroup();
+const ebeneTagebuch = L.layerGroup();
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
 const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
 function lagenAnwenden() {
@@ -88,6 +89,8 @@ function lagenAnwenden() {
   $('lageRelief').checked = !!lagenWahl.relief;
   $('lageTouren').checked = !!lagenWahl.touren;
   if (lagenWahl.touren) ebeneTouren.addTo(karte); else ebeneTouren.remove();
+  $('lageTagebuch').checked = !!lagenWahl.tagebuch;
+  if (lagenWahl.tagebuch) ebeneTagebuch.addTo(karte); else ebeneTagebuch.remove();
   SPEICHER.schreiben('lagen', lagenWahl);
   if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
 }
@@ -98,6 +101,7 @@ $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked;
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
 $('lageTouren').addEventListener('change', e => { lagenWahl.touren = e.target.checked; lagenAnwenden(); });
+$('lageTagebuch').addEventListener('change', e => { lagenWahl.tagebuch = e.target.checked; lagenAnwenden(); });
 $('bLagen').addEventListener('click', e => { e.stopPropagation(); $('lagenwahl').hidden = !$('lagenwahl').hidden; });
 document.addEventListener('click', e => { if (!$('lagenwahl').hidden && !$('lagenwahl').contains(e.target)) $('lagenwahl').hidden = true; });
 $('bPlus').addEventListener('click', () => karte.zoomIn());
