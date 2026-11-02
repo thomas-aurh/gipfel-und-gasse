@@ -201,7 +201,7 @@ if (NATIV) {
   };
 
   // Drucken: Druckdialog von Android; das Versprechen erfüllt sich, wenn der Dialog fertig ist
-  window.print = () => Navi.drucken({ name: (S.name || '').trim() || 'Gipfel und Gasse' });
+  window.print = () => Navi.drucken({ name: druckName || (S.name || '').trim() || 'Gipfel und Gasse' });
 
   // Nach dem Öffnen der App: läuft der Dienst schon (z. B. nach dem Wischen aus der Übersicht)?
   Navi.status().then(st => {
