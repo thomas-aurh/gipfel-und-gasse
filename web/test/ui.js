@@ -1098,16 +1098,19 @@ function pruef(name, bed, info) {
     const m = /\/_karten_\/([a-z0-9-]+)\/([a-z0-9.-]+)$/.exec(new URL(r.request().url()).pathname);
     const f = m && path.join(kartenOrdner, m[1], m[2]);
     if (!f || !fs.existsSync(f)) return r.fulfill({ status: 404, body: '' });
-    // wie der Kartenserver der App, in einem WebView, das die Range-Kopfzeile nicht weiterreicht: nur ?von=&bis= zählt
-    // (KARTEN_KOPF=1: WebView reicht sie weiter, dann gilt sie zuerst, sonst die Adresse)
-    const u = new URL(r.request().url()), ausAdresse = u.searchParams.has('von') ? 'bytes=' + u.searchParams.get('von') + '-' + (u.searchParams.get('bis') || '') : null;
-    const range = (process.env.KARTEN_KOPF && r.request().headers()['range']) || ausAdresse;
+    // wie der Kartenserver der App im WebView des Pixel (gemessen 02.11.): mit Range-Kopfzeile springt das WebView in der
+    // Antwort selbst noch einmal an den Anfang des Bereichs, ab Byte 0 fällt das nicht auf, weiter hinten kommen falsche
+    // Bytes; ?von=&bis= in der Adresse liest richtig
+    const u = new URL(r.request().url()), kopf = r.request().headers()['range'];
+    const ausAdresse = u.searchParams.has('von') ? 'bytes=' + u.searchParams.get('von') + '-' + (u.searchParams.get('bis') || '') : null;
+    const range = kopf || ausAdresse, doppelt = !!kopf;
     const daten = fs.readFileSync(f);
     const t = range && /bytes=(\d+)-(\d*)/.exec(range);
     if (!t) return r.fulfill({ status: 200, body: daten, headers: { 'Accept-Ranges': 'bytes' } });
     const von = +t[1], bis = Math.min(daten.length - 1, t[2] ? +t[2] : daten.length - 1);
     bereiche.push(m[2] + ':' + von + '-' + bis);
-    r.fulfill({ status: 206, body: daten.subarray(von, bis + 1), headers: { 'Content-Range': 'bytes ' + von + '-' + bis + '/' + daten.length, 'Accept-Ranges': 'bytes' } });
+    const ab = doppelt ? Math.min(daten.length, 2 * von) : von;
+    r.fulfill({ status: 206, body: daten.subarray(ab, ab + bis - von + 1), headers: { 'Content-Range': 'bytes ' + von + '-' + bis + '/' + daten.length, 'Accept-Ranges': 'bytes' } });
   });
   // kein Netz für Höhen: die gerade Linie muss ihre Höhen aus dem Paket holen
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
@@ -1146,8 +1149,8 @@ function pruef(name, bed, info) {
   await po.waitForFunction(() => !document.querySelector('#bOfflinePruefen').disabled && document.querySelector('#offlineBericht').textContent.includes('Kachel '), null, { timeout: 8000 }).catch(() => {});
   const bericht = await po.textContent('#offlineBericht');
   pruef('Offline prüfen: beide Lesewege gemeldet, Adresse liest, Kopf und Kachel an der Kartenmitte', /Lesen in Teilen \(Adresse\): Status 206.*Kennung „PMTiles“ v3 ✓/.test(bericht) &&
-    /Lesen in Teilen \(Kopfzeile\): (Status 200|Status 206)/.test(bericht) && /Kopf: Zoom \d+–\d+.*✓/.test(bericht) &&
-    /Kachel \d+\/\d+\/\d+ \(Kartenmitte\): \d+ Bytes/.test(bericht) && bericht.includes('hoehe.pmtiles: Status 206 ✓') && await po.evaluate(() => !document.querySelector('#bOfflineBericht').hidden), bericht);
+    /Lesen in Teilen \(Kopfzeile\): (Status 200|Status 206)/.test(bericht) && !/Kopf oder Kachel: FEHLER/.test(bericht) && /Kopf: Zoom \d+–\d+.*✓/.test(bericht) &&
+    /Kachel \d+\/\d+\/\d+ \(Kartenmitte\): \d+ Bytes/.test(bericht) && /hoehe\.pmtiles: Status 206, 16 Bytes ✓/.test(bericht) && await po.evaluate(() => !document.querySelector('#bOfflineBericht').hidden), bericht);
   await po.click('#bLagen');
   await po.check('input[name=basis][value=offline]');
   await po.check('#lageRelief');
