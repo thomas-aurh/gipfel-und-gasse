@@ -751,6 +751,11 @@ function pruef(name, bed, info) {
   pruef('App: nach „Beenden“ in der Mitteilung speicherbar', !(await pa2.isDisabled('#bAufzSpeichern')));
   pruef('App: Dauer bis zum Ende der Aufzeichnung', (await pa2.textContent('#aDauer')) === '20 min', await pa2.textContent('#aDauer'));
   pruef('App: Ø Tempo der Aufzeichnung (20 min auf 820 m)', (await pa2.textContent('#aTempo')) === '24:23 min/km', await pa2.textContent('#aTempo'));
+  // Auto-Pause: Tempo aus der Bewegungszeit, Pause sichtbar
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, aufz: { meter: 2000, start: t - 1200000, bewegung: 600000, pause: true, punkte: 50, auf: 10 } }), t0);
+  pruef('App: Ø Tempo aus der Bewegungszeit (10 min auf 2 km), Pause angezeigt', (await pa2.textContent('#aTempo')) === '5:00 min/km' &&
+    (await pa2.textContent('#aBewegung')).includes('Bewegung 10 min') && (await pa2.textContent('#aBewegung')).includes('Pause'), [await pa2.textContent('#aTempo'), await pa2.textContent('#aBewegung')]);
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: false, folgen: false, aufzeichnen: false, aufz: { meter: 820, start: t - 1800000, ende: t - 600000, punkte: 41, auf: 30 } }), t0);
   pruef('App: Gehen schickt Faktor und keine Lauf-Kennung', st1[1].lauf === false && st1[1].tempo === 1 && typeof st1[1].kmAnsage === 'boolean', [st1[1].lauf, st1[1].tempo, st1[1].kmAnsage]);
   // Kilometer-Ansage umschalten geht gleich an den Dienst
   const vorKm = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten').length));
@@ -1009,6 +1014,31 @@ function pruef(name, bed, info) {
   pruef('Telefon: großes Blatt blendet Fadenkreuz aus, nichts verdeckt', await pt.isHidden('#kreuzFeld'));
   await blattStufe(false);
   pruef('Telefon: kleineres Blatt zeigt Fadenkreuz wieder', await pt.isVisible('#kreuzFeld'));
+  // Runde mit Wunschlänge ab dem Start: vier Punkte (Start, zwei Ecken, Start), andere Richtung ändert die Ecken
+  await pt.tap('#bKreuz');
+  await blattStufe(false);
+  const klick = sel => pt.evaluate(q => document.querySelector(q).click(), sel);
+  await klick('#bMehr');
+  await klick('#bRunde');
+  pruef('Runde: Auswahl der Länge sichtbar', await pt.evaluate(() => !document.querySelector('#rundFeld').hidden));
+  await pt.selectOption('#rundLaenge', '8');
+  await klick('#bRundeLos');
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled && document.querySelector('#meldung').textContent.includes('Runde'), null, { timeout: 15000 });
+  const runde = await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps);
+  pruef('Runde: Start, zwei Ecken, zurück zum Start', runde.length === 4 && runde[0].lat === runde[3].lat && runde[0].lon === runde[3].lon &&
+    Math.abs(runde[0].lat - 47.7535) < 1e-6, runde);
+  pruef('Runde: Meldung mit Länge', /Runde: [\d,]+ km \(gewünscht 8(,0)? km\)/.test(await pt.textContent('#meldung')), await pt.textContent('#meldung'));
+  await klick('#bRundeAnders');
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
+  const runde2 = await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps);
+  pruef('Runde: andere Richtung, gleicher Start', runde2.length === 4 && runde2[0].lat === runde[0].lat && (runde2[1].lat !== runde[1].lat || runde2[1].lon !== runde[1].lon));
+  await klick('#bZurueck'); await pt.waitForTimeout(600);
+  pruef('Runde: Rückgängig holt die vorige Runde zurück', JSON.stringify((await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps))) === JSON.stringify(runde));
+  // während die Runde noch rechnet, „Neu“: die überholte Runde darf die neue (leere) Planung nicht überschreiben
+  await pt.evaluate(() => { document.querySelector('#bRundeLos').click(); setTimeout(() => document.querySelector('#bNeu').click(), 30); });
+  await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
+  await pt.waitForTimeout(800);
+  pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

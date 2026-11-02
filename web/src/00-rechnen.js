@@ -255,6 +255,30 @@ var R = (function () {
     let s = Math.round(minProKm * 60);
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' min/km';
   }
+  // Auto-Pause (wie AutoPause.java): länger als still ms ohne Weg = Pause ab der letzten Bewegung
+  function autoPause(start, pauseMs, still) {
+    const p = { start, pauseMs: pauseMs || 0, letzte: start, pausiert: false, still: still || 10000 };
+    p.bewegt = t => { const weiter = p.pausiert; if (p.pausiert || t - p.letzte > p.still) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
+    p.takt = t => { if (p.pausiert || t - p.letzte <= p.still) return false; p.pausiert = true; return true; };
+    p.bewegungMs = t => Math.max(0, t - p.start - p.pauseMs - (p.pausiert ? Math.max(0, t - p.letzte) : 0));
+    return p;
+  }
+
+  // Rundkurs mit Wunschlänge: Dreieck Start–P1–P2–Start. Ein gleichseitiges Dreieck mit Umkreisradius r ist 3·√3·r lang;
+  // Wege sind länger als die Luftlinie (Faktor umweg, anfangs 1,3), daraus r. richtung: Grad ab Nord zur Mitte des Kreises.
+  function rundkursPunkte(start, meter, richtung, umweg) {
+    const r = meter / ((umweg || 1.3) * 3 * Math.sqrt(3));
+    const mitte = versatz(start, r, richtung);
+    // Start liegt auf dem Kreis gegenüber der Richtung; die anderen Ecken 120° weiter
+    const winkel = (richtung + 180) % 360;
+    return [versatz(mitte, r, winkel + 120), versatz(mitte, r, winkel + 240)];
+  }
+  // Punkt d Meter in Richtung grad (0 = Nord) von p
+  function versatz(p, d, grad) {
+    const b = grad * RAD, dLat = d * Math.cos(b) / 111320, dLon = d * Math.sin(b) / (111320 * Math.cos(p.lat * RAD));
+    return { lat: p.lat + dLat, lon: p.lon + dLon };
+  }
+
   // Ansage nach jedem Kilometer: Gesamtzeit und Tempo des letzten Kilometers (Millisekunden)
   function kmAnsage(km, gesamtMs, kmMs) {
     const dauer = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sek = s % 60;
@@ -1082,7 +1106,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,

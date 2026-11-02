@@ -288,6 +288,23 @@ pruef('Sicherung: Zeitplan geprüft übernommen', JSON.stringify(R.sicherungLese
 // Laufen: Leistungs-km (100 Hm = 1 km), Tempo als Text, Ansage je km (gleich wie NaviRechnenTest)
 const mitPace = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'l1', name: 'Lauf', spur: [[47, 11, null]], kurz: {}, pace: 5 }, { id: 'l2', name: 'Unsinn', spur: [[47, 11, null]], kurz: {}, pace: 999 }] }));
 pruef('Sicherung: Lauftempo je Tour, unsinniges fällt weg', mitPace[0].pace === 5 && mitPace[1].pace === undefined);
+// Auto-Pause (gleich wie AutoPauseTest.java)
+const gehen = (p, bis) => { for (let t = 5000; t <= bis; t += 5000) p.bewegt(t); };   // GPS meldet alle 5 s Bewegung
+const ap = R.autoPause(0, 0);
+gehen(ap, 60000);
+pruef('Auto-Pause: 5 s Stehen ist keine Pause, 11 s schon (einmal gemeldet)', !ap.takt(65000) && ap.takt(71000) && !ap.takt(80000));
+pruef('Auto-Pause: Pause ab der letzten Bewegung', ap.bewegungMs(90000) === 60000);
+const ap2 = R.autoPause(0, 0);
+gehen(ap2, 60000); ap2.takt(65000); ap2.takt(70000);
+pruef('Auto-Pause: Schwelle auch ohne Takt dazwischen (12 s Stehen zählen nicht)', ap2.bewegt(72000) === false && ap2.pauseMs === 12000 && ap2.bewegungMs(72000) === 60000);
+pruef('Auto-Pause: weiter nach einer Minute Ampel', ap.bewegt(120000) === true && ap.pauseMs === 60000 && ap.bewegungMs(180000) === 120000);
+// Rundkurs: Ecken auf einem Kreis, Start mit dabei, Umfang passt zur Wunschlänge
+const rs = { lat: 47.75, lon: 11.37 };
+const [r1, r2] = R.rundkursPunkte(rs, 8000, 90, 1.3);
+const rUmfang = R.abstand(rs, r1) + R.abstand(r1, r2) + R.abstand(r2, rs);
+pruef('Rundkurs: Dreieck so groß, dass Weg × 1,3 ≈ Wunschlänge', nahe(rUmfang * 1.3, 8000, 80), rUmfang);
+pruef('Rundkurs: in die gewünschte Richtung (Osten)', r1.lon > rs.lon && r2.lon > rs.lon);
+pruef('Versatz: 1000 m nach Norden', nahe(R.abstand(rs, R.versatz(rs, 1000, 0)), 1000, 2) && R.versatz(rs, 1000, 0).lat > rs.lat);
 pruef('Laufzeit mit Höhe', nahe(R.laufzeit(10000, 200, 6), 1.2, 1e-9));
 pruef('Zeit je Art', R.zeitFuer('lauf', 10000, 0, 0, 5) === 50 / 60 && R.zeitFuer('fuss', 12000, 600, 600, 1) === R.gehzeit(12000, 600, 600, 1));
 pruef('Tempo als Text', R.paceText(5.7) === '5:42 min/km' && R.paceText(Infinity) === '–', R.paceText(5.7));

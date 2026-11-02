@@ -120,7 +120,7 @@ if (NATIV) {
       if (warAufz && !app.aufz && st.aufz.punkte > 1) $('bAufzSpeichern').disabled = false;
       $('aAuf').textContent = Math.round(st.aufz.auf) + ' m';
       const std = ((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3;
-      $('aTempo').textContent = st.aufz.meter > 50 ? R.paceText(std * 60 / (st.aufz.meter / 1000)) : '–';
+      bewegungZeigen(st.aufz.meter, std, st.aufz.bewegung != null ? st.aufz.bewegung / 3600e3 : std, !!st.aufz.pause);
     }
   }
   Navi.addListener('position', anzeigen);
