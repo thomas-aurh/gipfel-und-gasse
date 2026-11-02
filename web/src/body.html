@@ -95,11 +95,20 @@
           <button class="knopf" id="bNeu">✕ Neu</button>
           <button class="knopf" id="bMehr" aria-expanded="false" title="Weitere Funktionen">⋯ Mehr</button>
           <button class="knopf neben" id="bRund" title="Zurück zum Start (Rundtour)">⟲ Rundtour</button>
+          <button class="knopf neben" id="bRunde" title="Runde mit Wunschlänge vorschlagen" aria-expanded="false">⭕ Runde mit Länge</button>
           <button class="knopf neben" id="bUmkehren">⇄ Umkehren</button>
           <button class="knopf neben" id="bOrdnen" title="Stopps in eine kurze Reihenfolge bringen">⇅ Ordnen</button>
           <button class="knopf neben" id="bGpx">⬇ GPX</button>
           <button class="knopf neben" id="bTeilen">🔗 Link</button>
           <button class="knopf neben" id="bDrucken">🖨 Drucken</button>
+        </div>
+        <div id="rundFeld" class="zeile" hidden>
+          <label>Runde ab dem Start<select id="rundLaenge">
+            <option value="3">3 km</option><option value="5" selected>5 km</option><option value="8">8 km</option><option value="10">10 km</option>
+            <option value="12">12 km</option><option value="15">15 km</option><option value="21">21 km</option><option value="30">30 km</option>
+          </select></label>
+          <button class="knopf haupt" id="bRundeLos">Vorschlagen</button>
+          <button class="knopf" id="bRundeAnders" disabled title="Gleiche Länge, andere Richtung">↻ Andere Richtung</button>
         </div>
         <div id="leerHinweis" class="tipp">👆 Tippe auf die Karte, um den Start zu setzen.</div>
         <div class="zeile">
@@ -206,6 +215,7 @@
           <div class="zahl"><b id="aAuf">–</b><span>bergauf</span></div>
           <div class="zahl"><b id="aTempo">–</b><span>Ø Tempo</span></div>
         </div>
+        <div id="aBewegung" class="klein"></div>
         <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
         <div class="knopfreihe">
           <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
@@ -323,7 +333,10 @@
           <li>Route antippen fügt dort ein Zwischenziel ein; Punkte lassen sich ziehen, antippen zeigt „Punkt entfernen“.</li>
           <li>In der Suche: „Als Zwischenziel“ oder „Als neues Ziel“.</li>
           <li>Laufen: Art „Laufen“ und dein Tempo in min/km wählen; 100 m bergauf zählen wie 1 km in der Ebene. Beim Aufzeichnen
-            sagt die App auf Wunsch jeden Kilometer Zeit und Tempo an.</li>
+            sagt die App auf Wunsch jeden Kilometer Zeit und Tempo an. Stehst du länger als 10 s (Ampel), zählt das nicht zur
+            Bewegungszeit.</li>
+          <li>⭕ Runde mit Länge (unter „Mehr“): Länge wählen, die App schlägt ab dem Start (sonst Standort) eine Runde über Wege vor;
+            „Andere Richtung“ dreht sie.</li>
           <li>Wegtyp, Untergrund und Schwierigkeit stammen aus OpenStreetMap und sind dort nicht überall erfasst.</li>
           <li>Rundgang (Stadt): verbindet die bekanntesten Orte im Ausschnitt zu einer kurzen Runde ab deinem Start.</li>
         </ul>

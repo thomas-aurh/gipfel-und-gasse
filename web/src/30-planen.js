@@ -419,6 +419,51 @@ function rueckgaengig() {
   neuBerechnen();
 }
 $('bRund').onclick = () => { if (S.wps.length >= 2) wegpunktDazu(S.wps[0].lat, S.wps[0].lon); };
+
+// Runde mit Wunschlänge: Dreieck ab dem Start (sonst Standort, sonst Kartenmitte), über Wege geroutet; ist die Länge
+// mehr als 12 % daneben, wird das Dreieck mit dem gemessenen Umweg neu bemessen (höchstens dreimal)
+let rundRichtung = Math.floor(Math.random() * 360), rundLaeuft = false;
+$('bRunde').onclick = () => {
+  const auf = $('rundFeld').hidden;
+  $('rundFeld').hidden = !auf;
+  $('bRunde').setAttribute('aria-expanded', String(auf));
+};
+async function rundkurs(andereRichtung) {
+  if (rundLaeuft) return;
+  if (S.fest) { melde('Das ist eine geöffnete Spur. Für eine neue Planung „✕ Neu“ tippen.'); return; }
+  const soll = +$('rundLaenge').value * 1000;
+  let start = S.wps[0], woher = '';
+  if (!start) {
+    if (standortFrisch()) { start = { lat: U.pos.lat, lon: U.pos.lon }; woher = ' ab deinem Standort'; }
+    else { const c = karte.getCenter(); start = { lat: c.lat, lon: c.lng }; woher = ' ab der Kartenmitte'; }
+  }
+  if (andereRichtung) rundRichtung = (rundRichtung + 72) % 360;
+  rundLaeuft = true;
+  $('bRundeLos').disabled = $('bRundeAnders').disabled = true;
+  merken();
+  try {
+    let umweg = 1.3;
+    for (let versuch = 0; versuch < 3; versuch++) {
+      const [p1, p2] = R.rundkursPunkte(start, soll, rundRichtung, umweg);
+      S.wps = [{ lat: start.lat, lon: start.lon }, p1, p2, { lat: start.lat, lon: start.lon }];
+      await neuBerechnen();
+      if (!S.ergebnis || S.stuecke.some(s => s.quelle === 'linie')) break;
+      const ist = S.ergebnis.laenge;
+      if (Math.abs(ist - soll) / soll <= 0.12) break;
+      umweg = Math.min(3, Math.max(1, umweg * ist / soll));
+    }
+    if (S.ergebnis) {
+      einpassen(L.latLngBounds(S.ergebnis.pts.map(p => [p.lat, p.lon])));
+      melde('Runde' + woher + ': ' + R.kmText(S.ergebnis.laenge) + ' (gewünscht ' + R.kmText(soll) + '). Punkte lassen sich ziehen.', 6);
+    }
+  } finally {
+    rundLaeuft = false;
+    $('bRundeLos').disabled = false;
+    $('bRundeAnders').disabled = !S.ergebnis;
+  }
+}
+$('bRundeLos').onclick = () => rundkurs(false);
+$('bRundeAnders').onclick = () => rundkurs(true);
 $('bUmkehren').onclick = () => {
   if (S.fest) { S.fest.pts.reverse(); S.stuecke = [{ pts: S.fest.pts, abschnitte: S.fest.abschnitte ? S.fest.abschnitte.slice().reverse() : [], quelle: 'spur' }]; auswertenUndZeigen(); return; }
   merken(); S.wps.reverse(); neuBerechnen();
