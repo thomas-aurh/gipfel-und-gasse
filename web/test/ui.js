@@ -149,7 +149,9 @@ function pruef(name, bed, info) {
   pruef('Kopfzeile mit Zahlen', (await page.textContent('#kopfZahlen')).includes('km'));
   await page.screenshot({ path: path.join(OUT, '1-route.png') });
 
-  // Profil zeigen
+  // Profil zeigen (ins Bild scrollen: es liegt im Blatt unter Zeitplan und Kennzahlen)
+  await page.$eval('#profil', e => e.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(150);
   const pb = await (await page.$('#profil')).boundingBox();
   await page.mouse.move(pb.x + pb.width * 0.5, pb.y + pb.height * 0.5);
   pruef('Profil zeigt Stelle', (await page.textContent('#profilinfo')).includes('Höhe'));
@@ -210,7 +212,25 @@ function pruef(name, bed, info) {
   await page.selectOption('#tempowahl', '0.7');
   const z2 = await page.textContent('#zZeit');
   pruef('Tempo mit Kind', z1 !== z2, [z1, z2]);
+  // Zeitplan gegen den Sonnenuntergang (ohne Netz gerechnet)
+  const setze = (id, wert) => page.evaluate(([i, w]) => { const el = document.getElementById(i); el.value = w; el.dispatchEvent(new Event('change')); }, [id, wert]);
+  await setze('startTag', '2026-11-01');
+  pruef('Zeitplan: spätester Start vor Sonnenuntergang', /Sonnenuntergang 1[5-7]:\d\d Uhr: spätestens um \d\d:\d\d Uhr losgehen/.test(await page.textContent('#zeitplan')), await page.textContent('#zeitplan'));
+  await setze('startZeit', '16:00');
+  pruef('Zeitplan: zu später Start wird gewarnt', (await page.textContent('#zeitplan')).includes('Knapp') && (await page.getAttribute('#zeitplan', 'class')).includes('warnung'), await page.textContent('#zeitplan'));
+  await setze('startZeit', '08:00'); await setze('pausewahl', '45');
+  // die Strecke ist je Lauf verschieden lang (Klicks auf die Karte): Ankunft aus der angezeigten Gehzeit nachrechnen
+  const [gh, gm] = (await page.textContent('#zZeit')).match(/(\d+):(\d+)/).slice(1).map(Number);
+  const ankunftMin = 8 * 60 + gh * 60 + gm + 45, soll = String(Math.floor(ankunftMin / 60) % 24).padStart(2, '0') + ':' + String(ankunftMin % 60).padStart(2, '0');
+  const zp = await page.textContent('#zeitplan');
+  const [uh, um] = zp.match(/Sonnenuntergang (\d\d):(\d\d)/).slice(1).map(Number);
+  const knappSoll = uh * 60 + um - ankunftMin < 25;   // nahe an 30 min entscheidet die genaue Gehzeit: Grenzfall nicht prüfen
+  const grenzfall = Math.abs(uh * 60 + um - ankunftMin - 30) <= 5;
+  const [ah, am] = (zp.match(/Ankunft etwa (\d\d):(\d\d)/) || [0, 0, 0]).slice(1).map(Number);   // angezeigte Gehzeit ist gerundet: ±5 min
+  pruef('Zeitplan: Ankunft = Start + Gehzeit + Pause, Warnung passt zur Reserve', zp.startsWith('Start 08:00 → Ankunft etwa') && Math.abs(ah * 60 + am - ankunftMin) <= 5 && zp.includes('(mit 45 min Pause)') &&
+    (grenzfall || (zp.includes('Knapp') === knappSoll && (await page.getAttribute('#zeitplan', 'class')).includes('warnung') === knappSoll)), [zp, soll, knappSoll]);
 
+  pruef('Zeitplan im Entwurf gespeichert', await page.evaluate(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf')); return e.zeit && e.zeit.start === '08:00' && e.zeit.pause === 45 && e.zeit.tag === '2026-11-01'; }));
   // Entdecken: Wetter und Orte
   await page.click('[data-reiter=entdecken]');
   await page.waitForSelector('#wetter .wetter');
@@ -318,6 +338,15 @@ function pruef(name, bed, info) {
   for (let i = 1; i <= 4; i++) { await ctx.setGeolocation({ latitude: 47.7618 + i * 0.0006, longitude: 11.3893 + i * 0.0006, accuracy: 6 }); await page.waitForTimeout(250); }
   await page.click('#bAufz');
   pruef('Aufzeichnung gemessen', (await page.textContent('#aStrecke')) !== '–' && !(await page.isDisabled('#bAufzSpeichern')), await page.textContent('#aStrecke'));
+  // Notfall: Koordinaten zum Vorlesen, Senden über die Zwischenablage (ohne Teilen-Menü im Browser), 112 als Telefon-Link
+  const notOrt = await page.textContent('#notfallOrt');
+  pruef('Notfall: Koordinaten in Dezimalgrad und Grad/Minuten', /47\.76\d{3}, 11\.39\d{3}/.test(notOrt) && notOrt.includes('° ') && notOrt.includes('N'), notOrt);
+  await page.evaluate(() => { try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) {} });
+  await page.click('#bStandortSenden');
+  await page.waitForTimeout(300);
+  const ablage = await page.evaluate(() => navigator.clipboard.readText());
+  pruef('Notfall: Standort-Text mit Koordinaten und Kartenlink', ablage.startsWith('Mein Standort: 47.76') && ablage.includes('openstreetmap.org/?mlat='), ablage);
+  pruef('Notfall: 112 als Telefon-Link', (await page.getAttribute('#bNotruf', 'href')) === 'tel:112');
   await page.screenshot({ path: path.join(OUT, '4-unterwegs.png') });
   await page.click('#bAufzSpeichern');
   await page.waitForTimeout(300);
@@ -445,6 +474,7 @@ function pruef(name, bed, info) {
         aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
+        textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
         addListener: (n, f) => { if (n === 'position') hoerer = f; }
       }
     });
@@ -481,10 +511,21 @@ function pruef(name, bed, info) {
   await pa2.click('[data-reiter=touren]');
   pruef('App: Aufzeichnung als Tour', (await pa2.textContent('#tourliste')).includes('Aufzeichnung'));
   await pa2.click('[data-reiter=planen]');
+  // Telefon: weitere Funktionen hinter „Mehr“, aufgeklappt sichtbar
+  pruef('Telefon: GPX, Drucken & Co. erst hinter „Mehr“', await pa2.isHidden('#bGpx') && await pa2.isVisible('#bMehr') && await pa2.isVisible('#bSpeichern'));
+  await pa2.click('#bMehr');
+  pruef('Telefon: „Mehr“ zeigt alle Funktionen', await pa2.isVisible('#bGpx') && await pa2.isVisible('#bDrucken') && await pa2.isVisible('#bUmkehren') && await pa2.isVisible('#bRund'));
   await pa2.click('#bGpx');
   await pa2.waitForTimeout(200);
   const teilen = (await pa2.evaluate(() => window.__navi.aufrufe)).find(x => x[0] === 'teilen');
   pruef('App: GPX über das Teilen-Menü', teilen && teilen[1].gpx && teilen[1].name.endsWith('.gpx'), teilen);
+  // Notfall in der App: Standort aus dem Dienst, Senden über das Teilen-Menü von Android
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: false, lat: 47.6122, lon: 11.3117, gen: 9, t: Date.now() }));
+  await pa2.click('[data-reiter=unterwegs]');
+  await pa2.click('#bStandortSenden');
+  await pa2.waitForTimeout(200);
+  const notApp = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'textTeilen');
+  pruef('App: Standort senden über das Teilen-Menü', notApp.length === 1 && notApp[0][1].text.includes('47.61220, 11.31170'), notApp);
   // Sicherung in der App: genau ein Teilen-Fenster mit einer JSON-Datei
   await pa2.click('[data-reiter=touren]');
   const vorTeilen = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;

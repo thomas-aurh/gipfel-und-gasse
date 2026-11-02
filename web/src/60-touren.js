@@ -30,6 +30,7 @@ function tourSpeichern() {
     profil: S.profil, tempo: S.tempo,
     wps: S.fest ? null : S.wps.map(w => (w.name || w.min) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0] : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
+    zeit: S.fest ? null : zeitplanLesen(),
     spur: spurPacken(e.pts),
     stuecke: S.fest ? null : planPacken().stuecke,
     art: S.fest ? (S.fest.art || 'spur') : 'plan',
@@ -61,7 +62,7 @@ function tourOeffnen(id) {
   if (!t) return;
   const pts = spurEntpacken(t.spur);
   lauf++;   // eine noch laufende Berechnung darf die geöffnete Tour nicht überschreiben
-  S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name;
+  S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name; zeitplanSetzen(t.zeit);
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
   if (t.tempo && [...$('tempowahl').options].some(o => +o.value === +t.tempo)) { S.tempo = +t.tempo; $('tempowahl').value = String(S.tempo); }

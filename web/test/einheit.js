@@ -266,5 +266,24 @@ pruef('Sicherung: unpassende Teilstücke → Tour als Spur', geprueft.find(t => 
 let sichFehler = ''; try { R.sicherungLesen('{"app":"anders","touren":[]}'); } catch (e) { sichFehler = e.message; }
 pruef('Sicherung lesen: fremde Datei abgelehnt', sichFehler.includes('keine Sicherung'));
 
+// Sonne: Referenzwert der verbreiteten Sonnenformel (SunCalc-Test: 5.3.2013, 50,5 N / 30,5 O → 15:46:57 UTC)
+const su = R.sonnenuntergang(new Date(Date.UTC(2013, 2, 5, 12)), 50.5, 30.5);
+pruef('Sonnenuntergang wie Referenz', Math.abs(su - Date.parse('2013-03-05T15:46:57Z')) < 60000, su && su.toISOString());
+pruef('Sonnenuntergang: Polarnacht ohne Wert', R.sonnenuntergang(new Date(Date.UTC(2026, 11, 21, 12)), 85, 0) === null);
+const unterg = new Date(Date.UTC(2026, 10, 1, 16, 0));
+const zp1 = R.zeitplan(null, 4, 30, unterg);
+pruef('Zeitplan: spätester Start = Untergang − Reserve − Dauer', zp1.spaetestens.toISOString() === '2026-11-01T11:00:00.000Z', zp1.spaetestens);
+const zp2 = R.zeitplan(new Date(Date.UTC(2026, 10, 1, 12, 0)), 3, 15, unterg);
+pruef('Zeitplan: Ankunft mit Pause, 45 min Reserve reichen', zp2.ankunft.toISOString() === '2026-11-01T15:15:00.000Z' && zp2.puffer === 45 && !zp2.knapp, zp2);
+pruef('Zeitplan: 20 min vor Untergang ist knapp', R.zeitplan(new Date(Date.UTC(2026, 10, 1, 12, 40)), 3, 0, unterg).knapp === true);
+pruef('Zeitplan: genug Reserve', R.zeitplan(new Date(Date.UTC(2026, 10, 1, 9, 0)), 3, 0, unterg).knapp === false);
+pruef('Notfall: Grad/Minuten/Sekunden', R.gradMinSek(47.6122, 'N', 'S') === '47° 36′ 43,9″ N' && R.gradMinSek(-0.5, 'O', 'W') === '0° 30′ 0,0″ W', R.gradMinSek(47.6122, 'N', 'S'));
+pruef('Notfall: Übertrag beim Runden', R.gradMinSek(47.999999, 'N', 'S') === '48° 0′ 0,0″ N', R.gradMinSek(47.999999, 'N', 'S'));
+pruef('Notfall: alter Standort benannt', R.notfallText({ lat: 47, lon: 11 }, true).startsWith('Mein letzter bekannter Standort (nicht aktuell): 47.00000, 11.00000'));
+const nt = R.notfallText({ lat: 47.6122, lon: 11.3117, ele: 1731.4, gen: 8 });
+pruef('Notfall-Text', nt.startsWith('Mein Standort: 47.61220, 11.31170 (47° 36′ 43,9″ N, 11° 18′ 42,1″ O), Höhe etwa 1731 m, Genauigkeit ± 8 m') && nt.includes('mlat=47.61220'), nt);
+
+pruef('Sicherung: Zeitplan geprüft übernommen', JSON.stringify(R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'q', name: 'Q', spur: [[47, 11, null]], kurz: {}, zeit: { tag: '2026-11-01', start: '<b>', pause: 45 } }] }))[0].zeit) === JSON.stringify({ tag: '2026-11-01', start: '', pause: 45 }));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

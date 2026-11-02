@@ -22,6 +22,11 @@ plant die App auch Routen ohne Netz (BRouter läuft im Handy). Mit der Orte-Date
 und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipfel, Hütten, Straßen und Haltestellen auch ohne Netz
 (mit Netz mischt sie die Treffer mit denen von Photon). Nur das Wetter braucht Netz.
 
+**Zeitplan:** In *Planen* Tag, Startzeit und Pausen eintragen: die App nennt die Ankunft und den Sonnenuntergang am Ziel
+(ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
+
+**Notfall:** Reiter *Unterwegs* › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
+
 **Unterwegs:** Reiter *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
 abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an, warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
