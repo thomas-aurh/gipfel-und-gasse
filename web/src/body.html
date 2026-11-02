@@ -31,8 +31,16 @@
   <div id="kartenknoepfe">
     <button id="bLagen" title="Kartenart" aria-label="Kartenart">🗺️</button>
     <button id="bOrt" title="Mein Standort" aria-label="Mein Standort">◎</button>
+    <button id="bKreuz" title="Fadenkreuz: Punkt genau setzen" aria-label="Fadenkreuz" aria-pressed="false">⌖</button>
     <button id="bPlus" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
     <button id="bMinus" title="Herauszoomen" aria-label="Herauszoomen">−</button>
+  </div>
+
+  <!-- Fadenkreuz: Mitte des sichtbaren Kartenteils, Karte darunter schieben, dann setzen -->
+  <div id="kreuz" hidden aria-hidden="true"></div>
+  <div id="kreuzFeld" hidden>
+    <span id="kreuzText"></span>
+    <button class="knopf haupt" id="bKreuzSetzen">📍 Punkt hier</button>
   </div>
 
   <div id="lagenwahl" hidden>
@@ -256,6 +264,8 @@
         <h3>Bedienung</h3>
         <ul class="klein">
           <li>Karte antippen: der erste Punkt ist der Start, jeder weitere ein neues Ziel.</li>
+          <li>⌖ Fadenkreuz (rechts an der Karte): Karte unter das Kreuz schieben, dann „Punkt hier“ – für genaue Punkte.
+            Ein Tipp auf die Karte holt die Stelle unters Kreuz statt einen Punkt zu setzen.</li>
           <li>Route antippen fügt dort ein Zwischenziel ein; Punkte lassen sich ziehen, antippen zeigt „Punkt entfernen“.</li>
           <li>In der Suche: „Als Zwischenziel“ oder „Als neues Ziel“.</li>
           <li>Wegtyp, Untergrund und Schwierigkeit stammen aus OpenStreetMap und sind dort nicht überall erfasst.</li>

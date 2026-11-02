@@ -33,7 +33,7 @@ function menue(auf) {
   $('menue').hidden = !auf; $('menueHg').hidden = !auf;
   $('bMenue').setAttribute('aria-expanded', String(!!auf));
   // solange das Menü offen ist, ist der Rest nicht bedienbar (auch nicht per Tastatur); Fokus ins Menü und zurück
-  ['oben', 'panel', 'kartenknoepfe', 'karte'].forEach(id => { $(id).inert = !!auf; });
+  ['oben', 'panel', 'kartenknoepfe', 'karte', 'kreuzFeld'].forEach(id => { $(id).inert = !!auf; });
   if (auf) {
     document.querySelectorAll('#menue [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === seite));
     ($('menue').querySelector('button.an') || $('menue').querySelector('button')).focus();
@@ -52,12 +52,13 @@ function blatt(stufe) {
   const p = $('panel');
   p.classList.toggle('klein', stufe === 'klein');
   p.classList.toggle('gross', stufe === 'gross');
-  setTimeout(() => { karte.invalidateSize(); profilZeichnen(); }, 230);
+  setTimeout(() => { karte.invalidateSize(); profilZeichnen(); kreuzZeigen(); }, 230);
 }
 // Höhe des Blatts für den Kartennachweis (er steht am Telefon darüber, damit er sichtbar bleibt)
 if (window.ResizeObserver) new ResizeObserver(() => {
   // Abstand vom unteren Rand bis zur Oberkante des Blatts (inklusive der Leiste unten)
   document.documentElement.style.setProperty('--blatt', (window.innerWidth <= 760 ? Math.max(0, window.innerHeight - $('panel').getBoundingClientRect().top) : 0) + 'px');
+  kreuzZeigen();
 }).observe($('panel'));
 (function griff() {
   const g = $('griff');
