@@ -47,11 +47,18 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
+- **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Google-Maps-Link
+  in der App (öffnet er die Maps-App?), Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
+  Wie viele Orte in Oberbayern `opening_hours` in der verstandenen Form tragen, ist nicht gemessen (sonst Rohtext).
 - **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
   oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
 
 ## Entscheidungen
 
+- **Orte-Infos** (02.11.): Öffnungszeiten mit eigenem kleinem Leser (Wochentage, Monate, Zeiten, `;` und `,`), alles
+  andere bleibt Rohtext; verworfen die Bibliothek opening_hours.js (groß, für eine HTML-Datei zu schwer). Anreise über die
+  dokumentierte URL-Schnittstelle von Google Maps (öffnet am Telefon die App, rechnet Bus und Bahn); verworfen Links zu
+  DB oder Bayern-Fahrplan (kein dokumentiertes, stabiles Format). Wikipedia nur, wenn ein Ort-Fenster aufgeht.
 - **Name Gipfel & Gasse und eigenes Logo** (01.11.): Thomas' Wahl, weil die App seit dem Stadtmodus Berg und Stadt
   kann. Logo als rundes Abzeichen (Gipfel, Giebel, Zwiebelturm, Route), dazu ein vereinfachtes Symbol für kleine
   Größen. Frühere Namen Wegwerk und Murmel; deren gespeicherte Touren übernimmt die App einmalig. Verworfen: Stadt Land
@@ -123,6 +130,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Ort-Fenster zeigt „geöffnet bis …“ / „schließt bald“ / „öffnet morgen 10:00“ aus `opening_hours` (der
+  übliche Teil; Feiertage nicht), Wikipedia-Kurzinfo mit Bild und Vorlesen (in der App über die Sprachausgabe von
+  Android), „Anreise zum Start“ (Google Maps, Bus und Bahn oder Auto), „☔ Drinnen in der Nähe“ in Entdecken, bei Regen
+  hervorgehoben (#26). Nicht auf dem Handy geprüft (Klicktest mit nachgebildeten Diensten).
 
 - **02.11.** Ablauf „Kartenpakete“ bei Pull Requests, die nur die App betreffen: prüft die veröffentlichten Pakete statt
   neu zu bauen (Minuten statt einer halben Stunde) (#11).

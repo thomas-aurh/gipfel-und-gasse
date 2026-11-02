@@ -315,6 +315,9 @@ function pruef(name, bed, info) {
   pruef('Zeitplan: Ankunft = Start + Gehzeit + Pause, Warnung passt zur Reserve', zp.startsWith('Start 08:00 → Ankunft etwa') && Math.abs(ah * 60 + am - ankunftMin) <= 5 && zp.includes('(mit 45 min Pause)') &&
     (grenzfall || (zp.includes('Knapp') === knappSoll && (await page.getAttribute('#zeitplan', 'class')).includes('warnung') === knappSoll)), [zp, soll, knappSoll]);
 
+  pruef('Anreise zum Start: Bus und Bahn und Auto', await page.isVisible('#anreise') && await page.evaluate(() => {
+    const o = document.querySelector('#anreiseOepnv').href, a = document.querySelector('#anreiseAuto').href;
+    return /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=-?\d+\.\d{5},-?\d+\.\d{5}&travelmode=transit$/.test(o) && a.endsWith('travelmode=driving') && o.split('&')[1] === a.split('&')[1]; }));
   pruef('Zeitplan im Entwurf gespeichert', await page.evaluate(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf')); return e.zeit && e.zeit.start === '08:00' && e.zeit.pause === 45 && e.zeit.tag === '2026-11-01'; }));
   // Entdecken: Wetter und Orte
   await zuSeite(page, 'entdecken');
@@ -360,6 +363,18 @@ function pruef(name, bed, info) {
   await page.evaluate(() => { navigator.geolocation.getCurrentPosition = window.__gpsAlt; });
   await page.selectOption('#wetterOrt', 'start');
   await page.waitForFunction(() => document.querySelector('#wetter p.klein') && document.querySelector('#wetter p.klein').textContent.includes('Start der Route'));
+  // Regenplan: Regen morgen hebt den Knopf hervor; Liste nach Abstand mit Stand der Öffnungszeit, Fenster mit Kurzinfo
+  pruef('Regenplan: Knopf bei Regen morgen hervorgehoben', (await page.textContent('#bDrinnen')).includes('Regen morgen') && await page.evaluate(() => document.querySelector('#bDrinnen').classList.contains('haupt')));
+  await page.click('#bDrinnen');
+  await page.waitForSelector('#drinnenListe li');
+  const drinnen = await page.$$eval('#drinnenListe li', l => l.map(x => x.textContent));
+  pruef('Regenplan: drinnen in der Nähe, nächstes zuerst, ohne Namenlose', drinnen.length === 2 && drinnen[0].includes('Hallenbad Test') && drinnen[1].includes('Heimatmuseum') &&
+    drinnen[1].includes('durchgehend geöffnet') && (await page.textContent('#drinnenStatus')).includes('2 Orte'), drinnen);
+  await page.click('#drinnenListe li:has-text("Heimatmuseum") .was');
+  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-popup .wiki p')].some(p => p.textContent.includes('Heimatmuseum')), null, { timeout: 5000 }).catch(() => {});
+  pruef('Regenplan: Fenster mit Öffnungszeit und Kurzinfo', (await page.textContent('.leaflet-popup-content')).includes('Durchgehend geöffnet') &&
+    (await page.textContent('.leaflet-popup-content')).includes('Das Heimatmuseum ist'), await page.textContent('.leaflet-popup-content'));
+  await page.click('.leaflet-popup-close-button');
   await page.click('#bOrte');
   await page.waitForSelector('#ortliste li');
   const orteText = await page.textContent('#ortliste');
@@ -645,6 +660,7 @@ function pruef(name, bed, info) {
   const popStadt = await page.textContent('.leaflet-popup-content');
   pruef('Ort-Fenster: geöffnet jetzt und Wikipedia-Kurzinfo mit Bild', popStadt.includes('Durchgehend geöffnet') && popStadt.includes('Das Stadtmuseum ist ein Ort zum Testen.') &&
     popStadt.includes('CC BY-SA') && !!(await page.$('.leaflet-popup .wiki img')), popStadt);
+  await page.waitForTimeout(300); await page.screenshot({ path: path.join(OUT, '8b-ort-fenster.png') });
   await page.click('.leaflet-popup .wiki-vor');
   pruef('Ort-Fenster: Vorlesen liest die Kurzinfo', (await page.evaluate(() => window.__gelesen)).includes('Das Stadtmuseum ist ein Ort zum Testen.') && (await page.textContent('.leaflet-popup .wiki-vor')).includes('Stopp'));
   await page.click('.leaflet-popup-close-button');
@@ -741,6 +757,8 @@ function pruef(name, bed, info) {
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
+        vorlesen: async o => { aufrufe.push(['vorlesen', { text: o.text }]); },
+        vorlesenStopp: async () => { aufrufe.push(['vorlesenStopp', {}]); },
         route: async () => {
           aufrufe.push(['route', {}]);
           if (window.__routeLangsam) await new Promise(r => setTimeout(r, 400));
@@ -877,6 +895,17 @@ function pruef(name, bed, info) {
   pruef('App: GPX über das Teilen-Menü', teilen && teilen[1].gpx && teilen[1].name.endsWith('.gpx'), teilen);
   // Notfall in der App: Standort aus dem Dienst, Senden über das Teilen-Menü von Android
   await pa2.evaluate(() => window.__navi.melden({ laeuft: false, lat: 47.6122, lon: 11.3117, gen: 9, t: Date.now() }));
+  // Vorlesen der Kurzinfo über die Sprachausgabe von Android (Testhütte: nur Wikidata, englischer Artikel)
+  await zuSeite(pa2, 'entdecken');
+  await pa2.evaluate(() => document.querySelector('#bOrte').click());
+  await pa2.waitForSelector('#ortliste li');
+  await pa2.evaluate(() => [...document.querySelectorAll('#ortliste li')].find(l => l.textContent.includes('Testhütte')).click());
+  await pa2.waitForSelector('.leaflet-popup .wiki-vor', { timeout: 5000 });
+  await pa2.evaluate(() => document.querySelector('.leaflet-popup .wiki-vor').click());
+  await pa2.evaluate(() => document.querySelector('.leaflet-popup-close-button').click());
+  await pa2.waitForTimeout(100);
+  const vorl = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0].startsWith('vorlesen'));
+  pruef('App: Vorlesen über Android, beim Schließen gestoppt', vorl.length >= 2 && vorl[0][0] === 'vorlesen' && vorl[0][1].text === 'Das Test hut ist ein Ort zum Testen.' && vorl[vorl.length - 1][0] === 'vorlesenStopp', vorl);
   await zuSeite(pa2, 'notfall');
   await pa2.click('#bStandortSenden');
   await pa2.waitForTimeout(200);
