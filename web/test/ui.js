@@ -427,6 +427,14 @@ function pruef(name, bed, info) {
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
   pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Aufzeichnung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
     (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('[data-reiter=touren]', 'class')).includes('an'));
+  // Statistik je Woche und Monat: Zeilen und 12 Säulen, aktueller Monat mit Zahl und Wert beim Antippen
+  pruef('Statistik: diese Woche und dieser Monat', (await page.textContent('#gangZeitraum')).includes('Diese Woche:') && (await page.textContent('#gangZeitraum')).includes('Dieser Monat:') &&
+    /1 Tour/.test(await page.textContent('#gangZeitraum')), await page.textContent('#gangZeitraum'));
+  const saeulen = await page.$$eval('#gangMonate .saeule', l => l.map(b => ({ h: b.querySelector('i').style.height, zahl: !!b.querySelector('b'), label: b.getAttribute('aria-label') })));
+  pruef('Statistik: 12 Monate, aktueller Monat voll mit Zahl, andere leer', saeulen.length === 12 && saeulen[11].h === '100%' && saeulen[11].zahl && saeulen.slice(0, 11).every(x => x.h === '0%' && !x.zahl), saeulen.slice(10));
+  await page.click('#gangMonate .saeule >> nth=11');
+  pruef('Statistik: Antippen zeigt den Wert', /\d{4}: [\d,]+ km, 1 Tour/.test(await page.textContent('#meldung')), await page.textContent('#meldung'));
+  pruef('Statistik: als Tabelle mit 12 Zeilen', (await page.$$('#gangMonate table tr')).length === 13);
   // gespeicherte Touren als Punkte: geplante und gegangene getrennt, Öffnen aus dem Fenster
   const tourMk = await page.$$eval('.tour-mk', l => l.map(e => e.className));
   pruef('Touren als Punkte auf der Karte (geplant und gegangen)', tourMk.some(c => c.includes('geplant')) && tourMk.some(c => c.includes('gegangen')), tourMk);
@@ -655,6 +663,9 @@ function pruef(name, bed, info) {
   pruef('App: Route mit Abschnitts-Merker (4 Werte je Punkt)', st1[1].pts[0].length === 4 && st1[1].pts[0][3] === 0);
   pruef('App: „Link teilen“ ausgeblendet', await pa2.isHidden('#bTeilen'));
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
+  pruef('App: ohne Gewitter keine Warnung', await pa2.isHidden('#uWetter'));
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), gewitter: 'Gewitter möglich gegen 15 Uhr', rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
+  pruef('App: Gewitterwarnung des Dienstes sichtbar', (await pa2.textContent('#uWetter')).includes('Gewitter möglich gegen 15 Uhr') && await pa2.isVisible('#uWetter'));
   pruef('App: Meldung des Dienstes angezeigt', (await pa2.textContent('#uRest')) === '2,3 km' && (await pa2.textContent('#uAuf')) === '120 m' && !(await pa2.isHidden('#abseits')));
   // Pfeil am Standortpunkt: ohne Kompass die Bewegungsrichtung des Dienstes, mit Kompass dessen Richtung (hat Vorrang)
   const pfeil = () => pa2.evaluate(() => { const p = document.querySelector('.ich .ich-pfeil'); return p ? (p.hidden ? 'aus' : p.style.transform) : 'fehlt'; });

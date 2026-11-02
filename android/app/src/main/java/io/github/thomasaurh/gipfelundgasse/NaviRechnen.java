@@ -138,6 +138,18 @@ public final class NaviRechnen {
         return zeit;
     }
 
+    /**
+     * Gewitter in den nächsten Stunden (wie R.gewitterAb): erste Stunde mit WMO-Code ≥ 95 zwischen einer Stunde vor jetzt
+     * und fenster ms danach; Zeiten der Vorhersage in Unix-Sekunden. -1 = keins.
+     */
+    public static long gewitterAb(long[] zeiten, int[] codes, long jetzt, long fenster) {
+        for (int i = 0; i < Math.min(zeiten.length, codes.length); i++) {
+            long t = zeiten[i] * 1000;
+            if (t >= jetzt - 3600000 && t <= jetzt + fenster && codes[i] >= 95) return t;
+        }
+        return -1;
+    }
+
     public static Rest rest(Strecke s, double d, double tempo, boolean rad) { return rest(s, d, tempo, rad, false); }
 
     /** Was ab Meter d noch kommt; die Höhe an der Stelle selbst wird zwischen den Nachbarpunkten eingerechnet. */

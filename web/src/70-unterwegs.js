@@ -156,6 +156,7 @@ function aufzLaeuft() { return !!(U.aufz && U.aufz.laeuft); }
 
 // ---------- der Route folgen ----------
 $('bNavi').onclick = () => {
+  setTimeout(gewitterPruefen, 60000);
   if (U.navi) { U.navi = false; $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
   if (!gpsAn()) return;
@@ -201,6 +202,7 @@ function naviNeu() {
 
 // ---------- Aufzeichnen ----------
 $('bAufz').onclick = () => {
+  setTimeout(gewitterPruefen, 60000);
   if (U.aufz && U.aufz.laeuft) {
     U.aufz.laeuft = false; U.aufz.ende = Date.now();
     $('bAufz').textContent = '⏺ Neue Aufzeichnung';
@@ -273,3 +275,25 @@ $('bAufzSpeichern').onclick = async () => {
   $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
   setTimeout(() => { $('bAufzSpeichern').textContent = '💾 Als Tour speichern'; }, 4000);
 };
+
+// Gewitterwarnung unterwegs (im Browser; in der App fragt der Navigationsdienst selbst, auch bei gesperrtem Bildschirm):
+// beim Folgen oder Aufzeichnen alle 30 min die nächsten drei Stunden am Standort
+function gewitterZeigen(text) {
+  $('uWetter').hidden = !text;
+  $('uWetter').textContent = text ? '⚡ ' + text + '. Schutz suchen, Grate und Gipfel meiden.' : '';
+}
+let gewitterGemeldet = 0;
+async function gewitterPruefen() {
+  if (NATIV || !U.pos || !(U.navi || aufzLaeuft())) return;
+  let ab;
+  try { ab = await gewitterHolen(U.pos.lat, U.pos.lon); } catch (e) { return; }   // ohne Netz: beim nächsten Mal
+  const text = ab == null ? null : ab <= Date.now() ? 'Gewitter möglich, jetzt' : 'Gewitter möglich gegen ' + new Date(ab).getHours() + ' Uhr';
+  gewitterZeigen(text);
+  if (text && Date.now() - gewitterGemeldet > 2 * 3600e3) {
+    gewitterGemeldet = Date.now();
+    melde('⚡ ' + text + '.', 8);
+    try { if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance('Achtung: ' + text + '.'); u.lang = 'de-DE'; speechSynthesis.speak(u); } } catch (e) { /* stumm */ }
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+  }
+}
+setInterval(gewitterPruefen, 30 * 60000);

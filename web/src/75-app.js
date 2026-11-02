@@ -112,6 +112,7 @@ if (NATIV) {
       if (st.abseits) $('abseits').textContent = R.abseitsText(st.abw, start);
     }
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);
+    gewitterZeigen(st.gewitter || null);
     if (st.aufz) {
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
       // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt

@@ -567,6 +567,41 @@ var R = (function () {
     return 'Du bist ' + kmText(abw) + ' von der Route entfernt' + (zumStart != null ? ' · zum Start ' + kmText(zumStart) : '');
   }
 
+  // Gewitter in den nächsten Stunden (stündliche Vorhersage, Zeiten in Unix-Sekunden): erste Stunde mit WMO-Code ≥ 95
+  // zwischen einer Stunde vorher und fenster ms danach, sonst null (wie NaviRechnen.gewitterAb)
+  function gewitterAb(zeiten, codes, jetzt, fenster) {
+    for (let i = 0; i < (zeiten || []).length; i++) {
+      const t = zeiten[i] * 1000;
+      if (t >= jetzt - 3600e3 && t <= jetzt + fenster && +codes[i] >= 95) return t;
+    }
+    return null;
+  }
+
+  // Statistik der gegangenen Touren: diese und letzte Woche (ab Montag), dieser und letzter Monat, die letzten 12 Monate
+  function statistik(touren, jetzt) {
+    const leer = () => ({ km: 0, touren: 0, auf: 0 });
+    const tag0 = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const heute = tag0(new Date(jetzt));
+    const woche = new Date(heute); woche.setDate(heute.getDate() - (heute.getDay() + 6) % 7);
+    const vorwoche = new Date(woche); vorwoche.setDate(woche.getDate() - 7);
+    const monat = new Date(heute.getFullYear(), heute.getMonth(), 1), vormonat = new Date(heute.getFullYear(), heute.getMonth() - 1, 1);
+    const out = { woche: leer(), vorwoche: leer(), monat: leer(), vormonat: leer(), monate: [] };
+    for (let i = 11; i >= 0; i--) {
+      const m = new Date(heute.getFullYear(), heute.getMonth() - i, 1);
+      out.monate.push({ jahr: m.getFullYear(), monat: m.getMonth(), name: m.toLocaleDateString('de-DE', { month: 'short' }).replace('.', ''), km: 0, touren: 0 });
+    }
+    const dazu = (z, t) => { z.km += (+t.kurz.laenge || 0) / 1000; z.touren++; z.auf += +t.kurz.auf || 0; };
+    for (const t of touren) {
+      if (t.art !== 'aufzeichnung') continue;
+      const d = new Date(tourZeit(t));
+      if (d >= woche) dazu(out.woche, t); else if (d >= vorwoche) dazu(out.vorwoche, t);
+      if (d >= monat) dazu(out.monat, t); else if (d >= vormonat) dazu(out.vormonat, t);
+      const m = out.monate.find(x => x.jahr === d.getFullYear() && x.monat === d.getMonth());
+      if (m) { m.km += (+t.kurz.laenge || 0) / 1000; m.touren++; }
+    }
+    return out;
+  }
+
   // Tage mit Gewitter (WMO 95–99) als kurze Namen: „heute“, „morgen“, sonst Wochentag
   function gewitterTage(codes, tage) {
     const kurz = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -1046,7 +1081,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel
   };
 })();
