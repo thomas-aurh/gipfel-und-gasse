@@ -401,5 +401,17 @@ pruef('Regen: nach Abstand, ohne Namenlose und Private', drin.length === 2 && dr
 pruef('Anreise: Link für Bus und Bahn und Auto', R.anreiseLink(47.7535, 11.3747) === 'https://www.google.com/maps/dir/?api=1&destination=47.75350,11.37470&travelmode=transit' &&
   R.anreiseLink(47.7535, 11.3747, 'auto').endsWith('travelmode=driving'));
 
+// Info beim Antippen: Art, Reihenfolge, Umkreis
+pruef('Info: Art aus den Merkmalen', R.infoArt({ historic: 'castle' }) === 'Burg oder Schloss' && R.infoArt({ tourism: 'museum' }) === 'Museum' &&
+  R.infoArt({ amenity: 'restaurant' }) === 'Gasthaus' && R.infoArt({ shop: 'bakery' }) === 'Geschäft' && R.infoArt({ building: 'yes' }) === 'Gebäude' && R.infoArt({}) === 'Ort');
+const inf = R.infoLesen([
+  { elements: [{ type: 'node', id: 1, lat: 47.0001, lon: 11, tags: { name: 'Bäckerei', shop: 'bakery' } }, { type: 'node', id: 9, lat: 47, lon: 11, tags: { amenity: 'bench' } }] },
+  { elements: [{ type: 'way', id: 2, center: { lat: 47.0002, lon: 11 }, tags: { name: 'Burg', historic: 'castle', wikidata: 'Q2' } },
+    { type: 'node', id: 1, lat: 47.0001, lon: 11, tags: { name: 'Bäckerei', shop: 'bakery', opening_hours: 'Mo-Sa 06:00-18:00' } }] }], { lat: 47, lon: 11 });
+pruef('Info: Burg mit Wikipedia vor der näheren Bäckerei, doppelte einmal mit mehr Merkmalen, Namenlose nicht',
+  inf.length === 2 && inf[0].name === 'Burg' && inf[1].id === 'node/1' && inf[1].tags.opening_hours === 'Mo-Sa 06:00-18:00' && Math.round(inf[1].d) === 11, inf);
+pruef('Info: Umkreis aus Maßstab, begrenzt', R.infoRadius(0.3) === 15 && R.infoRadius(2) === 60 && R.infoRadius(50) === 150);
+pruef('Info: Abfrage ohne Straßen und Grenzen', /around:40,47\.000000,11\.000000\)\["name"\]\[!"highway"\]\[!"boundary"\]/.test(R.infoAbfrage(47, 11, 40)));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

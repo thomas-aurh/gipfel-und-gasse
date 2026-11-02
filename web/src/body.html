@@ -27,6 +27,7 @@
     <button id="bLagen" title="Kartenart und Ebenen" aria-label="Kartenart und Ebenen"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 16 10 5 10-5"/></svg></button>
     <button id="bOrt" title="Mein Standort" aria-label="Mein Standort">◎</button>
     <button id="bKreuz" title="Fadenkreuz: Punkt genau setzen" aria-label="Fadenkreuz" aria-pressed="false">⌖</button>
+    <button id="bInfo" title="Info: Antippen zeigt, was dort ist (statt einen Punkt zu setzen)" aria-label="Info: was ist hier?" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.6"/></svg></button>
     <button id="bPlus" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
     <button id="bMinus" title="Herauszoomen" aria-label="Herauszoomen">−</button>
   </div>
@@ -58,6 +59,7 @@
   </div>
 
   <div id="abseits" hidden>Du bist abseits der Route</div>
+  <div id="infoHinweis" hidden>ℹ️ Info: Antippen zeigt, was dort ist <button type="button" id="bInfoAus">✏️ Planen</button></div>
 
   <aside id="panel">
     <header>
@@ -346,6 +348,8 @@
         <h3>Bedienung</h3>
         <ul class="klein">
           <li>Karte antippen: der erste Punkt ist der Start, jeder weitere ein neues Ziel.</li>
+          <li>ⓘ Info (rechts an der Karte): Antippen zeigt dann, was dort ist (Sehenswürdigkeit, Gasthaus, Gebäude), mit
+            Öffnungszeit und Wikipedia; „Als Stopp“ oder „Hier starten“ übernimmt es in die Tour. „✏️ Planen“ schaltet zurück.</li>
           <li>Telefon: das Blatt unten am Kopf hoch- oder herunterziehen; steht der Inhalt ganz oben, klappt ein Wisch nach unten es zu.
             Antippen des Titels klappt es wieder auf.</li>
           <li>⌖ Fadenkreuz (rechts an der Karte): Karte unter das Kreuz schieben, dann „Punkt hier“ – für genaue Punkte.
