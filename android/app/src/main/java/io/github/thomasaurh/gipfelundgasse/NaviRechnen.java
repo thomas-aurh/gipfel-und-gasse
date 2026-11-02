@@ -107,8 +107,24 @@ public final class NaviRechnen {
         return (meter / 1000 / 16 + auf / 600) / (tempo > 0 ? tempo : 1);
     }
 
+    /** Laufen: tempo = Minuten je km; 100 m bergauf zählen wie 1 km in der Ebene (wie R.laufzeit). */
+    public static double laufzeit(double meter, double auf, double pace) {
+        return (meter / 1000 + auf / 100) * (pace > 0 ? pace : 6) / 60;
+    }
+
+    /** Ansage nach jedem Kilometer der Aufzeichnung (wie R.kmAnsage): Gesamtzeit und Tempo des letzten Kilometers. */
+    public static String kmAnsage(int km, long gesamtMs, long kmMs) {
+        long s = Math.round(gesamtMs / 1000.0), h = s / 3600, m = s % 3600 / 60, sek = s % 60;
+        String dauer = (h > 0 ? h + (h == 1 ? " Stunde " : " Stunden ") : "") + m + (m == 1 ? " Minute" : " Minuten")
+            + (h > 0 ? "" : " " + sek + (sek == 1 ? " Sekunde" : " Sekunden"));
+        long k = Math.round(kmMs / 1000.0);
+        return km + " Kilometer. Zeit " + dauer + ". Letzter Kilometer " + (k / 60) + ":" + String.format(Locale.ROOT, "%02d", k % 60) + ".";
+    }
+
+    public static Rest rest(Strecke s, double d, double tempo, boolean rad) { return rest(s, d, tempo, rad, false); }
+
     /** Was ab Meter d noch kommt; die Höhe an der Stelle selbst wird zwischen den Nachbarpunkten eingerechnet. */
-    public static Rest rest(Strecke s, double d, double tempo, boolean rad) {
+    public static Rest rest(Strecke s, double d, double tempo, boolean rad, boolean lauf) {
         int i = 0;
         while (i < s.groesse() && s.d[i] < d) i++;
         double start = Double.NaN;
@@ -118,7 +134,7 @@ public final class NaviRechnen {
         }
         double[] hm = hoehenmeter(s.ele, i, start, 5);
         double m = Math.max(0, s.laenge() - d);
-        return new Rest(m, hm[0], hm[1], rad ? fahrzeit(m, hm[0], tempo) : gehzeit(m, hm[0], hm[1], tempo));
+        return new Rest(m, hm[0], hm[1], rad ? fahrzeit(m, hm[0], tempo) : lauf ? laufzeit(m, hm[0], tempo) : gehzeit(m, hm[0], hm[1], tempo));
     }
 
     /** Rest mit geänderter Zeit (z. B. plus Besichtigungen). */

@@ -261,6 +261,20 @@ function pruef(name, bed, info) {
   await page.selectOption('#tempowahl', '0.7');
   const z2 = await page.textContent('#zZeit');
   pruef('Tempo mit Kind', z1 !== z2, [z1, z2]);
+  // Laufen: Lauftempo statt „Zügig … Mit Kind“, Zeit aus Leistungs-km, Kilometer-Ansage einmal von selbst an
+  await page.selectOption('#profilwahl', 'laufen');
+  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForTimeout(300);
+  pruef('Laufen: Lauftempo statt Gehtempo', await page.isVisible('#pacewahl') && await page.isHidden('#tempowahl'));
+  const lauf6 = await page.evaluate(() => [document.querySelector('#zZeit').textContent, document.querySelector('#zZeitText').textContent, document.querySelector('#zLaenge').textContent, document.querySelector('#zAuf').textContent]);
+  pruef('Laufen: Laufzeit beim gewählten Tempo', lauf6[1] === 'Laufzeit bei 6:00 min/km', lauf6);
+  await page.selectOption('#pacewahl', '5');
+  const lauf5 = await page.textContent('#zZeit');
+  pruef('Laufen: schneller ist kürzer', lauf5 !== lauf6[0] && (await page.textContent('#zZeitText')).includes('5:00'), [lauf6[0], lauf5]);
+  pruef('Laufen: Kilometer-Ansage von selbst an', await page.isChecked('#kmAnsage'));
+  await page.selectOption('#profilwahl', 'wandern');
+  await page.waitForTimeout(300);
+  pruef('Wandern: wieder Gehtempo', await page.isVisible('#tempowahl') && await page.isHidden('#pacewahl') && (await page.textContent('#zZeitText')).includes('Gehzeit'));
   // Zeitplan gegen den Sonnenuntergang (ohne Netz gerechnet)
   const setze = (id, wert) => page.evaluate(([i, w]) => { const el = document.getElementById(i); el.value = w; el.dispatchEvent(new Event('change')); }, [id, wert]);
   await setze('startTag', '2026-11-01');
@@ -627,6 +641,18 @@ function pruef(name, bed, info) {
   await pa2.evaluate(t => window.__navi.melden({ laeuft: false, folgen: false, aufzeichnen: false, aufz: { meter: 820, start: t - 1800000, ende: t - 600000, punkte: 41, auf: 30 } }), t0);
   pruef('App: nach „Beenden“ in der Mitteilung speicherbar', !(await pa2.isDisabled('#bAufzSpeichern')));
   pruef('App: Dauer bis zum Ende der Aufzeichnung', (await pa2.textContent('#aDauer')) === '20 min', await pa2.textContent('#aDauer'));
+  pruef('App: Ø Tempo der Aufzeichnung (20 min auf 820 m)', (await pa2.textContent('#aTempo')) === '24:23 min/km', await pa2.textContent('#aTempo'));
+  pruef('App: Gehen schickt Faktor und keine Lauf-Kennung', st1[1].lauf === false && st1[1].tempo === 1 && typeof st1[1].kmAnsage === 'boolean', [st1[1].lauf, st1[1].tempo, st1[1].kmAnsage]);
+  // Kilometer-Ansage umschalten geht gleich an den Dienst
+  const vorKm = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten').length));
+  await pa2.click('#bAufz');
+  await pa2.waitForTimeout(150);
+  await pa2.evaluate(() => { const k = document.querySelector('#kmAnsage'); k.checked = !k.checked; k.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(150);
+  const kmAufrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten')));
+  pruef('App: Kilometer-Ansage umgeschaltet an den Dienst', kmAufrufe.length >= vorKm + 2 && kmAufrufe[kmAufrufe.length - 1][1].kmAnsage === (await pa2.isChecked('#kmAnsage')));
+  await pa2.click('#bAufz');
+  await pa2.waitForTimeout(150);
   await pa2.click('#bAufzSpeichern');
   await pa2.waitForTimeout(400);
   // beim Start fragt die App einmal nach einer liegengebliebenen Aufzeichnung; beim Speichern holt sie und leert danach

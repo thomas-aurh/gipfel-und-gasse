@@ -102,11 +102,18 @@
           <label>Art<select id="profilwahl">
             <option value="wandern">Wandern</option>
             <option value="stadt">Stadtspaziergang</option>
+            <option value="laufen">Laufen</option>
             <option value="rad">Fahrrad</option>
             <option value="kurz">Kürzester Weg</option>
             <option value="linie">Gerade Linie</option>
           </select></label>
-          <label>Tempo<select id="tempowahl">
+          <label id="pacewahlFeld" hidden>Lauftempo<select id="pacewahl">
+            <option value="4">4:00 min/km</option><option value="4.5">4:30 min/km</option><option value="5">5:00 min/km</option>
+            <option value="5.5">5:30 min/km</option><option value="6" selected>6:00 min/km</option><option value="6.5">6:30 min/km</option>
+            <option value="7">7:00 min/km</option><option value="7.5">7:30 min/km</option><option value="8">8:00 min/km</option>
+            <option value="9">9:00 min/km</option>
+          </select></label>
+          <label id="tempowahlFeld">Tempo<select id="tempowahl">
             <option value="1.2">Zügig</option>
             <option value="1" selected>Normal</option>
             <option value="0.85">Gemütlich</option>
@@ -193,7 +200,9 @@
           <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>
           <div class="zahl"><b id="aDauer">–</b><span>Dauer</span></div>
           <div class="zahl"><b id="aAuf">–</b><span>bergauf</span></div>
+          <div class="zahl"><b id="aTempo">–</b><span>Ø Tempo</span></div>
         </div>
+        <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
         <div class="knopfreihe">
           <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
           <button class="knopf" id="bAufzSpeichern" disabled>💾 Als Tour speichern</button>
@@ -268,6 +277,8 @@
             Ein Tipp auf die Karte holt die Stelle unters Kreuz statt einen Punkt zu setzen.</li>
           <li>Route antippen fügt dort ein Zwischenziel ein; Punkte lassen sich ziehen, antippen zeigt „Punkt entfernen“.</li>
           <li>In der Suche: „Als Zwischenziel“ oder „Als neues Ziel“.</li>
+          <li>Laufen: Art „Laufen“ und dein Tempo in min/km wählen; 100 m bergauf zählen wie 1 km in der Ebene. Beim Aufzeichnen
+            sagt die App auf Wunsch jeden Kilometer Zeit und Tempo an.</li>
           <li>Wegtyp, Untergrund und Schwierigkeit stammen aus OpenStreetMap und sind dort nicht überall erfasst.</li>
           <li>Rundgang (Stadt): verbindet die bekanntesten Orte im Ausschnitt zu einer kurzen Runde ab deinem Start.</li>
         </ul>

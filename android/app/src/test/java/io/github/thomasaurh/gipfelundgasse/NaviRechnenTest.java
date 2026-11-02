@@ -76,4 +76,16 @@ public class NaviRechnenTest {
         assertEquals("3 Kilometer", NaviRechnen.kmSprache(3020));
         assertEquals("eine Stunde 10 Minuten", NaviRechnen.zeitSprache(70 / 60.0));
     }
+
+    @Test public void laufzeitMitHoehe() {
+        // 10 km und 200 m bergauf bei 6:00 min/km: 12 Leistungs-km = 72 min (wie R.laufzeit)
+        assertEquals(1.2, NaviRechnen.laufzeit(10000, 200, 6), 1e-9);
+        NaviRechnen.Strecke s = new NaviRechnen.Strecke(new double[] { 47, 47.01 }, new double[] { 11, 11 }, new double[] { 600, 700 });
+        assertEquals(NaviRechnen.laufzeit(s.laenge(), 100, 5), NaviRechnen.rest(s, 0, 5, false, true).stunden, 1e-9);
+    }
+
+    @Test public void kmAnsageText() {
+        assertEquals("3 Kilometer. Zeit 17 Minuten 5 Sekunden. Letzter Kilometer 5:42.", NaviRechnen.kmAnsage(3, 1025000, 342000));
+        assertEquals("12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.", NaviRechnen.kmAnsage(12, 4100000, 305000));
+    }
 }

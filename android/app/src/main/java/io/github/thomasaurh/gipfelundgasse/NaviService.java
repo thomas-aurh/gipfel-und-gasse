@@ -63,7 +63,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         long umplanVersuch;
         boolean umplanLaeuft;
         double tempo = 1;
-        boolean rad, folgen, aufzeichnen, ansagen = true;
+        boolean rad, lauf, folgen, aufzeichnen, ansagen = true;
+        boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
+        int aufzKm;                  // zuletzt angesagter Kilometer der Aufzeichnung
+        long aufzKmZeit;             // wann er erreicht war
         // laufend
         boolean laeuft;
         Location letzte;
@@ -132,11 +135,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.hinweisVorab = new boolean[Z.hinweise.size()];
                 Z.hinweisJetzt = new boolean[Z.hinweise.size()];
                 if (Z.ansagen && Z.strecke != null) {
-                    NaviRechnen.Rest r = NaviRechnen.rest(Z.strecke, 0, Z.tempo, Z.rad);
+                    NaviRechnen.Rest r = NaviRechnen.rest(Z.strecke, 0, Z.tempo, Z.rad, Z.lauf);
                     sagen("Los geht's. " + NaviRechnen.kmSprache(r.meter) + ", etwa " + NaviRechnen.zeitSprache(r.stunden) + ".");
                 }
             }
-            if (Z.aufzeichnen && Z.aufzStart == 0) { Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0; }
+            if (Z.aufzeichnen && Z.aufzStart == 0) {
+                Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0;
+                Z.aufzKm = 0; Z.aufzKmZeit = Z.aufzStart;
+            }
         }
         return START_STICKY;
     }
@@ -168,7 +174,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         Z.abw = lage.abw;
         if (lage.abw < 80) Z.fortschritt = lage.d;
         double d = Double.isNaN(Z.fortschritt) ? lage.d : Z.fortschritt;
-        Z.rest = NaviRechnen.rest(Z.strecke, d, Z.tempo, Z.rad);
+        Z.rest = NaviRechnen.rest(Z.strecke, d, Z.tempo, Z.rad, Z.lauf);
         double min = 0;
         for (int i = 0; i < Z.stopps.size(); i++) if (Z.stopps.get(i)[0] > d + 20) min += Z.stopps.get(i)[1];
         if (min > 0) Z.rest = NaviRechnen.restMit(Z.rest.meter, Z.rest.auf, Z.rest.ab, Z.rest.stunden + min / 60);
@@ -346,6 +352,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.aufzMeter += m;
         }
         Z.spur.add(p);
+        // jeden vollen Kilometer: Zeit und Tempo des letzten (bei Lücken im GPS über die übersprungenen gemittelt)
+        int km = (int) Math.floor(Z.aufzMeter / 1000);
+        if (km > Z.aufzKm) {
+            long jetzt = System.currentTimeMillis();
+            if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, jetzt - Z.aufzStart, (jetzt - Z.aufzKmZeit) / (km - Z.aufzKm)));
+            Z.aufzKm = km; Z.aufzKmZeit = jetzt;
+        }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
         if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); }
     }
@@ -359,7 +372,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             JSONObject o = new JSONObject();
             synchronized (Z) {
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
-                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 JSONArray pts = new JSONArray();
                 if (Z.strecke != null) for (int i = 0; i < Z.strecke.groesse(); i++) {
                     JSONArray p = new JSONArray();
@@ -457,7 +470,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 zieleLesen(o.optJSONArray("ziele"));
                 Z.profil = BRouterDateien.PROFILE.contains(o.optString("profil", "")) ? o.optString("profil") : null;
                 Z.umgeplant = o.optInt("umgeplant", 0);
-                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.ansagen = o.optBoolean("ansagen", true);
+                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
                 Z.aufzStart = o.optLong("aufzStart", 0); Z.aufzEnde = o.optLong("aufzEnde", 0);
@@ -476,6 +489,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                         Z.spur.add(q);
                     }
                 }
+                // nach einem Neustart: angesagte Kilometer nicht wiederholen
+                Z.aufzKm = (int) Math.floor(Z.aufzMeter / 1000);
+                Z.aufzKmZeit = System.currentTimeMillis();
             }
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht lesbar", e);

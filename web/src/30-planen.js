@@ -4,6 +4,7 @@ const S = {
   modus: 'berg',      // berg oder stadt
   profil: 'wandern',
   tempo: 1,
+  pace: 6,            // Lauftempo in min/km (nur beim Laufen)
   name: '',
   tourId: null,       // gespeicherte Tour, die gerade offen ist
   fest: null,         // importierte oder aufgezeichnete Spur: {pts} (nicht über Wegpunkte geplant)
@@ -214,9 +215,19 @@ function kuerzen(t) {
   return t.length > 90 ? t.slice(0, 90) + '…' : t;
 }
 
+// Tempo für die Zeitrechnung: beim Laufen das Lauftempo (min/km), sonst der Faktor
+function artAktuell() { return (PROFILE[S.profil] || PROFILE.wandern).art; }
+function tempoAktuell() { return artAktuell() === 'lauf' ? S.pace : S.tempo; }
+// Laufen zeigt die Auswahl des Lauftempos statt „Zügig … Mit Kind“
+function tempoFelder() {
+  const lauf = artAktuell() === 'lauf';
+  $('pacewahlFeld').hidden = !lauf;
+  $('tempowahlFeld').hidden = lauf;
+}
+
 function auswertenUndZeigen() {
-  const art = (PROFILE[S.profil] || PROFILE.wandern).art;
-  S.ergebnis = S.stuecke.length ? R.auswerten(S.stuecke, S.tempo, art) : null;
+  tempoFelder();
+  S.ergebnis = S.stuecke.length ? R.auswerten(S.stuecke, tempoAktuell(), artAktuell()) : null;
   zeichenRoute();
   zeigen();
 }
@@ -281,7 +292,7 @@ function zeigen() {
   const besicht = besichtigung();
   $('zLaenge').textContent = R.kmText(e.laenge);
   $('zZeit').textContent = R.zeitText(e.zeit + besicht / 60);
-  $('zZeitText').textContent = besicht ? 'inkl. ' + R.zeitText(besicht / 60) + ' Besichtigung' : art === 'rad' ? 'Fahrzeit (grob)' : 'Gehzeit ohne Pausen';
+  $('zZeitText').textContent = besicht ? 'inkl. ' + R.zeitText(besicht / 60) + ' Besichtigung' : art === 'rad' ? 'Fahrzeit (grob)' : art === 'lauf' ? 'Laufzeit bei ' + R.paceText(S.pace) : 'Gehzeit ohne Pausen';
   $('zAuf').textContent = e.tief == null ? '–' : e.auf + ' m';
   $('zAb').textContent = e.tief == null ? '–' : e.ab + ' m';
   $('zHoch').textContent = e.hoch == null ? '–' : e.hoch + ' m';
@@ -418,7 +429,14 @@ $('bNeu').onclick = () => {
   ebeneOrte.clearLayers();
   neuBerechnen();
 };
-$('profilwahl').onchange = e => { S.profil = e.target.value; SPEICHER.schreiben('profil', S.profil); neuBerechnen(); };
+$('profilwahl').onchange = e => {
+  S.profil = e.target.value; SPEICHER.schreiben('profil', S.profil);
+  tempoFelder();
+  // wer laufen geht, will meist die Kilometer hören: einmal einschalten, abschalten bleibt möglich
+  if (artAktuell() === 'lauf' && !SPEICHER.lesen('kmAnsageGewaehlt', false)) { $('kmAnsage').checked = true; SPEICHER.schreiben('kmAnsage', true); }
+  neuBerechnen();
+};
+$('pacewahl').onchange = e => { S.pace = +e.target.value; SPEICHER.schreiben('pace', S.pace); if (S.stuecke.length) auswertenUndZeigen(); };
 // „Mehr“ in der Aktionsleiste (nur am Telefon sichtbar): weitere Funktionen auf- und zuklappen
 $('bMehr').onclick = () => {
   const offen = !$('aktionen').classList.contains('offen');

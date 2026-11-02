@@ -11,6 +11,7 @@ const DIENST = {
 const PROFILE = {
   wandern: { brouter: 'hiking-mountain', art: 'fuss', name: 'Wandern' },
   stadt: { brouter: 'hiking-mountain', art: 'fuss', name: 'Stadtspaziergang' },
+  laufen: { brouter: 'hiking-mountain', art: 'lauf', name: 'Laufen' },
   rad: { brouter: 'trekking', art: 'rad', name: 'Fahrrad' },
   kurz: { brouter: 'shortest', art: 'fuss', name: 'Kürzester Weg' },
   linie: { brouter: null, art: 'fuss', name: 'Gerade Linie' }

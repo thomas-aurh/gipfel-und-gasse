@@ -285,5 +285,12 @@ pruef('Notfall-Text', nt.startsWith('Mein Standort: 47.61220, 11.31170 (47° 36�
 
 pruef('Sicherung: Zeitplan geprüft übernommen', JSON.stringify(R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'q', name: 'Q', spur: [[47, 11, null]], kurz: {}, zeit: { tag: '2026-11-01', start: '<b>', pause: 45 } }] }))[0].zeit) === JSON.stringify({ tag: '2026-11-01', start: '', pause: 45 }));
 
+// Laufen: Leistungs-km (100 Hm = 1 km), Tempo als Text, Ansage je km (gleich wie NaviRechnenTest)
+pruef('Laufzeit mit Höhe', nahe(R.laufzeit(10000, 200, 6), 1.2, 1e-9));
+pruef('Zeit je Art', R.zeitFuer('lauf', 10000, 0, 0, 5) === 50 / 60 && R.zeitFuer('fuss', 12000, 600, 600, 1) === R.gehzeit(12000, 600, 600, 1));
+pruef('Tempo als Text', R.paceText(5.7) === '5:42 min/km' && R.paceText(Infinity) === '–', R.paceText(5.7));
+pruef('Kilometer-Ansage', R.kmAnsage(3, 1025000, 342000) === '3 Kilometer. Zeit 17 Minuten 5 Sekunden. Letzter Kilometer 5:42.', R.kmAnsage(3, 1025000, 342000));
+pruef('Kilometer-Ansage über eine Stunde', R.kmAnsage(12, 4100000, 305000) === '12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.', R.kmAnsage(12, 4100000, 305000));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

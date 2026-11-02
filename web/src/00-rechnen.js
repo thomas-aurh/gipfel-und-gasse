@@ -241,6 +241,29 @@ var R = (function () {
     return (meter / 1000 / 16 + auf / 600) / (tempo || 1);
   }
 
+  // Laufen: Tempo in Minuten je km; 100 m bergauf zählen wie 1 km in der Ebene (Leistungs-Kilometer wie bei ITRA)
+  function laufzeit(meter, auf, pace) {
+    return (meter / 1000 + auf / 100) * (pace || 6) / 60;
+  }
+  // Zeit je Art: tempo ist bei „lauf“ das Lauftempo (min/km), sonst ein Faktor (1 = normal)
+  function zeitFuer(art, meter, auf, ab, tempo) {
+    return art === 'rad' ? fahrzeit(meter, auf, tempo) : art === 'lauf' ? laufzeit(meter, auf, tempo) : gehzeit(meter, auf, ab, tempo);
+  }
+  // Tempo als „5:42 min/km“
+  function paceText(minProKm) {
+    if (!isFinite(minProKm) || minProKm <= 0) return '–';
+    let s = Math.round(minProKm * 60);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' min/km';
+  }
+  // Ansage nach jedem Kilometer: Gesamtzeit und Tempo des letzten Kilometers (Millisekunden)
+  function kmAnsage(km, gesamtMs, kmMs) {
+    const dauer = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sek = s % 60;
+      return (h ? h + (h === 1 ? ' Stunde ' : ' Stunden ') : '') + m + (m === 1 ? ' Minute' : ' Minuten') + (h ? '' : ' ' + sek + (sek === 1 ? ' Sekunde' : ' Sekunden')); };
+    const s = Math.round(kmMs / 1000);
+    return km + (km === 1 ? ' Kilometer' : ' Kilometer') + '. Zeit ' + dauer(gesamtMs) + '. Letzter Kilometer ' +
+      Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + '.';
+  }
+
   // Teilstücke (je Wegpunkt-Paar) zu einer Strecke zusammensetzen und auswerten.
   // Jeder Abschnitt bekommt von/bis (Meter ab Start); BRouter zählt Längen etwas anders als die Geometrie,
   // darum wird je Teilstück auf dessen Länge gestreckt.
@@ -293,7 +316,7 @@ var R = (function () {
       auf: hm.auf, ab: hm.ab,
       hoch: gueltig.length ? Math.round(Math.max(...gueltig)) : null,
       tief: gueltig.length ? Math.round(Math.min(...gueltig)) : null,
-      zeit: art === 'rad' ? fahrzeit(laenge, hm.auf, tempo) : gehzeit(laenge, hm.auf, hm.ab, tempo),
+      zeit: zeitFuer(art, laenge, hm.auf, hm.ab, tempo),
       steigung,
       sac: schwierigkeit(abschnitte),
       wege: anteile(abschnitte, wegtyp),
@@ -346,7 +369,7 @@ var R = (function () {
     const ges = pts.length ? pts[pts.length - 1].d : 0;
     const hm = hoehenmeter(eles);
     const m = Math.max(0, ges - d);
-    return { meter: m, auf: hm.auf, ab: hm.ab, zeit: art === 'rad' ? fahrzeit(m, hm.auf, tempo) : gehzeit(m, hm.auf, hm.ab, tempo) };
+    return { meter: m, auf: hm.auf, ab: hm.ab, zeit: zeitFuer(art, m, hm.auf, hm.ab, tempo) };
   }
 
   // jeden Punkt etwa alle `m` Meter behalten (für Abfragen mit vielen Koordinaten)
@@ -608,7 +631,7 @@ var R = (function () {
       kurz: { laenge: zahl(k.laenge) || 0, auf: Math.round(zahl(k.auf) || 0), ab: Math.round(zahl(k.ab) || 0), zeit: zahl(k.zeit) || 0 }
     };
     if (out.art === 'plan' && !stuecke) out.art = 'spur';
-    if (['wandern', 'stadt', 'rad', 'kurz', 'linie'].includes(t.profil)) out.profil = t.profil;
+    if (['wandern', 'stadt', 'laufen', 'rad', 'kurz', 'linie'].includes(t.profil)) out.profil = t.profil;
     if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
     if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
     if (t.zeit && typeof t.zeit === 'object') {
@@ -960,7 +983,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
