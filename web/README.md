@@ -56,11 +56,14 @@ sh build.sh
 | `src/20-karte.js` | Karte, Kartenarten, Meldungen, Speicher im Browser |
 | `src/30-planen.js` | Wegpunkte, Teilstücke (zwischengespeichert, damit Ziehen nur das betroffene Stück neu anfragt), Route zeichnen, Kennzahlen, Hervorhebung |
 | `src/40-profil.js` | Höhenprofil auf Canvas |
-| `src/50-entdecken.js` | Suche, Orte entlang der Route, Wetter |
+| `src/50-entdecken.js` | Suche, Orte entlang der Route, Wetter (Ort wählbar), Öffnungszeiten jetzt, Wikipedia-Kurzinfo und Vorlesen, Link zu Google Maps, drinnen bei Regen |
+| `src/52-info.js` | Info-Modus: Antippen zeigt, was dort ist (Kartenpaket und Overpass); Fenster nicht hinter Blatt und Suche |
 | `src/55-stadt.js` | Umschalter Berg/Stadt, Sehenswürdigkeiten im Ausschnitt (Overpass), Stopps, Rundgang vorschlagen |
 | `src/57-drucken.js` | Druckansicht A4: Kopf, Karte, Höhenprofil |
-| `src/58-offline.js` | in der App: Offline-Karte, Höhenlinien und Relief, Höhen ohne Netz, Routen ohne Netz, Orte und Suche aus der Orte-Datei des Pakets, Paketverwaltung (im Browser ohne Wirkung) |
-| `src/60-touren.js` | Touren speichern und öffnen, GPX, Teilen-Link |
+| `src/58-offline.js` | in der App: Offline-Karte, Höhenlinien und Relief, Höhen ohne Netz, Routen ohne Netz, Orte und Suche aus der Orte-Datei des Pakets, Paketverwaltung, „Offline-Karte prüfen“; liest die Pakete in Teilen über `?von=&bis=` (im Browser ohne Wirkung) |
+| `src/60-touren.js` | Touren speichern und öffnen, GPX, Teilen-Link, Sicherung |
+| `src/65-tagebuch.js` | Reisetagebuch: Reisen, Einträge mit Fotos, Ort und Wetter, Heft (PDF) |
+| `src/67-ziele.js` | Reiseziele: Listen, ⭐-Ebene, eintippen, Liste einfügen, Datei laden (Text, CSV, GPX, KML, GeoJSON), als GPX |
 | `src/70-unterwegs.js` | GPS, Route folgen, Aufzeichnen, Bildschirm wach halten |
 | `src/75-app.js` | in der App: Route folgen und Aufzeichnen über den Navigationsdienst, GPX über Teilen, Drucken über Android |
 | `src/80-start.js` | Reiter, Blatt unten, Entwurf und Link beim Start |

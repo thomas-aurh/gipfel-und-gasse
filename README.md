@@ -1,12 +1,13 @@
 # Gipfel & Gasse
 
 Tourenplaner für Berg und Stadt auf OpenStreetMap: Route planen, Höhenprofil, Gehzeit, Wegtypen, Kinderwagen-Einschätzung,
-Sehenswürdigkeiten und Stadtrundgänge, Wetter, GPX, Karte drucken. Als **Web-App** (eine HTML-Datei) und als
+Sehenswürdigkeiten und Stadtrundgänge, Wetter, Info zu Orten (geöffnet jetzt, Wikipedia, Google Maps), Reisetagebuch,
+Reiseziele, GPX, Karte drucken. Als **Web-App** (eine HTML-Datei) und als
 **Android-App**, die unterwegs auch bei gesperrtem Bildschirm navigiert und aufzeichnet.
 
 ## Android-App installieren
 
-1. Auf dem Handy öffnen: **https://github.com/thomas-aurh/gipfel-und-gasse/releases/latest**
+1. Auf dem Handy öffnen: **https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste**
 2. `Gipfel-und-Gasse.apk` antippen und herunterladen.
 3. Beim ersten Mal fragt Android, ob der Browser Apps installieren darf: erlauben (Einstellungen › „Unbekannte Apps
    installieren“). Danach installieren.
@@ -57,7 +58,7 @@ App oder direkt in der Mitteilung.
 | Ordner | Inhalt |
 |---|---|
 | `web/` | die Web-App: Quellen, Bau (`build.sh`), Prüfung (`pruefen.sh`), Tests. Beschreibung in [`web/README.md`](web/README.md) |
-| `android/` | Android-Projekt (Capacitor 8). Eigener Code in `app/src/main/java/io/github/thomasaurh/gipfelundgasse/`: `NaviService` (Vordergrunddienst: GPS, Rest, Abweichung, Ansagen, Aufzeichnung), `NaviPlugin` (Brücke zur Oberfläche, Teilen, Drucken), `NaviRechnen` (Formeln wie die Web-App, mit JUnit-Test), `KartenServer` (liefert Kartenpakete mit echten Byte-Bereichen an die Oberfläche), `KartenPlugin` (Pakete laden, prüfen, löschen), `Routing` und `RoutingPlugin` (BRouter ohne Netz, dieselbe Antwort wie brouter.de) |
+| `android/` | Android-Projekt (Capacitor 8). Eigener Code in `app/src/main/java/io/github/thomasaurh/gipfelundgasse/`: `NaviService` (Vordergrunddienst: GPS, Rest, Abweichung, Ansagen, Aufzeichnung), `NaviPlugin` (Brücke zur Oberfläche, Teilen, Drucken), `NaviRechnen` (Formeln wie die Web-App, mit JUnit-Test), `KartenServer` (liefert Kartenpakete in Teilen an die Oberfläche, Bereich aus `?von=&bis=` oder Range-Kopfzeile, Fehler als Text), `KartenPlugin` (Pakete laden, prüfen, löschen), `Routing` und `RoutingPlugin` (BRouter ohne Netz, dieselbe Antwort wie brouter.de) |
 | `web/src/58-offline.js` | Offline-Karten in der App: Vektorkarte aus dem Paket, Höhenlinien und Relief (eigene Leaflet-Ebene), Höhen ohne Netz, Routen, Orte und Suche ohne Netz, Paketverwaltung |
 | `web/vendor/offline/` | Eingang des Offline-Bündels (protomaps-leaflet, pmtiles), von `web/build.sh` mit esbuild gebündelt, Lizenzen werden angehängt |
 | `karten/` | Kartenpakete: `regionen.json` (Regionen), `bauen.py` (Bau, holt auch die Routendaten), `hoehe.py` (Höhen-Paket), `orte.py` (Orte und Suche aus OSM-Auszügen von Geofabrik), `probe.js` (Probe-Rendering), `orte-probe.js` (Probe-Suche auf den echten Orten), `routing-probe.sh` mit `RoutingProbe.java` (Probe-Routen auf den echten Routendaten) |
