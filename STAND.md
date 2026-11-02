@@ -23,7 +23,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
   der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
 - **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
-  die Kamera nicht, Korrektur in #18 auf dem Handy noch nicht geprüft; ebenso das Original in der Galerie (#19).
+  die Kamera nicht; nach #18 und #19 am 02.11. von Thomas geprüft: Kamera öffnet, Original liegt in der Galerie.
   Capacitor legt das Kamerafoto zusätzlich im App-Ordner (Android/data/…/Pictures) ab und räumt es nicht weg. Offen:
   Größe der Sicherung mit vielen Fotos. Fotos liegen im Speicher der App (IndexedDB): wer die App deinstalliert, löscht
   sie mit, darum vorher „Sicherung speichern“.
@@ -31,10 +31,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   die Vorhersage (WMO-Code ab 95) zu oft oder zu selten warnt.
 - **Auto-Pause und Runde (#22) nicht auf dem Handy geprüft:** ob 10 s an der Ampel im Takt des Dienstes sauber als
   Pause zählen, wie gut die Runde die Wunschlänge trifft (im Klicktest mit nachgebildetem Routing).
-- **Fester Signierschlüssel fehlt:** bis er als Repo-Geheimnis (`KEYSTORE_B64`, `KEYSTORE_PASSWORT`) hinterlegt ist,
-  signiert GitHub mit einem Ersatzschlüssel aus dem Cache. Wird der Cache geräumt (nach 7 Tagen ohne Bau), passt das
-  nächste Update nicht mehr über die alte App: dann deinstallieren und neu installieren, gespeicherte Touren gehen dabei
-  verloren (vorher „Sicherung speichern“, danach „Sicherung laden“).
+- **Fester Signierschlüssel (#20) wartet auf Thomas:** Geheimnis `KEYSTORE_PASSWORT` anlegen (GitHub › Settings ›
+  Secrets and variables › Actions, langes Zufallspasswort aus dem Passwortmanager). Der nächste Bau auf `main` legt den
+  Schlüssel an und bewahrt ihn verschlüsselt im Entwurfs-Release `signierschluessel` auf (nicht löschen, nicht
+  veröffentlichen). Diese eine APK einmal neu installieren: vorher „Sicherung speichern“, danach „Sicherung laden“.
+  Bis dahin signiert der Ersatzschlüssel aus dem Cache (wird er geräumt, gilt dasselbe).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy. Die Datei kommt erst mit dem nächsten Lauf „Kartenpakete“ nach dem Merge ins Paket.
@@ -71,6 +72,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Reisetagebuch** (02.11., Thomas' Wahl aus Vorbild Polarsteps/Day One): Reisen mit Zeitraum, Einträge mit Text und
   Fotos, Ort, Uhrzeit und Wetter automatisch; Fotos auf 1600 px verkleinert in IndexedDB, in der Sicherung als
   Daten-Adresse. Einträge auf der Karte und Heft kamen mit #21.
+- **Signierschlüssel auf GitHub erzeugt, verschlüsselt im Entwurfs-Release** (02.11.): nur ein Geheimnis nötig
+  (`KEYSTORE_PASSWORT`), der Schlüssel verlässt GitHub nie unverschlüsselt. Verworfen: den Ersatzschlüssel verschlüsselt
+  aus dem Cache holen (ginge ohne Neuinstallation, die Schutzautomatik der Sitzung hat das Herausgeben gestoppt) und
+  einen Schlüssel in der Sitzung erzeugen (er ginge durch den Chat).
 - **Navigation: Menü links oben plus Leiste unten** (02.11., Thomas' Wahl nach Vorbild gängiger Tourenplaner): jede
   Funktion eine eigene Seite, die vier häufigsten mit einem Tipp erreichbar; geplante und gegangene Touren getrennt.
   Verworfen: nur Menü (ein Tipp mehr für Planen und Unterwegs), Reiter im Blatt (wirkte überladen).
