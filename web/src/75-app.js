@@ -3,12 +3,15 @@
 // Im Browser tut diese Datei nichts.
 if (NATIV) {
   const Navi = window.Capacitor.registerPlugin('Navi');
-  const app = { folgen: false, aufz: false };
+  const app = { folgen: false, aufz: false, umgeplant: 0 };
+  // nach dem Umplanen unterwegs: die neue Strecke ab dem Standort blau über der geplanten
+  const ebeneUmplan = L.layerGroup().addTo(karte);
 
   document.body.classList.add('app');
   // „Link teilen“ zeigt in der App auf die lokale Adresse der App, die niemand sonst öffnen kann: ausblenden, GPX nehmen
   $('bTeilen').hidden = true;
-  $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>, mit Ansagen. Beenden auch über die Mitteilung „Navigation läuft“.';
+  $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>, mit Ansagen. Abseits der Route plant die App ab deinem Standort ' +
+    'neu zum nächsten Ziel. Beenden auch über die Mitteilung „Navigation läuft“.';
   $('tourenHinweis').innerHTML = 'Touren liegen in der App auf dem Handy; wer die App deinstalliert, löscht sie mit. ' +
     '„Sicherung speichern“ gibt alle Touren samt Planung als eine Datei weiter (z. B. an Drive oder per Mail); „Sicherung laden“ holt sie zurück.';
 
@@ -33,6 +36,11 @@ if (NATIV) {
       opt.stopps = stoppsFuerApp();
       // Abbiegehinweise für die Ansagen: [Meter ab Start, Befehl, Ausfahrt]
       opt.hinweise = S.fest ? [] : (e.hinweise || []).map(h => [h.d, h.cmd, h.exit]);
+      // fürs Umplanen unterwegs: alle Ziele nach dem Start [Breite, Länge, Meter ab Start, Minuten, Name] und das Profil;
+      // eine geöffnete Spur (GPX) oder gerade Linien werden nicht umgeplant
+      const prof = (PROFILE[S.profil] || PROFILE.wandern).brouter;
+      opt.profil = S.fest || !prof ? null : prof;
+      opt.ziele = S.fest ? [] : S.wps.slice(1).map((w, i) => [w.lat, w.lon, e.stueckEnde[i], +w.min || 0, w.name || '']);
     }
     try {
       const st = await Navi.starten(opt);
@@ -49,7 +57,21 @@ if (NATIV) {
   function knoepfe() {
     $('bNavi').textContent = app.folgen ? '■ Folgen beenden' : '▶ Route folgen';
     $('bAufz').textContent = app.aufz ? '■ Aufzeichnung beenden' : '⏺ Aufzeichnung starten';
-    if (!app.folgen) $('abseits').hidden = true;
+    if (!app.folgen) { $('abseits').hidden = true; ebeneUmplan.clearLayers(); app.umgeplant = 0; }
+  }
+
+  // der Dienst hat unterwegs neu geplant: neue Strecke holen und zeigen
+  async function umplanZeigen(st) {
+    if (!st.umgeplant || st.umgeplant === app.umgeplant) return;
+    app.umgeplant = st.umgeplant;
+    try {
+      const r = await Navi.route();
+      ebeneUmplan.clearLayers();
+      if (!r || !r.pts || r.pts.length < 2) return;
+      L.polyline(r.pts, { color: '#fff', weight: 9, opacity: 0.9, interactive: false }).addTo(ebeneUmplan);
+      L.polyline(r.pts, { color: '#1a73e8', weight: 5, opacity: 0.95, interactive: false, className: 'umplan' }).addTo(ebeneUmplan);
+      melde('Neu geplant ab deinem Standort zum nächsten Ziel: noch ' + R.kmText(r.laenge || 0) + '.', 6);
+    } catch (err) { /* Anzeige ist Beiwerk, die Ansagen kommen vom Dienst */ }
   }
 
   // Stand aus dem Dienst in die Oberfläche (beim Ereignis „position“ und nach jedem Aufruf)
@@ -74,6 +96,8 @@ if (NATIV) {
         (st.lat != null ? sonnenHinweis(an, st.lat, st.lon) : '');
       if (st.naechster) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(st.naechster.bis) + ' ' + st.naechster.text;
       $('abseits').hidden = !st.abseits;
+      if (!st.umgeplant && app.umgeplant) { ebeneUmplan.clearLayers(); app.umgeplant = 0; }   // neue Route aus der App
+      umplanZeigen(st);
       if (st.abseits) $('abseits').textContent = R.abseitsText(st.abw, start);
     }
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);

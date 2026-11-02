@@ -27,6 +27,7 @@ import androidx.core.app.NotificationCompat;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         List<double[]> hinweise = new ArrayList<>(); // Abbiegehinweise {d, befehl, ausfahrt}
         boolean[] hinweisVorab = new boolean[0], hinweisJetzt = new boolean[0];
         List<String> stoppNamen = new ArrayList<>();
+        // Ziele nach dem Start {Breite, Länge, Meter ab Start, Minuten} mit Namen ("" = ohne) und BRouter-Profil fürs
+        // Umplanen; ohne Profil (gerade Linie, GPX-Spur) wird nicht umgeplant
+        List<double[]> ziele = new ArrayList<>();
+        List<String> zielNamen = new ArrayList<>();
+        String profil;
+        int umgeplant;               // wie oft unterwegs neu geplant (die Oberfläche zeichnet dann die neue Strecke)
+        long umplanVersuch;
+        boolean umplanLaeuft;
         double tempo = 1;
         boolean rad, folgen, aufzeichnen, ansagen = true;
         // laufend
@@ -171,8 +180,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (jetzt - Z.abseitsSeit > 15000 && !Z.abseitsGemeldet) {
                 Z.abseitsGemeldet = true;
                 vibrieren();
-                if (Z.ansagen) sagen("Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route.");
+                boolean neu = Z.profil != null && Umplanen.naechstes(Z.ziele, Z.fortschritt) >= 0;
+                if (Z.ansagen) sagen("Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route." + (neu ? " Ich plane neu." : ""));
             }
+            if (Z.abseitsGemeldet) umplanen(loc, jetzt);
         } else {
             if (Z.abseitsGemeldet && Z.ansagen) sagen("Wieder auf der Route.");
             Z.abseitsSeit = 0;
@@ -232,6 +243,91 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         }
     }
 
+    static final String BROUTER = "https://brouter.de/brouter";
+
+    /**
+     * Abseits der Route: ab dem Standort neu zum nächsten offenen Ziel, danach über die übrigen Ziele. Rechnet im
+     * Hintergrund, ohne Netz mit den Routendaten der Kartenpakete, sonst bei brouter.de; höchstens ein Versuch je Minute.
+     */
+    private void umplanen(Location loc, long jetzt) {
+        if (Z.profil == null || Z.umplanLaeuft || jetzt - Z.umplanVersuch < 60000) return;
+        int ab = Umplanen.naechstes(Z.ziele, Z.fortschritt);
+        if (ab < 0) return;
+        Z.umplanLaeuft = true;
+        Z.umplanVersuch = jetzt;
+        final List<double[]> offen = new ArrayList<>(Z.ziele.subList(ab, Z.ziele.size()));
+        final List<String> namen = new ArrayList<>(Z.zielNamen.subList(ab, Z.zielNamen.size()));
+        // noch nie auf der Route (z. B. weit weg losgegangen): zuerst zum Start, nicht gleich zum ersten Zwischenziel
+        if (Double.isNaN(Z.fortschritt)) { offen.add(0, new double[] { Z.strecke.lat[0], Z.strecke.lon[0], 0, 0 }); namen.add(0, ""); }
+        final double[][] p = Umplanen.punkte(loc.getLatitude(), loc.getLongitude(), offen, 0);
+        final NaviRechnen.Strecke alt = Z.strecke;
+        final String profil = Z.profil;
+        final Context c = getApplicationContext();
+        new Thread(() -> {
+            String gj = null;
+            try { gj = BRouterDateien.route(c, p, profil, 30000); } catch (Throwable e) { Log.w(TAG, "Umplanen ohne Netz ging nicht", e); }
+            if (gj == null) try { gj = holen(Umplanen.url(BROUTER, p, profil)); } catch (Throwable e) { Log.w(TAG, "Umplanen mit Netz ging nicht", e); }
+            String ansage = null;
+            if (gj != null) try { ansage = uebernehmen(Umplanen.lesen(gj, offen), alt, offen, namen); } catch (Throwable e) { Log.w(TAG, "neue Route nicht lesbar", e); }
+            synchronized (Z) { Z.umplanLaeuft = false; }
+            if (ansage == null) return;
+            sitzungSichern(c);
+            final String text = ansage;
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (Z.ansagen) sagen(text);
+                benachrichtigungAktualisieren();
+                if (Z.beiNeuem != null) Z.beiNeuem.run();
+            });
+        }, "umplanen").start();
+    }
+
+    /** Neue Route übernehmen, wenn noch dieselbe Navigation läuft; liefert die Ansage oder null. */
+    private static String uebernehmen(Umplanen.Neu n, NaviRechnen.Strecke alt, List<double[]> offen, List<String> namen) {
+        synchronized (Z) {
+            if (!Z.folgen || Z.strecke != alt) return null;   // inzwischen beendet oder eine andere Route aus der App
+            Z.strecke = n.strecke;
+            Z.hinweise = n.hinweise;
+            Z.hinweisVorab = new boolean[n.hinweise.size()];
+            Z.hinweisJetzt = new boolean[n.hinweise.size()];
+            Z.ziele = new ArrayList<>(); Z.zielNamen = new ArrayList<>();
+            Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+            for (int k = 0; k < offen.size(); k++) {
+                double[] z = offen.get(k).clone();
+                z[2] = n.zielMeter[k];
+                Z.ziele.add(z);
+                Z.zielNamen.add(namen.get(k));
+                if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); }
+            }
+            Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
+            Z.stoppErreicht = new boolean[Z.stopps.size()];
+            Z.fortschritt = 0;   // die neue Strecke beginnt am Standort (nicht NaN: sonst ginge ein weiteres Umplanen zurück zu ihrem Anfang)
+            Z.abseitsSeit = 0;
+            Z.abseitsGemeldet = false;
+            Z.zielGemeldet = false;
+            Z.naechsterKm = -1;
+            Z.umgeplant++;
+            return "Neue Route: noch " + NaviRechnen.kmSprache(n.strecke.laenge()) + ".";
+        }
+    }
+
+    private static String holen(String adresse) throws Exception {
+        java.net.HttpURLConnection v = (java.net.HttpURLConnection) new java.net.URL(adresse).openConnection();
+        v.setConnectTimeout(15000);
+        v.setReadTimeout(30000);
+        try {
+            if (v.getResponseCode() != 200) throw new Exception("brouter.de antwortet " + v.getResponseCode());
+            try (InputStream in = v.getInputStream()) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] b = new byte[16384];
+                int k;
+                while ((k = in.read(b)) > 0) out.write(b, 0, k);
+                return out.toString("UTF-8");
+            }
+        } finally {
+            v.disconnect();
+        }
+    }
+
     private void aufzeichnen(Location loc) {
         if (loc.hasAccuracy() && loc.getAccuracy() > 40) return;   // zu ungenau
         double[] p = { loc.getLatitude(), loc.getLongitude(), loc.hasAltitude() ? loc.getAltitude() : Double.NaN, loc.getTime() };
@@ -275,12 +371,35 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 JSONArray hw = new JSONArray();
                 for (double[] h : Z.hinweise) { JSONArray q = new JSONArray(); q.put(h[0]); q.put((int) h[1]); q.put((int) h[2]); hw.put(q); }
                 o.put("hinweise", hw);
+                JSONArray zl = new JSONArray();
+                for (int i = 0; i < Z.ziele.size(); i++) {
+                    double[] z = Z.ziele.get(i);
+                    JSONArray q = new JSONArray();
+                    q.put(z[0]); q.put(z[1]); q.put(z[2]); q.put(z[3]); q.put(Z.zielNamen.get(i));
+                    zl.put(q);
+                }
+                o.put("ziele", zl);
+                if (Z.profil != null) o.put("profil", Z.profil);
+                o.put("umgeplant", Z.umgeplant);
             }
             try (FileOutputStream out = new FileOutputStream(new File(c.getFilesDir(), "sitzung.json"))) {
                 out.write(o.toString().getBytes(StandardCharsets.UTF_8));
             }
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht gesichert", e);
+        }
+    }
+
+    /** Ziele aus der App oder der Sitzung: [Breite, Länge, Meter ab Start, Minuten, Name]. Aufruf unter der Sperre von Z. */
+    static void zieleLesen(JSONArray zl) {
+        Z.ziele = new ArrayList<>();
+        Z.zielNamen = new ArrayList<>();
+        if (zl == null) return;
+        for (int i = 0; i < zl.length(); i++) {
+            JSONArray q = zl.optJSONArray(i);
+            if (q == null || q.length() < 3) continue;
+            Z.ziele.add(new double[] { q.optDouble(0), q.optDouble(1), q.optDouble(2), q.optDouble(3, 0) });
+            Z.zielNamen.add(q.optString(4, ""));
         }
     }
 
@@ -327,6 +446,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 }
                 Z.hinweisVorab = new boolean[Z.hinweise.size()];
                 Z.hinweisJetzt = new boolean[Z.hinweise.size()];
+                zieleLesen(o.optJSONArray("ziele"));
+                Z.profil = BRouterDateien.PROFILE.contains(o.optString("profil", "")) ? o.optString("profil") : null;
+                Z.umgeplant = o.optInt("umgeplant", 0);
                 Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);

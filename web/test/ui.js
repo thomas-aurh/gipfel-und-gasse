@@ -537,6 +537,7 @@ function pruef(name, bed, info) {
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
+        route: async () => { aufrufe.push(['route', {}]); return { pts: [[47.76, 11.385], [47.765, 11.39], [47.77, 11.4]], laenge: 1830, umgeplant: 1 }; },
         addListener: (n, f) => { if (n === 'position') hoerer = f; }
       }
     });
@@ -558,6 +559,21 @@ function pruef(name, bed, info) {
   pruef('App: „Link teilen“ ausgeblendet', await pa2.isHidden('#bTeilen'));
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   pruef('App: Meldung des Dienstes angezeigt', (await pa2.textContent('#uRest')) === '2,3 km' && (await pa2.textContent('#uAuf')) === '120 m' && !(await pa2.isHidden('#abseits')));
+  // Umplanen: Ziele und Profil gehen an den Dienst; meldet er eine neue Route, zeigt die App sie blau
+  pruef('App: Ziele und Profil fürs Umplanen', st1[1].profil === 'hiking-mountain' && st1[1].ziele.length === 1 && st1[1].ziele[0].length === 5 &&
+    Math.abs(st1[1].ziele[0][0] - 47.77) < 1e-6 && st1[1].ziele[0][2] > 1000, st1[1].ziele);
+  const blau = () => pa2.evaluate(() => document.querySelectorAll('.leaflet-overlay-pane path.umplan').length);
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 1830, auf: 80, stunden: 0.6 }, abw: 3, abseits: false, umgeplant: 1 }));
+  await pa2.waitForTimeout(200);
+  pruef('App: neu geplante Strecke blau auf der Karte, Meldung', (await blau()) === 1 && (await pa2.textContent('#meldung')).includes('1,8 km'), await pa2.textContent('#meldung'));
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 1800, auf: 80, stunden: 0.6 }, abw: 3, abseits: false, umgeplant: 1 }));
+  await pa2.waitForTimeout(100);
+  pruef('App: gleiche Meldung holt die Strecke nicht noch einmal', (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'route').length)) === 1);
+  await pa2.click('#bNavi');
+  await pa2.waitForTimeout(200);
+  pruef('App: Folgen beendet, neu geplante Strecke weg', (await blau()) === 0);
+  await pa2.click('#bNavi');
+  await pa2.waitForTimeout(200);
   // Aufzeichnung über „Beenden“ in der Mitteilung gestoppt: Speichern wird frei, Dauer bis zum Ende
   await pa2.click('#bAufz');
   const t0 = Date.now();

@@ -31,13 +31,14 @@ import org.json.JSONObject;
 /**
  * Brücke zwischen Oberfläche (JavaScript) und Navigationsdienst.
  * JS: const Navi = Capacitor.registerPlugin('Navi');
- *   Navi.starten({ pts, stopps, tempo, rad, folgen, aufzeichnen, ansagen })  startet oder ändert die Sitzung
+ *   Navi.starten({ pts, stopps, hinweise, ziele, profil, tempo, rad, folgen, aufzeichnen, ansagen })  startet oder ändert die Sitzung
+ *   Navi.route()                     → { pts, laenge, umgeplant }: Strecke, der der Dienst folgt (nach dem Umplanen die neue)
  *   Navi.status()                    → Zustand (auch nach einem Neustart der Oberfläche)
  *   Navi.aufzeichnungHolen({ leeren }) → { start, spur: [[lat, lon, ele, zeit], …] }
  *   Navi.teilen({ name, text, mime }) → Datei über das Teilen-Menü von Android weitergeben (z. B. GPX an CoMaps)
  *   Navi.textTeilen({ text })        → Text über das Teilen-Menü (Standort im Notfall)
  *   Navi.drucken({ name })           → Druckdialog von Android für die aktuelle Seite
- *   Ereignis "position": { lat, lon, gen, rest, abw, aufz }
+ *   Ereignis "position": { lat, lon, gen, rest, abw, abseits, umgeplant, aufz }
  */
 @CapacitorPlugin(
     name = "Navi",
@@ -128,6 +129,13 @@ public class NaviPlugin extends Plugin {
                     }
                 }
             }
+            // Ziele und Profil fürs Umplanen unterwegs (nur mit neuer Route; fehlen sie, wird nicht umgeplant)
+            if (pts != null && pts.length() > 1) {
+                NaviService.zieleLesen(call.getArray("ziele", null));
+                String profil = call.getString("profil", null);
+                z.profil = profil != null && BRouterDateien.PROFILE.contains(profil) ? profil : null;
+                if (neueGeometrie) { z.umgeplant = 0; z.umplanVersuch = 0; }
+            }
             z.tempo = call.getDouble("tempo", z.tempo);
             z.rad = call.getBoolean("rad", z.rad);
             z.ansagen = call.getBoolean("ansagen", z.ansagen);
@@ -163,6 +171,25 @@ public class NaviPlugin extends Plugin {
             c.startService(new Intent(c, NaviService.class).setAction(NaviService.AKTION_BEENDEN));
         }
         call.resolve(stand());
+    }
+
+    /** Strecke, der der Dienst gerade folgt (nach dem Umplanen eine andere als die geplante): { pts: [[lat, lon], …] }. */
+    @PluginMethod
+    public void route(PluginCall call) {
+        NaviService.Zustand z = NaviService.Z;
+        JSObject o = new JSObject();
+        JSONArray pts = new JSONArray();
+        synchronized (z) {
+            if (z.strecke != null) for (int i = 0; i < z.strecke.groesse(); i++) {
+                JSONArray p = new JSONArray();
+                try { p.put(z.strecke.lat[i]); p.put(z.strecke.lon[i]); } catch (org.json.JSONException e) { continue; }
+                pts.put(p);
+            }
+            o.put("umgeplant", z.umgeplant);
+            o.put("laenge", z.strecke != null ? z.strecke.laenge() : 0);
+        }
+        o.put("pts", pts);
+        call.resolve(o);
     }
 
     @PluginMethod
@@ -298,6 +325,7 @@ public class NaviPlugin extends Plugin {
                 o.put("rest", r);
                 o.put("abw", Double.isNaN(z.abw) ? null : z.abw);
                 o.put("abseits", z.abseitsGemeldet);
+                o.put("umgeplant", z.umgeplant);
                 // nächster Abbiegehinweis innerhalb von 1 km für die Anzeige
                 double d = Double.isNaN(z.fortschritt) ? 0 : z.fortschritt;
                 for (double[] h : z.hinweise) {
