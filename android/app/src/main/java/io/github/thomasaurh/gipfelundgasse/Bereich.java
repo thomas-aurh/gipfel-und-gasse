@@ -34,6 +34,16 @@ public final class Bereich {
         }
     }
 
+    /**
+     * Bereich aus der Adresse (?von=100&bis=199), für den Fall, dass das WebView die Range-Kopfzeile nicht an
+     * shouldInterceptRequest weiterreicht. Als Kopfzeile geschrieben, damit dieselben Grenzen gelten; null ohne Angabe.
+     */
+    public static String ausAdresse(String von, String bis) {
+        if (von == null || !von.matches("\\d{1,15}")) return null;
+        if (bis != null && !bis.isEmpty() && !bis.matches("\\d{1,15}")) return null;
+        return "bytes=" + von + "-" + (bis == null ? "" : bis);
+    }
+
     /** Erlaubte Pfadteile unter /_karten_/: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich (kein „..“). */
     public static boolean sichererName(String s) {
         return s != null && s.matches("[a-z0-9][a-z0-9.\\-]{0,80}") && !s.contains("..");

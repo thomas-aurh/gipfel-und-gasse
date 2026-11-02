@@ -53,4 +53,13 @@ public class BereichTest {
         assertFalse(Bereich.gleicheDatei(da, "hoehe.pmtiles", "ab12", 100));
         assertFalse(Bereich.gleicheDatei(null, "karte.pmtiles", "ab12", 100));
     }
+
+    @Test public void bereichAusAdresse() {
+        assertEquals("bytes=100-199", Bereich.ausAdresse("100", "199"));
+        assertEquals("bytes=100-", Bereich.ausAdresse("100", null));
+        assertNull(Bereich.ausAdresse(null, "5"));
+        assertNull(Bereich.ausAdresse("-1", "5"));
+        assertNull(Bereich.ausAdresse("1", "5x"));
+        assertEquals(100, Bereich.lesen(Bereich.ausAdresse("100", "199"), 1000).laenge());
+    }
 }
