@@ -37,6 +37,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -44,17 +46,34 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Bei Pull Requests, die nur die App betreffen (Offline-Seite, Offline-Bündel), werden die veröffentlichten Pakete
+      # geprüft statt neu gebaut: das dauert Minuten statt einer halben Stunde. Neu gebaut wird bei Änderungen an
+      # karten/, am Ablauf selbst, an den Routendaten-Werkzeugen und immer auf main (von Hand, monatlich).
+      - name: Art des Laufs
+        id: art
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "neu=true" >> "$GITHUB_OUTPUT"; echo "Lauf: neu bauen"; exit 0; fi
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > /tmp/geaendert.txt
+          cat /tmp/geaendert.txt
+          if grep -Eq '^(karten/|\.github/workflows/kartenpakete\.yml|werkzeuge/brouter-holen\.sh|android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Routing\.java)' /tmp/geaendert.txt; then
+            echo "neu=true" >> "$GITHUB_OUTPUT"; echo "Lauf: Kartenpakete betroffen, neu bauen"
+          else
+            echo "neu=false" >> "$GITHUB_OUTPUT"; echo "Lauf: nur die App betroffen, veröffentlichte Pakete prüfen"
+          fi
+
       - name: Werkzeuge
         run: |
-          pip install pmtiles==3.8.1 osmium==4.3.2
           npm ci
           npx playwright install --with-deps chromium
+          [ "${{ steps.art.outputs.neu }}" = "true" ] || exit 0
+          pip install pmtiles==3.8.1 osmium==4.3.2
           mkdir -p /tmp/pmt
           gh release download -R protomaps/go-pmtiles --pattern '*Linux_x86_64.tar.gz' -D /tmp/pmt
           tar xzf /tmp/pmt/*.tar.gz -C /tmp/pmt
           /tmp/pmt/pmtiles version
 
       - name: Neuesten Protomaps-Weltdatensatz finden
+        if: steps.art.outputs.neu == 'true'
         run: |
           for i in $(seq 0 20); do
             d=$(date -u -d "-$i day" +%Y%m%d)
@@ -68,9 +87,22 @@ jobs:
           exit 1
 
       - name: Bisherige Paketliste holen
+        if: steps.art.outputs.neu == 'true'
         run: gh release download kartenpakete --pattern pakete.json -D /tmp/alt || echo "noch keine Liste"
 
+      - name: Veröffentlichte Pakete holen (statt neu bauen)
+        if: steps.art.outputs.neu != 'true'
+        run: |
+          # nur die Dateien der aktuellen Liste, jede einmal (der Release hält auch noch die der vorigen Liste)
+          gh release download kartenpakete --pattern pakete.json -D ausgabe
+          python3 -c "import json, os; print('\n'.join(sorted({os.path.basename(f['url']) for p in json.load(open('ausgabe/pakete.json'))['pakete'] for f in p['dateien']})))" > /tmp/dateien.txt
+          while read -r f; do gh release download kartenpakete --pattern "$f" -D ausgabe; done < /tmp/dateien.txt
+          # alle Regionen der Liste gelten als gebaut, damit die Proben sie prüfen
+          python3 -c "import json; json.dump([p['id'] for p in json.load(open('ausgabe/pakete.json'))['pakete']], open('ausgabe/gebaut.json', 'w'))"
+          ls -la ausgabe
+
       - name: Pakete bauen
+        if: steps.art.outputs.neu == 'true'
         env:
           PMTILES: /tmp/pmt/pmtiles
         run: |
