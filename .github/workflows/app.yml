@@ -55,20 +55,48 @@ jobs:
       - name: Routen-Engine BRouter holen (feste Fassung)
         run: sh werkzeuge/brouter-holen.sh
 
-      # Fester Schlüssel aus den Repo-Geheimnissen KEYSTORE_B64 / KEYSTORE_PASSWORT (siehe STAND.md).
-      # Ohne ihn: Ersatzschlüssel, der einmal angelegt wird und zwischen den Läufen im Cache liegt,
-      # damit Updates sich über die installierte App legen.
+      # Fester Schlüssel (siehe STAND.md), in dieser Reihenfolge:
+      # 1. KEYSTORE_B64 + KEYSTORE_PASSWORT als Repo-Geheimnisse (Schlüssel von außen),
+      # 2. nur KEYSTORE_PASSWORT: GitHub legt den Schlüssel beim ersten Bau auf main selbst an und bewahrt ihn mit diesem
+      #    Passwort verschlüsselt im Entwurfs-Release „signierschluessel“ auf (Entwürfe sieht nur, wer Schreibrecht hat);
+      #    jeder Bau holt ihn dort. Der Schlüssel verlässt GitHub nie unverschlüsselt.
+      # Ohne beides: Ersatzschlüssel, der einmal angelegt wird und zwischen den Läufen im Cache liegt.
       - name: Signierschlüssel
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORT: ${{ secrets.KEYSTORE_PASSWORT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          ks=android/app/release.keystore
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > android/app/release.keystore
+            echo "$KEYSTORE_B64" | base64 -d > "$ks"
             echo "Fester Schlüssel aus den Geheimnissen"
+          elif [ -n "$KEYSTORE_PASSWORT" ]; then
+            tmp=$(mktemp -d)
+            if gh release download signierschluessel -p fest.keystore.enc -D "$tmp" 2>/dev/null; then
+              # falsches Passwort bricht hier ab: lieber kein Bau als einer mit fremdem Schlüssel
+              openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$tmp/fest.keystore.enc" -out "$ks" -pass env:KEYSTORE_PASSWORT
+              echo "Fester Schlüssel aus dem Entwurfs-Release"
+            elif [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+              keytool -genkeypair -keystore "$ks" -storetype PKCS12 -storepass:env KEYSTORE_PASSWORT -keypass:env KEYSTORE_PASSWORT \
+                -alias gipfelundgasse -keyalg RSA -keysize 4096 -validity 20000 -dname "CN=Gipfel und Gasse"
+              openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -in "$ks" -out "$tmp/fest.keystore.enc" -pass env:KEYSTORE_PASSWORT
+              gh release create signierschluessel --draft --title "Signierschlüssel (verschlüsselt, nicht löschen)" \
+                --notes "Fester Signierschlüssel der App, verschlüsselt mit dem Geheimnis KEYSTORE_PASSWORT. Nicht veröffentlichen und nicht löschen: ohne ihn lassen sich Updates nicht mehr über die installierte App legen." \
+                "$tmp/fest.keystore.enc"
+              echo "::warning::Neuer fester Schlüssel angelegt: diese APK einmal neu installieren (vorher Sicherung speichern)."
+            else
+              echo "::warning::Fester Schlüssel noch nicht angelegt (geschieht beim nächsten Bau auf main): Ersatzschlüssel aus dem Cache"
+            fi
+            rm -rf "$tmp"
           else
             echo "::warning::Kein fester Schlüssel hinterlegt: Ersatzschlüssel aus dem Cache"
           fi
+          if [ -f "$ks" ]; then
+            keytool -list -v -keystore "$ks" -storepass:env KEYSTORE_PASSWORT -alias "${KEYSTORE_ALIAS:-gipfelundgasse}" | grep -E "SHA256:" | head -1
+          fi
       - name: Ersatzschlüssel aus dem Cache
+        if: hashFiles('android/app/release.keystore') == ''
         uses: actions/cache@v4
         with:
           path: android/app/ci.keystore
