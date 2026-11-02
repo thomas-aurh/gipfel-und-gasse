@@ -569,6 +569,11 @@ function pruef(name, bed, info) {
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.7601, lon: 11.385, gen: 6, t: Date.now(), richtung: 45, rest: { meter: 2300, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   await pa2.waitForTimeout(100);
   pruef('App: Pfeil in Gehrichtung (GPS)', (await pfeil()) === 'rotate(45deg)', await pfeil());
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.7601, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2300, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
+  await pa2.waitForTimeout(100);
+  pruef('App: im Stehen ohne Kompass kein alter Pfeil', (await pfeil()) === 'aus', await pfeil());
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.7601, lon: 11.385, gen: 6, t: Date.now(), richtung: 45, rest: { meter: 2300, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
+  await pa2.waitForTimeout(100);
   await pa2.evaluate(() => {
     const art = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
     window.dispatchEvent(new DeviceOrientationEvent(art, { alpha: 270, beta: 0, gamma: 0, absolute: true }));
@@ -579,6 +584,14 @@ function pruef(name, bed, info) {
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.7602, lon: 11.385, gen: 6, t: Date.now(), richtung: 180, rest: { meter: 2300, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   await pa2.waitForTimeout(100);
   pruef('App: Kompass hat Vorrang vor der GPS-Richtung', (await pfeil()) === 'rotate(90deg)', await pfeil());
+  // über Norden hinweg auf dem kurzen Weg: 357° dann 2° ergibt −3° und 2°, nicht 357° und 2° (sonst dreht er fast ganz herum)
+  const kompass = alpha => pa2.evaluate(a => {
+    const art = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.dispatchEvent(new DeviceOrientationEvent(art, { alpha: a, beta: 0, gamma: 0, absolute: true }));
+  }, alpha);
+  await kompass(3); await pa2.waitForTimeout(80); const w1 = await pfeil();
+  await kompass(358); await pa2.waitForTimeout(80); const w2 = await pfeil();
+  pruef('App: Pfeil dreht über Norden auf dem kurzen Weg', w1 === 'rotate(-3deg)' && w2 === 'rotate(2deg)', [w1, w2]);
   // Umplanen: Ziele und Profil gehen an den Dienst; meldet er eine neue Route, zeigt die App sie blau
   pruef('App: Ziele und Profil fürs Umplanen', st1[1].profil === 'hiking-mountain' && st1[1].ziele.length === 1 && st1[1].ziele[0].length === 5 &&
     Math.abs(st1[1].ziele[0][0] - 47.77) < 1e-6 && st1[1].ziele[0][2] > 1000, st1[1].ziele);
