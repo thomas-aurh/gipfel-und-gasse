@@ -12,25 +12,19 @@
   <div id="menueHg" hidden></div>
   <nav id="menue" hidden aria-label="Menü">
     <div class="menue-kopf">Gipfel &amp; Gasse</div>
-    <button data-ziel="karte">🗺️ Karte</button>
-    <h4>Tour</h4>
-    <button data-ziel="planen">✏️ Tour planen</button>
-    <button data-ziel="unterwegs">🧭 Unterwegs</button>
+    <!-- Karte, Planen, Unterwegs und Touren (geplant und gegangen) stehen in der Leiste; hier nur, was dort fehlt -->
     <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
-    <h4>Meine Touren</h4>
-    <button data-ziel="touren">🥾 Geplante Touren</button>
-    <button data-ziel="gegangen">✅ Gegangene Touren</button>
     <button data-ziel="tagebuch">📔 Reisetagebuch</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
-    <button data-ziel="daten">💾 Sicherung und GPX</button>
+    <button data-ziel="daten">💾 Sicherung</button>
     <button data-ziel="info">ℹ️ Info</button>
     <button id="bThema">🌓 Darstellung: automatisch</button>
   </nav>
 
   <div id="kartenknoepfe">
-    <button id="bLagen" title="Kartenart" aria-label="Kartenart">🗺️</button>
+    <button id="bLagen" title="Kartenart und Ebenen" aria-label="Kartenart und Ebenen"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 16 10 5 10-5"/></svg></button>
     <button id="bOrt" title="Mein Standort" aria-label="Mein Standort">◎</button>
     <button id="bKreuz" title="Fadenkreuz: Punkt genau setzen" aria-label="Fadenkreuz" aria-pressed="false">⌖</button>
     <button id="bPlus" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
@@ -352,6 +346,8 @@
         <h3>Bedienung</h3>
         <ul class="klein">
           <li>Karte antippen: der erste Punkt ist der Start, jeder weitere ein neues Ziel.</li>
+          <li>Telefon: das Blatt unten am Kopf hoch- oder herunterziehen; steht der Inhalt ganz oben, klappt ein Wisch nach unten es zu.
+            Antippen des Titels klappt es wieder auf.</li>
           <li>⌖ Fadenkreuz (rechts an der Karte): Karte unter das Kreuz schieben, dann „Punkt hier“ – für genaue Punkte.
             Ein Tipp auf die Karte holt die Stelle unters Kreuz statt einen Punkt zu setzen.</li>
           <li>Route antippen fügt dort ein Zwischenziel ein; Punkte lassen sich ziehen, antippen zeigt „Punkt entfernen“.</li>
