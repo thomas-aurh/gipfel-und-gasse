@@ -106,8 +106,24 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+        # Der Link …/releases/download/neueste/Gipfel-und-Gasse.apk soll nie ins Leere gehen: die Seite bleibt bestehen,
+        # die neue APK kommt unter einem Zwischennamen dazu und ersetzt die alte erst danach (nur Umbenennen, kein Neuanlegen)
         run: |
-          gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" \
-            --title "Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})" \
-            --notes "Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"
+          titel="Gipfel & Gasse – neueste Fassung (Bau ${{ github.run_number }})"
+          text="Android-App zum Selbstinstallieren. Auf dem Handy diese Seite öffnen, Gipfel-und-Gasse.apk antippen, Installation aus dieser Quelle einmal erlauben. Stand: ${{ github.sha }}"
+          if ! gh release view neueste >/dev/null 2>&1; then
+            gh release create neueste Gipfel-und-Gasse.apk --latest --target "${{ github.sha }}" --title "$titel" --notes "$text"
+            exit 0
+          fi
+          cp Gipfel-und-Gasse.apk Gipfel-und-Gasse-neu.apk
+          gh release upload neueste Gipfel-und-Gasse-neu.apk --clobber
+          rel=$(gh api "repos/${{ github.repository }}/releases/tags/neueste" --jq .id)
+          alt=$(gh api "repos/${{ github.repository }}/releases/$rel/assets" --jq '.[] | select(.name == "Gipfel-und-Gasse.apk") | .id')
+          neu=$(gh api "repos/${{ github.repository }}/releases/$rel/assets" --jq '.[] | select(.name == "Gipfel-und-Gasse-neu.apk") | .id')
+          test -n "$neu"
+          if [ -n "$alt" ]; then gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$alt"; fi
+          gh api -X PATCH "repos/${{ github.repository }}/releases/assets/$neu" -f name=Gipfel-und-Gasse.apk >/dev/null
+          # Tag auf den gebauten Commit, dann Titel und Text
+          gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/neueste" -f sha="${{ github.sha }}" -F force=true >/dev/null
+          gh release edit neueste --latest --title "$titel" --notes "$text"
+          gh api "repos/${{ github.repository }}/releases/$rel/assets" --jq '.[].name' | grep -qx Gipfel-und-Gasse.apk

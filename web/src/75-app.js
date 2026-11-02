@@ -88,7 +88,9 @@ if (NATIV) {
     app.folgen = !!st.folgen; app.aufz = !!st.aufzeichnen;
     knoepfe();
     if (st.lat != null) {
-      posNeu({ coords: { latitude: st.lat, longitude: st.lon, accuracy: st.gen || 20, altitude: null }, timestamp: st.t || Date.now() });
+      // richtung: Bewegungsrichtung aus dem GPS des Dienstes (nur beim Gehen); im Stehen zeigt der Kompass die Richtung
+      posNeu({ coords: { latitude: st.lat, longitude: st.lon, accuracy: st.gen || 20, altitude: null,
+        heading: st.richtung == null ? null : st.richtung, speed: st.richtung == null ? 0 : 1 }, timestamp: st.t || Date.now() });
       $('gpsStatus').textContent = (st.laeuft ? 'Dienst läuft' : 'GPS') + ' · Genauigkeit ± ' + Math.round(st.gen || 0) + ' m';
     }
     if (st.rest) {
