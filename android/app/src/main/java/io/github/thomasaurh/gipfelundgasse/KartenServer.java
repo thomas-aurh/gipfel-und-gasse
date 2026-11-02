@@ -46,14 +46,16 @@ public class KartenServer extends BridgeWebViewClient {
         String pfad = request.getUrl().getPath();
         if (pfad == null || !pfad.startsWith(PFAD)) return super.shouldInterceptRequest(view, request);
         try {
-            return liefern(pfad.substring(PFAD.length()), request.getRequestHeaders());
+            return liefern(pfad.substring(PFAD.length()), request.getRequestHeaders(),
+                Bereich.ausAdresse(request.getUrl().getQueryParameter("von"), request.getUrl().getQueryParameter("bis")));
         } catch (Exception e) {
             Log.e(TAG, "Kartendatei nicht lieferbar: " + pfad, e);
             return antwort(500, "Internal Server Error", null, null);
         }
     }
 
-    private WebResourceResponse liefern(String rest, Map<String, String> kopf) throws IOException {
+    /** @param ausAdresse Bereich aus ?von=&bis= (gilt, wenn keine Range-Kopfzeile ankommt) */
+    private WebResourceResponse liefern(String rest, Map<String, String> kopf, String ausAdresse) throws IOException {
         String[] teile = rest.split("/");
         if (teile.length != 2 || !Bereich.sichererName(teile[0]) || !Bereich.sichererName(teile[1])) {
             return antwort(404, "Not Found", null, null);
@@ -63,6 +65,7 @@ public class KartenServer extends BridgeWebViewClient {
         long laenge = f.length();
         String range = null;
         if (kopf != null) for (Map.Entry<String, String> e : kopf.entrySet()) if ("range".equalsIgnoreCase(e.getKey())) range = e.getValue();
+        if (range == null) range = ausAdresse;
 
         Map<String, String> h = new HashMap<>();
         h.put("Accept-Ranges", "bytes");

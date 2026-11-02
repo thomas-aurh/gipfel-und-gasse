@@ -7,9 +7,25 @@ const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: nu
 
 function paketGrenzen(p) { const b = p.bbox; return L.latLngBounds([b[1], b[0]], [b[3], b[2]]); }
 function paketFuer(lat, lon) { return OFF.installiert.find(p => p.bbox && lon >= p.bbox[0] && lon <= p.bbox[2] && lat >= p.bbox[1] && lat <= p.bbox[3]); }
+// Lesen aus einer Paketdatei in Teilen: der Bereich steht in der Range-Kopfzeile UND in der Adresse (?von=&bis=).
+// Reicht ein WebView die Kopfzeile nicht an die App weiter, käme sonst die ganze Datei (Hunderte MB) und die
+// Kartenbibliothek bräche ab; der Kartenserver der App nimmt dann den Bereich aus der Adresse.
+class PaketQuelle {
+  constructor(url) { this.url = url; }
+  getKey() { return this.url; }
+  async getBytes(offset, length, signal) {
+    const bis = offset + length - 1;
+    const r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, headers: { range: 'bytes=' + offset + '-' + bis } });
+    const n = +r.headers.get('Content-Length');
+    if (r.status === 200 && (!n || n > length)) throw new Error('Kartenserver liefert die ganze Datei statt eines Teils');
+    if (r.status !== 206 && r.status !== 200) throw new Error('Kartendatei: Status ' + r.status);
+    return { data: await r.arrayBuffer() };
+  }
+}
+function paketPmtiles(url) { return new window.GugOffline.PMTiles(new PaketQuelle(url)); }
 function hoehenQuelle(p) {
   if (!window.GugOffline || !(p.dateien || []).some(d => d.name === 'hoehe.pmtiles')) return null;
-  if (!OFF.hoehe[p.id]) OFF.hoehe[p.id] = new window.GugOffline.PMTiles('/_karten_/' + p.id + '/hoehe.pmtiles');
+  if (!OFF.hoehe[p.id]) OFF.hoehe[p.id] = paketPmtiles('/_karten_/' + p.id + '/hoehe.pmtiles');
   return OFF.hoehe[p.id];
 }
 
@@ -256,15 +272,85 @@ function offlineEbenen() {
   document.querySelectorAll('.nur-offline').forEach(e => { e.hidden = !da; });
   if (da && window.GugOffline) {
     const hinweis = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>, <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
-    LAGEN.offline = L.layerGroup(OFF.installiert.filter(p => (p.dateien || []).some(d => d.name === 'karte.pmtiles')).map(p =>
-      window.GugOffline.leafletLayer({
-        url: '/_karten_/' + p.id + '/karte.pmtiles', flavor: 'light', lang: 'de', maxDataZoom: p.maxzoom || 15,
+    LAGEN.offline = L.layerGroup(OFF.installiert.filter(p => (p.dateien || []).some(d => d.name === 'karte.pmtiles')).map(p => {
+      const ebene = window.GugOffline.leafletLayer({
+        url: paketPmtiles('/_karten_/' + p.id + '/karte.pmtiles'), flavor: 'light', lang: 'de', maxDataZoom: p.maxzoom || 15,
         bounds: paketGrenzen(p), attribution: hinweis, maxZoom: 19
-      })));
+      });
+      // Kacheln, die nicht gezeichnet werden konnten: gezählt für „Offline-Karte prüfen“
+      ebene.on('tileerror', e => offlineFehler('Kachel ' + p.id + ' ' + (e.coords ? e.coords.z + '/' + e.coords.x + '/' + e.coords.y : '') + ': ' + ((e.error && (e.error.message || e.error)) || 'Fehler')));
+      ebene.on('tileload', () => { OFF.kachelnOk = (OFF.kachelnOk || 0) + 1; });
+      return ebene;
+    }));
     LAGEN.relief = new Relief({ maxZoom: 19, zIndex: 2, attribution: 'Höhen: Mapzen Terrain Tiles (SRTM, EU-DEM u. a.)' });
   }
   lagenAnwenden();
 }
+
+// ---------- Offline-Karte prüfen: misst auf dem Gerät, wo es hakt (Datei, Lesen in Teilen, Kopf, Kachel, Zeichnen) ----------
+OFF.fehler = [];
+function offlineFehler(text) {
+  OFF.fehler.push(new Date().toLocaleTimeString('de-DE') + ' ' + String(text).slice(0, 300));
+  if (OFF.fehler.length > 8) OFF.fehler.shift();
+}
+// Fehler der Kartenbibliothek, die nicht als Kachelfehler ankommen (sie arbeitet mit Promises)
+window.addEventListener('unhandledrejection', e => {
+  const m = String((e.reason && (e.reason.message || e.reason)) || '');
+  if (/pmtiles|byte serving|etag|bad response|tile|protomaps|range/i.test(m)) offlineFehler('Bibliothek: ' + m);
+});
+async function offlinePruefen() {
+  const z = [], c = karte.getCenter(), zoom = karte.getZoom();
+  z.push('Gipfel & Gasse, Prüfung Offline-Karte, ' + new Date().toLocaleString('de-DE'));
+  z.push('Gerät: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 160));
+  z.push('Bibliothek: ' + (window.GugOffline ? 'geladen' : 'FEHLT'));
+  z.push('Karte: Zoom ' + zoom + ', Mitte ' + c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + '; Grundkarte gewählt: ' + lagenWahl.basis +
+    '; Offline-Ebene ' + (LAGEN.offline ? (karte.hasLayer(LAGEN.offline) ? 'an' : 'aus') : 'nicht angelegt') + '; im Paketgebiet: ' + (paketFuer(c.lat, c.lng) ? 'ja' : 'nein'));
+  z.push('Kacheln gezeichnet: ' + (OFF.kachelnOk || 0) + ', Fehler: ' + OFF.fehler.length);
+  if (!OFF.installiert.length) z.push('Kein Paket installiert.');
+  for (const p of OFF.installiert) {
+    z.push('— Paket ' + p.id + ' (Stand ' + (p.stand || '?') + ', bis Zoom ' + (p.maxzoom || 15) + '): ' + (p.dateien || []).map(d => d.name + ' ' + (d.groesse ? (d.groesse >= 1e6 ? Math.round(d.groesse / 1e6) + ' MB' : Math.max(1, Math.round(d.groesse / 1e3)) + ' kB') : '')).join(', '));
+    const url = '/_karten_/' + p.id + '/karte.pmtiles';
+    // beide Wege einzeln: Range-Kopfzeile (Standard) und Bereich in der Adresse (Ausweg der App)
+    for (const [weg, adresse, kopf] of [['Kopfzeile', url, { range: 'bytes=0-126' }], ['Adresse', url + '?von=0&bis=126', {}]]) {
+      const ab = new AbortController();
+      try {
+        const r = await fetch(adresse, { headers: kopf, cache: 'no-store', signal: ab.signal });
+        const laenge = +r.headers.get('Content-Length');
+        if (r.status === 200 && laenge > 1e6) { ab.abort(); z.push('Lesen in Teilen (' + weg + '): ganze Datei statt eines Teils (Status 200, ' + Math.round(laenge / 1e6) + ' MB) ✗'); continue; }
+        const b = new Uint8Array(await r.arrayBuffer());
+        const kennung = String.fromCharCode.apply(null, b.slice(0, 7));
+        z.push('Lesen in Teilen (' + weg + '): Status ' + r.status + ', Content-Range ' + (r.headers.get('Content-Range') || '–') + ', ' + b.length + ' Bytes, Kennung „' + kennung + '“ v' + b[7] +
+          (r.status === 206 && b.length === 127 && kennung === 'PMTiles' ? ' ✓' : ' ✗'));
+      } catch (e) { z.push('Lesen in Teilen (' + weg + '): FEHLER ' + (e.message || e)); }
+    }
+    if (!window.GugOffline) continue;
+    try {
+      const pm = paketPmtiles(url), k = await pm.getHeader();
+      z.push('Kopf: Zoom ' + k.minZoom + '–' + k.maxZoom + ', Kacheln ' + (k.numAddressedTiles || '?') + ', Typ ' + k.tileType + ', Gebiet ' +
+        [k.minLon, k.minLat, k.maxLon, k.maxLat].map(x => x.toFixed(2)).join(', ') + ' ✓');
+      // eine Kachel an der Kartenmitte (sonst in der Mitte des Pakets)
+      const drin = paketFuer(c.lat, c.lng) === p;
+      const lat = drin ? c.lat : (p.bbox[1] + p.bbox[3]) / 2, lon = drin ? c.lng : (p.bbox[0] + p.bbox[2]) / 2;
+      const kz = Math.max(k.minZoom, Math.min(k.maxZoom, Math.round(zoom))), kp = R.kachelPixel(lat, lon, kz);
+      const t0 = Date.now(), t = await pm.getZxy(kz, kp.x, kp.y);
+      z.push('Kachel ' + kz + '/' + kp.x + '/' + kp.y + (drin ? ' (Kartenmitte)' : ' (Paketmitte)') + ': ' + (t && t.data ? t.data.byteLength + ' Bytes in ' + (Date.now() - t0) + ' ms ✓' : 'leer ✗'));
+    } catch (e) { z.push('Kopf oder Kachel: FEHLER ' + (e.message || e)); }
+    for (const datei of ['hoehe.pmtiles', 'orte.json.gz']) {
+      if (!(p.dateien || []).some(d => d.name === datei)) continue;
+      try { const r = await fetch('/_karten_/' + p.id + '/' + datei + '?von=0&bis=15', { headers: { range: 'bytes=0-15' }, cache: 'no-store' }); await r.arrayBuffer(); z.push(datei + ': Status ' + r.status + (r.status === 206 ? ' ✓' : ' ✗')); }
+      catch (e) { z.push(datei + ': FEHLER ' + (e.message || e)); }
+    }
+  }
+  if (OFF.fehler.length) z.push('Letzte Fehler:', ...OFF.fehler);
+  return z.join('\n');
+}
+$('bOfflinePruefen').onclick = async () => {
+  const b = $('bOfflinePruefen'), aus = $('offlineBericht');
+  b.disabled = true; aus.hidden = false; aus.textContent = 'Prüfe …';
+  try { aus.textContent = await offlinePruefen(); } catch (e) { aus.textContent = 'Prüfung abgebrochen: ' + (e.message || e); }
+  b.disabled = false; $('bOfflineBericht').hidden = false;
+};
+$('bOfflineBericht').onclick = () => textTeilen($('offlineBericht').textContent);
 
 // Kartenmitte außerhalb jedes Pakets? Dann zeigt die Kartenwahl „Offline-Karte“ die topografische Karte (20-karte.js)
 function offlineAusserhalb() { const c = karte.getCenter(); return !paketFuer(c.lat, c.lng); }

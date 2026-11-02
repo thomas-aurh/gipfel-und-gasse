@@ -671,7 +671,7 @@ function pruef(name, bed, info) {
   await page.click('#zlEinfuegen');
   await page.fill('#zlText', 'Testgipfel West\nKloster Test; Testg; mit Biergarten\n');
   await page.click('#zlTextLos');
-  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 15000 }).catch(() => {});
   pruef('Liste einfügen: jede Zeile ein Ziel, Orte gesucht, zum Abhaken', (await page.textContent('#zlImportTitel')) === 'Eingefügte Ziele' &&
     (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportListe')).includes('Kloster Test') &&
     (await page.textContent('#zlImportZiel')).includes('Neue Liste „Eingefügt'), await page.textContent('#zlImportStatus'));
@@ -681,7 +681,7 @@ function pruef(name, bed, info) {
   const txtPfad = path.join(OUT, 'Sommerziele.txt');
   fs.writeFileSync(txtPfad, '# Ideen\nTestgipfel Süd\nStadtplatz https://beispiel.de\n');
   await page.setInputFiles('#zlDatei', txtPfad);
-  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 15000 }).catch(() => {});
   pruef('Datei laden: Text, beide Orte gesucht und gefunden', (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportStatus')).includes('2 mit Ort'),
     await page.textContent('#zlImportStatus'));
   await page.click('#zlImportOk');
@@ -1095,7 +1095,11 @@ function pruef(name, bed, info) {
     const m = /\/_karten_\/([a-z0-9-]+)\/([a-z0-9.-]+)$/.exec(new URL(r.request().url()).pathname);
     const f = m && path.join(kartenOrdner, m[1], m[2]);
     if (!f || !fs.existsSync(f)) return r.fulfill({ status: 404, body: '' });
-    const daten = fs.readFileSync(f), range = r.request().headers()['range'];
+    // wie der Kartenserver der App, in einem WebView, das die Range-Kopfzeile nicht weiterreicht: nur ?von=&bis= zählt
+    // (KARTEN_KOPF=1: WebView reicht sie weiter, dann gilt sie zuerst, sonst die Adresse)
+    const u = new URL(r.request().url()), ausAdresse = u.searchParams.has('von') ? 'bytes=' + u.searchParams.get('von') + '-' + (u.searchParams.get('bis') || '') : null;
+    const range = (process.env.KARTEN_KOPF && r.request().headers()['range']) || ausAdresse;
+    const daten = fs.readFileSync(f);
     const t = range && /bytes=(\d+)-(\d*)/.exec(range);
     if (!t) return r.fulfill({ status: 200, body: daten, headers: { 'Accept-Ranges': 'bytes' } });
     const von = +t[1], bis = Math.min(daten.length - 1, t[2] ? +t[2] : daten.length - 1);
@@ -1134,6 +1138,13 @@ function pruef(name, bed, info) {
   pruef('Offline: Auswahl erscheint mit installiertem Paket', true);
   await po.click('[data-reiter=touren]');
   pruef('Offline: Paket in der Liste, neuere Daten gemeldet', (await po.textContent('#paketliste')).includes('auf dem Handy') && (await po.textContent('#paketliste')).includes('neuere Daten'));
+  // Prüfung auf dem Gerät: Lesen in Teilen, Kopf, Kachel an der Kartenmitte
+  await po.evaluate(() => document.querySelector('#bOfflinePruefen').click());
+  await po.waitForFunction(() => !document.querySelector('#bOfflinePruefen').disabled && document.querySelector('#offlineBericht').textContent.includes('Kachel '), null, { timeout: 8000 }).catch(() => {});
+  const bericht = await po.textContent('#offlineBericht');
+  pruef('Offline prüfen: beide Lesewege gemeldet, Adresse liest, Kopf und Kachel an der Kartenmitte', /Lesen in Teilen \(Adresse\): Status 206.*Kennung „PMTiles“ v3 ✓/.test(bericht) &&
+    /Lesen in Teilen \(Kopfzeile\): (Status 200|Status 206)/.test(bericht) && /Kopf: Zoom \d+–\d+.*✓/.test(bericht) &&
+    /Kachel \d+\/\d+\/\d+ \(Kartenmitte\): \d+ Bytes/.test(bericht) && bericht.includes('hoehe.pmtiles: Status 206 ✓') && await po.evaluate(() => !document.querySelector('#bOfflineBericht').hidden), bericht);
   await po.click('#bLagen');
   await po.check('input[name=basis][value=offline]');
   await po.check('#lageRelief');

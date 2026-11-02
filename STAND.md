@@ -47,6 +47,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
+- **Offline-Karte leer auf dem Pixel (02.11., Thomas):** Ursache nicht gemessen; Verdacht: Range-Kopfzeile kommt im
+  KartenServer nicht an (dann käme die ganze Datei). #29 liest zusätzlich über `?von=&bis=` und bringt die Prüfung; deren
+  Ergebnis von Thomas steht aus.
+- **Info ohne Netz kennt keine Läden:** die Orte-Datei des Pakets enthält Gasthäuser, Cafés, Hütten, Sehenswürdigkeiten
+  und Ähnliches, aber keine Geschäfte (`karten/orte.py`); Läden mit Öffnungszeiten findet Info nur mit Netz (Overpass).
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
   aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
   der Nähe).
@@ -135,6 +140,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **02.11.** Offline-Karte: Pakete werden in Teilen über Kopfzeile und Adresse gelesen (Ausweg, falls das WebView die
+  Range-Kopfzeile nicht an die App weiterreicht), „🔍 Offline-Karte prüfen“ misst auf dem Gerät Lesen, Kopf, Kachel und
+  Zeichenfehler (#29). Anlass: Thomas' Pixel zeigte am 02.11. mit Oberbayern-Paket eine leere graue Karte.
 
 - **02.11.** Reiseziele (Menü ⭐): Listen mit Zielen (Ortssuche, Notiz, Link, Stichworte, Stand), ⭐ auf der Karte mit
   Anreise, Wetter dort und „Als Stopp“; Liste einfügen und Datei laden (Text, CSV, GPX, KML, GeoJSON; Orte ohne Koordinaten sucht die App,
