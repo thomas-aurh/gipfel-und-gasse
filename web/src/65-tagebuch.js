@@ -8,7 +8,7 @@ function tagebuchLesen() {
   return d && Array.isArray(d.reisen) && Array.isArray(d.eintraege) ? d : { reisen: [], eintraege: [] };
 }
 function tagebuchSchreiben(d) {
-  if (SPEICHER.schreiben('tagebuch', d)) return true;
+  if (SPEICHER.schreiben('tagebuch', d)) { tagebuchPunkte(); return true; }
   melde('Speichern ging nicht: Speicher voll oder gesperrt.', 6);
   return false;
 }
@@ -431,3 +431,129 @@ async function tagebuchEinlesen(text) {
   d.eintraege = d.eintraege.concat(eDazu);
   return tagebuchSchreiben(d) ? eDazu.length + rDazu.length : 0;
 }
+
+// ---------- Einträge auf der Karte ----------
+// jeder Eintrag mit Ort als 📔-Punkt; das Fenster zeigt Zeit, Ort und Textanfang, „Öffnen“ springt zum Eintrag
+function tagebuchPunkte() {
+  ebeneTagebuch.clearLayers();
+  const d = tagebuchLesen();
+  const reisen = Object.fromEntries(d.reisen.map(r => [r.id, r]));
+  for (const e of d.eintraege) {
+    if (!e.ort || !reisen[e.reise]) continue;
+    const m = L.marker([e.ort.lat, e.ort.lon], { title: reisen[e.reise].name,
+      icon: L.divIcon({ className: '', html: '<div class="tb-mk">📔</div>', iconSize: [28, 28], iconAnchor: [14, 14] }) });
+    m.bindPopup(() => {
+      const box = document.createElement('div');
+      const anfang = e.text.length > 140 ? e.text.slice(0, 140) + '…' : e.text;
+      box.innerHTML = '<b>' + R.esc(reisen[e.reise].name) + '</b><br><span class="klein">' +
+        R.esc(new Date(e.zeit).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + R.uhr(new Date(e.zeit)) + ' Uhr · ' + ortWetterText(e)) +
+        '</span>' + (anfang ? '<p style="margin:6px 0">' + R.esc(anfang) + '</p>' : '<br>');
+      const b = document.createElement('button');
+      b.className = 'knopf'; b.textContent = 'Öffnen';
+      b.onclick = () => { karte.closePopup(); eintragZeigen(e.reise, e.id); };
+      box.appendChild(b);
+      return box;
+    });
+    m.addTo(ebeneTagebuch);
+  }
+}
+
+// zu einem Eintrag springen: Reise öffnen, Eintrag ins Bild und kurz hervorheben
+async function eintragZeigen(reiseId, eintragId) {
+  TB.ansicht = 'reise';
+  TB.reise = reiseId;
+  reiter('tagebuch');
+  await reiseZeigen(reiseId);
+  const el = document.querySelector('.tb-eintrag[data-eintrag="' + eintragId + '"]');
+  if (!el) return;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('hervor');
+  setTimeout(() => el.classList.remove('hervor'), 2500);
+}
+
+// ---------- Reise als Heft (Drucken oder „Als PDF speichern“) ----------
+let heftUrls = [];
+async function heftBauen(reiseId) {
+  const d = tagebuchLesen();
+  const r = d.reisen.find(x => x.id === reiseId);
+  if (!r) return false;
+  heftUrls.forEach(u => URL.revokeObjectURL(u)); heftUrls = [];
+  const eintraege = d.eintraege.filter(e => e.reise === reiseId).sort((a, b) => a.zeit - b.zeit);
+  const touren = R.reiseTouren(tourenLesen(), r);
+  // Nummern für Einträge mit Ort, gleich in Skizze und Text
+  let nr = 0;
+  const nummer = new Map(eintraege.filter(e => e.ort).map(e => [e.id, ++nr]));
+  const skizze = R.heftSkizze(eintraege.filter(e => e.ort).map(e => ({ lat: e.ort.lat, lon: e.ort.lon, nr: nummer.get(e.id) })),
+    touren.map(t => spurEntpacken(t.spur)), 700, 380);
+  const fotos = eintraege.reduce((n, e) => n + (e.fotos || []).length, 0);
+  const km = touren.reduce((s, t) => s + (+t.kurz.laenge || 0), 0);
+  const h = $('tbHeft');
+  h.innerHTML = '<h1>' + R.esc(r.name) + '</h1><p class="unter">' + R.esc(zeitraumText(r)) + '</p>' +
+    '<div class="heft-zahlen"><span><b>' + eintraege.length + '</b>' + (eintraege.length === 1 ? 'Eintrag' : 'Einträge') + '</span><span><b>' + fotos + '</b>Fotos</span>' +
+    (touren.length ? '<span><b>' + touren.length + '</b>' + (touren.length === 1 ? 'Tour' : 'Touren') + '</span><span><b>' + R.kmText(km) + '</b>unterwegs</span>' : '') + '</div>' + skizze;
+  const warten = [];
+  for (const t of R.tagebuchTage(eintraege).reverse()) {
+    const h2 = document.createElement('h2');
+    h2.textContent = datumLang(t.tag);
+    h.appendChild(h2);
+    for (const e of t.eintraege) {
+      const div = document.createElement('div');
+      div.className = 'heft-eintrag';
+      div.innerHTML = '<div class="heft-kopf">' + (nummer.has(e.id) ? '<span class="nr">' + nummer.get(e.id) + '</span>' : '') +
+        R.esc(R.uhr(new Date(e.zeit)) + ' Uhr' + (ortWetterText(e) ? ' · ' + ortWetterText(e) : '')) + '</div>';
+      if (e.text) { const p = document.createElement('div'); p.className = 'heft-text'; p.textContent = e.text; div.appendChild(p); }
+      if (e.fotos && e.fotos.length) {
+        const g = document.createElement('div');
+        g.className = 'heft-fotos';
+        for (const f of e.fotos) {
+          const b = await FOTOS.holen(f).catch(() => null);
+          if (!b) continue;
+          const img = document.createElement('img');
+          img.alt = '';
+          const u = URL.createObjectURL(b); heftUrls.push(u);
+          img.src = u;
+          warten.push(img.decode().catch(() => {}));
+          g.appendChild(img);
+        }
+        div.appendChild(g);
+      }
+      h.appendChild(div);
+    }
+  }
+  const fuss = document.createElement('p');
+  fuss.className = 'heft-fuss';
+  fuss.textContent = 'Reisetagebuch aus Gipfel & Gasse, erstellt am ' + new Date().toLocaleDateString('de-DE') + '.';
+  h.appendChild(fuss);
+  await Promise.all(warten);
+  return true;
+}
+
+function heftEnde() {
+  if (!document.documentElement.classList.contains('heft')) return;
+  document.documentElement.classList.remove('heft');
+  $('tbHeft').hidden = true;
+  druckName = null;
+  themaSetzen(thema, false);   // Darstellung zurück (fürs Heft auf hell gestellt)
+  karte.invalidateSize();
+}
+window.addEventListener('afterprint', heftEnde);
+
+$('tbHeftKnopf').onclick = async () => {
+  const b = $('tbHeftKnopf');
+  if (b.disabled) return;
+  b.disabled = true;
+  try {
+    if (!(await heftBauen(TB.reise))) return;
+    document.documentElement.dataset.thema = 'hell';   // Papier ist weiß
+    $('tbHeft').hidden = false;
+    document.documentElement.classList.add('heft');
+    druckName = 'Reisetagebuch ' + $('tbTitel').textContent;
+    try {
+      const r = window.print();
+      if (r && typeof r.then === 'function') { r.then(heftEnde, err => { heftEnde(); melde('Drucken ging nicht: ' + (err.message || err)); }); return; }
+    } catch (err) { melde('Drucken ging nicht: ' + err.message); }
+    setTimeout(heftEnde, 500);
+  } finally { b.disabled = false; }
+};
+
+tagebuchPunkte();

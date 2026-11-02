@@ -479,6 +479,35 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Eintrag als Punkt auf der Karte; „Öffnen“ springt zum Eintrag
+  pruef('Tagebuch: Eintrag als Punkt auf der Karte', (await page.$$('.tb-mk')).length === 1);
+  await page.click('[data-reiter=karte]');
+  await page.evaluate(() => document.querySelector('.tb-mk').parentElement.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.waitForSelector('.leaflet-popup button:has-text("Öffnen")');
+  pruef('Tagebuch-Punkt: Fenster mit Reise und Text', (await page.textContent('.leaflet-popup')).includes('Testurlaub') && (await page.textContent('.leaflet-popup')).includes('Baden'));
+  await page.click('.leaflet-popup button:has-text("Öffnen")');
+  await page.waitForTimeout(200);
+  pruef('Tagebuch-Punkt: Öffnen zeigt den Eintrag hervorgehoben', await page.isVisible('#tbReise') && (await page.$$('.tb-eintrag.hervor')).length === 1);
+  await zuSeite(page, 'karte');
+  await page.click('#bLagen');
+  await page.uncheck('#lageTagebuch');
+  pruef('Kartenwahl: Tagebuch-Ebene abschaltbar', (await page.$$('.tb-mk')).length === 0);
+  await page.check('#lageTagebuch');
+  await page.keyboard.press('Escape'); await page.click('#karte', { position: { x: 5, y: 300 } }).catch(() => {});
+  // Heft: Druck abfangen, Inhalt prüfen und als echtes PDF drucken
+  await zuSeite(page, 'tagebuch');
+  await page.evaluate(() => { window.__heftDruck = null; window.__altPrint = window.print; window.print = () => { window.__heftDruck = { klasse: document.documentElement.classList.contains('heft'), thema: document.documentElement.dataset.thema }; };
+    window.__altTimeout = window.setTimeout; window.setTimeout = (f, ms, ...x) => ms === 500 && window.__heftDruck ? 0 : window.__altTimeout(f, ms, ...x); });
+  await page.click('#tbHeftKnopf');
+  await page.waitForFunction(() => window.__heftDruck, null, { timeout: 8000 });
+  const heft = await page.evaluate(() => ({ d: window.__heftDruck, h1: document.querySelector('#tbHeft h1').textContent, svg: !!document.querySelector('#tbHeft svg circle'),
+    tage: document.querySelectorAll('#tbHeft h2').length, fotos: document.querySelectorAll('#tbHeft .heft-fotos img').length, text: document.querySelector('#tbHeft').textContent }));
+  pruef('Heft: Titel, Skizze mit Orten, Tag, Foto, hell', heft.d.klasse && heft.d.thema === 'hell' && heft.h1 === 'Testurlaub' && heft.svg && heft.tage === 1 && heft.fotos === 1 && heft.text.includes('Baden'), heft);
+  await page.screenshot({ path: path.join(OUT, '11-heft.png'), fullPage: true });
+  const heftPdf = await page.pdf({ path: path.join(OUT, '11-heft.pdf'), format: 'A4', printBackground: true });
+  pruef('Heft: PDF entsteht', heftPdf.length > 5000);
+  await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); window.print = window.__altPrint; window.setTimeout = window.__altTimeout; });
+  pruef('Heft: danach wieder die App', !(await page.evaluate(() => document.documentElement.classList.contains('heft'))) && await page.isVisible('#tbReise'));
   // Speichern, während ein Foto noch verkleinert wird, und doppelt getippt: ein Eintrag, mit Foto
   await page.click('#tbNeuerEintrag');
   await page.fill('#tbText', 'Zweiter Tag');
