@@ -124,6 +124,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **02.11.** Blatt unten am Telefon zieht am ganzen Kopf mit dem Finger mit und rastet ein, Wisch nach unten im Inhalt
+  klappt es zu; Kartenart mit eigenem Zeichen (vorher dieselbe Karte wie „Karte“ in der Leiste), Menü „Sicherung“ statt
+  „Sicherung und GPX“ (dort lag kein GPX) (#25). Nicht auf dem Handy geprüft (Klicktest mit Maus- und Touch-Nachbildung).
+
 - **02.11.** Ablauf „Kartenpakete“ bei Pull Requests, die nur die App betreffen: prüft die veröffentlichten Pakete statt
   neu zu bauen (Minuten statt einer halben Stunde) (#11).
 
