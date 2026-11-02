@@ -3,6 +3,8 @@ const DIENST = {
   brouter: 'https://brouter.de/brouter',
   photon: 'https://photon.komoot.io/api/',
   overpass: 'https://overpass-api.de/api/interpreter',
+  // zweiter öffentlicher Overpass-Server (OSM-Wiki, weltweit), wenn der erste abweist oder nicht antwortet
+  overpass2: 'https://overpass.private.coffee/api/interpreter',
   wetter: 'https://api.open-meteo.com/v1/forecast',
   hoehe: 'https://api.open-meteo.com/v1/elevation'
 };
@@ -119,19 +121,29 @@ async function sucheOnline(text, nahe, sekunden) {
   });
 }
 
+// Overpass: der Hauptserver weist bei vielen Anfragen ab (429) oder ist ausgelastet (504); dann einmal der zweite Server
+async function overpassHolen(q, sekunden) {
+  const anfrage = url => holen(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, sekunden);
+  try { return await anfrage(DIENST.overpass); }
+  catch (e) {
+    if (navigator.onLine === false) throw e;
+    try { return await anfrage(DIENST.overpass2); } catch (e2) { throw e; }
+  }
+}
+
 // in der App mit Kartenpaket aus dessen Orte-Datei (schnell, geht ohne Netz), sonst Overpass
 async function orteHolen(pts, radius) {
   const off = await orteOffline(pts, radius);
   if (off) return off;
   const q = R.overpassAbfrage(pts, radius);
-  return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
+  return overpassHolen(q, 35);
 }
 
 async function stadtHolen(bbox) {
   const off = await stadtOffline(bbox);
   if (off) return off;
   const q = R.stadtAbfrage(bbox);
-  return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
+  return overpassHolen(q, 35);
 }
 
 // Wikipedia-Kurzinfo zu einem Ort (nur wenn sein Fenster aufgeht); über Wikidata, wenn OSM nur die Nummer kennt.
@@ -160,7 +172,7 @@ function wikiHolen(quelle) {
 // Schlechtwetter: Museen, Bäder, Kino und Ähnliches im Umkreis (Overpass, nur mit Netz)
 async function drinnenHolen(lat, lon, radius) {
   const q = R.regenAbfrage(lat, lon, radius);
-  return holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 35);
+  return overpassHolen(q, 35);
 }
 
 // Wetter jetzt (Tagebuch): Temperatur und WMO-Code

@@ -48,9 +48,10 @@ public class KartenServer extends BridgeWebViewClient {
         try {
             return liefern(pfad.substring(PFAD.length()), request.getRequestHeaders(),
                 Bereich.ausAdresse(request.getUrl().getQueryParameter("von"), request.getUrl().getQueryParameter("bis")));
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // mit Text statt leerem Körper: ein leerer Körper kommt in der Oberfläche nur als „Failed to fetch“ an
             Log.e(TAG, "Kartendatei nicht lieferbar: " + pfad, e);
-            return antwort(500, "Internal Server Error", null, null);
+            return text(500, "Internal Server Error", "Kartenserver: " + e);
         }
     }
 
@@ -58,10 +59,10 @@ public class KartenServer extends BridgeWebViewClient {
     private WebResourceResponse liefern(String rest, Map<String, String> kopf, String ausAdresse) throws IOException {
         String[] teile = rest.split("/");
         if (teile.length != 2 || !Bereich.sichererName(teile[0]) || !Bereich.sichererName(teile[1])) {
-            return antwort(404, "Not Found", null, null);
+            return text(404, "Not Found", "Kartenserver: unbekannter Pfad");
         }
         File f = new File(new File(ordner(context), teile[0]), teile[1]);
-        if (!f.isFile()) return antwort(404, "Not Found", null, null);
+        if (!f.isFile()) return text(404, "Not Found", "Kartenserver: Datei fehlt");
         long laenge = f.length();
         String range = null;
         if (kopf != null) for (Map.Entry<String, String> e : kopf.entrySet()) if ("range".equalsIgnoreCase(e.getKey())) range = e.getValue();
@@ -80,13 +81,20 @@ public class KartenServer extends BridgeWebViewClient {
         Bereich b = Bereich.lesen(range, laenge);
         if (b == null) {
             h.put("Content-Range", "bytes */" + laenge);
-            return antwort(416, "Range Not Satisfiable", h, null);
+            return antwort(416, "Range Not Satisfiable", h, new java.io.ByteArrayInputStream(("Kartenserver: Bereich " + range + " passt nicht zu " + laenge + " Bytes").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         }
         FileInputStream in = new FileInputStream(f);
         in.getChannel().position(b.von);
         h.put("Content-Range", "bytes " + b.von + "-" + b.bis + "/" + laenge);
         h.put("Content-Length", String.valueOf(b.laenge()));
         return antwort(206, "Partial Content", h, new Begrenzt(in, b.laenge()));
+    }
+
+    private static WebResourceResponse text(int code, String grund, String text) {
+        Map<String, String> h = new HashMap<>();
+        h.put("Access-Control-Allow-Origin", "*");
+        h.put("Cache-Control", "no-cache");
+        return new WebResourceResponse("text/plain", "utf-8", code, grund, h, new java.io.ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private static WebResourceResponse antwort(int code, String text, Map<String, String> h, InputStream inhalt) {

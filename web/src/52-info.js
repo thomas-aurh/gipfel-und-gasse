@@ -53,8 +53,7 @@ async function infoZeigen(ll) {
   popup.setContent(box).openOn(karte);
   // beides gleichzeitig: das Paket antwortet sofort, Overpass ergänzt (oder fehlt ohne Netz)
   const off = infoOffline(punkt.lat, punkt.lon, radius);
-  const on = holen(DIENST.overpass, { method: 'POST', body: 'data=' + encodeURIComponent(R.infoAbfrage(punkt.lat, punkt.lon, radius)),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 15).catch(e => ({ fehler: e.message }));
+  const on = overpassHolen(R.infoAbfrage(punkt.lat, punkt.lon, radius), 15).catch(e => ({ fehler: e.message }));
   const zeigeListe = (listen, fertig, fehler) => {
     if (nr !== infoNr || !popup.isOpen()) return;
     const treffer = R.infoLesen(listen, punkt);
@@ -76,7 +75,7 @@ async function infoZeigen(ll) {
       }
       inhalt.appendChild(ul);
     } else inhalt.innerHTML = fertig ? '<b>Hier ist nichts mit Namen eingetragen.</b>' : '<p class="klein">Suche, was hier ist …</p>';
-    if (fertig && fehler && !treffer.length) inhalt.insertAdjacentHTML('beforeend', '<p class="klein">Ohne Netz nur aus dem Kartenpaket (' + R.esc(fehler) + ').</p>');
+    if (fertig && fehler && !treffer.length) inhalt.insertAdjacentHTML('beforeend', '<p class="klein">OpenStreetMap gerade nicht erreichbar (' + R.esc(fehler) + '), gesucht nur im Kartenpaket. Gleich noch einmal antippen.</p>');
     infoFuss(inhalt, ll);
     popup.setContent(inhalt);
   };
