@@ -54,6 +54,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Führung (03.11.) nicht auf dem Gerät geprüft:** Vorlesen der Kurzinfo am Stopp bei gesperrtem Bildschirm (Dienst),
   Länge der Ansage, echte Wikipedia-Antworten (im Klicktest nachgebildet). Im Browser nur der Ladevorgang geprüft, das
   Vorlesen am Stopp braucht echtes GPS.
+- **Gipfelbuch (03.11.) nicht mit echten Daten geprüft:** Erkennung mit echtem Overpass und mit dem Kartenpaket in der App
+  (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
 - **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
   Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
@@ -173,6 +175,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Gipfelbuch: Seite im Menü; nach dem Speichern einer Aufzeichnung Gipfel bis 50 m an der Spur (Paket oder
+  Overpass), je Gipfel Höhe und Besuche; gegangene Touren nachträglich durchsuchen; in Sicherung und Wiederherstellung.
 
 - **03.11.** Führung: Schalter „🎧 Führung“ unter Unterwegs; beim Losgehen lädt die App die Wikipedia-Kurzinfos der
   Stopps (höchstens 10 s), am Stopp liest sie Name und Kurzinfo vor (gekürzt auf rund eine Minute). In der App spricht

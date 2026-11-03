@@ -111,6 +111,11 @@ async function dienste(ctx) {
       { type: 'way', id: 41, center: { lat: lat + 0.0001, lon }, tags: { name: 'Schloss Test', historic: 'castle', wikidata: 'Q2', opening_hours: 'Mo-Su 00:00-24:00', fee: 'yes' } },
       { type: 'node', id: 42, lat: lat - 0.0001, lon: lon + 0.0001, tags: { name: 'Bäckerei Test', shop: 'bakery' } }
     ] }) });
+    // Gipfelbuch: ein Gipfel gut 20 m neben dem ersten Punkt der Spur
+    if (q.includes('"natural"="peak"')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'node', id: 51, lat: lat + 0.0002, lon, tags: { natural: 'peak', name: 'Aufnahmegipfel', ele: '1502' } },
+      { type: 'node', id: 52, lat: lat + 0.01, lon, tags: { natural: 'peak', name: 'Fernberg', ele: '2100' } }
+    ] }) });
     if (q.includes('planetarium')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
       { type: 'node', id: 31, lat: lat + 0.01, lon, tags: { tourism: 'museum', name: 'Heimatmuseum', opening_hours: 'Mo-Su 00:00-24:00', wikipedia: 'de:Heimatmuseum' } },
       { type: 'way', id: 32, center: { lat: lat + 0.002, lon }, tags: { leisure: 'sports_centre', sport: 'swimming', name: 'Hallenbad Test' } },
@@ -548,6 +553,15 @@ function pruef(name, bed, info) {
   await page.waitForTimeout(300);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
+  // Gipfelbuch: die gespeicherte Aufzeichnung kam am Aufnahmegipfel vorbei (bis 50 m), am Fernberg nicht
+  await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Gipfelbuch') || document.getElementById('meldung').textContent.includes('Wieder oben'), null, { timeout: 8000 }).catch(() => {});
+  await zuSeite(page, 'gipfelbuch');
+  const gb = await page.textContent('#gbListe');
+  pruef('Gipfelbuch: Gipfel aus der Aufzeichnung, mit Höhe', gb.includes('Aufnahmegipfel') && gb.includes('1502 m') && !gb.includes('Fernberg'), gb);
+  pruef('Gipfelbuch: Kennzahlen', (await page.textContent('#gbZahlen')).includes('höchster: Aufnahmegipfel'), await page.textContent('#gbZahlen'));
+  await page.click('#gbSuchen');
+  await page.waitForFunction(() => !document.getElementById('gbSuchen').disabled, null, { timeout: 8000 });
+  pruef('Gipfelbuch: schon geprüfte Tour wird übersprungen, nichts doppelt', (await page.textContent('#gbStatus')).includes('schon durchsucht') && (await page.$$('#gbListe li')).length === 1, await page.textContent('#gbStatus'));
   await page.click('[data-reiter=touren]');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');

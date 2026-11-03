@@ -37,6 +37,10 @@ besucht), als ⭐ auf der Karte; Fenster mit Anreise, Wetter dort und „Als Sto
 je Ziel, die App sucht den Ort), CSV (`Name;Ort;Notiz;Link`, auch mit `lat;lon`), GPX-Wegpunkte, KML aus Google My Maps
 und GeoJSON; „📋 Liste einfügen“ nimmt dieselben Zeilen aus einer Notiz oder Nachricht. „⬇ Als GPX“ gibt eine Liste weiter. Im Info-Fenster merkt „⭐ Merken“ einen Ort. Kommt mit in die Sicherung.
 
+**Gipfelbuch:** Menü ☰ › *Gipfelbuch*: Kommt eine gespeicherte Aufzeichnung bis auf 50 m an einen Gipfel aus OpenStreetMap,
+steht er hier mit Höhe, Tag und Zahl der Besuche (ohne Netz aus dem Kartenpaket). „🔍 Gegangene Touren durchsuchen“ holt das
+für ältere Touren nach. Kommt mit in die Sicherung.
+
 **Info auf der Karte:** Der Knopf ⓘ rechts an der Karte schaltet zwischen Planen (Antippen setzt Punkte) und Info: Dann
 zeigt Antippen, was dort ist (Name, Art, geöffnet jetzt, Eintritt, Wikipedia, Link zu Google Maps), aus dem Kartenpaket und von Overpass; im
 Fenster geht es weiter mit „Als Stopp“ oder „Hier starten“.

@@ -16,6 +16,7 @@
     <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
     <button data-ziel="tagebuch">📔 Reisetagebuch</button>
     <button data-ziel="ziele">⭐ Reiseziele</button>
+    <button data-ziel="gipfelbuch">⛰️ Gipfelbuch</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -261,6 +262,16 @@
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
         <ul id="gangliste" class="liste"></ul>
+      </section>
+
+      <!-- Gipfelbuch: Gipfel aus gegangenen Touren -->
+      <section data-reiter="gipfelbuch">
+        <p class="tipp">Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
+          aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</p>
+        <div id="gbZahlen" class="zahlen" hidden></div>
+        <ul id="gbListe" class="liste"></ul>
+        <div class="zeile"><button class="knopf" id="gbSuchen">🔍 Gegangene Touren durchsuchen</button></div>
+        <div id="gbStatus" class="klein"></div>
       </section>
 
       <!-- Offline-Karten -->
