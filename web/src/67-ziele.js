@@ -311,10 +311,13 @@ function zieleEinlesen(text) {
   try { roh = JSON.parse(text).reiseziele; } catch (e) { return 0; }
   const neu = R.zielePruefen(roh), d = zieleLesenSp();
   const lIds = new Set(d.listen.map(l => l.id)), zIds = new Set(d.ziele.map(z => z.id));
-  d.listen = d.listen.concat(neu.listen.filter(l => !lIds.has(l.id)));
+  const neueListen = neu.listen.filter(l => !lIds.has(l.id));
+  d.listen = d.listen.concat(neueListen);
   const dazu = neu.ziele.filter(z => !zIds.has(z.id));
   d.ziele = d.ziele.concat(dazu);
-  return dazu.length && zieleSchreibenSp(d) ? dazu.length : 0;
+  // auch eine leere Liste aus der Sicherung kommt mit
+  if (!dazu.length && !neueListen.length) return 0;
+  return zieleSchreibenSp(d) ? dazu.length : 0;
 }
 
 // ---------- Weitergeben: Liste als GPX ----------

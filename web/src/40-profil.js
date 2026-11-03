@@ -24,7 +24,8 @@ function profilZeichnen(markeD) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, w, h);
   const pts = e.pts.filter(p => p.ele != null);
-  const lo = Math.min(...pts.map(p => p.ele)), hi = Math.max(...pts.map(p => p.ele));
+  let lo = Infinity, hi = -Infinity;   // Schleife statt Math.min(...): große Aufzeichnungen sprengen sonst den Stapel
+  for (const p of pts) { if (p.ele < lo) lo = p.ele; if (p.ele > hi) hi = p.ele; }
   const spanne = Math.max(50, hi - lo), unten = Math.floor((lo - spanne * 0.08) / 10) * 10, oben = Math.ceil((hi + spanne * 0.12) / 10) * 10;
   const L0 = 38, R0 = 6, T0 = 6, B0 = 18, bw = w - L0 - R0, bh = h - T0 - B0;
   const gesamt = e.laenge || 1;

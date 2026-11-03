@@ -37,6 +37,16 @@ var R = (function () {
     return { auf: Math.round(auf), ab: Math.round(ab) };
   }
 
+  // Höhenmeter einer Strecke mit Abschnitten (GPX-trkseg): der Sprung über eine Lücke (Seilbahn, Pause ohne
+  // Aufzeichnung) zählt nicht, jeder Abschnitt wird für sich gerechnet
+  function hoehenmeterSpur(pts, schwelle) {
+    let auf = 0, ab = 0, teil = [];
+    const fertig = () => { const h = hoehenmeter(teil, schwelle); auf += h.auf; ab += h.ab; teil = []; };
+    for (const p of pts) { if (p.luecke) fertig(); teil.push(p.ele); }
+    fertig();
+    return { auf, ab };
+  }
+
   // Gehzeit in Stunden nach DIN 33466 (wie die Wegweiser der Alpenvereine):
   // 4 km/h in der Ebene, 300 Hm/h bergauf, 500 Hm/h bergab; die größere Zeit plus die Hälfte der kleineren.
   // tempo: 1 = normal, 0.7 = mit Kind, 1.2 = zügig
@@ -125,11 +135,15 @@ var R = (function () {
   // größte Steigung in Prozent, gemittelt über mindestens `fenster` Meter
   function maxSteigung(pts, fenster) {
     fenster = fenster || 100;
+    // letzte Lücke bis Punkt k: ein Fenster über eine Lücke hinweg wäre ein Sprung, keine Steigung
+    const lueckeBis = [];
+    for (let k = 0, g = -1; k < pts.length; k++) { if (pts[k].luecke) g = k; lueckeBis.push(g); }
     let best = 0, j = 0;
     for (let i = 0; i < pts.length; i++) {
       if (pts[i].ele == null) continue;
       while (j < pts.length && (pts[j].d - pts[i].d < fenster || pts[j].ele == null)) j++;
       if (j >= pts.length) break;
+      if (lueckeBis[j] > i) continue;
       const g = Math.abs(pts[j].ele - pts[i].ele) / (pts[j].d - pts[i].d) * 100;
       if (g > best) best = g;
     }
@@ -331,15 +345,16 @@ var R = (function () {
       if (cmd) hinweise.push({ d: dv, cmd, exit: 0, uebergang: true });
     }
     hinweise.sort((a, b) => a.d - b.d);
-    const eles = pts.map(p => p.ele);
-    const hm = hoehenmeter(eles);
-    const gueltig = eles.filter(e => e != null);
+    const hm = hoehenmeterSpur(pts);
+    // Schleife statt Math.max(...): große Aufzeichnungen sprengen sonst den Aufrufstapel
+    let hoch = null, tief = null;
+    for (const p of pts) if (p.ele != null && !isNaN(p.ele)) { if (hoch == null || p.ele > hoch) hoch = p.ele; if (tief == null || p.ele < tief) tief = p.ele; }
     const steigung = maxSteigung(pts);
     return {
       pts, abschnitte, laenge, stueckEnde, hinweise,
       auf: hm.auf, ab: hm.ab,
-      hoch: gueltig.length ? Math.round(Math.max(...gueltig)) : null,
-      tief: gueltig.length ? Math.round(Math.min(...gueltig)) : null,
+      hoch: hoch == null ? null : Math.round(hoch),
+      tief: tief == null ? null : Math.round(tief),
       zeit: zeitFuer(art, laenge, hm.auf, hm.ab, tempo),
       steigung,
       sac: schwierigkeit(abschnitte),
@@ -358,7 +373,7 @@ var R = (function () {
       let best = null;
       for (let i = 0; i < pts.length - 1; i++) {
         const a = pts[i], b = pts[i + 1];
-        if (b.d < von || a.d > bis) continue;
+        if (b.luecke || b.d < von || a.d > bis) continue;   // über eine Lücke führt kein Weg
         const ax = (a.lon - pos.lon) * kx, ay = (a.lat - pos.lat) * ky;
         const bx = (b.lon - pos.lon) * kx, by = (b.lat - pos.lat) * ky;
         const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
@@ -381,17 +396,16 @@ var R = (function () {
 
   // was ab Meter d noch kommt
   function rest(pts, d, tempo, art) {
-    const eles = [];
+    const vor = [];
     let i = 0;
     while (i < pts.length && pts[i].d < d) i++;
     // Höhe genau an der aktuellen Stelle, zwischen den Nachbarpunkten eingerechnet
     if (i > 0 && i < pts.length && pts[i - 1].ele != null && pts[i].ele != null && pts[i].d > pts[i - 1].d) {
       const t = (d - pts[i - 1].d) / (pts[i].d - pts[i - 1].d);
-      eles.push(pts[i - 1].ele + (pts[i].ele - pts[i - 1].ele) * t);
+      vor.push({ ele: pts[i - 1].ele + (pts[i].ele - pts[i - 1].ele) * t });
     }
-    for (; i < pts.length; i++) eles.push(pts[i].ele);
     const ges = pts.length ? pts[pts.length - 1].d : 0;
-    const hm = hoehenmeter(eles);
+    const hm = hoehenmeterSpur(vor.concat(pts.slice(i)));
     const m = Math.max(0, ges - d);
     return { meter: m, auf: hm.auf, ab: hm.ab, zeit: zeitFuer(art, m, hm.auf, hm.ab, tempo) };
   }
@@ -455,7 +469,9 @@ var R = (function () {
     }
     if (!pts.length) pts = lese('rtept');
     const wpt = lese('wpt');
-    const kopf = /<(?:metadata|trk|rte)\b[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(text);
+    // Name der Tour: nur der eigene <name> von metadata/trk/rte, nicht der des Autors (Garmin) oder eines Punkts
+    const ohnePunkte = text.replace(/<author\b[\s\S]*?<\/author>|<(wpt|trkpt|rtept)\b[^>]*?(?:\/>|>[\s\S]*?<\/\1>)/g, '');
+    const kopf = /<(?:metadata|trk|rte)\b[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(ohnePunkte);
     if (!pts.length && !wpt.length) throw new Error('In der Datei steht keine Spur und keine Route.');
     return { name: kopf ? unesc(kopf[1].trim()) : null, pts, wpt };
   }
@@ -989,7 +1005,8 @@ var R = (function () {
     for (const r of oh.regeln) {
       if (r.monate && !r.monate.has(d.getMonth())) continue;
       if (r.tage && !r.tage.has(d.getDay())) continue;
-      z = r.zus ? z.concat(r.zeiten) : r.zeiten.slice();
+      // Zusatzregel nach „,“ ergänzt Zeiten; „, We off“ schließt diese Tage aber (wie opening_hours.js)
+      z = r.zus && r.zeiten.length ? z.concat(r.zeiten) : r.zeiten.slice();
     }
     return z;
   }
@@ -1043,12 +1060,14 @@ var R = (function () {
       ...(zielOrt(z.lat, z.lon) ? { lat: z.lat, lon: z.lon } : { suche: (z.suche || z.name).slice(0, 200) }) }); };
     const anfang = text.trimStart().slice(0, 400).toLowerCase();
     if (/\.gpx$/.test(name) || /<gpx[\s>]/.test(anfang)) {
-      const re = /<wpt\b([^>]*)>([\s\S]*?)<\/wpt>/gi;
+      // auch selbstschließende <wpt … /> (sonst fräße der Ausdruck bis zum nächsten </wpt>)
+      const re = /<wpt\b([^>]*?)(?:\/>|>([\s\S]*?)<\/wpt>)/gi;
       let m;
       while ((m = re.exec(text))) {
         const lat = parseFloat((/\blat="([^"]+)"/.exec(m[1]) || [])[1]), lon = parseFloat((/\blon="([^"]+)"/.exec(m[1]) || [])[1]);
         if (!zielOrt(lat, lon)) continue;
-        dazu({ name: xmlTag(m[2], 'name') || 'Punkt', lat, lon, notiz: xmlTag(m[2], 'desc') || xmlTag(m[2], 'cmt'), link: (/<link\b[^>]*href="([^"]+)"/i.exec(m[2]) || [])[1] });
+        const innen = m[2] || '';
+        dazu({ name: xmlTag(innen, 'name') || 'Punkt', lat, lon, notiz: xmlTag(innen, 'desc') || xmlTag(innen, 'cmt'), link: (/<link\b[^>]*href="([^"]+)"/i.exec(innen) || [])[1] });
       }
       return { art: 'GPX', ziele: aus };
     }
@@ -1079,8 +1098,27 @@ var R = (function () {
     // mit name, ort, notiz, link, lat, lon). Ohne Trenner ist die ganze Zeile Name und Suchbegriff („Lindau, Bodensee“).
     const zeilen = text.split(/\r?\n/).map(z => z.trim()).filter(z => z && !z.startsWith('#'));
     if (!zeilen.length) return { art: 'Text', ziele: aus };
-    const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';' : null;
-    const teile = z => (trenner ? z.split(trenner) : [z]).map(x => x.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'));
+    // Komma nur mit Kopfzeile (Google Tabellen, Excel englisch), sonst bleibt „Lindau, Bodensee“ ein Suchbegriff
+    const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';'
+      : /^"?(name|titel|ziel)"?\s*,/i.test(zeilen[0]) ? ',' : null;
+    // Felder in Anführungszeichen dürfen den Trenner enthalten: "Café; Bar";Lindau
+    const teile = z => {
+      if (!trenner) return [z];
+      const out = [];
+      let feld = '', inQ = false;
+      for (let i = 0; i < z.length; i++) {
+        const c = z[i];
+        if (inQ) {
+          if (c === '"' && z[i + 1] === '"') { feld += '"'; i++; }
+          else if (c === '"') inQ = false;
+          else feld += c;
+        } else if (c === '"' && !feld.trim()) { inQ = true; feld = ''; }
+        else if (c === trenner) { out.push(feld.trim()); feld = ''; }
+        else feld += c;
+      }
+      out.push(feld.trim());
+      return out;
+    };
     let spalten = { name: 0, suche: 1, notiz: 2, link: 3, lat: -1, lon: -1 }, ab = 0;
     const kopf = teile(zeilen[0]).map(x => x.toLowerCase());
     if (trenner && kopf.some(x => /^(name|titel|ziel)$/.test(x))) {
@@ -1222,6 +1260,7 @@ var R = (function () {
     for (let i = 0; i < pts.length; i++) {
       const ax = (pts[i].lon - lon) * kx, ay = (pts[i].lat - lat) * ky;
       if (i === pts.length - 1) { if (pts.length === 1) best = Math.hypot(ax, ay); break; }
+      if (pts[i + 1].luecke) { best = Math.min(best, Math.hypot(ax, ay)); continue; }
       const bx = (pts[i + 1].lon - lon) * kx, by = (pts[i + 1].lat - lat) * ky;
       const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
       const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
@@ -1463,7 +1502,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,

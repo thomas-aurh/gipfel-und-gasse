@@ -10,7 +10,7 @@ $('suchfeld').addEventListener('input', () => {
 });
 $('suchfeld').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); if (trefferListe.length) trefferWaehlen(trefferListe[Math.max(0, trefferAktiv)]); else sucheLos($('suchfeld').value.trim()); }
-  if (e.key === 'Escape') { $('treffer').innerHTML = ''; $('suchfeld').blur(); }
+  if (e.key === 'Escape') sucheSchliessen();
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
     if (!trefferListe.length) return;
@@ -18,7 +18,11 @@ $('suchfeld').addEventListener('keydown', e => {
     [...$('treffer').children].forEach((b, i) => b.classList.toggle('aktiv', i === trefferAktiv));
   }
 });
-document.addEventListener('click', e => { if (!$('oben').contains(e.target)) $('treffer').innerHTML = ''; });
+// daneben tippen schließt die Liste; eine noch laufende Suche darf sie danach nicht wieder öffnen
+document.addEventListener('click', e => {
+  if ($('oben').contains(e.target)) return;
+  clearTimeout(suchUhr); suchNr++; trefferListe = []; trefferAktiv = -1; $('treffer').innerHTML = '';
+});
 // Suche schließen: auch eine wartende oder laufende Anfrage verwerfen, damit die Liste nicht wieder aufgeht
 function sucheSchliessen() {
   clearTimeout(suchUhr); suchNr++; trefferListe = []; trefferAktiv = -1;

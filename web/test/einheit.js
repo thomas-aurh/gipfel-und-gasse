@@ -440,5 +440,29 @@ pruef('Google Maps: Name mit Adresse aus OSM', R.googleSuche('Bäckerei Huber', 
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Bäckerei Huber, Bahnhofstraße 3, 82377 Penzberg'));
 pruef('Google Maps: Name mit Ortsname, sonst Koordinaten', R.googleSuche('Café Rosa', {}, 'Penzberg', 47.75, 11.37).endsWith(encodeURIComponent('Café Rosa, Penzberg')) &&
   R.googleSuche('Café Rosa', {}, '', 47.7535, 11.3747).endsWith('query=47.753500%2C11.374700'));
+// Durchsicht 03.11.: Lücken zwischen Abschnitten, Parser, Öffnungszeiten
+const seil = '<gpx><trk><trkseg><trkpt lat="47.60" lon="11"><ele>800</ele></trkpt><trkpt lat="47.601" lon="11"><ele>810</ele></trkpt></trkseg>' +
+  '<trkseg><trkpt lat="47.602" lon="11"><ele>1800</ele></trkpt><trkpt lat="47.603" lon="11"><ele>1810</ele></trkpt></trkseg></trk></gpx>';
+const seilAus = R.auswerten([{ pts: R.gpxLesen(seil).pts, abschnitte: [] }], 1);
+pruef('Seilbahn-Sprung zählt nicht als Aufstieg', seilAus.auf === 20 && seilAus.ab === 0, [seilAus.auf, seilAus.ab]);
+pruef('Seilbahn-Sprung zählt nicht als Steigung', seilAus.steigung < 20, seilAus.steigung);
+pruef('Rest unterwegs ohne Sprung', R.rest(seilAus.pts, 0, 1).auf === 20, R.rest(seilAus.pts, 0, 1));
+pruef('Höchster und tiefster Punkt', seilAus.hoch === 1810 && seilAus.tief === 800);
+pruef('Neben der gedachten Linie über die Lücke ist nicht auf der Route',
+  R.aufStrecke(seilAus.pts, { lat: 47.6015, lon: 11 }).abw > 50, R.aufStrecke(seilAus.pts, { lat: 47.6015, lon: 11 }));
+const vieleHoehen = Array.from({ length: 200000 }, (_, i) => ({ lat: 47 + i * 1e-6, lon: 11, ele: 500 + (i % 7) }));
+let grossOk = true; try { R.auswerten([{ pts: vieleHoehen, abschnitte: [] }], 1); } catch (e) { grossOk = false; }
+pruef('Sehr große Aufzeichnung ohne Stapelüberlauf', grossOk);
+pruef('GPX-Name: nicht der Autor', R.gpxLesen('<gpx><metadata><author><name>Garmin</name></author></metadata><trk><name>Runde</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.1" lon="11"/></trkseg></trk></gpx>').name === 'Runde');
+const wptZwei = R.zieleLesen('<gpx><wpt lat="47" lon="11"/><wpt lat="48" lon="12"><name>B</name></wpt></gpx>', 'w.gpx').ziele;
+pruef('Ziele: selbstschließende Wegpunkte', wptZwei.length === 2 && wptZwei[1].name === 'B' && wptZwei[1].lat === 48, wptZwei);
+const csvQ = R.zieleLesen('"Café; Bar";Lindau;"sagt ""hallo"""', 'q.csv').ziele[0];
+pruef('Ziele: Trenner in Anführungszeichen', csvQ.name === 'Café; Bar' && csvQ.suche === 'Lindau' && csvQ.notiz === 'sagt "hallo"', csvQ);
+const csvK = R.zieleLesen('name,lat,lon\nZugspitze,47.42,10.98', 'k.csv').ziele;
+pruef('Ziele: Komma-CSV mit Kopfzeile', csvK.length === 1 && csvK[0].name === 'Zugspitze' && csvK[0].lat === 47.42, csvK);
+pruef('Ziele: Komma ohne Kopfzeile bleibt Suchbegriff', R.zieleLesen('Lindau, Bodensee', 't.txt').ziele[0].suche === 'Lindau, Bodensee');
+pruef('Öffnung: Zusatzregel „, We off“ schließt', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00').zustand === 'zu', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00'));
+pruef('Öffnung: Zusatzregel ergänzt weiter Zeiten', oj('Mo 10:00-12:00, Mo 14:00-16:00', '2026-11-02T15:00').zustand === 'offen');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -162,7 +162,8 @@ function ausLink() {
   const ent = SPEICHER.lesen('entwurf', null) || {};
   const vorher = S.wps.length ? S.wps : (ent.wps || []);
   const vorherProfil = S.wps.length ? S.profil : (ent.profil || S.profil);
-  S.fest = null; S.tourId = null; S.verlauf = vorher.length ? [JSON.stringify({ wps: vorher, profil: vorherProfil })] : [];
+  // eine fremde Tour: Name und Zeitplan der vorigen Planung gehören nicht dazu
+  S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null); S.verlauf = vorher.length ? [JSON.stringify({ wps: vorher, profil: vorherProfil })] : [];
   const key = Object.keys(PROFILE).find(k => k === l.profil);
   S.profil = key || 'wandern'; $('profilwahl').value = S.profil;
   if (vorher.length) melde('Geteilte Tour geöffnet. „↶ Rückgängig“ holt deine vorige Planung zurück.', 6);

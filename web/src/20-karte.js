@@ -20,11 +20,11 @@ const SPEICHER = {
 // Daten aus den früheren Namen (Murmel, Wegwerk) einmalig übernehmen, damit gespeicherte Touren bleiben
 try {
   if (!localStorage.getItem('gug.uebernommen')) {
+    // erst alle Schlüssel sammeln: setItem während der Schleife über key(i) verschiebt die Reihenfolge
+    const schluessel = [];
+    for (let i = 0; i < localStorage.length; i++) schluessel.push(localStorage.key(i));
     for (const alt of ['wegwerk.', 'murmel.']) {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(alt)) localStorage.setItem('gug.' + k.slice(alt.length), localStorage.getItem(k));
-      }
+      for (const k of schluessel) if (k && k.startsWith(alt)) localStorage.setItem('gug.' + k.slice(alt.length), localStorage.getItem(k));
     }
     localStorage.setItem('gug.uebernommen', '1');
   }
