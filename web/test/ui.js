@@ -94,7 +94,7 @@ async function dienste(ctx) {
       const la = amGipfel ? 47.6262 : (+bb[1] + +bb[3]) / 2, lo = amGipfel ? 11.2578 : (+bb[2] + +bb[4]) / 2;
       const dl = amGipfel ? 0.0012 : (+bb[3] - +bb[1]) / 6, dn = amGipfel ? 0.0018 : (+bb[4] - +bb[2]) / 6;
       const el = [
-        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00' } },
+        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00', 'check_date:opening_hours': '2022-03-01', website: 'https://museum.example' } },
         { type: 'node', id: 102, lat: la - dl, lon: lo + dn, tags: { historic: 'castle', name: 'Alte Burg', wikidata: 'Q2' } },
         { type: 'node', id: 103, lat: la, lon: lo - dn, tags: { amenity: 'place_of_worship', name: 'Stadtkirche', wikidata: 'Q3' } },
         { type: 'node', id: 104, lat: la + dl, lon: lo + dn, tags: { tourism: 'viewpoint', name: 'Aussicht Schlossberg' } },
@@ -110,6 +110,11 @@ async function dienste(ctx) {
     if (q.includes('[!"highway"]')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
       { type: 'way', id: 41, center: { lat: lat + 0.0001, lon }, tags: { name: 'Schloss Test', historic: 'castle', wikidata: 'Q2', opening_hours: 'Mo-Su 00:00-24:00', fee: 'yes' } },
       { type: 'node', id: 42, lat: lat - 0.0001, lon: lon + 0.0001, tags: { name: 'Bäckerei Test', shop: 'bakery' } }
+    ] }) });
+    // Gipfelbuch: ein Gipfel gut 20 m neben dem ersten Punkt der Spur
+    if (q.includes('"natural"="peak"')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'node', id: 51, lat: lat + 0.0002, lon, tags: { natural: 'peak', name: 'Aufnahmegipfel', ele: '1502' } },
+      { type: 'node', id: 52, lat: lat + 0.01, lon, tags: { natural: 'peak', name: 'Fernberg', ele: '2100' } }
     ] }) });
     if (q.includes('planetarium')) return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
       { type: 'node', id: 31, lat: lat + 0.01, lon, tags: { tourism: 'museum', name: 'Heimatmuseum', opening_hours: 'Mo-Su 00:00-24:00', wikipedia: 'de:Heimatmuseum' } },
@@ -128,6 +133,13 @@ async function dienste(ctx) {
   await ctx.route(/api\.open-meteo\.com\/v1\/forecast(?!.*current=)/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elevation: 612, daily: {
     time: ['2026-11-01', '2026-11-02', '2026-11-03'], weather_code: [1, 61, 95], temperature_2m_max: [14.2, 9.1, 11], temperature_2m_min: [3.1, 4, 2],
     precipitation_probability_max: [5, 80, 60], wind_speed_10m_max: [12, 25, 30], sunset: ['2026-11-01T16:52', '2026-11-02T16:50', '2026-11-03T16:49'] } }) }); });
+  // Wetter für die Tour: stündlich für mehrere Punkte (später registriert, also vor der Tagesvorhersage geprüft); Böen 70 km/h
+  await ctx.route(/api\.open-meteo\.com\/v1\/forecast.*hourly=temperature_2m/, r => {
+    const url = new URL(r.request().url()), n = url.searchParams.get('latitude').split(',').length, ab = Math.floor(Date.now() / 3600e3) * 3600 - 86400;
+    const ort = i => ({ elevation: 1000 + i, hourly: { time: Array.from({ length: 400 }, (_, k) => ab + k * 3600), temperature_2m: Array(400).fill(7 - i), precipitation_probability: Array(400).fill(20),
+      weather_code: Array(400).fill(2), wind_speed_10m: Array(400).fill(30), wind_gusts_10m: Array(400).fill(70) } });
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(n === 1 ? ort(0) : Array.from({ length: n }, (_, i) => ort(i))) });
+  });
   await ctx.route(/api\.open-meteo\.com\/v1\/elevation/, r => {
     zaehler.hoehe++;
     const n = new URL(r.request().url()).searchParams.get('latitude').split(',').length;
@@ -358,6 +370,8 @@ function pruef(name, bed, info) {
     !/query=\d/.test(gLink), gLink);
   await page.click('.leaflet-popup button:has-text("Liste")');
   pruef('Info: zurück zur Liste', (await page.$$('.info-liste button')).length === 2);
+  const gStelle = await page.evaluate(() => { const a = [...document.querySelectorAll('.leaflet-popup a')].find(x => x.textContent.includes('Diese Stelle in Google Maps')); return a && a.href; });
+  pruef('Info: jede Stelle auch in Google Maps (Ausweg, wenn Overpass ausfällt)', !!gStelle && /query=\d+\.\d+%2C\d+\.\d+/.test(gStelle), gStelle);
   // als Reiseziel merken: Formular mit Name und Ort aus dem Info-Fenster
   await page.click('.info-liste button >> nth=0');
   await page.click('.leaflet-popup button:has-text("Merken")');
@@ -517,6 +531,58 @@ function pruef(name, bed, info) {
 
   // Unterwegs: Route folgen mit GPS
   await page.click('#bNeu');
+  // Mehrtagestour: am Zwischenziel übernachten teilt die Tour in Etappen, je Tag mit Zeitplan; bleibt beim Speichern; als Reise ins Tagebuch
+  await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76500_11.39000~47.77000_11.40000'; });
+  await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3 && !document.getElementById('ergebnis').hidden, null, { timeout: 8000 });
+  await page.click('[data-reiter=planen]');
+  // Wetter für die Tour: Start und Ziel zur Stunde, in der man dort ist; Böen über 60 km/h als Warnung; neuer Tag leert die Anzeige
+  await page.click('#bTourWetter');
+  await page.waitForFunction(() => document.getElementById('tourWetter').textContent.includes('°C'), null, { timeout: 8000 }).catch(() => {});
+  const tw = await page.textContent('#tourWetter');
+  pruef('Tourwetter: Start und Ziel mit Temperatur, Wind und Böen', tw.includes('Start') && tw.includes('Ziel') && tw.includes('7 °C') && tw.includes('Böen 70'), tw);
+  pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab der nächsten vollen Stunde gerechnet'), tw);
+  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
+  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
+  // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
+  await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Hier übernachten')).click());
+  await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
+  const etText = await page.textContent('#etappen');
+  pruef('Etappen: zwei Tage mit Strecke und Höhenmetern', etText.includes('Tag 1') && etText.includes('Tag 2') && etText.includes('🛏') && /↑ \d+ m/.test(etText), etText);
+  pruef('Etappen: Zeitplan nennt die Etappen', (await page.textContent('#zeitplan')).includes('2 Etappen'), await page.textContent('#zeitplan'));
+  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  await page.fill('#startZeit', '09:00'); await page.dispatchEvent('#startZeit', 'change');
+  const etPlan = await page.textContent('#etappen');
+  pruef('Etappen: mit Startzeit Ankunft und Sonnenuntergang je Tag, zweiter Tag am Folgetag', etPlan.includes('Fr., 10.7.') && etPlan.includes('Sa., 11.7.') && (etPlan.match(/Ankunft etwa/g) || []).length === 2, etPlan);
+  await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
+  await page.fill('#tourname', 'Hüttentour');
+  await page.click('#bSpeichern');
+  await page.click('#bNeu');
+  await page.click('[data-reiter=touren]');
+  await page.click('#tourliste li:has-text("Hüttentour") .was');
+  await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
+  pruef('Etappen: gespeicherte Tour behält die Übernachtung', (await page.textContent('#etappen')).includes('Tag 2'));
+  await page.click('#bEtappenReise');
+  pruef('Etappen: als Reise ins Tagebuch (zwei Tage)', (await page.textContent('#seitenTitel')) === 'Reisetagebuch' && (await page.textContent('#tbTitel')).includes('Hüttentour'), await page.textContent('#tbTitel'));
+  // aufräumen: Testreise und Testtour wieder weg (spätere Tests erwarten ein leeres Tagebuch)
+  await page.click('#tbZurueck');
+  await page.evaluate(() => {
+    const tb = JSON.parse(localStorage.getItem('gug.tagebuch')); tb.reisen = tb.reisen.filter(r => r.name !== 'Hüttentour'); localStorage.setItem('gug.tagebuch', JSON.stringify(tb));
+    const to = JSON.parse(localStorage.getItem('gug.touren')); localStorage.setItem('gug.touren', JSON.stringify(to.filter(t => t.name !== 'Hüttentour')));
+  });
+  await page.click('[data-reiter=planen]');
+  // Ziel entfernen: die Übernachtung läge jetzt am Ziel und wird gestrichen (sonst käme sie mit einem neuen Ziel zurück)
+  await page.evaluate(() => document.querySelectorAll('.wp')[2].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Punkt entfernen")', { timeout: 5000 });
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Punkt entfernen')).click());
+  await page.waitForFunction(() => document.getElementById('etappen').hidden && ![...document.querySelectorAll('.wp-name')].some(x => x.textContent.includes('🛏')), null, { timeout: 5000 }).catch(() => {});
+  pruef('Etappen: Übernachtung am Ziel wird gestrichen', await page.isHidden('#etappen') && (await page.textContent('#meldung')).includes('Übernachtung lag jetzt am Ziel') &&
+    !(await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' '))).includes('🛏'), [await page.isHidden('#etappen'), await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | ')), (await page.textContent('#etappen')).slice(0, 80)]);
+  await page.click('#bNeu');
+  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
+  await page.fill('#startZeit', ''); await page.dispatchEvent('#startZeit', 'change');
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.77000_11.40000'; });
   await page.waitForSelector('#ergebnis:not([hidden])');
   await page.click('[data-reiter=unterwegs]');
@@ -548,6 +614,15 @@ function pruef(name, bed, info) {
   await page.waitForTimeout(300);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
+  // Gipfelbuch: die gespeicherte Aufzeichnung kam am Aufnahmegipfel vorbei (bis 50 m), am Fernberg nicht
+  await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Gipfelbuch') || document.getElementById('meldung').textContent.includes('Wieder oben'), null, { timeout: 8000 }).catch(() => {});
+  await zuSeite(page, 'gipfelbuch');
+  const gb = await page.textContent('#gbListe');
+  pruef('Gipfelbuch: Gipfel aus der Aufzeichnung, mit Höhe', gb.includes('Aufnahmegipfel') && gb.includes('1502 m') && !gb.includes('Fernberg'), gb);
+  pruef('Gipfelbuch: Kennzahlen', (await page.textContent('#gbZahlen')).includes('höchster: Aufnahmegipfel'), await page.textContent('#gbZahlen'));
+  await page.click('#gbSuchen');
+  await page.waitForFunction(() => !document.getElementById('gbSuchen').disabled, null, { timeout: 8000 });
+  pruef('Gipfelbuch: schon geprüfte Tour wird übersprungen, nichts doppelt', (await page.textContent('#gbStatus')).includes('schon durchsucht') && (await page.$$('#gbListe li')).length === 1, await page.textContent('#gbStatus'));
   await page.click('[data-reiter=touren]');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
@@ -779,6 +854,7 @@ function pruef(name, bed, info) {
   await page.click('#stadtListe li:has-text("Stadtmuseum") .was');
   await page.waitForSelector('.leaflet-popup .wiki p', { timeout: 5000 });
   const popStadt = await page.textContent('.leaflet-popup-content');
+  pruef('Ort-Fenster: Quelle und Prüfdatum der Öffnungszeiten', popStadt.includes('laut OpenStreetMap, Stand 03/2022'), popStadt);
   pruef('Ort-Fenster: geöffnet jetzt und Wikipedia-Kurzinfo mit Bild', popStadt.includes('Durchgehend geöffnet') && popStadt.includes('Das Stadtmuseum ist ein Ort zum Testen.') &&
     popStadt.includes('CC BY-SA') && !!(await page.$('.leaflet-popup .wiki img')), popStadt);
   await page.waitForTimeout(300); await page.screenshot({ path: path.join(OUT, '8b-ort-fenster.png') });
@@ -816,6 +892,29 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#ergebnis:not([hidden])');
   pruef('Tempo der Tour wiederhergestellt', (await page.inputValue('#tempowahl')) === '0.7');
   pruef('Gespeicherte Stopps mit Namen und Zeiten', (await page.$$('.wp-name')).length >= 4 && (await page.inputValue('#stopps select >> nth=1')) === '180');
+  // Öffnungszeiten der Stopps (aus OSM, mit der Tour gespeichert): mit Startzeit die Ankunft und „geöffnet?“
+  pruef('Stopps: ohne Startzeit der Hinweis im Zeitplan', (await page.textContent('#zeitplan')).includes('Mit Startzeit prüft die App'), await page.textContent('#zeitplan'));
+  await page.fill('#startZeit', '10:00');
+  await page.dispatchEvent('#startZeit', 'change');
+  const stoppText = await page.textContent('#stopps');
+  pruef('Stopps: Ankunft und geöffnet bei Ankunft', /an 1\d:\d\d Uhr/.test(stoppText) && stoppText.includes('durchgehend geöffnet'), stoppText);
+  pruef('Stopps: Quelle, Alter mit Warnung, Webseite und Google Maps', stoppText.includes('laut OpenStreetMap, Stand 03/2022 ⚠️ über 2 Jahre alt') &&
+    (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h === 'https://museum.example/') &&
+    (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h.startsWith('https://www.google.com/maps/search/Stadtmuseum/@')), stoppText);
+  pruef('Stopps: Hinweis zur Verlässlichkeit', stoppText.includes('nicht immer aktuell'));
+  await (await page.$('#stopps')).screenshot({ path: path.join(OUT, '9c-stopps-oeffnung.png') });
+  await page.fill('#startZeit', '');
+  await page.dispatchEvent('#startZeit', 'change');
+  // Führung: beim Losgehen die Kurzinfos der Stopps mit Wikipedia-Artikel laden (Stopps aus der Stadt-Liste bringen ihn mit)
+  await page.click('[data-reiter=unterwegs]');
+  await page.check('#fuehrung');
+  await page.click('#bNavi');
+  await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Führung:'), null, { timeout: 12000 }).catch(() => {});
+  const fuehrungMeldung = await page.textContent('#meldung');
+  pruef('Führung: Texte der Stopps geladen', /Führung: Texte für [1-9]\d* von [1-9]\d* Stopps geladen/.test(fuehrungMeldung), fuehrungMeldung);
+  await page.click('#bNavi');
+  await page.uncheck('#fuehrung');
+  await page.click('[data-reiter=planen]');
   // Drucken: Druckdialog abfangen, die Rückkehr nach 500 ms aufhalten und die Seite als echtes PDF drucken
   await page.evaluate(() => {
     window.print = () => { window.__gedruckt = true; };

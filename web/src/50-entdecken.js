@@ -10,7 +10,7 @@ $('suchfeld').addEventListener('input', () => {
 });
 $('suchfeld').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); if (trefferListe.length) trefferWaehlen(trefferListe[Math.max(0, trefferAktiv)]); else sucheLos($('suchfeld').value.trim()); }
-  if (e.key === 'Escape') { $('treffer').innerHTML = ''; $('suchfeld').blur(); }
+  if (e.key === 'Escape') sucheSchliessen();
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
     if (!trefferListe.length) return;
@@ -18,7 +18,11 @@ $('suchfeld').addEventListener('keydown', e => {
     [...$('treffer').children].forEach((b, i) => b.classList.toggle('aktiv', i === trefferAktiv));
   }
 });
-document.addEventListener('click', e => { if (!$('oben').contains(e.target)) $('treffer').innerHTML = ''; });
+// daneben tippen schließt die Liste; eine noch laufende Suche darf sie danach nicht wieder öffnen
+document.addEventListener('click', e => {
+  if ($('oben').contains(e.target)) return;
+  clearTimeout(suchUhr); suchNr++; trefferListe = []; trefferAktiv = -1; $('treffer').innerHTML = '';
+});
 // Suche schließen: auch eine wartende oder laufende Anfrage verwerfen, damit die Liste nicht wieder aufgeht
 function sucheSchliessen() {
   clearTimeout(suchUhr); suchNr++; trefferListe = []; trefferAktiv = -1;
@@ -121,7 +125,7 @@ function orteZeigen() {
 function ortPopup(o, kat, lage) {
   const t = o.tags, z = [], box = document.createElement('div');
   z.push('<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>');
-  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours, t));
   if (t.ele && t.natural !== 'peak') z.push(Math.round(parseFloat(t.ele)) + ' m');
   if (t.operator) z.push(R.esc(t.operator));
   if (t.website || t['contact:website']) {
@@ -136,11 +140,13 @@ function ortPopup(o, kat, lage) {
   return box;
 }
 
-// Öffnungszeiten: Stand jetzt farbig (geöffnet, schließt bald, geschlossen), darunter der Eintrag aus OSM
-function oeffnungHtml(roh) {
+// Öffnungszeiten: Stand jetzt farbig (geöffnet, schließt bald, geschlossen), darunter der Eintrag aus OSM mit Prüfdatum
+function oeffnungHtml(roh, tags) {
   const j = R.oeffnungJetzt(roh, new Date());
-  if (j.zustand === 'unbekannt') return 'Geöffnet: ' + R.esc(roh);
-  return '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.charAt(0).toUpperCase() + j.text.slice(1)) + '</span><br><span class="klein">' + R.esc(roh) + '</span>';
+  const stand = tags ? R.ohStand(R.ohDatum(tags), new Date()) : null;
+  const quelle = ' (laut OpenStreetMap' + (stand ? ', ' + stand.text + (stand.alt ? ' ⚠️ über 2 Jahre alt' : '') : '') + ')';
+  if (j.zustand === 'unbekannt') return 'Geöffnet: ' + R.esc(roh) + '<span class="klein">' + R.esc(quelle) + '</span>';
+  return '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.charAt(0).toUpperCase() + j.text.slice(1)) + '</span><br><span class="klein">' + R.esc(roh + quelle) + '</span>';
 }
 // kurz für Listen: nur der Stand, ohne den Eintrag
 function oeffnungKurz(roh) {
@@ -335,7 +341,7 @@ $('bDrinnen').onclick = async () => {
 };
 function drinnenPopup(o, kat, lage) {
   const t = o.tags, box = document.createElement('div'), z = ['<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>', '<span class="klein">' + R.esc(kat.name) + ' · ' + R.kmText(o.d) + ' entfernt</span>'];
-  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours, t));
   const web = t.website || t['contact:website'];
   if (web && /^https?:\/\//.test(web)) z.push('<a href="' + R.esc(web) + '" target="_blank" rel="noopener">Webseite</a>');
   z.push(googleLinkHtml(o.name, t, o.lat, o.lon));

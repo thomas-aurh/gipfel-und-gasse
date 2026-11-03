@@ -379,7 +379,7 @@ pruef('Öffnung: spätere Regel ersetzt den Tag', oj('Mo-Fr 08:00-12:00; We off'
 pruef('Öffnung: Komma-Regel kommt dazu', oj('Mo-Fr 10:00-18:00, Sa 10:00-14:00', '2026-11-07T11:00').text === 'geöffnet bis 14:00');
 pruef('Öffnung: Feiertage genannt, nicht ausgewertet', oj('Mo-Fr 10:00-18:00; PH off', '2026-11-02T12:00').text === 'geöffnet bis 18:00 (Feiertage nicht berücksichtigt)');
 pruef('Öffnung: 24/7 und durchgehend', oj('24/7', '2026-11-02T03:00').text === 'rund um die Uhr geöffnet' && oj('Mo-Su 00:00-24:00', '2026-11-02T12:00').text === 'durchgehend geöffnet');
-pruef('Öffnung: Unverstandenes bleibt unbekannt', ['sunrise-sunset', 'Mo-Fr 10:00+', 'Dec 24 off', '2026 Mo-Fr 10:00-12:00', 'Mo[1] 10:00-12:00', '', null, 'nach Vereinbarung']
+pruef('Öffnung: Unverstandenes bleibt unbekannt', ['sunrise-sunset', 'Dec 24 off', '2026 Mo-Fr 10:00-12:00', 'Mo[1] 10:00-12:00', '', null, 'nach Vereinbarung']
   .every(x => R.oeffnungJetzt(x, new Date('2026-11-02T12:00')).zustand === 'unbekannt'));
 // Wikipedia: Quelle aus OSM, Wikidata-Sitelinks, Kurzfassung
 pruef('Wiki: Titel aus OSM', JSON.stringify(R.wikiQuelle({ wikipedia: 'de:Kloster Benediktbeuern' })) === '{"sprache":"de","titel":"Kloster_Benediktbeuern"}' &&
@@ -440,5 +440,162 @@ pruef('Google Maps: Name mit Adresse aus OSM', R.googleSuche('Bäckerei Huber', 
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Bäckerei Huber, Bahnhofstraße 3, 82377 Penzberg'));
 pruef('Google Maps: Name mit Ortsname, sonst Koordinaten', R.googleSuche('Café Rosa', {}, 'Penzberg', 47.75, 11.37).endsWith(encodeURIComponent('Café Rosa, Penzberg')) &&
   R.googleSuche('Café Rosa', {}, '', 47.7535, 11.3747).endsWith('query=47.753500%2C11.374700'));
+// Durchsicht 03.11.: Lücken zwischen Abschnitten, Parser, Öffnungszeiten
+const seil = '<gpx><trk><trkseg><trkpt lat="47.60" lon="11"><ele>800</ele></trkpt><trkpt lat="47.601" lon="11"><ele>810</ele></trkpt></trkseg>' +
+  '<trkseg><trkpt lat="47.602" lon="11"><ele>1800</ele></trkpt><trkpt lat="47.603" lon="11"><ele>1810</ele></trkpt></trkseg></trk></gpx>';
+const seilAus = R.auswerten([{ pts: R.gpxLesen(seil).pts, abschnitte: [] }], 1);
+pruef('Seilbahn-Sprung zählt nicht als Aufstieg', seilAus.auf === 20 && seilAus.ab === 0, [seilAus.auf, seilAus.ab]);
+pruef('Seilbahn-Sprung zählt nicht als Steigung', seilAus.steigung < 20, seilAus.steigung);
+pruef('Rest unterwegs ohne Sprung', R.rest(seilAus.pts, 0, 1).auf === 20, R.rest(seilAus.pts, 0, 1));
+pruef('Höchster und tiefster Punkt', seilAus.hoch === 1810 && seilAus.tief === 800);
+pruef('Neben der gedachten Linie über die Lücke ist nicht auf der Route',
+  R.aufStrecke(seilAus.pts, { lat: 47.6015, lon: 11 }).abw > 50, R.aufStrecke(seilAus.pts, { lat: 47.6015, lon: 11 }));
+const vieleHoehen = Array.from({ length: 200000 }, (_, i) => ({ lat: 47 + i * 1e-6, lon: 11, ele: 500 + (i % 7) }));
+let grossOk = true; try { R.auswerten([{ pts: vieleHoehen, abschnitte: [] }], 1); } catch (e) { grossOk = false; }
+pruef('Sehr große Aufzeichnung ohne Stapelüberlauf', grossOk);
+pruef('GPX-Name: nicht der Autor', R.gpxLesen('<gpx><metadata><author><name>Garmin</name></author></metadata><trk><name>Runde</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.1" lon="11"/></trkseg></trk></gpx>').name === 'Runde');
+const wptZwei = R.zieleLesen('<gpx><wpt lat="47" lon="11"/><wpt lat="48" lon="12"><name>B</name></wpt></gpx>', 'w.gpx').ziele;
+pruef('Ziele: selbstschließende Wegpunkte', wptZwei.length === 2 && wptZwei[1].name === 'B' && wptZwei[1].lat === 48, wptZwei);
+const csvQ = R.zieleLesen('"Café; Bar";Lindau;"sagt ""hallo"""', 'q.csv').ziele[0];
+pruef('Ziele: Trenner in Anführungszeichen', csvQ.name === 'Café; Bar' && csvQ.suche === 'Lindau' && csvQ.notiz === 'sagt "hallo"', csvQ);
+const csvK = R.zieleLesen('name,lat,lon\nZugspitze,47.42,10.98', 'k.csv').ziele;
+pruef('Ziele: Komma-CSV mit Kopfzeile', csvK.length === 1 && csvK[0].name === 'Zugspitze' && csvK[0].lat === 47.42, csvK);
+pruef('Ziele: Zeile in Anführungszeichen ohne Trenner', R.zieleLesen('"Lindau, Bodensee"', 't.txt').ziele[0].name === 'Lindau, Bodensee');
+const csvOffen = R.zieleLesen('"Café;Lindau;Notiz', 'o.csv').ziele[0];
+pruef('Ziele: offenes Anführungszeichen behält die Spalten', csvOffen.suche === 'Lindau' && csvOffen.notiz === 'Notiz', csvOffen);
+pruef('Ziele: Komma ohne Kopfzeile bleibt Suchbegriff', R.zieleLesen('Lindau, Bodensee', 't.txt').ziele[0].suche === 'Lindau, Bodensee');
+pruef('Öffnung: Zusatzregel „, We off“ schließt', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00').zustand === 'zu', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00'));
+pruef('Öffnung: Zusatzregel ergänzt weiter Zeiten', oj('Mo 10:00-12:00, Mo 14:00-16:00', '2026-11-02T15:00').zustand === 'offen');
+
+// Öffnungszeiten: Formen aus den Kartenpaketen (Saison, offenes Ende, Monate mit Doppelpunkt, Tage mit Datum)
+// offenes Ende und Tage ohne Uhrzeit sind „vage“: die App behauptet keine Uhrzeit, die nicht eingetragen ist
+pruef('Öffnung: offenes Ende', oj('Mo-Su 11:30+', '2026-11-04T12:00').zustand === 'vage' && oj('Mo-Su 11:30+', '2026-11-04T12:00').text === 'geöffnet ab 11:30, Ende offen' &&
+  oj('Mo-Su 11:30+', '2026-11-04T10:00').text === 'geschlossen, öffnet um 11:30');
+pruef('Öffnung: Saison ohne Uhrzeit', oj('Jun-Aug', '2026-07-08T12:00').zustand === 'vage' && oj('Jun-Aug', '2026-11-04T12:00').text === 'geschlossen, außerhalb der Saison');
+// Fälle aus der Prüfung vom 03.11.
+const obP = (oh, t, min) => R.oeffnungBesuch(oh, new Date(t), min);
+pruef('Besuch: „Su 10:00+“ spät abends nicht sicher offen', obP('Su 10:00+', '2026-11-08T23:00', 60).zustand === 'vage', obP('Su 10:00+', '2026-11-08T23:00', 60));
+pruef('Besuch: „07:00-12:00+“ nach 12 nicht sicher zu', obP('Mo-Fr 07:00-12:00+', '2026-11-04T12:30', 30).zustand === 'vage' &&
+  obP('Mo-Fr 07:00-12:00+', '2026-11-04T10:00', 60).text === 'bei Ankunft geöffnet, mindestens bis 12:00', obP('Mo-Fr 07:00-12:00+', '2026-11-04T12:30', 30));
+pruef('Besuch: offenes Ende einer Regel gilt nicht für die anderen', obP('Mo-Fr 10:00-24:00; Su 12:00+', '2026-11-04T23:00', 120).zustand === 'knapp', obP('Mo-Fr 10:00-24:00; Su 12:00+', '2026-11-04T23:00', 120));
+pruef('Besuch: Tag ohne Uhrzeit überdeckt nicht die bekannten Zeiten', obP('Mo-Fr 10:00-18:00; Sa', '2026-11-04T12:00', 480).zustand === 'knapp' &&
+  oj('Mo-Fr 10:00-18:00; Sa', '2026-11-04T08:00').text === 'geschlossen, öffnet um 10:00', oj('Mo-Fr 10:00-18:00; Sa', '2026-11-04T08:00'));
+pruef('Besuch: „Tu-Su“ ohne Uhrzeit ist vage, kein „öffnet um 00:00“', obP('Tu-Su', '2026-11-04T23:30', 30).zustand === 'vage' && obP('Tu-Su', '2026-11-02T23:45', 30).zustand === 'zu');
+pruef('Besuch: Schließtage sind keine Saison', obP('Mo-Su 10:00-18:00; Dec 24-Dec 31 off', '2026-12-23T19:00', 30).text === 'bei Ankunft geschlossen, an dem Tag nicht mehr', obP('Mo-Su 10:00-18:00; Dec 24-Dec 31 off', '2026-12-23T19:00', 30));
+pruef('Besuch: „bis“ mit Tag über Mitternacht', obP('Mo-Fr 00:00-24:00', '2026-11-04T12:00', 60).text === 'bei Ankunft geöffnet, bis Sa 00:00', obP('Mo-Fr 00:00-24:00', '2026-11-04T12:00', 60));
+pruef('Öffnung: Monate mit Doppelpunkt', oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-11-04T12:00').text === 'geöffnet bis 15:00' &&
+  oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-07-08T12:00').text === 'geöffnet bis 16:00');
+pruef('Öffnung: Zeitraum mit Tagen', oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-12T12:00').zustand === 'offen' && oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-08T12:00').zustand === 'zu' &&
+  oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-11T12:00').zustand === 'zu');
+pruef('Öffnung: Zeitraum über den Jahreswechsel', oj('Dec 20-Jan 10 10:00-16:00', '2027-01-05T12:00').zustand === 'offen' && oj('Dec 20-Jan 10 10:00-16:00', '2027-02-05T12:00').zustand === 'zu');
+// Besuch: Ankunft und Aufenthalt gegen die Öffnungszeiten
+const ob = (oh, t, min) => R.oeffnungBesuch(oh, new Date(t), min);
+pruef('Besuch: offen', ob('Mo-Fr 10:00-18:00', '2026-11-04T14:00', 60).zustand === 'offen' && ob('Mo-Fr 10:00-18:00', '2026-11-04T14:00', 60).text === 'bei Ankunft geöffnet, bis 18:00');
+pruef('Besuch: schließt während des Besuchs', ob('Mo-Fr 10:00-18:00', '2026-11-04T17:30', 60).zustand === 'knapp', ob('Mo-Fr 10:00-18:00', '2026-11-04T17:30', 60));
+pruef('Besuch: öffnet kurz nach der Ankunft', ob('Mo-Fr 10:00-18:00', '2026-11-04T09:45', 30).text === 'öffnet erst um 10:00');
+pruef('Besuch: geschlossen, öffnet später', ob('Mo-Fr 10:00-12:00,14:00-18:00', '2026-11-04T12:30', 30).text === 'bei Ankunft geschlossen, öffnet 14:00');
+pruef('Besuch: Ruhetag', ob('Tu-Su 10:00-17:00', '2026-11-02T12:00', 30).text === 'bei Ankunft geschlossen, an dem Tag nicht mehr');
+pruef('Besuch: außerhalb der Saison', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30).text === 'bei Ankunft geschlossen (außerhalb der Saison)', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30));
+pruef('Besuch: durchgehend und bis Mitternacht', ob('Mo-Su 00:00-24:00', '2026-11-04T10:00', 60).text === 'durchgehend geöffnet' &&
+  ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60).text === 'bei Ankunft geöffnet, bis 24:00', ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60));
+// Führung: Text am Stopp
+const langerText = Array.from({ length: 60 }, (_, i) => 'Satz Nummer ' + i + ' über die Burg.').join(' ');
+const ft = R.fuehrungText('Alte Burg', langerText);
+pruef('Führung: Name zuerst, gekürzt am Satzende', ft.startsWith('Alte Burg erreicht. Satz Nummer 0') && ft.length <= 1200 + 20 && ft.endsWith('.'), ft.length);
+pruef('Führung: kurzer Text bleibt ganz', R.fuehrungText('Kirche', 'Eine  Kirche.\n') === 'Kirche erreicht. Eine Kirche.');
+pruef('Besuch: unbekannt', ob('nach Vereinbarung', '2026-11-04T12:00', 30).zustand === 'unbekannt');
+
+// Gipfelbuch
+const gbSpur = [{ lat: 47.6, lon: 11.3 }, { lat: 47.601, lon: 11.3 }, { lat: 47.6015, lon: 11.3005 }]; R.laengen(gbSpur);
+const gbEl = [{ type: 'node', id: 1, lat: 47.6012, lon: 11.3002, tags: { natural: 'peak', name: 'Testgipfel', ele: '1650,5' } },
+  { type: 'node', id: 2, lat: 47.61, lon: 11.3, tags: { natural: 'peak', name: 'Weit weg' } },
+  { type: 'node', id: 3, lat: 47.601, lon: 11.3, tags: { natural: 'peak' } }, { type: 'node', id: 4, lat: 47.601, lon: 11.3, tags: { tourism: 'viewpoint', name: 'Aussicht' } }];
+const gbG = R.gipfelErreicht(gbSpur, gbEl);
+pruef('Gipfelbuch: nur benannte Gipfel nahe der Spur', gbG.length === 1 && gbG[0].id === 'n1' && gbG[0].ele === 1651, gbG);
+const gbBuch = { gipfel: {} };
+const gbN1 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-07-01T10:00:00Z', tour: 't1', name: 'Runde' });
+const gbN2 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-07-01T10:00:00Z', tour: 't1', name: 'Runde' });
+const gbN3 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-06-01T10:00:00Z', tour: 't0', name: 'Früher' });
+pruef('Gipfelbuch: neu, derselbe Besuch nicht doppelt, Besuche nach Datum', gbN1.length === 1 && !gbN2.length && !gbN3.length &&
+  gbBuch.gipfel.n1.besuche.length === 2 && gbBuch.gipfel.n1.besuche[0].tour === 't0', gbBuch);
+const gbL = R.gipfelbuchListe(R.gipfelbuchPruefen(JSON.parse(JSON.stringify(gbBuch))));
+pruef('Gipfelbuch: Liste und Kennzahlen', gbL.anzahl === 1 && gbL.besuche === 2 && gbL.hoechster.name === 'Testgipfel' && gbL.liste[0].zuletzt === '2026-07-01T10:00:00Z', gbL);
+pruef('Gipfelbuch: Sicherung geprüft', Object.keys(R.gipfelbuchPruefen({ gipfel: { 'x"]': { name: 'a', lat: 1, lon: 1 }, n5: { name: 'B', lat: 47, lon: 11, besuche: [{ datum: 'kaputt' }, { datum: '2026-01-01' }] } } }).gipfel).join() === 'n5' &&
+  R.gipfelbuchPruefen({ gipfel: { n5: { name: 'B', lat: 47, lon: 11, besuche: [{ datum: 'kaputt' }, { datum: '2026-01-01' }] } } }).gipfel.n5.besuche.length === 1 && Object.keys(R.gipfelbuchPruefen(null).gipfel).length === 0);
+pruef('Gipfelbuch: Abfrage nur benannte Gipfel', R.gipfelAbfrage(gbSpur).includes('node["natural"="peak"]["name"](around:' + R.GIPFEL_RADIUS + ','));
+// Hin und zurück über einen Grat: der Gipfel am Umkehrpunkt liegt zwischen den ausgedünnten Punkten der Abfrage
+{
+  const hin = []; for (let i = 0; i <= 60; i++) hin.push({ lat: 47.5 + i * 0.0003, lon: 11.3 });
+  const spur = hin.concat(hin.slice(0, -1).reverse().map(p => ({ lat: p.lat, lon: p.lon + 0.0002 }))); R.laengen(spur);
+  const gipfel = { lat: hin[60].lat + 0.0002, lon: 11.3001 };   // gut 20 m hinter dem Umkehrpunkt
+  const ll = /around:(\d+),([\d.,-]+)\)/.exec(R.gipfelAbfrage(spur));
+  const zahlen = ll[2].split(',').map(Number), abfrage = [];
+  for (let i = 0; i < zahlen.length; i += 2) abfrage.push({ lat: zahlen[i], lon: zahlen[i + 1] });
+  const naechster = Math.min(...abfrage.map(p => R.abstand(p, gipfel)));
+  pruef('Gipfelbuch: Gipfel am Umkehrpunkt liegt im Radius der Abfrage', naechster <= +ll[1], [naechster, +ll[1]]);
+}
+pruef('Gipfelbuch: Gipfel ohne gültigen Besuch fällt weg, way mit eigener Kennung',
+  !R.gipfelbuchPruefen({ gipfel: { n7: { name: 'Leer', lat: 47, lon: 11, besuche: [] } } }).gipfel.n7 &&
+  R.gipfelErreicht(gbSpur, [{ type: 'way', id: 9, center: { lat: 47.6012, lon: 11.3002 }, tags: { natural: 'peak', name: 'Fläche' } }])[0].id === 'w9');
+pruef('Gipfelbuch: Besuche ohne Tour nach dem Tag unterschieden', R.gipfelBesuchGleich({ tour: '', datum: '2026-01-01' }, { tour: '', datum: '2026-01-02' }) === false &&
+  R.gipfelBesuchGleich({ tour: 't1', datum: 'a' }, { tour: 't1', datum: 'b' }) === true);
+
+// Mehrtagestour: Etappen an den Übernachtungen
+const etPts = []; for (let i = 0; i <= 30; i++) etPts.push({ lat: 47 + i * 0.001, lon: 11, ele: i <= 10 ? 500 + i * 50 : i <= 20 ? 1000 - (i - 10) * 30 : 700 + (i - 20) * 20 });
+R.laengen(etPts);
+const etSe = [etPts[10].d, etPts[20].d, etPts[30].d];
+const et = R.etappen(etPts, etSe, [{}, { name: 'Hütte', nacht: true }, { name: 'Alm' }, {}], 1, 'fuss');
+pruef('Etappen: an der Übernachtung geteilt', et.length === 2 && et[0].bis === 1 && et[1].von === 1 && et[1].bis === 3, et);
+pruef('Etappen: Höhenmeter und höchster Punkt je Tag', et[0].auf === 500 && et[0].ab === 0 && et[0].hoch === 1000 && et[1].auf === 200 && et[1].ab === 300 && et[1].hoch === 1000, et.map(s => [s.auf, s.ab, s.hoch]));
+pruef('Etappen: Strecke und Gehzeit wie zwei einzelne Touren', Math.abs(et[0].meter + et[1].meter - etPts[30].d) < 1 &&
+  Math.abs(et[0].zeit - R.zeitFuer('fuss', et[0].meter, 500, 0, 1)) < 1e-9, et.map(s => s.zeit));
+pruef('Etappen: ohne Übernachtung keine, Ziel und Start zählen nicht', R.etappen(etPts, etSe, [{ nacht: true }, {}, {}, { nacht: true }], 1, 'fuss') === null);
+// Zeit ab der Übernachtung für sich gerechnet (die Formel ist nicht additiv): steiler Tag 1, flacher Tag 2
+{
+  const p = []; for (let i = 0; i <= 30; i++) p.push({ lat: 47 + i * 0.0003, lon: 11, ele: 500 + i * 33.3 });
+  for (let i = 1; i <= 120; i++) p.push({ lat: 47 + 30 * 0.0003 + i * 0.001, lon: 11, ele: 1500 });
+  R.laengen(p);
+  const se = [p[30].d, p[150].d], st = R.etappen(p, se, [{}, { name: 'Hütte', nacht: true }, {}], 1, 'fuss');
+  const zw = R.zeitZwischen(p, st[1].vonD, se[1], 1, 'fuss'), diff = R.zeitBis(p, se[1], 1, 'fuss') - R.zeitBis(p, se[0], 1, 'fuss');
+  pruef('Etappen: Zeit des zweiten Tages für sich, nicht als Differenz', Math.abs(zw - st[1].zeit) < 1e-9 && Math.abs(diff - st[1].zeit) > 0.5, [zw, st[1].zeit, diff]);
+}
+// Lücke genau an der Etappengrenze: der Punkt hinter dem Sprung gehört zum nächsten Tag
+{
+  const p = [{ lat: 47, lon: 11, ele: 500 }, { lat: 47.01, lon: 11, ele: 900 }, { lat: 47.5, lon: 11.5, ele: 2000, luecke: true }, { lat: 47.51, lon: 11.5, ele: 2100 }];
+  R.laengen(p);
+  const st = R.etappen(p, [p[1].d, p[3].d], [{}, { nacht: true }, {}], 1, 'fuss');
+  pruef('Etappen: Punkt hinter der Lücke an der Grenze gehört zu Tag 2', st[0].hoch === 900 && st[0].ziel.lat === 47.01 && st[1].auf === 100, st.map(s => [s.hoch, s.auf, s.ziel && s.ziel.lat]));
+}
+const etTour = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', version: 1, touren: [{ id: 't1', name: 'x', datum: '2026-07-10T08:00:00Z', spur: [[47, 11], [47.1, 11], [47.2, 11]], art: 'plan',
+  wps: [[47, 11], [47.1, 11, 'Hütte', 0, 0, 1], [47.2, 11]], stuecke: [{ n: 2, q: 'linie', a: [] }, { n: 2, q: 'linie', a: [] }], kurz: { laenge: 1, auf: 0, ab: 0, zeit: 1 } }] }))[0];
+pruef('Etappen: Tour aus der Sicherung behält die Übernachtung', etTour && JSON.stringify(etTour.wps[1]) === JSON.stringify([47.1, 11, 'Hütte', 0, 0, 1]), etTour && etTour.wps);
+
+// Wetter für die Tour
+const twUrl = R.tourWetterUrl([{ lat: 47.6, lon: 11.3, ele: 800 }, { lat: 47.61, lon: 11.31, ele: 1700.4 }]);
+pruef('Tourwetter: eine Anfrage für alle Punkte, mit Höhe', twUrl.includes('latitude=47.6000,47.6100') && twUrl.includes('elevation=800,1700') && twUrl.includes('timeformat=unixtime'), twUrl);
+pruef('Tourwetter: ohne Höhe eines Punkts nur dort die Geländehöhe', R.tourWetterUrl([{ lat: 47, lon: 11, ele: null }, { lat: 47, lon: 11, ele: 500 }]).includes('elevation=nan,500'));
+pruef('Tourwetter: vergangene Zeit eigens benannt', R.tourWetterText(null, true).text === 'liegt in der Vergangenheit' && R.tourWetterText(null, false).text.includes('16 Tage'));
+const twOrt = { hourly: { time: [1000, 4600, 8200], temperature_2m: [5, -1, 3], precipitation_probability: [10, 60, 0], weather_code: [2, 95, 0], wind_speed_10m: [10, 20, 5], wind_gusts_10m: [20, 65, 10] } };
+const twW = R.wetterStunde(twOrt, 5000 * 1000);
+pruef('Tourwetter: Stunde der Ankunft', twW && twW.temp === -1 && twW.code === 95, twW);
+pruef('Tourwetter: außerhalb der Vorhersage', R.wetterStunde(twOrt, 500 * 1000) === null && R.wetterStunde(twOrt, 20000 * 1000) === null);
+const twT = R.tourWetterText(twW);
+pruef('Tourwetter: Text und Warnungen', twT.text.includes('-1 °C') && twT.text.includes('Böen 65') && twT.warn.join() === 'Gewitter,Sturmböen,Frost', twT);
+
+// Quelle und Alter der Öffnungszeiten (Abgleich 03.11.)
+const qi = R.stoppInfo({ opening_hours: 'Mo 10:00-12:00', check_date: '2021-06-04', website: 'https://x.example', 'addr:street': 'Hauptstr.', 'addr:housenumber': '1', 'addr:postcode': '83671', 'addr:city': 'Benediktbeuern' });
+pruef('Quelle: Prüfdatum, Webseite und Adresse kommen mit', qi.ohd === '2021-06-04' && qi.web === 'https://x.example' && qi.adr === 'Hauptstr. 1, 83671 Benediktbeuern', qi);
+pruef('Quelle: unsichere Werte fallen weg', JSON.stringify(R.infoPruefen({ oh: 'Mo off', ohd: 'gestern', web: 'javascript:alert(1)', adr: 5, x: 1 })) === '{"oh":"Mo off"}');
+pruef('Quelle: Stand und „alt“ ab zwei Jahren', R.ohStand('2021-06-04', new Date('2026-11-03')).text === 'Stand 06/2021' && R.ohStand('2021-06', new Date('2026-11-03')).alt &&
+  !R.ohStand('2025-06-01', new Date('2026-11-03')).alt && R.ohStand('', new Date()) === null);
+pruef('Quelle: Google mit Adresse, sonst Name an der Stelle', R.googleOrtLink('Hütte', 'Weg 1, 83671 Ort', 47, 11).endsWith(encodeURIComponent('Hütte, Weg 1, 83671 Ort')) &&
+  R.googleOrtLink('Hütte', '', 47.123456, 11.5).startsWith('https://www.google.com/maps/search/H%C3%BCtte/@47.12346,11.50000,17z'));
+
+pruef('Quelle: erstes gültiges Datum, nur das Jahr mit Warnung, Monat 13 ungültig',
+  R.ohDatum({ 'check_date:opening_hours': '2023', check_date: '2024-05-01' }) === '2023' && R.ohDatum({ 'check_date:opening_hours': 'bald', check_date: '2024-05-01' }) === '2024-05-01' &&
+  R.ohStand('2019', new Date('2026-11-03')).text === 'Stand 2019' && R.ohStand('2019', new Date('2026-11-03')).alt && R.ohStand('2023-13-01', new Date()) === null);
+pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website: 'www.museum.de' }).web === 'https://www.museum.de' &&
+  R.stoppInfo({ website: 'museum', 'contact:website': 'https://kontakt.example' }).web === 'https://kontakt.example');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

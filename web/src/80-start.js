@@ -1,6 +1,6 @@
 // Start: Seiten (Menü links oben, Leiste unten), Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
 const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren',
-  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
+  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', gipfelbuch: 'Gipfelbuch', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
 let seite = 'planen';
 function reiter(name) {
   if (!SEITEN[name]) name = 'planen';
@@ -23,6 +23,7 @@ function reiter(name) {
   if (name === 'touren' || name === 'gegangen') tourenZeigen();
   if (name === 'tagebuch') tagebuchZeigen();
   if (name === 'ziele') zieleZeigen();
+  if (name === 'gipfelbuch') gipfelbuchZeigen();
   if (name === 'planen') requestAnimationFrame(() => profilZeichnen());
   if ($('panel').classList.contains('klein')) blatt('mittel');
 }
@@ -162,7 +163,8 @@ function ausLink() {
   const ent = SPEICHER.lesen('entwurf', null) || {};
   const vorher = S.wps.length ? S.wps : (ent.wps || []);
   const vorherProfil = S.wps.length ? S.profil : (ent.profil || S.profil);
-  S.fest = null; S.tourId = null; S.verlauf = vorher.length ? [JSON.stringify({ wps: vorher, profil: vorherProfil })] : [];
+  // eine fremde Tour: Name und Zeitplan der vorigen Planung gehören nicht dazu
+  S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null); S.verlauf = vorher.length ? [JSON.stringify({ wps: vorher, profil: vorherProfil })] : [];
   const key = Object.keys(PROFILE).find(k => k === l.profil);
   S.profil = key || 'wandern'; $('profilwahl').value = S.profil;
   if (vorher.length) melde('Geteilte Tour geöffnet. „↶ Rückgängig“ holt deine vorige Planung zurück.', 6);

@@ -37,6 +37,16 @@ var R = (function () {
     return { auf: Math.round(auf), ab: Math.round(ab) };
   }
 
+  // Höhenmeter einer Strecke mit Abschnitten (GPX-trkseg): der Sprung über eine Lücke (Seilbahn, Pause ohne
+  // Aufzeichnung) zählt nicht, jeder Abschnitt wird für sich gerechnet
+  function hoehenmeterSpur(pts, schwelle) {
+    let auf = 0, ab = 0, teil = [];
+    const fertig = () => { const h = hoehenmeter(teil, schwelle); auf += h.auf; ab += h.ab; teil = []; };
+    for (const p of pts) { if (p.luecke) fertig(); teil.push(p.ele); }
+    fertig();
+    return { auf, ab };
+  }
+
   // Gehzeit in Stunden nach DIN 33466 (wie die Wegweiser der Alpenvereine):
   // 4 km/h in der Ebene, 300 Hm/h bergauf, 500 Hm/h bergab; die größere Zeit plus die Hälfte der kleineren.
   // tempo: 1 = normal, 0.7 = mit Kind, 1.2 = zügig
@@ -125,11 +135,15 @@ var R = (function () {
   // größte Steigung in Prozent, gemittelt über mindestens `fenster` Meter
   function maxSteigung(pts, fenster) {
     fenster = fenster || 100;
+    // letzte Lücke bis Punkt k: ein Fenster über eine Lücke hinweg wäre ein Sprung, keine Steigung
+    const lueckeBis = [];
+    for (let k = 0, g = -1; k < pts.length; k++) { if (pts[k].luecke) g = k; lueckeBis.push(g); }
     let best = 0, j = 0;
     for (let i = 0; i < pts.length; i++) {
       if (pts[i].ele == null) continue;
       while (j < pts.length && (pts[j].d - pts[i].d < fenster || pts[j].ele == null)) j++;
       if (j >= pts.length) break;
+      if (lueckeBis[j] > i) continue;
       const g = Math.abs(pts[j].ele - pts[i].ele) / (pts[j].d - pts[i].d) * 100;
       if (g > best) best = g;
     }
@@ -331,15 +345,16 @@ var R = (function () {
       if (cmd) hinweise.push({ d: dv, cmd, exit: 0, uebergang: true });
     }
     hinweise.sort((a, b) => a.d - b.d);
-    const eles = pts.map(p => p.ele);
-    const hm = hoehenmeter(eles);
-    const gueltig = eles.filter(e => e != null);
+    const hm = hoehenmeterSpur(pts);
+    // Schleife statt Math.max(...): große Aufzeichnungen sprengen sonst den Aufrufstapel
+    let hoch = null, tief = null;
+    for (const p of pts) if (p.ele != null && !isNaN(p.ele)) { if (hoch == null || p.ele > hoch) hoch = p.ele; if (tief == null || p.ele < tief) tief = p.ele; }
     const steigung = maxSteigung(pts);
     return {
       pts, abschnitte, laenge, stueckEnde, hinweise,
       auf: hm.auf, ab: hm.ab,
-      hoch: gueltig.length ? Math.round(Math.max(...gueltig)) : null,
-      tief: gueltig.length ? Math.round(Math.min(...gueltig)) : null,
+      hoch: hoch == null ? null : Math.round(hoch),
+      tief: tief == null ? null : Math.round(tief),
       zeit: zeitFuer(art, laenge, hm.auf, hm.ab, tempo),
       steigung,
       sac: schwierigkeit(abschnitte),
@@ -358,7 +373,7 @@ var R = (function () {
       let best = null;
       for (let i = 0; i < pts.length - 1; i++) {
         const a = pts[i], b = pts[i + 1];
-        if (b.d < von || a.d > bis) continue;
+        if (b.luecke || b.d < von || a.d > bis) continue;   // über eine Lücke führt kein Weg
         const ax = (a.lon - pos.lon) * kx, ay = (a.lat - pos.lat) * ky;
         const bx = (b.lon - pos.lon) * kx, by = (b.lat - pos.lat) * ky;
         const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
@@ -381,19 +396,121 @@ var R = (function () {
 
   // was ab Meter d noch kommt
   function rest(pts, d, tempo, art) {
-    const eles = [];
+    const vor = [];
     let i = 0;
     while (i < pts.length && pts[i].d < d) i++;
     // Höhe genau an der aktuellen Stelle, zwischen den Nachbarpunkten eingerechnet
     if (i > 0 && i < pts.length && pts[i - 1].ele != null && pts[i].ele != null && pts[i].d > pts[i - 1].d) {
       const t = (d - pts[i - 1].d) / (pts[i].d - pts[i - 1].d);
-      eles.push(pts[i - 1].ele + (pts[i].ele - pts[i - 1].ele) * t);
+      vor.push({ ele: pts[i - 1].ele + (pts[i].ele - pts[i - 1].ele) * t });
     }
-    for (; i < pts.length; i++) eles.push(pts[i].ele);
     const ges = pts.length ? pts[pts.length - 1].d : 0;
-    const hm = hoehenmeter(eles);
+    const hm = hoehenmeterSpur(vor.concat(pts.slice(i)));
     const m = Math.max(0, ges - d);
     return { meter: m, auf: hm.auf, ab: hm.ab, zeit: zeitFuer(art, m, hm.auf, hm.ab, tempo) };
+  }
+
+  // Zeit (Stunden) vom Start bis Meter d: dieselbe Formel wie die ganze Strecke, auf das Stück davor angewandt
+  function zeitBis(pts, d, tempo, art) { return zeitZwischen(pts, 0, d, tempo, art); }
+  // Zeit (Stunden) für das Stück von Meter a bis b, für sich gerechnet (Etappe, Weg bis zum Stopp ab der Übernachtung):
+  // die Gehzeitformel ist nicht additiv, die Differenz zweier Gesamtzeiten wäre falsch
+  function zeitZwischen(pts, a, b, tempo, art) {
+    const teil = etappenStueck(pts, a, b);
+    if (teil.length < 2) return 0;
+    const hm = hoehenmeterSpur(teil);
+    return zeitFuer(art, Math.max(0, Math.min(b, teil[teil.length - 1].d) - Math.max(a, teil[0].d)), hm.auf, hm.ab, tempo);
+  }
+  // Punkte von Meter a bis b; der erste Punkt beginnt nie mit einem Sprung, und ein Punkt hinter einer Lücke genau an der
+  // Grenze (gleiches d) gehört schon zum nächsten Stück
+  function etappenStueck(pts, a, b) {
+    const teil = pts.filter(p => p.d >= a - 0.01 && p.d <= b + 0.01);
+    while (teil.length > 1 && teil[teil.length - 1].luecke) teil.pop();
+    if (teil.length && teil[0].luecke) teil[0] = Object.assign({}, teil[0], { luecke: false });
+    return teil;
+  }
+
+  // was ein Stopp aus OSM mitnimmt: Öffnungszeiten (Zeitplan-Prüfung) und Wikipedia (Vorlesen unterwegs)
+  // dazu (Abgleich 03.11., docs/oeffnungszeiten-abgleich.md): Prüfdatum der Zeiten, Webseite und Adresse, damit man die
+  // Angabe vor dem Besuch nachsehen kann
+  function stoppInfo(tags) {
+    if (!tags) return null;
+    const adr = [[tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' '), [tags['addr:postcode'], tags['addr:city'] || tags['addr:place']].filter(Boolean).join(' ')]
+      .filter(Boolean).join(', ');
+    return infoPruefen({ oh: tags.opening_hours, wp: tags.wikipedia, wd: tags.wikidata, ohd: ohDatum(tags),
+      web: [tags.website, tags['contact:website']].map(webAdresse).find(Boolean), adr });
+  }
+  // erstes gültiges Prüfdatum (eigenes für die Öffnungszeiten vor dem allgemeinen); auch nur das Jahr
+  const OH_DATUM = /^\d{4}(-(0[1-9]|1[0-2])(-\d{2})?)?$/;
+  function ohDatum(tags) { return [tags['check_date:opening_hours'], tags.check_date].find(d => typeof d === 'string' && OH_DATUM.test(d)); }
+  // Webseite nur als http(s); „www.museum.de“ ohne Schema bekommt https://
+  function webAdresse(w) {
+    if (typeof w !== 'string') return null;
+    w = w.trim();
+    if (/^www\.\S+$/i.test(w)) w = 'https://' + w;
+    return /^https?:\/\/\S+$/i.test(w) ? w : null;
+  }
+  // gespeicherte Info eines Stopps (Tour, Sicherung): nur bekannte Felder, geprüft
+  function infoPruefen(i) {
+    if (!i || typeof i !== 'object') return null;
+    const o = {}, s = (v, n) => typeof v === 'string' && v.length && v.length <= n;
+    if (s(i.oh, 300)) o.oh = i.oh;
+    if (s(i.wp, 200)) o.wp = i.wp;
+    if (typeof i.wd === 'string' && /^Q\d{1,12}$/.test(i.wd)) o.wd = i.wd;
+    if (typeof i.ohd === 'string' && OH_DATUM.test(i.ohd)) o.ohd = i.ohd;
+    if (s(i.web, 300) && webAdresse(i.web)) o.web = webAdresse(i.web);
+    if (s(i.adr, 200)) o.adr = i.adr;
+    return Object.keys(o).length ? o : null;
+  }
+  // „Stand 05/2023“ aus dem Prüfdatum in OSM; alt = älter als zwei Jahre (dann eher veraltet, vgl. Abgleich)
+  function ohStand(ohd, jetzt) {
+    if (typeof ohd !== 'string' || !OH_DATUM.test(ohd)) return null;
+    const jahr = +ohd.slice(0, 4), monat = ohd.length >= 7 ? +ohd.slice(5, 7) : null;
+    // nur das Jahr: zur Sicherheit vom Jahresanfang an gerechnet (ein altes Jahr soll die Warnung bekommen)
+    const monate = (jetzt.getFullYear() - jahr) * 12 + (jetzt.getMonth() + 1 - (monat || 1));
+    return { text: 'Stand ' + (monat ? String(monat).padStart(2, '0') + '/' : '') + jahr, alt: monate > 24 };
+  }
+  // Google Maps zu einem Ort: mit Adresse die Suche nach Name und Adresse, sonst nach dem Namen an dieser Stelle
+  // (so findet Google den Ort, eine reine Koordinate zeigte nur einen Punkt)
+  function googleOrtLink(name, adr, lat, lon) {
+    if (name && adr) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ', ' + adr);
+    if (name) return 'https://www.google.com/maps/search/' + encodeURIComponent(name) + '/@' + lat.toFixed(5) + ',' + lon.toFixed(5) + ',17z';
+    return 'https://www.google.com/maps/search/?api=1&query=' + lat.toFixed(6) + ',' + lon.toFixed(6);
+  }
+
+  // Mehrtagestour: an Wegpunkten mit Übernachtung (w.nacht, nicht Start und Ziel) in Etappen teilen. Je Etappe Strecke,
+  // Höhenmeter, Gehzeit (dieselbe Formel wie die ganze Tour, auf das Stück angewandt) und höchster Punkt; null ohne Übernachtung.
+  // stueckEnde[i-1] = Meter ab Start, an dem Wegpunkt i liegt
+  function etappen(pts, stueckEnde, wps, tempo, art) {
+    const n = wps.length;
+    if (!stueckEnde || stueckEnde.length !== n - 1) return null;
+    const grenzen = [];
+    for (let i = 1; i < n - 1; i++) if (wps[i].nacht) grenzen.push(i);
+    if (!grenzen.length) return null;
+    const aus = [];
+    let vonI = 0, vonD = 0;
+    for (const bisI of grenzen.concat([n - 1])) {
+      const bisD = stueckEnde[bisI - 1];
+      const teil = etappenStueck(pts, vonD, bisD);
+      const hm = hoehenmeterSpur(teil);
+      let hoch = null;
+      for (const p of teil) if (p.ele != null && (hoch == null || p.ele > hoch)) hoch = p.ele;
+      const meter = Math.max(0, bisD - vonD);
+      aus.push({ von: vonI, bis: bisI, vonD, bisD, meter, auf: hm.auf, ab: hm.ab, hoch: hoch == null ? null : Math.round(hoch),
+        zeit: zeitFuer(art, meter, hm.auf, hm.ab, tempo), ziel: teil.length ? teil[teil.length - 1] : null });
+      vonI = bisI; vonD = bisD;
+    }
+    return aus;
+  }
+
+  // Text der Führung am Stopp: Name, dann die Kurzinfo, höchstens etwa 1200 Zeichen und am Satzende gekürzt
+  // (eine Minute Vorlesen; die Sprachausgabe von Android nimmt ohnehin nur rund 4000 Zeichen auf einmal)
+  function fuehrungText(name, text) {
+    let t = String(text || '').replace(/\s+/g, ' ').trim();
+    if (t.length > 1200) {
+      const schnitt = t.slice(0, 1200), ende = Math.max(schnitt.lastIndexOf('. '), schnitt.lastIndexOf('! '), schnitt.lastIndexOf('? '));
+      t = ende > 200 ? schnitt.slice(0, ende + 1) : schnitt.replace(/\s+\S*$/, '') + ' …';
+    }
+    return (name ? name + ' erreicht. ' : '') + t;
   }
 
   // jeden Punkt etwa alle `m` Meter behalten (für Abfragen mit vielen Koordinaten)
@@ -455,7 +572,9 @@ var R = (function () {
     }
     if (!pts.length) pts = lese('rtept');
     const wpt = lese('wpt');
-    const kopf = /<(?:metadata|trk|rte)\b[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(text);
+    // Name der Tour: nur der eigene <name> von metadata/trk/rte, nicht der des Autors (Garmin) oder eines Punkts
+    const ohnePunkte = text.replace(/<author\b[\s\S]*?<\/author>|<(wpt|trkpt|rtept)\b[^>]*?(?:\/>|>[\s\S]*?<\/\1>)/g, '');
+    const kopf = /<(?:metadata|trk|rte)\b[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(ohnePunkte);
     if (!pts.length && !wpt.length) throw new Error('In der Datei steht keine Spur und keine Route.');
     return { name: kopf ? unesc(kopf[1].trim()) : null, pts, wpt };
   }
@@ -670,7 +789,13 @@ var R = (function () {
       wps = [];
       for (const w of t.wps) {
         if (!Array.isArray(w) || !ort(w[0], w[1])) return null;
-        wps.push(w.length > 2 ? [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)] : [w[0], w[1]]);
+        if (w.length <= 2) { wps.push([w[0], w[1]]); continue; }
+        const p = [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)];
+        // fünfter Wert: Öffnungszeiten und Wikipedia des Stopps aus OSM (nur bekannte Felder, geprüft)
+        const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? infoPruefen(w[4]) : null;
+        if (info || w[5] === 1) p.push(info || 0);
+        if (w[5] === 1) p.push(1);   // sechster Wert: Übernachtung (Mehrtagestour)
+        wps.push(p);
       }
     }
     // Teilstücke nur, wenn sie zu Wegpunkten und Spur passen; sonst öffnet die Tour als Spur
@@ -816,6 +941,41 @@ var R = (function () {
     return ['❔', 'unbekannt'];
   }
 
+  // Wetter für die Tour: eine Anfrage für mehrere Punkte (Start, höchster Punkt, Ziel je Tag), mit ihrer Höhe: Open-Meteo
+  // rechnet die Vorhersage auf diese Höhe um (sonst gälte die Geländehöhe des Rasters, am Gipfel oft Hunderte Meter tiefer)
+  const TOUR_WETTER = 'temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m';
+  function tourWetterUrl(punkte) {
+    const z = f => punkte.map(f).join(',');
+    // ohne eigene Höhe „nan“: dann nimmt Open-Meteo für diesen Punkt die Geländehöhe, die anderen behalten ihre
+    const hoehe = p => (p.ele != null && isFinite(p.ele) ? Math.round(p.ele) : 'nan');
+    return 'https://api.open-meteo.com/v1/forecast?latitude=' + z(p => p.lat.toFixed(4)) + '&longitude=' + z(p => p.lon.toFixed(4)) +
+      '&elevation=' + z(hoehe) + '&hourly=' + TOUR_WETTER + '&timeformat=unixtime&forecast_days=16';
+  }
+  // Werte der Stunde, in der man an diesem Ort ist; null außerhalb der Vorhersage
+  function wetterStunde(ort, t) {
+    const h = ort && ort.hourly;
+    if (!h || !Array.isArray(h.time)) return null;
+    const s = Math.floor(t / 1000);
+    let i = -1;
+    for (let k = 0; k < h.time.length; k++) if (h.time[k] <= s) i = k; else break;
+    if (i < 0 || s - h.time[i] >= 3600) return null;
+    const w = k => (Array.isArray(h[k]) && h[k][i] != null ? h[k][i] : null);
+    return { temp: w('temperature_2m'), regen: w('precipitation_probability'), code: w('weather_code'), wind: w('wind_speed_10m'), boe: w('wind_gusts_10m') };
+  }
+  // „⛅ heiter, 8 °C · Regen 20 % · Wind 25 km/h, Böen 45“ und Warnungen (Gewitter, Sturmböen, Frost)
+  function tourWetterText(w, vorbei) {
+    if (!w) return { text: vorbei ? 'liegt in der Vergangenheit' : 'außerhalb der Vorhersage (höchstens 16 Tage)', warn: [] };
+    const [zeichen, art] = wetterText(w.code), teile = [zeichen + ' ' + art];
+    if (w.temp != null) teile[0] += ', ' + Math.round(w.temp) + ' °C';
+    if (w.regen != null) teile.push('Regen ' + Math.round(w.regen) + ' %');
+    if (w.wind != null) teile.push('Wind ' + Math.round(w.wind) + ' km/h' + (w.boe != null ? ', Böen ' + Math.round(w.boe) : ''));
+    const warn = [];
+    if (+w.code >= 95) warn.push('Gewitter');
+    if (w.boe != null && w.boe >= 60) warn.push('Sturmböen');
+    if (w.temp != null && w.temp <= 0) warn.push('Frost');
+    return { text: teile.join(' · '), warn };
+  }
+
 
   // ---------- Stadt: Sehenswürdigkeiten im Kartenausschnitt ----------
   // min = vorgeschlagene Besichtigungszeit in Minuten, wenn der Ort als Stopp in die Tour kommt
@@ -930,14 +1090,25 @@ var R = (function () {
   }
   function ohZeiten(text) {
     const z = [];
-    for (const teil of text.split(',')) {
+    for (let teil of text.split(',')) {
+      // Dritter Wert jeder Zeitspanne: wie sicher sie ist. „11:30+“: ab 11:30, Ende offen ('ab', bis Mitternacht
+      // eingetragen, aber nicht sicher); „12:00-22:00+“: mindestens bis 22:00, danach unklar ('mind')
+      const offen = /^(\d{1,2}):(\d{2})\+$/.exec(teil);
+      if (offen) {
+        const a = +offen[1] * 60 + +offen[2];
+        if (a >= 1440 || +offen[2] > 59) return null;
+        z.push([a, 1440, 'ab']);
+        continue;
+      }
+      const mind = /\+$/.test(teil);
+      teil = teil.replace(/\+$/, '');
       const m = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(teil);
       if (!m) return null;
       const a = +m[1] * 60 + +m[2];
       let b = +m[3] * 60 + +m[4];
       if (a > 1440 || b > 2880 || +m[2] > 59 || +m[4] > 59) return null;
       if (b <= a) b += 1440;   // über Mitternacht
-      z.push([a, b]);
+      z.push(mind ? [a, b, 'mind'] : [a, b]);
     }
     return z;
   }
@@ -946,11 +1117,14 @@ var R = (function () {
     const s = roh.replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
     if (!s) return null;
     if (s === '24/7') return { regeln: [{ zus: false, monate: null, tage: null, zeiten: [[0, 1440]] }], feiertage: false, immer: true };
-    if (/\|\||"|\[|\+|week|easter|sunrise|sunset|dawn|dusk|\d{4}/.test(s)) return null;
+    if (/\|\||"|\[|week|easter|sunrise|sunset|dawn|dusk|\d{4}/.test(s)) return null;
     const regeln = [];
-    let feiertage = false;
+    let feiertage = false, saison = false;
+    const MON = '(?:' + OH_MONATE.join('|') + ')';
+    // „Apr-Oct: Mo-Su 10:00-16:00“: der Doppelpunkt nach den Monaten ist nur Gliederung
+    const s2 = s.replace(new RegExp('(' + MON + '(?:\\s*\\d{1,2})?)\\s*:\\s+', 'g'), '$1 ');
     const sel = '(?:Mo|Tu|We|Th|Fr|Sa|Su|PH|SH|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\b';
-    for (const gruppe of s.split(';').map(x => x.trim()).filter(Boolean)) {
+    for (const gruppe of s2.split(';').map(x => x.trim()).filter(Boolean)) {
       // ", " vor einem Wochentag oder Monat beginnt eine Regel, die dazukommt; "Mo, We 10:00-12:00" gehört zusammen
       const stuecke = gruppe.split(new RegExp(',\\s*(?=' + sel + ')'));
       const teile = [];
@@ -960,7 +1134,17 @@ var R = (function () {
       }
       teile.forEach((teil, i) => {
         if (regeln === null) return;
-        const m = new RegExp('^(?:((?:' + OH_MONATE.join('|') + ')[A-Za-z,-]*)\\s+)?(?:((?:' + OH_TAGE.join('|') + '|PH|SH)[A-Za-z,-]*)\\s*)?(.*)$').exec(teil);
+        // Zeitraum mit Tagen: „May 09-Oct 18 Tu-Su 10:00-22:00“, „May 1-Sep 15“, „Dec 24 off“ (Monat × 100 + Tag)
+        let datum = null;
+        const dm = new RegExp('^(' + MON + ')\\s*(\\d{1,2})(?:\\s*-\\s*(' + MON + ')\\s*(\\d{1,2}))?(?:\\s+|$)').exec(teil);
+        if (dm) {
+          const a = (OH_MONATE.indexOf(dm[1]) + 1) * 100 + +dm[2];
+          const b = dm[3] ? (OH_MONATE.indexOf(dm[3]) + 1) * 100 + +dm[4] : a;
+          if (+dm[2] < 1 || +dm[2] > 31 || (dm[4] && (+dm[4] < 1 || +dm[4] > 31))) { regeln.length = 0; regeln.push(null); return; }
+          datum = [a, b];
+          teil = teil.slice(dm[0].length);
+        }
+        const m = new RegExp('^(?:((?:' + OH_MONATE.join('|') + ')[A-Za-z,-]*)(?:\\s+|$))?(?:((?:' + OH_TAGE.join('|') + '|PH|SH)[A-Za-z,-]*)\\s*)?(.*)$').exec(teil);
         let [, mon, tag, rest] = m;
         rest = rest.trim();
         let monate = null, tage = null, zeiten;
@@ -973,54 +1157,118 @@ var R = (function () {
           tage = ohBereich(ohne.join(','), OH_TAGE);
           if (!tage) { regeln.length = 0; regeln.push(null); return; }
         }
-        if (!rest || /^(off|closed)$/i.test(rest)) zeiten = rest ? [] : null;
+        if (/^(off|closed)$/i.test(rest)) zeiten = [];
+        // nur Tage oder Saison, keine Uhrzeit („Tu-Su“, „Jun-Aug“): an diesen Tagen geöffnet, Zeiten unbekannt
+        else if (!rest) zeiten = monate || tage || datum ? [[0, 1440, 'ohne']] : null;
         else zeiten = ohZeiten(rest.replace(/\s/g, ''));
         if (!zeiten) { regeln.length = 0; regeln.push(null); return; }
-        regeln.push({ zus: i > 0, monate, tage, zeiten });
+        // Saison: Monate oder Tage mit Datum, an denen geöffnet ist (ein Schließtag wie „Dec 24-Dec 31 off“ ist keine)
+        if ((monate || datum) && zeiten.length) saison = true;
+        regeln.push({ zus: i > 0, monate, tage, datum, zeiten });
       });
       if (regeln[0] === null) return null;
     }
-    if (!regeln.length) return null;
-    return { regeln, feiertage, immer: false };
+    // nur Schließtage („Dec 24 off“) sagen nichts über die übrigen Tage: unbekannt, nicht „immer zu“
+    if (!regeln.length || regeln.every(r => !r.zeiten.length)) return null;
+    return { regeln, feiertage, saison, immer: false };
+  }
+  function ohImDatum(datum, d) {
+    const md = (d.getMonth() + 1) * 100 + d.getDate(), [a, b] = datum;
+    return a <= b ? md >= a && md <= b : md >= a || md <= b;   // über den Jahreswechsel (Nov 15-Mar 15)
   }
   // Zeiträume eines Kalendertags (Minuten ab 0:00, Ende bis 2880), ohne den Überhang vom Vortag
   function ohTag(oh, d) {
     let z = [];
     for (const r of oh.regeln) {
       if (r.monate && !r.monate.has(d.getMonth())) continue;
+      if (r.datum && !ohImDatum(r.datum, d)) continue;
       if (r.tage && !r.tage.has(d.getDay())) continue;
-      z = r.zus ? z.concat(r.zeiten) : r.zeiten.slice();
+      // Zusatzregel nach „,“ ergänzt Zeiten; „, We off“ schließt diese Tage aber (wie opening_hours.js)
+      z = r.zus && r.zeiten.length ? z.concat(r.zeiten) : r.zeiten.slice();
     }
     return z;
   }
   function hhmm(min) { min = ((min % 1440) + 1440) % 1440; return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
-  // Stand jetzt: { zustand: 'offen' | 'bald' | 'zu' | 'unbekannt', text }; „bald“ = schließt in höchstens 30 min
+  // „bis“ mit Tag, wenn die Zeitspanne über Mitternacht reicht (Minuten ab dem Tag 0:00)
+  function ohBis(ende, tagPlus) {
+    if (ende === 1440) return '24:00';
+    return (ende > 1440 ? (ende >= 2880 ? TAG_KURZ[tagPlus(Math.floor(ende / 1440)).getDay()] + ' ' : 'morgen ') : '') + hhmm(ende);
+  }
+  // Zustände: 'offen' | 'bald' | 'zu' | 'vage' | 'unbekannt'. vage = laut OSM wohl geöffnet, aber ohne sichere Uhrzeit
+  // (nur Tage oder Saison eingetragen, offenes Ende): die App behauptet dann nichts, was sie nicht weiß.
+  // Stand jetzt; „bald“ = schließt in höchstens 30 min
   function oeffnungJetzt(roh, jetzt) {
     const oh = oeffnungLesen(roh);
     if (!oh) return { zustand: 'unbekannt', text: '' };
     const zusatz = oh.feiertage ? ' (Feiertage nicht berücksichtigt)' : '';
     if (oh.immer) return { zustand: 'offen', text: 'rund um die Uhr geöffnet' };
-    const tag0 = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate());
-    const tagPlus = n => new Date(tag0.getFullYear(), tag0.getMonth(), tag0.getDate() + n);
-    // alle Zeiträume von gestern bis in 8 Tagen auf einer Achse (Minuten ab heute 0:00), zusammengefügt
-    let alle = [];
-    for (let n = -1; n <= 8; n++) for (const [a, b] of ohTag(oh, tagPlus(n))) alle.push([a + n * 1440, b + n * 1440]);
-    alle.sort((x, y) => x[0] - y[0]);
-    const zus = [];
-    for (const z of alle) { const l = zus[zus.length - 1]; if (l && z[0] <= l[1]) l[1] = Math.max(l[1], z[1]); else zus.push(z.slice()); }
+    const { zus, tagPlus } = ohAchse(oh, jetzt);
     const m = jetzt.getHours() * 60 + jetzt.getMinutes();
     const jetztZ = zus.find(([a, b]) => a <= m && m < b);
     if (jetztZ) {
+      if (jetztZ[2] === 'ohne') return { zustand: 'vage', text: 'heute geöffnet laut OSM, Uhrzeit nicht eingetragen' + zusatz };
       if (jetztZ[1] - m > 8 * 1440) return { zustand: 'offen', text: 'durchgehend geöffnet' + zusatz };
-      const bis = (jetztZ[1] >= 1440 ? (jetztZ[1] >= 2880 ? TAG_KURZ[tagPlus(Math.floor(jetztZ[1] / 1440)).getDay()] + ' ' : 'morgen ') : '') + hhmm(jetztZ[1]);
-      return jetztZ[1] - m <= 30 ? { zustand: 'bald', text: 'schließt bald, um ' + hhmm(jetztZ[1]) + zusatz } : { zustand: 'offen', text: 'geöffnet bis ' + bis + zusatz };
+      if (jetztZ[2] === 'ab') return { zustand: 'vage', text: 'geöffnet ab ' + hhmm(jetztZ[0]) + ', Ende offen' + zusatz };
+      if (jetztZ[2] === 'mind') return { zustand: 'offen', text: 'geöffnet mindestens bis ' + ohBis(jetztZ[1], tagPlus) + zusatz };
+      return jetztZ[1] - m <= 30 ? { zustand: 'bald', text: 'schließt bald, um ' + hhmm(jetztZ[1]) + zusatz } : { zustand: 'offen', text: 'geöffnet bis ' + ohBis(jetztZ[1], tagPlus) + zusatz };
     }
+    const vorher = zus.filter(([, b]) => b <= m && b > 0).pop();
+    if (vorher && vorher[2] === 'mind') return { zustand: 'vage', text: 'geöffnet mindestens bis ' + hhmm(vorher[1]) + ', danach unklar' + zusatz };
     const naechst = zus.find(([a]) => a > m);
     const heuteZu = !zus.some(([a, b]) => a < 1440 && b > 0) ? 'heute geschlossen' : 'geschlossen';
-    if (!naechst || naechst[0] >= 8 * 1440) return { zustand: 'zu', text: heuteZu + zusatz };
+    if (!naechst || naechst[0] >= 8 * 1440) return { zustand: 'zu', text: (oh.saison ? 'geschlossen, außerhalb der Saison' : heuteZu) + zusatz };
     const n = Math.floor(naechst[0] / 1440);
+    if (naechst[2] === 'ohne') return { zustand: 'zu', text: heuteZu + ', geöffnet wieder ' + (n === 1 ? 'morgen' : TAG_KURZ[tagPlus(n).getDay()]) + ' (Uhrzeit nicht eingetragen)' + zusatz };
     const wann = n === 0 ? 'um ' : n === 1 ? 'morgen ' : TAG_KURZ[tagPlus(n).getDay()] + ' ';
     return { zustand: 'zu', text: heuteZu + ', öffnet ' + wann + hhmm(naechst[0]) + zusatz };
+  }
+  // alle Zeiträume von gestern bis in 8 Tagen auf einer Achse (Minuten ab dem Tag von `wann`, 0:00), zusammengefügt.
+  // Gewissheit der zusammengefügten Spanne: 'ohne', sobald ein Teil ohne Uhrzeit ist, sonst die des Teils mit dem spätesten Ende
+  function ohAchse(oh, wann) {
+    const tag0 = new Date(wann.getFullYear(), wann.getMonth(), wann.getDate());
+    const tagPlus = n => new Date(tag0.getFullYear(), tag0.getMonth(), tag0.getDate() + n);
+    const alle = [];
+    for (let n = -1; n <= 8; n++) for (const [a, b, art] of ohTag(oh, tagPlus(n))) alle.push([a + n * 1440, b + n * 1440, art]);
+    alle.sort((x, y) => x[0] - y[0]);
+    const zus = [];
+    for (const z of alle) {
+      const l = zus[zus.length - 1];
+      if (l && z[0] <= l[1]) {
+        if (l[2] === 'ohne' || z[2] === 'ohne') l[2] = 'ohne';
+        else if (z[1] > l[1]) l[2] = z[2];
+        l[1] = Math.max(l[1], z[1]);
+      } else zus.push(z.slice());
+    }
+    return { zus, tagPlus };
+  }
+
+  // Passt ein Besuch? Ankunft `an` (Date), Aufenthalt `minuten`. { zustand: 'offen' | 'knapp' | 'zu' | 'vage' | 'unbekannt', text }
+  // knapp = schließt während des Besuchs oder öffnet erst kurz nach der Ankunft (bis 30 min warten)
+  function oeffnungBesuch(roh, an, minuten) {
+    const oh = oeffnungLesen(roh);
+    if (!oh) return { zustand: 'unbekannt', text: '' };
+    if (oh.immer) return { zustand: 'offen', text: 'rund um die Uhr geöffnet' };
+    const zusatz = oh.feiertage ? ' (Feiertage nicht berücksichtigt)' : '';
+    const { zus, tagPlus } = ohAchse(oh, an);
+    const m = an.getHours() * 60 + an.getMinutes(), bleib = Math.max(0, minuten || 0);
+    const offen = zus.find(([a, b]) => a <= m && m < b);
+    if (offen) {
+      if (offen[2] === 'ohne') return { zustand: 'vage', text: 'an dem Tag geöffnet laut OSM, Uhrzeit nicht eingetragen' + zusatz };
+      if (offen[1] - m > 8 * 1440) return { zustand: 'offen', text: 'durchgehend geöffnet' + zusatz };
+      if (offen[2] === 'ab') return { zustand: 'vage', text: 'geöffnet ab ' + hhmm(offen[0]) + ', Ende offen' + zusatz };
+      const bis = ohBis(offen[1], tagPlus);
+      if (offen[2] === 'mind') return offen[1] >= m + bleib
+        ? { zustand: 'offen', text: 'bei Ankunft geöffnet, mindestens bis ' + bis + zusatz }
+        : { zustand: 'vage', text: 'geöffnet mindestens bis ' + bis + ', danach unklar' + zusatz };
+      if (offen[1] < m + bleib) return { zustand: 'knapp', text: 'schließt um ' + bis + ', ' + (offen[1] - m) + ' min nach der Ankunft' + zusatz };
+      return { zustand: 'offen', text: 'bei Ankunft geöffnet, bis ' + bis + zusatz };
+    }
+    const vorher = zus.filter(([, b]) => b <= m && b > 0).pop();
+    if (vorher && vorher[2] === 'mind') return { zustand: 'vage', text: 'geöffnet mindestens bis ' + hhmm(vorher[1]) + ', danach unklar' + zusatz };
+    const naechst = zus.find(([a]) => a > m);
+    if (naechst && naechst[2] !== 'ohne' && naechst[0] - m <= 30) return { zustand: 'knapp', text: 'öffnet erst um ' + hhmm(naechst[0]) + zusatz };
+    const amTag = naechst && naechst[0] < 1440 && naechst[2] !== 'ohne';
+    return { zustand: 'zu', text: 'bei Ankunft geschlossen' + (amTag ? ', öffnet ' + hhmm(naechst[0]) : (!naechst || naechst[0] >= 8 * 1440) && oh.saison ? ' (außerhalb der Saison)' : ', an dem Tag nicht mehr') + zusatz };
   }
 
   // ---------- Reiseziele: Listen mit Orten, aus Dateien laden, als GPX weitergeben ----------
@@ -1043,12 +1291,14 @@ var R = (function () {
       ...(zielOrt(z.lat, z.lon) ? { lat: z.lat, lon: z.lon } : { suche: (z.suche || z.name).slice(0, 200) }) }); };
     const anfang = text.trimStart().slice(0, 400).toLowerCase();
     if (/\.gpx$/.test(name) || /<gpx[\s>]/.test(anfang)) {
-      const re = /<wpt\b([^>]*)>([\s\S]*?)<\/wpt>/gi;
+      // auch selbstschließende <wpt … /> (sonst fräße der Ausdruck bis zum nächsten </wpt>)
+      const re = /<wpt\b([^>]*?)(?:\/>|>([\s\S]*?)<\/wpt>)/gi;
       let m;
       while ((m = re.exec(text))) {
         const lat = parseFloat((/\blat="([^"]+)"/.exec(m[1]) || [])[1]), lon = parseFloat((/\blon="([^"]+)"/.exec(m[1]) || [])[1]);
         if (!zielOrt(lat, lon)) continue;
-        dazu({ name: xmlTag(m[2], 'name') || 'Punkt', lat, lon, notiz: xmlTag(m[2], 'desc') || xmlTag(m[2], 'cmt'), link: (/<link\b[^>]*href="([^"]+)"/i.exec(m[2]) || [])[1] });
+        const innen = m[2] || '';
+        dazu({ name: xmlTag(innen, 'name') || 'Punkt', lat, lon, notiz: xmlTag(innen, 'desc') || xmlTag(innen, 'cmt'), link: (/<link\b[^>]*href="([^"]+)"/i.exec(innen) || [])[1] });
       }
       return { art: 'GPX', ziele: aus };
     }
@@ -1079,8 +1329,30 @@ var R = (function () {
     // mit name, ort, notiz, link, lat, lon). Ohne Trenner ist die ganze Zeile Name und Suchbegriff („Lindau, Bodensee“).
     const zeilen = text.split(/\r?\n/).map(z => z.trim()).filter(z => z && !z.startsWith('#'));
     if (!zeilen.length) return { art: 'Text', ziele: aus };
-    const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';' : null;
-    const teile = z => (trenner ? z.split(trenner) : [z]).map(x => x.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"'));
+    // Komma nur mit Kopfzeile (Google Tabellen, Excel englisch), sonst bleibt „Lindau, Bodensee“ ein Suchbegriff
+    const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';'
+      : /^"?(name|titel|ziel)"?\s*,/i.test(zeilen[0]) ? ',' : null;
+    // Felder in Anführungszeichen dürfen den Trenner enthalten: "Café; Bar";Lindau
+    const ohneQ = x => x.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+    const teile = z => {
+      if (!trenner) return [ohneQ(z)];
+      const out = [];
+      let feld = '', inQ = false;
+      for (let i = 0; i < z.length; i++) {
+        const c = z[i];
+        if (inQ) {
+          if (c === '"' && z[i + 1] === '"') { feld += '"'; i++; }
+          else if (c === '"') inQ = false;
+          else feld += c;
+        } else if (c === '"' && !feld.trim()) { inQ = true; feld = ''; }
+        else if (c === trenner) { out.push(feld.trim()); feld = ''; }
+        else feld += c;
+      }
+      // nicht geschlossenes Anführungszeichen: lieber einfach am Trenner teilen als die Spalten verlieren
+      if (inQ) return z.split(trenner).map(ohneQ);
+      out.push(feld.trim());
+      return out;
+    };
     let spalten = { name: 0, suche: 1, notiz: 2, link: 3, lat: -1, lon: -1 }, ab = 0;
     const kopf = teile(zeilen[0]).map(x => x.toLowerCase());
     if (trenner && kopf.some(x => /^(name|titel|ziel)$/.test(x))) {
@@ -1215,6 +1487,65 @@ var R = (function () {
     return { type: { n: 'node', w: 'way', r: 'relation' }[e[2][0]] || 'node', id: +e[2].slice(1), lat: e[0], lon: e[1], tags: e[3] };
   }
 
+  // ---------- Gipfelbuch: erreichte Gipfel aus gegangenen Touren ----------
+  // Overpass: benannte Gipfel im Umkreis der Spur. Die Spur wird auf 100 m ausgedünnt; der Radius muss die Lücke plus die
+  // 50 m für „erreicht“ abdecken, sonst fehlt der Gipfel am Umkehrpunkt (er liegt zwischen zwei behaltenen Punkten)
+  const GIPFEL_RADIUS = 160;
+  function gipfelAbfrage(pts) {
+    const ll = ausduennen(pts, 100).map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join(',');
+    return '[out:json][timeout:25];node["natural"="peak"]["name"](around:' + GIPFEL_RADIUS + ',' + ll + ');out 200;';
+  }
+  // erreicht = die Spur kommt bis auf `radius` Meter an den Gipfel (GPS und Kartenpunkt liegen oft 10–30 m auseinander)
+  function gipfelErreicht(spur, elemente, radius) {
+    radius = radius || 50;
+    const aus = [], ids = new Set();
+    for (const e of elemente || []) {
+      const t = e.tags || {}, lat = e.lat != null ? e.lat : e.center && e.center.lat, lon = e.lon != null ? e.lon : e.center && e.center.lon;
+      if (t.natural !== 'peak' || !t.name || lat == null || lon == null || ids.has(e.id)) continue;
+      if (abstandZurLinie(spur, lat, lon) > radius) continue;
+      ids.add(e.id);
+      const ele = parseFloat(String(t.ele || '').replace(',', '.'));
+      aus.push({ id: ({ way: 'w', relation: 'r' }[e.type] || 'n') + e.id, name: String(t.name).slice(0, 120), ele: isFinite(ele) ? Math.round(ele) : null, lat: +lat.toFixed(5), lon: +lon.toFixed(5) });
+    }
+    return aus;
+  }
+  // Gipfel einer Tour ins Buch: je Gipfel die Besuche (Tour und Tag), derselbe Besuch nicht doppelt. Liefert die neuen Gipfel.
+  function gipfelbuchDazu(buch, gefunden, besuch) {
+    const neu = [];
+    for (const g of gefunden) {
+      let e = buch.gipfel[g.id];
+      if (!e) { e = buch.gipfel[g.id] = { name: g.name, ele: g.ele, lat: g.lat, lon: g.lon, besuche: [] }; neu.push(g); }
+      if (!e.besuche.some(b => gipfelBesuchGleich(b, besuch))) e.besuche.push({ datum: besuch.datum, tour: besuch.tour, name: besuch.name });
+      e.besuche.sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+    }
+    return neu;
+  }
+  function gipfelBesuchGleich(a, b) { return a.tour === b.tour && (a.tour !== '' || a.datum === b.datum); }
+  // Gipfelbuch aus Speicher oder Sicherung prüfen: nur bekannte Felder, Kennungen n/w/r<Zahl>, nur Gipfel mit gültigem
+  // Besuch (ein Gipfel ohne Besuch hätte die Seite angehalten). geprueft: Touren, die schon durchsucht sind
+  function gipfelbuchPruefen(roh) {
+    const buch = { gipfel: {}, geprueft: [] };
+    if (roh && Array.isArray(roh.geprueft)) buch.geprueft = roh.geprueft.filter(x => typeof x === 'string' && x.length <= 64).slice(-5000);
+    const g = roh && typeof roh === 'object' ? roh.gipfel : null;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return buch;
+    for (const [id, e] of Object.entries(g)) {
+      if (!/^[nwr]\d{1,15}$/.test(id) || !e || typeof e.name !== 'string' || !zielOrt(e.lat, e.lon)) continue;
+      const besuche = (Array.isArray(e.besuche) ? e.besuche : []).filter(b => b && typeof b.datum === 'string' && !isNaN(Date.parse(b.datum)))
+        .slice(0, 500).map(b => ({ datum: b.datum.slice(0, 40), tour: typeof b.tour === 'string' ? b.tour.slice(0, 64) : '', name: typeof b.name === 'string' ? b.name.slice(0, 120) : '' }));
+      if (!besuche.length) continue;
+      buch.gipfel[id] = { name: e.name.slice(0, 120), ele: typeof e.ele === 'number' && isFinite(e.ele) ? Math.round(e.ele) : null, lat: e.lat, lon: e.lon, besuche };
+    }
+    return buch;
+  }
+  // Übersicht: Gipfel nach dem letzten Besuch (neueste zuerst), Kennzahlen
+  function gipfelbuchListe(buch) {
+    const liste = Object.entries(buch.gipfel).map(([id, e]) => Object.assign({ id }, e, { zuletzt: e.besuche.length ? e.besuche[e.besuche.length - 1].datum : '' }))
+      .sort((a, b) => String(b.zuletzt).localeCompare(String(a.zuletzt)));
+    const mitHoehe = liste.filter(g => g.ele != null);
+    const hoechster = mitHoehe.length ? mitHoehe.reduce((a, b) => (b.ele > a.ele ? b : a)) : null;
+    return { liste, anzahl: liste.length, besuche: liste.reduce((s, g) => s + g.besuche.length, 0), hoechster };
+  }
+
   // Abstand eines Punkts zur Linie durch pts in Metern (kürzester Abstand zu einem ihrer Abschnitte)
   function abstandZurLinie(pts, lat, lon) {
     const kx = Math.cos(lat * RAD) * 111320, ky = 110540;
@@ -1222,6 +1553,7 @@ var R = (function () {
     for (let i = 0; i < pts.length; i++) {
       const ax = (pts[i].lon - lon) * kx, ay = (pts[i].lat - lat) * ky;
       if (i === pts.length - 1) { if (pts.length === 1) best = Math.hypot(ax, ay); break; }
+      if (pts[i + 1].luecke) { best = Math.min(best, Math.hypot(ax, ay)); continue; }
       const bx = (pts[i + 1].lon - lon) * kx, by = (pts[i + 1].lat - lat) * ky;
       const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
       const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
@@ -1463,12 +1795,12 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

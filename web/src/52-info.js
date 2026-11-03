@@ -75,7 +75,9 @@ async function infoZeigen(ll) {
       }
       inhalt.appendChild(ul);
     } else inhalt.innerHTML = fertig ? '<b>Hier ist nichts mit Namen eingetragen.</b>' : '<p class="klein">Suche, was hier ist …</p>';
-    if (fertig && fehler && !treffer.length) inhalt.insertAdjacentHTML('beforeend', '<p class="klein">OpenStreetMap gerade nicht erreichbar (' + R.esc(fehler) + '), gesucht nur im Kartenpaket. Gleich noch einmal antippen.</p>');
+    // im Browser gibt es kein Kartenpaket: dann bleibt nur Google Maps (Link im Fuß) oder später noch einmal
+    if (fertig && fehler && !treffer.length) inhalt.insertAdjacentHTML('beforeend', '<p class="klein">OpenStreetMap (Overpass) gerade nicht erreichbar (' + R.esc(fehler) + ')' +
+      (NATIV ? ', gesucht nur im Kartenpaket.' : '.') + ' Unten in Google Maps nachsehen oder gleich noch einmal antippen.</p>');
     infoFuss(inhalt, ll);
     popup.setContent(inhalt);
   };
@@ -85,11 +87,13 @@ async function infoZeigen(ll) {
   zeigeListe(onJ.fehler ? [offJ] : [offJ, onJ], true, onJ.fehler);
 }
 
-// Fuß jedes Info-Fensters: die Stelle selbst als Start oder Ziel (Info ersetzt das Planen nicht)
+// Fuß jedes Info-Fensters: die Stelle selbst als Start oder Ziel (Info ersetzt das Planen nicht) und in Google Maps,
+// auch wenn OpenStreetMap nichts kennt oder Overpass ausfällt
 function infoFuss(box, ll) {
   const f = document.createElement('div');
   f.className = 'info-fuss';
-  f.innerHTML = '<span class="klein">' + ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5) + '</span>';
+  f.innerHTML = '<span class="klein">' + ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5) + ' · <a href="' + R.esc(R.googleSuche('', {}, '', ll.lat, ll.lng)) +
+    '" target="_blank" rel="noopener">🔎 Diese Stelle in Google Maps</a></span>';
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'popup-knopf';
   b.textContent = S.wps.length ? '➕ Diese Stelle als Ziel' : '📍 Hier starten';
@@ -101,7 +105,7 @@ function infoFuss(box, ll) {
 function infoDetail(popup, o, ll, zurueck) {
   const t = o.tags, box = document.createElement('div'), z = [];
   z.push('<b>' + R.esc(o.name) + '</b>', '<span class="klein">' + R.esc(o.art) + ' · ' + Math.round(o.d) + ' m entfernt</span>');
-  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours, t));
   if (t.fee === 'yes' || t.charge) z.push('Eintritt: ' + R.esc(t.charge || 'ja'));
   if (t.fee === 'no') z.push('Eintritt frei');
   if (t.wheelchair === 'yes') z.push('♿ rollstuhlgerecht');
@@ -116,7 +120,7 @@ function infoDetail(popup, o, ll, zurueck) {
   const stopp = document.createElement('button');
   stopp.type = 'button'; stopp.className = 'popup-knopf';
   stopp.textContent = S.wps.length ? '➕ Als Stopp' : '📍 Hier starten';
-  stopp.onclick = () => { karte.closePopup(); stoppDazu({ lat: o.lat, lon: o.lon, name: o.name }); };
+  stopp.onclick = () => { karte.closePopup(); stoppDazu({ lat: o.lat, lon: o.lon, name: o.name, tags: o.tags }); };
   knoepfe.appendChild(stopp);
   const merken = document.createElement('button');
   merken.type = 'button'; merken.className = 'popup-knopf'; merken.textContent = '⭐ Merken';

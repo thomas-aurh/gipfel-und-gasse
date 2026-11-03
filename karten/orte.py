@@ -60,10 +60,12 @@ def ist_ort(t, knoten):
 
 
 # nur diese Merkmale braucht die App (Einordnung, Name, Fenster mit Öffnungszeiten, Höhe, Betreiber, Webseite,
-# Eintritt und Rollstuhl in den Fenstern der Sehenswürdigkeiten)
+# Eintritt und Rollstuhl in den Fenstern der Sehenswürdigkeiten; Prüfdatum der Öffnungszeiten, damit die App ihr Alter
+# zeigt, Abgleich mit Google vom 03.11. in docs/oeffnungszeiten-abgleich.md)
 BEHALTEN = ("name", "name:de", "ele", "natural", "tourism", "amenity", "leisure", "historic", "waterway", "highway",
             "railway", "aerialway", "drinking_water", "access", "wikipedia", "wikidata", "opening_hours", "operator",
-            "website", "contact:website", "information", "fee", "charge", "wheelchair")
+            "website", "contact:website", "information", "fee", "charge", "wheelchair",
+            "check_date", "check_date:opening_hours")
 
 # ---------- Suche ----------
 ORTSART = {"city": ("Stadt", 100), "town": ("Stadt", 80), "village": ("Dorf", 50), "suburb": ("Stadtteil", 35),

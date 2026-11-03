@@ -16,6 +16,7 @@
     <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
     <button data-ziel="tagebuch">📔 Reisetagebuch</button>
     <button data-ziel="ziele">⭐ Reiseziele</button>
+    <button data-ziel="gipfelbuch">⛰️ Gipfelbuch</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -153,6 +154,8 @@
             <div class="zahl"><b id="zHoch">–</b><span>Höchster Punkt</span></div>
           </div>
           <div id="zeitplan" class="klein"></div>
+          <div id="etappen" hidden></div>
+          <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
           <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           <div id="stopps"></div>
           <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
@@ -226,6 +229,7 @@
         </div>
         <div id="uAnkunft" class="klein"></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
+        <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
         <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
@@ -260,6 +264,16 @@
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
         <ul id="gangliste" class="liste"></ul>
+      </section>
+
+      <!-- Gipfelbuch: Gipfel aus gegangenen Touren -->
+      <section data-reiter="gipfelbuch">
+        <p class="tipp">Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
+          aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</p>
+        <div id="gbZahlen" class="zahlen" hidden></div>
+        <ul id="gbListe" class="liste"></ul>
+        <div class="zeile"><button class="knopf" id="gbSuchen">🔍 Gegangene Touren durchsuchen</button></div>
+        <div id="gbStatus" class="klein"></div>
       </section>
 
       <!-- Offline-Karten -->

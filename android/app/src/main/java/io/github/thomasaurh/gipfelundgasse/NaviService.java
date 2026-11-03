@@ -54,6 +54,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         List<double[]> hinweise = new ArrayList<>(); // Abbiegehinweise {d, befehl, ausfahrt}
         boolean[] hinweisVorab = new boolean[0], hinweisJetzt = new boolean[0];
         List<String> stoppNamen = new ArrayList<>();
+        // Führung: Text je Ort des Stopps („Breite,Länge“ auf 4 Stellen, Kurzinfo aus Wikipedia), am Stopp statt „… erreicht“
+        // vorgelesen. Nach dem Ort, nicht nach Index oder Name: das Umplanen baut die Stopps aus den Zielen neu auf, und zwei
+        // Stopps können gleich heißen. vorgelesen: einmal je Navigation, auch nach Umplanen, Routenänderung oder Neustart.
+        List<String> stoppOrte = new ArrayList<>();
+        java.util.Map<String, String> stoppTexte = new java.util.HashMap<>();
+        java.util.Set<String> vorgelesen = new java.util.HashSet<>();
         // Ziele nach dem Start {Breite, Länge, Meter ab Start, Minuten} mit Namen ("" = ohne) und BRouter-Profil fürs
         // Umplanen; ohne Profil (gerade Linie, GPX-Spur) wird nicht umgeplant
         List<double[]> ziele = new ArrayList<>();
@@ -84,11 +90,18 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         long aufzStart, aufzEnde;
         double aufzMeter;
         Runnable beiNeuem;   // vom Plugin gesetzt: Position an die Oberfläche melden
+        long sicherNr;       // zählt die gesicherten Stände der Sitzung
+        // Neustart durch Android im Hintergrund ging nicht (ab Android 12 kein Vordergrunddienst aus dem Hintergrund, ab
+        // Android 11 kein Standort): Sitzung liegt gesichert bereit und wird beim Öffnen der App fortgesetzt
+        boolean unterbrochen;
+        String gpsFehler;      // GPS ließ sich nicht einschalten (Erlaubnis entzogen, kein Anbieter)
+        boolean spracheFehlt;  // Sprachausgabe startet nicht: keine Ansagen, auch keine Abseits-Warnung
     }
 
     static final Zustand Z = new Zustand();
 
     private LocationManager lm;
+    private boolean gpsAktiv;   // GPS-Abfrage eingeschaltet (Main-Thread)
     // alle 30 min beim Folgen oder Aufzeichnen: Gewitter in den nächsten drei Stunden am Standort (Open-Meteo)?
     private final Handler wetter = new Handler(Looper.getMainLooper());
     private final Runnable wetterLauf = new Runnable() {
@@ -149,8 +162,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         }
     };
     private TextToSpeech tts;
-    private boolean ttsBereit;
+    private boolean ttsBereit, ttsGeprueft;
     private final List<String> ttsWarten = new ArrayList<>();
+    // „Ziel erreicht“ beendet den Dienst nach der letzten Ansage; ein neuer Start in der Zwischenzeit bricht das ab
+    private final Handler endeHandler = new Handler(Looper.getMainLooper());
+    private Runnable ausstehendesEnde;
     private int ungespeichert;
 
     @Override
@@ -172,26 +188,50 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (Z.beiNeuem != null) Z.beiNeuem.run();
             return START_NOT_STICKY;
         }
-        if (intent == null && !Z.folgen && !Z.aufzeichnen) {
+        boolean neustart = intent == null;
+        if (neustart && !Z.folgen && !Z.aufzeichnen) {
             sitzungLaden(this);
             if (!Z.folgen && !Z.aufzeichnen) { stopSelf(); return START_NOT_STICKY; }
             Log.i(TAG, "Sitzung nach Neustart wiederhergestellt");
         }
-        Notification n = benachrichtigung();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NR, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(NR, n);
+        // Neustart durch Android, App im Hintergrund: ab Android 11 bekommt ein so gestarteter Dienst ohne Erlaubnis
+        // „Standort immer“ keine Positionen, ab Android 12 darf er gar nicht in den Vordergrund. Dann nicht endlos auf
+        // GPS warten oder abstürzen, sondern melden; die gesicherte Sitzung setzt die App beim Öffnen fort.
+        if (neustart && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && checkSelfPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            unterbrochen();
+            return START_NOT_STICKY;
         }
-        if (!Z.laeuft) {
-            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; }   // neue Sitzung: keine alte Warnung zeigen
-            gpsAn();
+        Notification n = benachrichtigung();
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NR, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(NR, n);
+            }
+        } catch (RuntimeException e) {
+            // ForegroundServiceStartNotAllowedException (ab 12) oder SecurityException (ab 14, Typ location)
+            Log.w(TAG, "Vordergrunddienst nicht erlaubt", e);
+            unterbrochen();
+            return START_NOT_STICKY;
+        }
+        boolean warUnterbrochen;
+        synchronized (Z) { warUnterbrochen = Z.unterbrochen; Z.unterbrochen = false; }
+        if (warUnterbrochen) sitzungSichern(this);   // auch in der Datei, sonst setzte die App sie später noch einmal fort
+        // eine gerade neu gestartete Navigation: das verzögerte Ende nach „Ziel erreicht“ gilt nicht mehr
+        if (ausstehendesEnde != null) { endeHandler.removeCallbacks(ausstehendesEnde); ausstehendesEnde = null; }
+        boolean neu = !Z.laeuft;
+        if (neu) {
+            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; Z.gpsFehler = null; }   // neue Sitzung: keine alte Warnung
             takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000);
             wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
         }
+        synchronized (Z) { Z.laeuft = true; }
+        // am GPS-Zustand selbst festmachen, nicht an Z.laeuft: „Ziel erreicht“ schaltet GPS ab, bevor der Dienst endet
+        if (!gpsAktiv) gpsAn();
         synchronized (Z) {
-            Z.laeuft = true;
             if (Z.folgen && Z.folgenSeit == 0) {
+                Z.vorgelesen = new java.util.HashSet<>();
                 Z.folgenSeit = System.currentTimeMillis();
                 Z.fortschritt = Double.NaN;
                 Z.zielGemeldet = false;
@@ -215,14 +255,49 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         return START_STICKY;
     }
 
+    /** Sitzung gesichert lassen, Dienst beenden und eine Mitteilung „tippen zum Fortsetzen“ zeigen. */
+    private void unterbrochen() {
+        synchronized (Z) { Z.unterbrochen = true; Z.laeuft = false; }
+        sitzungSichern(this);
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
+        PendingIntent oeffnen = PendingIntent.getActivity(this, 0,
+            new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), flags);
+        Notification n = new NotificationCompat.Builder(this, KANAL)
+            .setSmallIcon(R.drawable.ic_stat_navi)
+            .setContentTitle("Navigation unterbrochen")
+            .setContentText("Android hat die App beendet. Tippen zum Fortsetzen.")
+            .setContentIntent(oeffnen)
+            .setAutoCancel(true)
+            .build();
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        try { if (nm != null) nm.notify(NR, n); } catch (RuntimeException e) { Log.w(TAG, "Mitteilung nicht erlaubt", e); }
+        stopSelf();
+    }
+
     @SuppressLint("MissingPermission")   // das Plugin startet den Dienst erst nach erteilter Standort-Erlaubnis
     private void gpsAn() {
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        String fehler = null;
         try {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 3, this, Looper.getMainLooper());
+            gpsAktiv = true;
         } catch (Exception e) {
+            // Erlaubnis entzogen oder kein GPS: nicht still mit „Warte auf GPS …“ weiterlaufen, sondern anzeigen
             Log.e(TAG, "GPS nicht verfügbar", e);
+            fehler = e instanceof SecurityException ? "Standort-Erlaubnis fehlt" : "GPS nicht verfügbar";
         }
+        synchronized (Z) { Z.gpsFehler = fehler; }
+        if (fehler != null) {
+            // sofort, ohne die 5-s-Drossel: ohne GPS kommt keine Position, die die Mitteilung später erneuert
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null && Z.laeuft) nm.notify(NR, benachrichtigung());
+            if (Z.beiNeuem != null) Z.beiNeuem.run();
+        }
+    }
+
+    private void gpsAus() {
+        if (lm != null) lm.removeUpdates(this);
+        gpsAktiv = false;
     }
 
     @Override
@@ -275,7 +350,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
             if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
-            if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) { Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true; sagen(name + " erreicht."); }
+            if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
+                Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
+                String ort = i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "";
+                String text = Z.stoppTexte.get(ort);
+                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) fuehrungSagen(text);
+                else sagen(name + " erreicht.");
+            }
         }
         // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
         // zählt; folgt ihm der übernächste binnen 40 m, wird er angehängt („…, dann links abbiegen“) und nicht eigens angesagt.
@@ -317,7 +398,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             sitzungSichern(this);
             if (Z.aufzeichnen) sagen("Ziel erreicht. Schön war's!");
             else {
-                if (lm != null) lm.removeUpdates(this);
+                gpsAus();
                 sagenDannBeenden("Ziel erreicht. Schön war's!");
             }
         }
@@ -371,13 +452,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.hinweisVorab = new boolean[n.hinweise.size()];
             Z.hinweisJetzt = new boolean[n.hinweise.size()];
             Z.ziele = new ArrayList<>(); Z.zielNamen = new ArrayList<>();
-            Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+            Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>(); Z.stoppOrte = new ArrayList<>();
             for (int k = 0; k < offen.size(); k++) {
                 double[] z = offen.get(k).clone();
                 z[2] = n.zielMeter[k];
                 Z.ziele.add(z);
                 Z.zielNamen.add(namen.get(k));
-                if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); }
+                if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); Z.stoppOrte.add(ortSchluessel(z[0], z[1])); }
             }
             Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
             Z.stoppErreicht = new boolean[Z.stopps.size()];
@@ -444,7 +525,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     static void sitzungSichern(Context c) {
         try {
             JSONObject o = new JSONObject();
+            long nr;
             synchronized (Z) {
+                nr = ++Z.sicherNr;   // Reihenfolge der Stände: der Umplan-Faden und der Haupt-Faden sichern beide
+                o.put("unterbrochen", Z.unterbrochen);
+                o.put("gesichert", System.currentTimeMillis());
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
                 o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
@@ -464,9 +549,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 for (int i = 0; i < Z.stopps.size(); i++) {
                     JSONObject s = new JSONObject();
                     s.put("d", Z.stopps.get(i)[0]); s.put("min", Z.stopps.get(i)[1]); s.put("name", Z.stoppNamen.get(i));
+                    s.put("ort", i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "");
                     st.put(s);
                 }
                 o.put("stopps", st);
+                JSONObject tx = new JSONObject();
+                for (java.util.Map.Entry<String, String> e : Z.stoppTexte.entrySet()) tx.put(e.getKey(), e.getValue());
+                o.put("stoppTexte", tx);
+                o.put("vorgelesen", new JSONArray(Z.vorgelesen));
                 JSONArray hw = new JSONArray();
                 for (double[] h : Z.hinweise) { JSONArray q = new JSONArray(); q.put(h[0]); q.put((int) h[1]); q.put((int) h[2]); hw.put(q); }
                 o.put("hinweise", hw);
@@ -481,9 +571,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 if (Z.profil != null) o.put("profil", Z.profil);
                 o.put("umgeplant", Z.umgeplant);
             }
-            try (FileOutputStream out = new FileOutputStream(new File(c.getFilesDir(), "sitzung.json"))) {
-                out.write(o.toString().getBytes(StandardCharsets.UTF_8));
-            }
+            dateiSchreiben(new File(c.getFilesDir(), "sitzung.json"), o.toString().getBytes(StandardCharsets.UTF_8), nr);
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht gesichert", e);
         }
@@ -502,6 +590,27 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         }
     }
 
+    private static final Object DATEI = new Object();
+    private static long sitzungGeschrieben;
+
+    /**
+     * Datei ersetzen, ohne dass ein Absturz mittendrin eine leere oder halbe Datei hinterlässt: erst daneben schreiben,
+     * auf den Datenträger zwingen, dann umbenennen. nr: Stand der Daten (größer = neuer); ein älterer Stand, der wegen
+     * eines anderen Fadens später ankommt, überschreibt keinen neueren (0 = ohne Prüfung).
+     */
+    static void dateiSchreiben(File f, byte[] daten, long nr) throws java.io.IOException {
+        synchronized (DATEI) {
+            if (nr > 0 && nr < sitzungGeschrieben) return;
+            File tmp = new File(f.getPath() + ".tmp");
+            try (FileOutputStream out = new FileOutputStream(tmp)) {
+                out.write(daten);
+                out.getFD().sync();
+            }
+            if (!tmp.renameTo(f)) throw new java.io.IOException("Umbenennen ging nicht: " + f.getName());
+            if (nr > 0) sitzungGeschrieben = nr;
+        }
+    }
+
     static String dateiLesen(File f) throws Exception {
         byte[] b = new byte[(int) f.length()];
         int n = 0;
@@ -509,6 +618,18 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             while (n < b.length) { int r = in.read(b, n, b.length - n); if (r < 0) break; n += r; }
         }
         return new String(b, 0, n, StandardCharsets.UTF_8);
+    }
+
+    /** Seit wann liegt eine Sitzung bereit, die Android im Hintergrund nicht fortsetzen durfte? 0 = keine. */
+    static long unterbrochenSeit(Context c) {
+        try {
+            File f = new File(c.getFilesDir(), "sitzung.json");
+            if (!f.exists()) return 0;
+            JSONObject o = new JSONObject(dateiLesen(f));
+            return o.optBoolean("unterbrochen", false) ? o.optLong("gesichert", f.lastModified()) : 0;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     static void sitzungLaden(Context c) {
@@ -530,13 +651,20 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     }
                     Z.strecke = new NaviRechnen.Strecke(lat, lon, ele, lu);
                 }
-                Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+                Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>(); Z.stoppOrte = new ArrayList<>();
                 JSONArray st = o.optJSONArray("stopps");
                 if (st != null) for (int i = 0; i < st.length(); i++) {
                     JSONObject s = st.optJSONObject(i);
                     Z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
                     Z.stoppNamen.add(s.optString("name", "Stopp"));
+                    Z.stoppOrte.add(s.optString("ort", ""));
                 }
+                Z.vorgelesen = new java.util.HashSet<>();
+                JSONArray vg = o.optJSONArray("vorgelesen");
+                if (vg != null) for (int i = 0; i < vg.length(); i++) Z.vorgelesen.add(vg.optString(i, ""));
+                Z.stoppTexte = new java.util.HashMap<>();
+                JSONObject tx = o.optJSONObject("stoppTexte");
+                if (tx != null) for (java.util.Iterator<String> it = tx.keys(); it.hasNext(); ) { String k = it.next(); Z.stoppTexte.put(k, tx.optString(k, "")); }
                 Z.hinweise = new ArrayList<>();
                 JSONArray hw = o.optJSONArray("hinweise");
                 if (hw != null) for (int i = 0; i < hw.length(); i++) {
@@ -602,8 +730,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             o.put("start", Z.aufzStart);
             o.put("ende", Z.aufzEnde);
             o.put("spur", a);
-            File f = new File(c.getFilesDir(), "aufzeichnung.json");
-            try (FileOutputStream out = new FileOutputStream(f)) { out.write(o.toString().getBytes(StandardCharsets.UTF_8)); }
+            dateiSchreiben(new File(c.getFilesDir(), "aufzeichnung.json"), o.toString().getBytes(StandardCharsets.UTF_8), 0);
         } catch (Exception e) {
             Log.e(TAG, "Aufzeichnung nicht gesichert", e);
         }
@@ -614,7 +741,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         synchronized (Z) { Z.gewitter = null; }
         takt.removeCallbacks(taktLauf);
         if (Z.aufzStart != 0) spurSichern(this);
-        if (lm != null) lm.removeUpdates(this);
+        gpsAus();
         synchronized (Z) { Z.laeuft = false; Z.folgenSeit = 0; }
         sitzungSichern(this);
         stopForeground(STOP_FOREGROUND_REMOVE);
@@ -623,9 +750,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
 
     @Override
     public void onDestroy() {
+        endeHandler.removeCallbacksAndMessages(null);
+        ausstehendesEnde = null;
         wetter.removeCallbacks(wetterLauf);
         takt.removeCallbacks(taktLauf);
-        if (lm != null) lm.removeUpdates(this);
+        gpsAus();
         if (Z.aufzStart != 0) spurSichern(this);
         synchronized (Z) { Z.laeuft = false; }
         if (tts != null) { tts.stop(); tts.shutdown(); }
@@ -643,31 +772,57 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (status == TextToSpeech.SUCCESS) {
             int r = tts.setLanguage(Locale.GERMANY);
             ttsBereit = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
-            if (ttsBereit) { for (String s : ttsWarten) tts.speak(s, TextToSpeech.QUEUE_ADD, null, "gug"); ttsWarten.clear(); }
+            if (ttsBereit) { for (String s : ttsWarten) tts.speak(s, TextToSpeech.QUEUE_ADD, null, "gug"); }
         }
+        ttsWarten.clear();
+        ttsGeprueft = true;
+        // ohne Sprachausgabe gibt es auch keine Abseits-Warnung per Ansage: das muss man wissen
+        synchronized (Z) { Z.spracheFehlt = !ttsBereit; }
+        if (!ttsBereit) { benachrichtigungAktualisieren(); if (Z.beiNeuem != null) Z.beiNeuem.run(); }
+    }
+
+    /** Schlüssel eines Stopps: sein Ort auf 4 Nachkommastellen (wie fuehrungSchluessel in der Web-App, ohne den Namen). */
+    static String ortSchluessel(double lat, double lon) { return String.format(Locale.ROOT, "%.4f,%.4f", lat, lon); }
+
+    // bis wann eine Führung ungefähr spricht (rund 14 Zeichen je Sekunde): eine wichtige Ansage (Abbiegen, abseits) wartet
+    // nicht eine Minute dahinter, sondern unterbricht sie
+    private long fuehrungBis;
+
+    private void fuehrungSagen(String text) {
+        sagen(text);
+        fuehrungBis = System.currentTimeMillis() + text.length() * 1000L / 14;
     }
 
     private void sagen(String text) {
+        if (ttsBereit && System.currentTimeMillis() < fuehrungBis) {
+            fuehrungBis = 0;
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gug");
+            return;
+        }
         if (ttsBereit) tts.speak(text, TextToSpeech.QUEUE_ADD, null, "gug");
-        else ttsWarten.add(text);
+        else if (!ttsGeprueft && ttsWarten.size() < 20) ttsWarten.add(text);   // bis die Sprachausgabe bereit ist
     }
 
     /** Letzte Ansage zu Ende sprechen lassen, dann den Dienst beenden (spätestens nach 10 s). */
     private void sagenDannBeenden(String text) {
-        Handler h = new Handler(Looper.getMainLooper());
         Runnable ende = new Runnable() {
-            boolean erledigt;
-            @Override public void run() { if (!erledigt) { erledigt = true; beenden(); } }
+            @Override public void run() {
+                if (ausstehendesEnde != this) return;   // abgebrochen: inzwischen neu gestartet
+                ausstehendesEnde = null;
+                synchronized (Z) { if (Z.folgen || Z.aufzeichnen) return; }
+                beenden();
+            }
         };
+        ausstehendesEnde = ende;
         if (ttsBereit) {
             tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override public void onStart(String id) {}
-                @Override public void onDone(String id) { if ("ende".equals(id)) h.post(ende); }
-                @Override public void onError(String id) { if ("ende".equals(id)) h.post(ende); }
+                @Override public void onDone(String id) { if ("ende".equals(id)) endeHandler.post(ende); }
+                @Override public void onError(String id) { if ("ende".equals(id)) endeHandler.post(ende); }
             });
             tts.speak(text, TextToSpeech.QUEUE_ADD, null, "ende");
         }
-        h.postDelayed(ende, 10000);
+        endeHandler.postDelayed(ende, 10000);
     }
 
     private void vibrieren() {
@@ -708,6 +863,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             } else {
                 titel = "Gipfel & Gasse"; text = "unterwegs";
             }
+            if (Z.gpsFehler != null) text = Z.gpsFehler + " · " + text;
+            if (Z.spracheFehlt && Z.ansagen) text += " · ohne Ansagen (Sprachausgabe fehlt)";
         }
         return new NotificationCompat.Builder(this, KANAL)
             .setSmallIcon(R.drawable.ic_stat_navi)

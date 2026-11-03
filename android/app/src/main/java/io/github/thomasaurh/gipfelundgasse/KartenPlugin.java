@@ -43,7 +43,8 @@ public class KartenPlugin extends Plugin {
     private static final String TAG = "GipfelGasseKarten";
     private static final String PREFS = "kartenpakete";
     private final Set<String> pruefenLaeuft = new HashSet<>();
-    private final JSObject fehlerJe = new JSObject();
+    // Fehler je Paket; der Prüf-Faden schreibt, der Plugin-Faden liest (darum keine einfache HashMap/JSObject)
+    private final java.util.concurrent.ConcurrentHashMap<String, String> fehlerJe = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Lesen in eigenen Fäden: die Kartenbibliothek fragt viele Stücke gleichzeitig an
     private final java.util.concurrent.ExecutorService leser = java.util.concurrent.Executors.newFixedThreadPool(4);
@@ -274,7 +275,8 @@ public class KartenPlugin extends Plugin {
                 }
                 s.put("geladen", geladen);
                 s.put("gesamt", gesamt);
-                if (fehlerJe.has(id)) { s.put("zustand", "fehler"); s.put("meldung", fehlerJe.getString(id)); }
+                String pruefFehler = fehlerJe.get(id);
+                if (pruefFehler != null) { s.put("zustand", "fehler"); s.put("meldung", pruefFehler); }
                 else if (fehler) { s.put("zustand", "fehler"); s.put("meldung", meldung); }
                 else if (alleFertig) { s.put("zustand", "pruefen"); abschliessen(id, eintrag); }
                 else { s.put("zustand", "laedt"); s.put("meldung", meldung); }
@@ -338,7 +340,7 @@ public class KartenPlugin extends Plugin {
                 notifyListeners("fertig", new JSObject().put("id", id));
             } catch (Exception e) {
                 Log.e(TAG, "Paket " + id + " nicht abschließbar", e);
-                try { fehlerJe.put(id, e.getMessage()); } catch (Exception ignored) { /* egal */ }
+                fehlerJe.put(id, e.getMessage() != null ? e.getMessage() : e.toString());
             } finally {
                 synchronized (pruefenLaeuft) { pruefenLaeuft.remove(id); }
             }

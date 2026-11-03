@@ -71,8 +71,15 @@ final class BRouterDateien {
             for (File f : fs) {
                 String k = Routing.kachelAusName(f.getName());
                 if (k == null || gefunden.contains(k)) continue;
-                Os.symlink(f.getAbsolutePath(), new File(dir, k + ".rd5").getAbsolutePath());
-                gefunden.add(k);
+                String ziel = new File(dir, k + ".rd5").getAbsolutePath();
+                // ein alter Verweis, der sich oben nicht löschen ließ, darf nicht das ganze Offline-Routing kippen
+                try { Os.remove(ziel); } catch (android.system.ErrnoException e) { /* war keiner da */ }
+                try {
+                    Os.symlink(f.getAbsolutePath(), ziel);
+                    gefunden.add(k);
+                } catch (android.system.ErrnoException e) {
+                    Log.w(TAG, "Verweis auf Routendaten nicht anlegbar: " + k, e);
+                }
             }
         }
         return dir;

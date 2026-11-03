@@ -5,6 +5,13 @@ Sehenswürdigkeiten und Stadtrundgänge, Wetter, Info zu Orten (geöffnet jetzt,
 Reiseziele, GPX, Karte drucken. Als **Web-App** (eine HTML-Datei) und als
 **Android-App**, die unterwegs auch bei gesperrtem Bildschirm navigiert und aufzeichnet.
 
+## Im Browser (PC oder Handy)
+
+**https://thomas-aurh.github.io/gipfel-und-gasse/** öffnen, nichts zu installieren; nach jedem Merge die neue Fassung.
+Planen, Touren, Etappen, Reisetagebuch, Reiseziele, Gipfelbuch, Wetter und Drucken gehen hier genauso. Nur die Android-App
+kann navigieren und aufzeichnen bei gesperrtem Bildschirm und Offline-Kartenpakete. Die Daten liegen je Browser bzw. App:
+am PC „Sicherung speichern“ (Menü › Sicherung), die Datei aufs Handy schicken, dort „Sicherung laden“.
+
 ## Android-App installieren
 
 1. Auf dem Handy öffnen: **https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste**
@@ -32,10 +39,22 @@ und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipf
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
 
+**Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
+Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder
+Tag beginnt zur selben Startzeit). „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.
+
+**Wetter für die Tour:** In *Planen* „🌦 Wetter für die Tour“: Vorhersage für Start, höchsten Punkt und Ziel (bei Etappen je
+Tag), jeweils für die Stunde, in der man laut Zeitplan dort ist, umgerechnet auf die Höhe des Punkts. Warnt bei Gewitter,
+Sturmböen (ab 60 km/h) und Frost. Ohne Startzeit rechnet die App ab 9 Uhr; bis 16 Tage voraus.
+
 **Reiseziele:** Menü ☰ › *Reiseziele*: Listen mit Zielen (Ort per Suche, Notiz, Link, Stichworte, Stand Idee/geplant/
 besucht), als ⭐ auf der Karte; Fenster mit Anreise, Wetter dort und „Als Stopp“. „📂 Datei laden“ liest Text (eine Zeile
 je Ziel, die App sucht den Ort), CSV (`Name;Ort;Notiz;Link`, auch mit `lat;lon`), GPX-Wegpunkte, KML aus Google My Maps
 und GeoJSON; „📋 Liste einfügen“ nimmt dieselben Zeilen aus einer Notiz oder Nachricht. „⬇ Als GPX“ gibt eine Liste weiter. Im Info-Fenster merkt „⭐ Merken“ einen Ort. Kommt mit in die Sicherung.
+
+**Gipfelbuch:** Menü ☰ › *Gipfelbuch*: Kommt eine gespeicherte Aufzeichnung bis auf 50 m an einen Gipfel aus OpenStreetMap,
+steht er hier mit Höhe, Tag und Zahl der Besuche (ohne Netz aus dem Kartenpaket). „🔍 Gegangene Touren durchsuchen“ holt das
+für ältere Touren nach. Kommt mit in die Sicherung.
 
 **Info auf der Karte:** Der Knopf ⓘ rechts an der Karte schaltet zwischen Planen (Antippen setzt Punkte) und Info: Dann
 zeigt Antippen, was dort ist (Name, Art, geöffnet jetzt, Eintritt, Wikipedia, Link zu Google Maps), aus dem Kartenpaket und von Overpass; im
@@ -44,14 +63,18 @@ Fenster geht es weiter mit „Als Stopp“ oder „Hier starten“.
 **Orte und Sehenswürdigkeiten:** Das Ort-Fenster zeigt, ob jetzt geöffnet ist (aus den Öffnungszeiten in OpenStreetMap,
 ohne Feiertage), und bei Orten mit Wikipedia-Artikel eine Kurzinfo mit Bild, auf Wunsch vorgelesen. In *Entdecken* sucht
 „☔ Drinnen in der Nähe“ Museen, Bäder, Kino und Ähnliches rund um den Wetterort; bei Regen heute oder morgen ist der Knopf
-hervorgehoben.
+hervorgehoben. Ein Ort, der „Als Stopp“ in die Tour kommt, nimmt seine Öffnungszeiten mit: Mit Startzeit im Zeitplan steht
+unter jedem Stopp die Ankunft und ob dann geöffnet ist (⛔ geschlossen, ⚠️ schließt während des Besuchs oder öffnet erst kurz
+danach). Die Zeiten stammen aus OpenStreetMap (bei Museen und Gasthäusern meist eingetragen, bei Hütten selten).
 
 **Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
 **Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
 abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an, warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
-App oder direkt in der Mitteilung.
+App oder direkt in der Mitteilung. Mit „🎧 Führung“ liest die App an jedem Stopp mit Wikipedia-Artikel dessen Kurzinfo vor
+(Stopps aus *Entdecken* oder der Stadt-Liste bringen ihn mit); die Texte lädt sie beim Losgehen, unterwegs braucht es dafür
+kein Netz.
 
 ## Aufbau
 

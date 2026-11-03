@@ -1,0 +1,54 @@
+# Web-App als Seite: nach jedem Merge auf main gebaut und unter https://thomas-aurh.github.io/gipfel-und-gasse/
+# veröffentlicht (GitHub Pages, Quelle „GitHub Actions“). Am PC und im Handy-Browser dieselbe Fassung wie die App.
+name: Web-Seite
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# nur eine Veröffentlichung gleichzeitig; eine laufende nicht abbrechen (sonst bliebe die Seite halb)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Abhängigkeiten (Offline-Bündel)
+        run: npm ci
+      - name: Bauen und prüfen (Syntax, Einheitstests)
+        run: sh web/pruefen.sh
+      - name: Seite zusammenstellen
+        run: |
+          mkdir -p _site
+          cp web/dist/Gipfel-und-Gasse.html _site/index.html
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.seite.outputs.page_url }}
+    steps:
+      - id: seite
+        uses: actions/deploy-pages@v4

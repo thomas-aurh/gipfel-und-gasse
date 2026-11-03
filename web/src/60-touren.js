@@ -29,7 +29,7 @@ function tourSpeichern() {
     // erneutes Speichern behält das ursprüngliche Datum (Statistik je Jahr)
     name, datum: ((liste.find(t => t.id === (S.tourId || '')) || {}).datum) || new Date().toISOString(),
     profil: S.profil, tempo: S.tempo, pace: S.pace,
-    wps: S.fest ? null : S.wps.map(w => (w.name || w.min) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0] : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
+    wps: S.fest ? null : S.wps.map(w => (w.name || w.min || w.info || w.nacht) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0].concat(w.info || w.nacht ? [w.info || 0] : [], w.nacht ? [1] : []) : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
     zeit: S.fest ? null : zeitplanLesen(),
     spur: spurPacken(e.pts),
@@ -54,6 +54,7 @@ function spurAlsTour(name, pts, art) {
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
   melde('Gespeichert: ' + name);
+  if (art === 'aufzeichnung') gipfelNachTour(liste[0]);   // Gipfelbuch (im Hintergrund, braucht Paket oder Netz)
   return true;
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }
@@ -63,6 +64,7 @@ function tourOeffnen(id) {
   if (!t) return;
   const pts = spurEntpacken(t.spur);
   lauf++;   // eine noch laufende Berechnung darf die geöffnete Tour nicht überschreiben
+  S.rechnet = false;   // sie setzt das selbst nicht mehr zurück
   S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name; zeitplanSetzen(t.zeit);
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
@@ -71,7 +73,7 @@ function tourOeffnen(id) {
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
     S.fest = null;
-    S.wps = t.wps.map(w => w.length > 2 ? { lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 } : { lat: w[0], lon: w[1] });
+    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}, w[5] === 1 ? { nacht: true } : {}) : { lat: w[0], lon: w[1] });
     if (t.modus) modusSetzen(t.modus, { karte: true });
     S.stuecke = planEntpacken(S.wps, S.profil, t.spur, t.stuecke);
     S.stueckeFuer = stueckSignatur();
@@ -90,7 +92,7 @@ function tourOeffnen(id) {
 
 // feste Spur (GPX oder Aufzeichnung) anzeigen
 function spurAnzeigen(pts, name, art) {
-  lauf++;
+  lauf++; S.rechnet = false;
   S.verlauf = [];
   S.wps = []; S.fest = { pts, art: art || 'spur', abschnitte: [] };
   S.stuecke = [{ pts, abschnitte: [], quelle: 'spur' }];
@@ -103,7 +105,8 @@ function spurAnzeigen(pts, name, art) {
 function tourLoeschen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;
-  const li = document.querySelector('[data-tour="' + id + '"]');
+  // Kennungen aus einer Sicherung können Zeichen wie " oder ] enthalten
+  const li = document.querySelector('[data-tour="' + CSS.escape(id) + '"]');
   if (li && !li.dataset.sicher) {
     li.dataset.sicher = '1';
     li.querySelector('.was small').textContent = 'Nochmal 🗑 tippen löscht die Tour.';
@@ -207,10 +210,10 @@ async function sicherungSpeichern() {
   const liste = tourenLesen();
   const tb = await tagebuchFuerSicherung();
   const ziele = zieleLesenSp();
-  if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length) { melde('Keine Touren, kein Tagebuch und keine Reiseziele gespeichert.'); return; }
+  if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length && !Object.keys(gipfelbuchLesen().gipfel).length) { melde('Keine Touren, kein Tagebuch, keine Reiseziele und kein Gipfelbuch gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
-    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele }), 'application/json');
+    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() }), 'application/json');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
   if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
@@ -219,14 +222,18 @@ async function sicherungEinlesen(text) {
   const neu = R.sicherungLesen(text);
   const liste = tourenLesen(), ids = new Set(liste.map(t => t.id));
   const dazu = neu.filter(t => !ids.has(t.id));
-  if (dazu.length && !tourenSchreiben(dazu.concat(liste))) return;
+  // die drei Teile unabhängig: passen die Touren nicht in den Speicher, kommen Tagebuch und Reiseziele trotzdem
+  const tourenOk = !dazu.length || tourenSchreiben(dazu.concat(liste));
   const tb = await tagebuchEinlesen(text);
   const zl = zieleEinlesen(text);
+  const gb = gipfelbuchEinlesen(text);
   tourenZeigen();
   const teile = [];
-  if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
+  if (!tourenOk) teile.push(dazu.length + ' Touren NICHT übernommen (Speicher voll)');
+  else if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
   if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
   if (zl) teile.push(zl + ' Reiseziele übernommen');
+  if (gb) teile.push(gb + ' Gipfelbesuche ins Gipfelbuch übernommen');
   melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
 }
 
@@ -236,7 +243,8 @@ $('bGpx').onclick = () => {
   const n = (S.name || '').trim() || 'Gipfel-und-Gasse-Tour';
   gpxHerunter(n, S.ergebnis.pts, S.wps.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Punkt ' + (i + 1)) })));
 };
-$('bSichern').onclick = sicherungSpeichern;
+// nicht still scheitern: wer sich auf die Sicherung verlässt, muss wissen, dass keine Datei entstand
+$('bSichern').onclick = () => sicherungSpeichern().catch(e => melde('Sicherung fehlgeschlagen: ' + (e && e.message || e) + '. Es wurde keine Datei gespeichert.', 10));
 $('bSicherungLaden').onclick = () => $('sicherungDatei').click();
 $('sicherungDatei').onchange = async e => {
   const f = e.target.files[0];

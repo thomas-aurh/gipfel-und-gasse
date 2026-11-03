@@ -22,7 +22,12 @@ if (NATIV) {
     const out = [];
     S.wps.forEach((w, i) => {
       if (i === 0 || !w.name) return;
-      out.push({ d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0 });
+      // text: Führung, liest der Dienst am Stopp statt „… erreicht“ vor (auch bei gesperrtem Bildschirm)
+      // lat/lon: daran erkennt der Dienst den Stopp für die Führung (auch nach dem Umplanen und bei gleichen Namen)
+      const s = { d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0, lat: w.lat, lon: w.lon };
+      const text = FUEHRUNG.get(fuehrungSchluessel(w));
+      if (text) s.text = text;
+      out.push(s);
     });
     return out;
   }
@@ -113,6 +118,11 @@ if (NATIV) {
     }
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);
     gewitterZeigen(st.gewitter || null);
+    // Ausfälle des Dienstes einmal je Art melden: ohne GPS oder Sprachausgabe gibt es keine Warnung abseits der Route
+    const ausfall = st.gpsFehler ? st.gpsFehler + ': die Navigation bekommt keinen Standort. In den Android-Einstellungen prüfen.'
+      : st.spracheFehlt ? 'Die Sprachausgabe von Android startet nicht: es kommen keine Ansagen und keine Abseits-Warnung.' : '';
+    if (ausfall && ausfall !== app.ausfall) melde(ausfall, 10);
+    app.ausfall = ausfall;
     if (st.aufz) {
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
       // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt
@@ -132,11 +142,17 @@ if (NATIV) {
   $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });
 
   $('bNavi').onclick = async () => {
-    if (app.folgen) { app.folgen = false; await senden(false).catch(() => {}); return; }
+    if (app.startet) return;   // Texte der Führung laden noch: ein zweiter Tipp darf das Folgen nicht gleich beenden
+    if (app.folgen) { app.folgen = false; fuehrungAus(); await senden(false).catch(() => {}); return; }
     if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
-    app.folgen = true;
-    U.folgen = true; $('bOrt').classList.add('an');
-    await senden(true).catch(() => {});
+    app.startet = true;
+    try {
+      if ($('fuehrung').checked) $('bNavi').textContent = '… Führung wird geladen';
+      await fuehrungLaden();   // Texte vorher holen: unterwegs ist oft kein Netz
+      app.folgen = true;
+      U.folgen = true; $('bOrt').classList.add('an');
+      await senden(true).catch(() => {});
+    } finally { app.startet = false; knoepfe(); }
   };
 
   $('bAufz').onclick = async () => {
@@ -152,16 +168,27 @@ if (NATIV) {
     await senden(false).catch(() => {});
   };
 
+  // Höhen nachladen kann dauern: der Knopf ist solange gesperrt, sonst speichert ein zweiter Tipp die Tour doppelt
   $('bAufzSpeichern').onclick = async () => {
-    const r = await Navi.aufzeichnungHolen({ leeren: false });
-    const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; return q; });
-    if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
-    if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
-    const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
-    await Navi.aufzeichnungHolen({ leeren: true });
-    $('bAufzSpeichern').disabled = true;
-    $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
+    const knopf = $('bAufzSpeichern');
+    if (knopf.disabled) return;
+    knopf.disabled = true;
+    let fertig = false;
+    try {
+      const r = await Navi.aufzeichnungHolen({ leeren: false });
+      const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; return q; });
+      if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
+      if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
+      const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
+      fertig = true;
+      await Navi.aufzeichnungHolen({ leeren: true });
+      knopf.textContent = '✓ In „Gegangene Touren“';
+    } catch (e) {
+      if (!fertig) melde('Aufzeichnung nicht gespeichert: ' + (e && e.message || e));
+    } finally {
+      if (!fertig) knopf.disabled = false;
+    }
   };
 
   // Wird die Route geändert, während der Dienst ihr folgt: neue Route nachreichen
@@ -210,7 +237,9 @@ if (NATIV) {
   // Nach dem Öffnen der App: läuft der Dienst schon (z. B. nach dem Wischen aus der Übersicht)?
   Navi.status().then(st => {
     anzeigen(st);
-    if (st.folgen || st.aufzeichnen) { reiter('unterwegs'); melde('Navigation läuft im Hintergrund weiter.'); }
+    if (st.fortgesetzt) { reiter('unterwegs'); melde('Android hatte die App beendet: Navigation und Aufzeichnung laufen jetzt weiter.', 8); }
+    else if (st.unterbrochenAlt) { reiter('unterwegs'); melde('Android hatte die App unterwegs beendet. Die Navigation ist zu lange her und läuft nicht weiter; eine Aufzeichnung endet an der Unterbrechung.', 10); }
+    else if (st.folgen || st.aufzeichnen) { reiter('unterwegs'); melde('Navigation läuft im Hintergrund weiter.'); }
     if (!st.aufzeichnen) {
       Navi.aufzeichnungHolen({ leeren: false }).then(r => {
         if (r.spur && r.spur.length > 1) {

@@ -107,7 +107,7 @@ function zeichenWegpunkte() {
       draggable: true, autoPan: true, zIndexOffset: i === 0 ? 1000 : 0,
       icon: L.divIcon({ className: '', html: '<div class="wp ' + art + '">' + text + '</div>', iconSize: [26, 26], iconAnchor: rund ? [-2, 30] : [13, 13] })
     });
-    if (w.name) m.bindTooltip(R.esc(w.name), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
+    if (w.name || w.nacht) m.bindTooltip((w.nacht ? '🛏 ' : '') + R.esc(w.name || 'Übernachtung'), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
     m.on('dragend', () => {
       const p = m.getLatLng();
       merken();
@@ -124,6 +124,13 @@ function zeichenWegpunkte() {
       k.className = 'popup-knopf'; k.textContent = 'Punkt entfernen';
       k.onclick = () => { karte.closePopup(); wegpunktWeg(i); };
       box.appendChild(k);
+      // Mehrtagestour: an einem Zwischenziel übernachten teilt die Tour in Etappen
+      if (i > 0 && i < S.wps.length - 1) {
+        const n = document.createElement('button');
+        n.className = 'popup-knopf'; n.textContent = w.nacht ? '🛏 Keine Übernachtung' : '🛏 Hier übernachten';
+        n.onclick = () => { karte.closePopup(); nachtUmschalten(i); };
+        box.appendChild(document.createTextNode(' ')); box.appendChild(n);
+      }
       L.popup({ offset: [0, -8] }).setLatLng(m.getLatLng()).setContent(box).openOn(karte);
     });
     m.addTo(ebenePunkte);
@@ -165,9 +172,13 @@ function zeichenRoute() {
 
 async function neuBerechnen() {
   const nr = ++lauf;
+  nachtAnRaendernWeg();
   zeichenWegpunkte();
-  if (S.fest) { auswertenUndZeigen(); return; }
+  // ein früher Rücksprung beendet auch eine laufende Berechnung: deren Ergebnis wird verworfen (nr !== lauf),
+  // ohne dass sie S.rechnet zurücksetzt, sonst blieben Speichern, GPX, Link und Drucken gesperrt
+  if (S.fest) { S.rechnet = false; auswertenUndZeigen(); return; }
   if (S.wps.length < 2) {
+    S.rechnet = false;
     S.stuecke = []; S.ergebnis = null;
     zeichenRoute(); zeigen();
     $('status').textContent = S.wps.length === 1 ? 'Start gesetzt. Jetzt das Ziel antippen.' : '';
@@ -339,11 +350,25 @@ function zeitplanZeigen() {
   } else {
     text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
+  // Mehrtagestour: Zeitplan je Tag in den Etappen statt eines Tages
+  const et = etappenAktuell();
+  let etKnapp = false;
+  if (et) {
+    etKnapp = etappenZeigen(et, tag, start ? [h, m] : null, pause);
+    text = et.length + ' Etappen, ' + R.kmText(e.laenge) + ' in ' + R.zeitText(e.zeit + besichtigung() / 60) + ' Gehzeit: Zeitplan je Tag unter „Etappen“.' +
+      (etKnapp ? ' ⚠️ An mindestens einem Tag wird es vor Sonnenuntergang knapp.' : '');
+  } else { $('etappen').hidden = true; $('etappen').innerHTML = ''; }
+  // Stopps mit Öffnungszeiten: geschlossen oder knapp bei Ankunft?
+  const probleme = start ? besuchProbleme() : 0;
+  if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
+  else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
+  if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
   box.textContent = text;
-  box.classList.toggle('warnung', !!(z.knapp || (!start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
+  box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
 }
-['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); entwurfSichern(); }));
+// Startzeit und Pausen verschieben auch die Ankunft an den Stopps (Öffnungszeiten)
+['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); stoppsZeigen(); entwurfSichern(); }));
 // Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
 function zeitplanLesen() {
   const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
@@ -368,20 +393,148 @@ function besichtigung(abIndex) {
   return min;
 }
 
+// Startzeit des Zeitplans als Date, sonst null
+function zeitplanStart() {
+  if (!$('startZeit').value) return null;
+  const tag = $('startTag').value ? new Date($('startTag').value + 'T12:00') : new Date();
+  const [h, m] = $('startZeit').value.split(':').map(Number);
+  return new Date(tag.getFullYear(), tag.getMonth(), tag.getDate(), h, m);
+}
+// Ankunft an jedem Wegpunkt (Date, null ohne Startzeit): Weg bis dorthin nach derselben Formel wie die ganze Tour,
+// davor liegende Besichtigungen und ein Anteil der Pausen (verteilt nach Gehzeit)
+function stoppAnkunft() {
+  const e = S.ergebnis, start = zeitplanStart();
+  // während einer Neuberechnung gehört das alte Ergebnis noch zu den alten Wegpunkten: dann keine Ankunft
+  if (!e || !start || S.fest || !e.stueckEnde || S.rechnet || e.stueckEnde.length !== S.wps.length - 1) return S.wps.map(() => null);
+  const pause = (+$('pausewahl').value || 0) / 60;
+  // Mehrtagestour: jede Etappe beginnt am nächsten Tag zur selben Startzeit; Pausen gelten je Tag
+  const et = etappenAktuell() || [{ von: 0, bis: S.wps.length - 1, vonD: 0, zeit: e.zeit }];
+  let besicht = 0, k = 0;
+  return S.wps.map((w, i) => {
+    let h = 0;
+    if (i > 0) {
+      // Weg seit dem Morgen dieses Tages, für sich gerechnet (wie die Etappe selbst)
+      const t = R.zeitZwischen(e.pts, et[k].vonD, e.stueckEnde[i - 1], tempoAktuell(), artAktuell());
+      h = k * 24 + t + besicht / 60 + (et[k].zeit ? pause * t / et[k].zeit : 0);
+    }
+    besicht += +w.min || 0;
+    const an = new Date(start.getTime() + h * 3600e3);
+    // hier übernachtet: der nächste Tag zählt von hier
+    if (i === et[k].bis && k < et.length - 1) { k++; besicht = 0; }
+    return an;
+  });
+}
+
+// ---------- Mehrtagestour: Etappen an den Übernachtungen ----------
+function etappenAktuell() {
+  const e = S.ergebnis;
+  if (!e || S.fest || S.rechnet || !e.stueckEnde) return null;
+  return R.etappen(e.pts, e.stueckEnde, S.wps, tempoAktuell(), artAktuell());
+}
+// Start oder Ziel mit Übernachtung (das Ziel wurde entfernt, die Reihenfolge verkürzt): Übernachtung streichen, sonst hinge
+// sie unsichtbar am Rand und käme später ungefragt zurück
+function nachtAnRaendernWeg() {
+  const n = S.wps.length;
+  for (const i of n ? [0, n - 1] : []) {
+    if (!S.wps[i] || !S.wps[i].nacht) continue;
+    const w = Object.assign({}, S.wps[i]); delete w.nacht; S.wps[i] = w;
+    melde('Die Übernachtung lag jetzt am ' + (i === 0 ? 'Start' : 'Ziel') + ' und ist entfernt.', 5);
+  }
+}
+function nachtUmschalten(i) {
+  if (i <= 0 || i >= S.wps.length - 1) return;
+  merken();
+  const w = Object.assign({}, S.wps[i]);
+  if (w.nacht) delete w.nacht; else w.nacht = true;
+  S.wps[i] = w;
+  zeichenWegpunkte(); zeigen(); entwurfSichern();
+  melde(w.nacht ? 'Übernachtung eingetragen: die Tour ist jetzt in Etappen geteilt (siehe Etappen).' : 'Übernachtung entfernt.', 5);
+}
+// je Tag: Strecke, Höhenmeter, Gehzeit, Ziel; mit Startzeit Ankunft gegen den Sonnenuntergang am Etappenziel
+function etappenZeigen(et, tag, startZeit, pause) {
+  const box = $('etappen');
+  box.innerHTML = '';
+  let knapp = false;
+  et.forEach((s, k) => {
+    const d = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + k, 12);
+    let besicht = 0;
+    for (let i = k === 0 ? 0 : s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;   // Tag 1 mit der Besichtigung am Start
+    const zeit = s.zeit + besicht / 60;
+    const unter = s.ziel ? R.sonnenuntergang(d, s.ziel.lat, s.ziel.lon) : null;
+    const start = startZeit ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), startZeit[0], startZeit[1]) : null;
+    const z = R.zeitplan(start, zeit, pause, unter);
+    if (z.knapp) knapp = true;
+    const ziel = S.wps[s.bis].name || (k === et.length - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1));
+    let plan = '';
+    if (start && unter) plan = 'Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr · Sonnenuntergang ' + R.uhr(unter) + (z.knapp ? ' · ⚠️ knapp, spätestens ' + R.uhr(z.spaetestens) + ' Uhr los' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve');
+    else if (unter) plan = 'spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (Sonnenuntergang ' + R.uhr(unter) + ')';
+    const div = document.createElement('div');
+    div.className = 'etappe' + (z.knapp ? ' knapp' : '');
+    div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
+      ' · bis ' + R.esc(ziel) + (k < et.length - 1 ? ' 🛏' : '') + '<br><span class="klein">' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
+      R.zeitText(zeit) + (s.hoch != null ? ' · höchster Punkt ' + s.hoch + ' m' : '') + (plan ? '<br>' + R.esc(plan) : '') + '</span>';
+    box.appendChild(div);
+  });
+  const b = document.createElement('button');
+  b.className = 'knopf'; b.id = 'bEtappenReise'; b.textContent = '📔 Als Reise ins Tagebuch';
+  b.onclick = () => etappenAlsReise(et.length, tag);
+  box.appendChild(b);
+  box.hidden = false;
+  return knapp;
+}
+// Reise im Tagebuch über die Tage der Etappen anlegen (gegangene Touren dieser Tage zeigt das Tagebuch von selbst)
+function etappenAlsReise(tage, tag) {
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const von = iso(tag), bis = iso(new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + tage - 1));
+  const name = ((S.name || '').trim() || 'Mehrtagestour').slice(0, 120);
+  const d = tagebuchLesen();
+  if (d.reisen.some(r => r.name === name && r.von === von && r.bis === bis)) { melde('Diese Reise steht schon im Tagebuch.'); return; }
+  d.reisen.push({ id: 'r' + tbId(), name, von, bis });
+  if (!tagebuchSchreiben(d)) return;
+  melde('Reise „' + name + '“ (' + tage + ' Tage) im Tagebuch angelegt.', 5);
+  reiter('tagebuch');
+  reiseZeigen(d.reisen[d.reisen.length - 1].id);
+}
+// Zeile unter einem Stopp: geöffnet bei Ankunft? (nur mit Öffnungszeiten aus OSM)
+function besuchHtml(w, an) {
+  const oh = w.info && w.info.oh;
+  if (!oh) return an && w.name ? '<small>an ' + R.uhr(an) + ' Uhr</small>' : '';
+  const quelle = ohQuelleHtml(w);
+  if (!an) return '<small>' + oeffnungKurz(oh) + '</small>' + quelle;
+  const b = R.oeffnungBesuch(oh, an, +w.min || 0);
+  if (b.zustand === 'unbekannt') return '<small>an ' + R.uhr(an) + ' Uhr · Öffnungszeiten: ' + R.esc(oh) + '</small>' + quelle;
+  // vage: laut OSM wohl geöffnet, aber ohne sichere Uhrzeit (keine Warnung, aber auch kein grünes „geöffnet“)
+  const zeichen = { offen: '●', knapp: '⚠️', zu: '⛔', vage: '❔' }[b.zustand];
+  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu', vage: 'vage' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>' + quelle;
+}
+// woher die Zeiten stammen, wie alt sie sind, und wo man nachsieht (OSM irrt bei Sanierung und Saisonpause, Abgleich 03.11.)
+function ohQuelleHtml(w) {
+  const i = w.info || {}, stand = R.ohStand(i.ohd, new Date());
+  return '<small class="oh-quelle">laut OpenStreetMap' + (stand ? ', ' + R.esc(stand.text) + (stand.alt ? ' ⚠️ über 2 Jahre alt' : '') : '') + ' · ' +
+    (i.web ? '<a href="' + R.esc(i.web) + '" target="_blank" rel="noopener">Webseite</a> · ' : '') +
+    '<a href="' + R.esc(R.googleOrtLink(w.name || '', i.adr || '', w.lat, w.lon)) + '" target="_blank" rel="noopener">Google Maps</a></small>';
+}
+// Stopps, die bei Ankunft zu sind oder knapp werden (für den Hinweis im Zeitplan)
+function besuchProbleme() {
+  const an = stoppAnkunft();
+  return S.wps.map((w, i) => w.info && w.info.oh && an[i] ? R.oeffnungBesuch(w.info.oh, an[i], +w.min || 0).zustand : '')
+    .filter(z => z === 'zu' || z === 'knapp').length;
+}
+
 // Liste der Stopps mit Besichtigungszeit (sobald ein Punkt einen Namen hat oder im Stadtmodus)
 const MINUTEN = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180];
 function stoppsZeigen() {
   const box = $('stopps');
   box.innerHTML = '';
-  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.some(w => w.name))) return;
-  const n = S.wps.length;
+  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.some(w => w.name || w.nacht))) return;
+  const n = S.wps.length, ankunft = stoppAnkunft();
   S.wps.forEach((w, i) => {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
     d.className = 'stopp';
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
     d.innerHTML = '<span class="nr' + (nr === 'S' ? ' s' : '') + '">' + nr + '</span><span class="name">' +
-      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + '</span>';
+      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + '</span>';
     if (!rund) {
       const sel = document.createElement('select');
       sel.title = 'Besichtigungszeit';
@@ -398,6 +551,13 @@ function stoppsZeigen() {
     d.appendChild(x);
     box.appendChild(d);
   });
+  if (S.wps.some(w => w.info && w.info.oh)) {
+    const hinweis = document.createElement('p');
+    hinweis.className = 'klein oh-hinweis';
+    hinweis.textContent = 'Öffnungszeiten aus OpenStreetMap, von Freiwilligen eingetragen und nicht immer aktuell (Sanierung, Saisonpause). ' +
+      'In einer Stichprobe stimmten 11 von 19 mit Google überein, keine Quelle war durchweg richtig: vor dem Besuch über Webseite oder Google Maps nachsehen.';
+    box.appendChild(hinweis);
+  }
 }
 
 // Reihenfolge der Stopps verkürzen; Start bleibt, eine Rundtour bleibt eine Rundtour
@@ -454,9 +614,11 @@ async function rundkurs(andereRichtung) {
       const [p1, p2] = R.rundkursPunkte(start, soll, rundRichtung, umweg);
       const meine = [{ lat: start.lat, lon: start.lon }, p1, p2, { lat: start.lat, lon: start.lon }];
       S.wps = meine;
-      await neuBerechnen();
-      // inzwischen anders geplant (Punkt gezogen, Tour geöffnet, Neu): diese Runde nicht weiter verfolgen
-      if (S.wps !== meine) return;
+      const rechnung = neuBerechnen(), meinLauf = lauf;
+      await rechnung;
+      // inzwischen anders geplant (Punkt gesetzt oder gezogen, umgekehrt, Tour geöffnet, Neu): diese Runde nicht weiter
+      // verfolgen; Punkt setzen und ziehen ändern dasselbe Feld, darum zählt die Laufnummer der Berechnung
+      if (S.wps !== meine || lauf !== meinLauf) return;
       if (!S.ergebnis || S.stuecke.some(s => s.quelle === 'linie')) break;
       const ist = S.ergebnis.laenge;
       if (Math.abs(ist - soll) / soll <= 0.12) break;
@@ -475,9 +637,15 @@ async function rundkurs(andereRichtung) {
 $('bRundeLos').onclick = () => rundkurs(false);
 $('bRundeAnders').onclick = () => rundkurs(true);
 $('bUmkehren').onclick = () => {
-  if (S.fest) { S.fest.pts.reverse(); S.stuecke = [{ pts: S.fest.pts, abschnitte: S.fest.abschnitte ? S.fest.abschnitte.slice().reverse() : [], quelle: 'spur' }]; auswertenUndZeigen(); return; }
+  if (S.fest) { spurUmkehren(S.fest.pts); S.stuecke = [{ pts: S.fest.pts, abschnitte: S.fest.abschnitte ? S.fest.abschnitte.slice().reverse() : [], quelle: 'spur' }]; auswertenUndZeigen(); return; }
   merken(); S.wps.reverse(); neuBerechnen();
 };
+// Spur umkehren: eine Lücke steht am ersten Punkt nach dem Sprung; umgekehrt ist das der Punkt, der vorher davor lag
+function spurUmkehren(pts) {
+  const luecke = pts.map(p => !!p.luecke);
+  pts.forEach((p, i) => { if (luecke[i + 1]) p.luecke = true; else delete p.luecke; });
+  pts.reverse();
+}
 $('bNeu').onclick = () => {
   if (S.wps.length) merken();
   S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null);
