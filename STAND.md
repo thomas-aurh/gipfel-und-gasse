@@ -101,6 +101,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   58 %, Cafés 66 % mit Zeiten; Burgen, Kirchen und Bergbahnen kaum (unter 6 %). Der Leser versteht jetzt auch Saison
   ohne Uhrzeit („Jun-Aug“), offenes Ende („11:30+“), Monate mit Doppelpunkt und Tage mit Datum („May 1-Sep 15“);
   lesbar damit Hütten 90 %, Museen 78 %, Gasthäuser 97 %. Feiertage bleiben außen vor (steht im Text dazu).
+  Abgleich mit Google (03.11., `docs/oeffnungszeiten-abgleich.md`): 11 von 19 gleich, keine Quelle durchweg richtig;
+  darum zeigt die App Quelle, Prüfdatum (`check_date`) und Links zu Webseite und Google Maps statt eines zweiten Dienstes.
 - **Orte-Infos** (02.11.): Öffnungszeiten mit eigenem kleinem Leser (Wochentage, Monate, Zeiten, `;` und `,`), alles
   andere bleibt Rohtext; verworfen die Bibliothek opening_hours.js (groß, für eine HTML-Datei zu schwer). Anreise über die
   dokumentierte URL-Schnittstelle von Google Maps (öffnet am Telefon die App, rechnet Bus und Bahn); verworfen Links zu

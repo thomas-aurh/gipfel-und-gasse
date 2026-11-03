@@ -499,12 +499,20 @@ function etappenAlsReise(tage, tag) {
 function besuchHtml(w, an) {
   const oh = w.info && w.info.oh;
   if (!oh) return an && w.name ? '<small>an ' + R.uhr(an) + ' Uhr</small>' : '';
-  if (!an) return '<small>' + oeffnungKurz(oh) + '</small>';
+  const quelle = ohQuelleHtml(w);
+  if (!an) return '<small>' + oeffnungKurz(oh) + '</small>' + quelle;
   const b = R.oeffnungBesuch(oh, an, +w.min || 0);
-  if (b.zustand === 'unbekannt') return '<small>an ' + R.uhr(an) + ' Uhr · Öffnungszeiten: ' + R.esc(oh) + '</small>';
+  if (b.zustand === 'unbekannt') return '<small>an ' + R.uhr(an) + ' Uhr · Öffnungszeiten: ' + R.esc(oh) + '</small>' + quelle;
   // vage: laut OSM wohl geöffnet, aber ohne sichere Uhrzeit (keine Warnung, aber auch kein grünes „geöffnet“)
   const zeichen = { offen: '●', knapp: '⚠️', zu: '⛔', vage: '❔' }[b.zustand];
-  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu', vage: 'vage' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>';
+  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu', vage: 'vage' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>' + quelle;
+}
+// woher die Zeiten stammen, wie alt sie sind, und wo man nachsieht (OSM irrt bei Sanierung und Saisonpause, Abgleich 03.11.)
+function ohQuelleHtml(w) {
+  const i = w.info || {}, stand = R.ohStand(i.ohd, new Date());
+  return '<small class="oh-quelle">laut OpenStreetMap' + (stand ? ', ' + R.esc(stand.text) + (stand.alt ? ' ⚠️ über 2 Jahre alt' : '') : '') + ' · ' +
+    (i.web ? '<a href="' + R.esc(i.web) + '" target="_blank" rel="noopener">Webseite</a> · ' : '') +
+    '<a href="' + R.esc(R.googleOrtLink(w.name || '', i.adr || '', w.lat, w.lon)) + '" target="_blank" rel="noopener">Google Maps</a></small>';
 }
 // Stopps, die bei Ankunft zu sind oder knapp werden (für den Hinweis im Zeitplan)
 function besuchProbleme() {
@@ -543,6 +551,13 @@ function stoppsZeigen() {
     d.appendChild(x);
     box.appendChild(d);
   });
+  if (S.wps.some(w => w.info && w.info.oh)) {
+    const hinweis = document.createElement('p');
+    hinweis.className = 'klein oh-hinweis';
+    hinweis.textContent = 'Öffnungszeiten aus OpenStreetMap, von Freiwilligen eingetragen und nicht immer aktuell (Sanierung, Saisonpause). ' +
+      'In einer Stichprobe stimmten 11 von 19 mit Google überein, keine Quelle war durchweg richtig: vor dem Besuch über Webseite oder Google Maps nachsehen.';
+    box.appendChild(hinweis);
+  }
 }
 
 // Reihenfolge der Stopps verkürzen; Start bleibt, eine Rundtour bleibt eine Rundtour
