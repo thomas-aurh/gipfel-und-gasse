@@ -36,6 +36,7 @@ import org.json.JSONObject;
  *   Karten.laden({ id, dateien, meta }) → startet den Download
  *   Karten.status()                  → { laufend: [{ id, geladen, gesamt, zustand, meldung }] }
  *   Karten.loeschen({ id })
+ *   Karten.lesen({ id, datei, von, laenge }) → { daten: Base64, laenge } (Stück einer Paketdatei, ohne das WebView)
  */
 @CapacitorPlugin(name = "Karten")
 public class KartenPlugin extends Plugin {
@@ -43,6 +44,37 @@ public class KartenPlugin extends Plugin {
     private static final String PREFS = "kartenpakete";
     private final Set<String> pruefenLaeuft = new HashSet<>();
     private final JSObject fehlerJe = new JSObject();
+
+    // Lesen in eigenen Fäden: die Kartenbibliothek fragt viele Stücke gleichzeitig an
+    private final java.util.concurrent.ExecutorService leser = java.util.concurrent.Executors.newFixedThreadPool(4);
+
+    /**
+     * Ein Stück einer Paketdatei an die Oberfläche, als Base64. Ersetzt beim Lesen der Kacheln den Weg über
+     * shouldInterceptRequest (KartenServer): dort lieferte das WebView des Pixel ab der Dateimitte keine Daten
+     * („Failed to fetch“, 02.11. und 03.11.), mit und ohne Range-Kopfzeile.
+     */
+    @PluginMethod
+    public void lesen(PluginCall call) {
+        String id = call.getString("id"), datei = call.getString("datei");
+        long von = call.getData().optLong("von", -1);
+        int laenge = call.getData().optInt("laenge", -1);
+        if (!Bereich.sichererName(id) || !Bereich.sichererName(datei)) { call.reject("Kartenserver: unbekannter Pfad"); return; }
+        leser.execute(() -> {
+            try {
+                File f = new File(new File(KartenServer.ordner(getContext()), id), datei);
+                if (!f.isFile()) { call.reject("Kartenserver: Datei fehlt (" + id + "/" + datei + ")"); return; }
+                byte[] b = Bereich.stueck(f, von, laenge);
+                JSObject o = new JSObject();
+                o.put("daten", android.util.Base64.encodeToString(b, android.util.Base64.NO_WRAP));
+                o.put("laenge", b.length);
+                o.put("dateiLaenge", f.length());
+                call.resolve(o);
+            } catch (Throwable e) {
+                Log.e(TAG, "Stück nicht lesbar: " + id + "/" + datei + " " + von + "+" + laenge, e);
+                call.reject("Kartenserver: " + e);
+            }
+        });
+    }
 
     private SharedPreferences prefs() { return getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
 

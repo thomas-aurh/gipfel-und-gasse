@@ -3,40 +3,61 @@
 // Routen ohne Netz (BRouter in der App), Orte und Suche ohne Netz (orte.json.gz).
 // Die Dateien liefert der native KartenServer unter /_karten_/<paket>/<datei>.
 const PAKET_INDEX = 'https://github.com/thomas-aurh/gipfel-und-gasse/releases/download/kartenpakete/pakete.json';
+const KARTEN_BRUECKE = NATIV && !!(window.Capacitor && window.Capacitor.PluginHeaders || []).find(p => p.name === 'Karten' && p.methods.some(m => m.name === 'lesen'));
 const OFF = { installiert: [], verfuegbar: null, laufend: [], hoehe: {}, uhr: null, bereit: null };
 
 function paketGrenzen(p) { const b = p.bbox; return L.latLngBounds([b[1], b[0]], [b[3], b[2]]); }
 function paketFuer(lat, lon) { return OFF.installiert.find(p => p.bbox && lon >= p.bbox[0] && lon <= p.bbox[2] && lat >= p.bbox[1] && lat <= p.bbox[3]); }
-// Lesen aus einer Paketdatei in Teilen: der Bereich steht NUR in der Adresse (?von=&bis=), nicht in einer
-// Range-Kopfzeile. Mit Kopfzeile springt das Android-WebView in der Antwort der App selbst noch einmal an den Anfang des
-// Bereichs, obwohl der Kartenserver schon ab dort liefert: ab Byte 0 fällt das nicht auf, weiter hinten (dort liegen
-// die Kacheln) kommen zu wenige Bytes und das Lesen bricht mit „Failed to fetch“ ab (gemessen auf dem Pixel, 02.11.).
+// Lesen aus einer Paketdatei in Teilen. In der App über die eigene Brücke (Karten.lesen: Java liest den Bereich direkt
+// aus der Datei, Antwort als Base64), nicht über fetch: das WebView des Pixel lieferte Bereiche ab der Dateimitte über
+// shouldInterceptRequest nicht aus („Failed to fetch“, mit Range-Kopfzeile am 02.11., nur mit ?von=&bis= am 03.11.).
+// fetch mit ?von=&bis= bleibt für den Browser (Klicktest) und zum Vergleich in „Offline-Karte prüfen“.
 const LESEN = [];   // letzte Lesevorgänge aller Paketdateien, für „Offline-Karte prüfen“
 function lesenMerken(text) { LESEN.push(new Date().toLocaleTimeString('de-DE') + ' ' + text); if (LESEN.length > 12) LESEN.shift(); }
+function abbruchFehler() { return new DOMException('abgebrochen', 'AbortError'); }
+function base64Bytes(b64) {
+  if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(b64);
+  const s = atob(b64), b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return b;
+}
+// Stück über die App-Brücke; pfad = '/_karten_/<paket>/<datei>'
+async function brueckeLesen(pfad, offset, length) {
+  const [id, datei] = pfad.split('/').slice(-2);
+  const r = await Karten.lesen({ id, datei, von: offset, laenge: length });
+  return base64Bytes(r.daten || '');
+}
 class PaketQuelle {
   constructor(url) { this.url = url; }
   getKey() { return this.url; }
   async getBytes(offset, length, signal) {
-    const bis = offset + length - 1, name = this.url.split('/').slice(-2).join('/'), t0 = Date.now();
+    const name = this.url.split('/').slice(-2).join('/'), t0 = Date.now(), wo = name + ' ' + offset + '+' + length;
+    if (signal && signal.aborted) throw abbruchFehler();
+    let bytes;
+    if (KARTEN_BRUECKE) {
+      try { bytes = await brueckeLesen(this.url, offset, length); }
+      catch (e) { lesenMerken(wo + ' (Brücke): ' + ((e && e.message) || e)); throw e; }
+      if (signal && signal.aborted) throw abbruchFehler();
+    } else bytes = await this.holen(offset, length, signal, wo);
+    if (bytes.byteLength !== length) lesenMerken(wo + ': ' + bytes.byteLength + ' Bytes erhalten');
+    else if (LESEN.length < 3 || Date.now() - t0 > 2000) lesenMerken(wo + ': ok in ' + (Date.now() - t0) + ' ms' + (KARTEN_BRUECKE ? ' (Brücke)' : ''));
+    // eigener Puffer genau in Stücklänge (die Bibliothek liest data als ArrayBuffer ab 0)
+    return { data: bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? bytes.buffer : bytes.slice().buffer };
+  }
+  // Browser: Bereich NUR in der Adresse (?von=&bis=), der Kartenserver der App versteht beides
+  async holen(offset, length, signal, wo) {
     let r;
-    try { r = await fetch(this.url + '?von=' + offset + '&bis=' + bis, { signal, cache: 'no-store' }); }
-    catch (e) {
-      if (e.name !== 'AbortError') lesenMerken(name + ' ' + offset + '+' + length + ': ' + e.name + ' ' + e.message);
-      throw e;
-    }
+    try { r = await fetch(this.url + '?von=' + offset + '&bis=' + (offset + length - 1), { signal, cache: 'no-store' }); }
+    catch (e) { if (e.name !== 'AbortError') lesenMerken(wo + ': ' + e.name + ' ' + e.message); throw e; }
     const n = +r.headers.get('Content-Length');
-    if (r.status === 200 && (!n || n > length)) { lesenMerken(name + ' ' + offset + '+' + length + ': ganze Datei'); throw new Error('Kartenserver liefert die ganze Datei statt eines Teils'); }
+    if (r.status === 200 && (!n || n > length)) { lesenMerken(wo + ': ganze Datei'); throw new Error('Kartenserver liefert die ganze Datei statt eines Teils'); }
     if (r.status !== 206 && r.status !== 200) {
       const text = await r.text().catch(() => '');
-      lesenMerken(name + ' ' + offset + '+' + length + ': Status ' + r.status + ' ' + text.slice(0, 160));
+      lesenMerken(wo + ': Status ' + r.status + ' ' + text.slice(0, 160));
       throw new Error('Kartendatei: Status ' + r.status + (text ? ' (' + text.slice(0, 160) + ')' : ''));
     }
-    let data;
-    try { data = await r.arrayBuffer(); }
-    catch (e) { lesenMerken(name + ' ' + offset + '+' + length + ': Lesen abgebrochen ' + e.name + ' ' + e.message); throw e; }
-    if (data.byteLength !== length) lesenMerken(name + ' ' + offset + '+' + length + ': ' + data.byteLength + ' Bytes erhalten');
-    else if (LESEN.length < 3 || Date.now() - t0 > 2000) lesenMerken(name + ' ' + offset + '+' + length + ': ok in ' + (Date.now() - t0) + ' ms');
-    return { data };
+    try { return new Uint8Array(await r.arrayBuffer()); }
+    catch (e) { lesenMerken(wo + ': Lesen abgebrochen ' + e.name + ' ' + e.message); throw e; }
   }
 }
 function paketPmtiles(url) { return new window.GugOffline.PMTiles(new PaketQuelle(url)); }
@@ -315,14 +336,21 @@ window.addEventListener('unhandledrejection', e => {
   const m = String((e.reason && (e.reason.message || e.reason)) || '');
   if (/pmtiles|byte serving|etag|bad response|tile|protomaps|range/i.test(m)) offlineFehler('Bibliothek: ' + m);
 });
+// protomaps-leaflet fängt Lesefehler einer Kachel selbst ab, malt nur den Hintergrund (grau), meldet die Kachel als
+// geladen und schreibt den Fehler bloß nach console.error: hier mitgezählt, sonst sieht die Prüfung „gezeichnet“
+const konsoleFehler = console.error.bind(console);
+console.error = (...a) => {
+  if (a[0] instanceof Error && a[0].name !== 'AbortError') { OFF.kachelFehler = (OFF.kachelFehler || 0) + 1; offlineFehler('Kachel nicht lesbar: ' + a[0].name + ' ' + a[0].message); }
+  konsoleFehler(...a);
+};
 async function offlinePruefen() {
   const z = [], c = karte.getCenter(), zoom = karte.getZoom();
   z.push('Gipfel & Gasse, Prüfung Offline-Karte, ' + new Date().toLocaleString('de-DE'));
   z.push('Gerät: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 160));
-  z.push('Bibliothek: ' + (window.GugOffline ? 'geladen' : 'FEHLT'));
+  z.push('Bibliothek: ' + (window.GugOffline ? 'geladen' : 'FEHLT') + '; Kacheln lesen über: ' + (KARTEN_BRUECKE ? 'App-Brücke' : 'fetch (Adresse)'));
   z.push('Karte: Zoom ' + zoom + ', Mitte ' + c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + '; Grundkarte gewählt: ' + lagenWahl.basis +
     '; Offline-Ebene ' + (LAGEN.offline ? (karte.hasLayer(LAGEN.offline) ? 'an' : 'aus') : 'nicht angelegt') + '; im Paketgebiet: ' + (paketFuer(c.lat, c.lng) ? 'ja' : 'nein'));
-  z.push('Kacheln gezeichnet: ' + (OFF.kachelnOk || 0) + ', Fehler: ' + OFF.fehler.length);
+  z.push('Kacheln gemeldet: ' + (OFF.kachelnOk || 0) + ', davon nur Hintergrund (Lesefehler): ' + (OFF.kachelFehler || 0) + ', Fehler: ' + OFF.fehler.length);
   if (!OFF.installiert.length) z.push('Kein Paket installiert.');
   for (const p of OFF.installiert) {
     z.push('— Paket ' + p.id + ' (Stand ' + (p.stand || '?') + ', bis Zoom ' + (p.maxzoom || 15) + '): ' + (p.dateien || []).map(d => d.name + ' ' + (d.groesse ? (d.groesse >= 1e6 ? Math.round(d.groesse / 1e6) + ' MB' : Math.max(1, Math.round(d.groesse / 1e3)) + ' kB') : '')).join(', '));
@@ -354,6 +382,15 @@ async function offlinePruefen() {
         } catch (e) { z.push('Stück ' + wo + ' über ' + weg + ' (' + von + '+16384): FEHLER ' + e.name + ' ' + (e.message || e)); }
       }
     }
+    // derselbe Bereich über die App-Brücke (so liest die App seit dem 03.11.)
+    if (KARTEN_BRUECKE) for (const [wo, von] of [['Anfang', 0], ['Mitte', Math.floor(gesamt / 2)], ['Ende', gesamt - 16384]]) {
+      if (von < 0 || (wo !== 'Anfang' && gesamt < 65536)) continue;
+      try {
+        const t0 = Date.now(), b = await brueckeLesen(url, von, 16384), soll = Math.min(16384, gesamt - von);
+        const kennung = wo === 'Anfang' ? ', Kennung „' + String.fromCharCode.apply(null, b.slice(0, 7)) + '“' : '';
+        z.push('Stück ' + wo + ' über Brücke (' + von + '+16384): ' + b.byteLength + ' Bytes in ' + (Date.now() - t0) + ' ms' + kennung + (b.byteLength === soll ? ' ✓' : ' ✗'));
+      } catch (e) { z.push('Stück ' + wo + ' über Brücke (' + von + '+16384): FEHLER ' + ((e && e.message) || e)); }
+    }
     if (!window.GugOffline) continue;
     try {
       const pm = paketPmtiles(url), k = await pm.getHeader();
@@ -368,7 +405,10 @@ async function offlinePruefen() {
     } catch (e) { z.push('Kopf oder Kachel: FEHLER ' + (e.message || e)); }
     for (const datei of ['hoehe.pmtiles', 'orte.json.gz']) {
       if (!(p.dateien || []).some(d => d.name === datei)) continue;
-      try { const r = await fetch('/_karten_/' + p.id + '/' + datei + '?von=1000&bis=1015', { cache: 'no-store' }); const b = await r.arrayBuffer(); z.push(datei + ': Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16 ? ' ✓' : ' ✗')); }
+      try {
+        if (KARTEN_BRUECKE) { const b = await brueckeLesen('/_karten_/' + p.id + '/' + datei, 1000, 16); z.push(datei + ' über Brücke: ' + b.byteLength + ' Bytes' + (b.byteLength === 16 ? ' ✓' : ' ✗')); }
+        else { const r = await fetch('/_karten_/' + p.id + '/' + datei + '?von=1000&bis=1015', { cache: 'no-store' }); const b = await r.arrayBuffer(); z.push(datei + ': Status ' + r.status + ', ' + b.byteLength + ' Bytes' + (r.status === 206 && b.byteLength === 16 ? ' ✓' : ' ✗')); }
+      }
       catch (e) { z.push(datei + ': FEHLER ' + (e.message || e)); }
     }
   }
