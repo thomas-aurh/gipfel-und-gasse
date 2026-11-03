@@ -194,7 +194,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Zeitplan mit erweitertem Leser (#40), Führung mit Wikipedia-Kurzinfo am Stopp (#41), Gipfelbuch (#42), Mehrtagestour
   mit Etappen (#43), Wetter für die Tour an Start, Gipfel und Ziel (#44). Abgleich der Öffnungszeiten OSM gegen Google
   an 30 Orten (#45, `docs/oeffnungszeiten-abgleich.md`), daraus Quelle, Prüfdatum und Links an den Zeiten (#46) und das
-  Prüfdatum im Kartenpaket (#47). Jeder PR vor dem Merge von einem unabhängigen Prüfer gelesen, Befunde behoben.
+  Prüfdatum im Kartenpaket (#47, Pakete am Abend neu gebaut, #52). Web-Seite über GitHub Pages (#49); Info-Fenster mit
+  „Diese Stelle in Google Maps“ als Ausweg, als Overpass ausfiel (#50). Jeder Feature-PR vor dem Merge von einem
+  unabhängigen Prüfer gelesen, Befunde behoben.
 
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt
