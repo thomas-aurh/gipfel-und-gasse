@@ -23,7 +23,8 @@ if (NATIV) {
     S.wps.forEach((w, i) => {
       if (i === 0 || !w.name) return;
       // text: Führung, liest der Dienst am Stopp statt „… erreicht“ vor (auch bei gesperrtem Bildschirm)
-      const s = { d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0 };
+      // lat/lon: daran erkennt der Dienst den Stopp für die Führung (auch nach dem Umplanen und bei gleichen Namen)
+      const s = { d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0, lat: w.lat, lon: w.lon };
       const text = FUEHRUNG.get(fuehrungSchluessel(w));
       if (text) s.text = text;
       out.push(s);
@@ -141,12 +142,17 @@ if (NATIV) {
   $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });
 
   $('bNavi').onclick = async () => {
-    if (app.folgen) { app.folgen = false; await senden(false).catch(() => {}); return; }
+    if (app.startet) return;   // Texte der Führung laden noch: ein zweiter Tipp darf das Folgen nicht gleich beenden
+    if (app.folgen) { app.folgen = false; fuehrungAus(); await senden(false).catch(() => {}); return; }
     if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
-    app.folgen = true;
-    U.folgen = true; $('bOrt').classList.add('an');
-    await fuehrungLaden();   // Texte vorher holen: unterwegs ist oft kein Netz
-    await senden(true).catch(() => {});
+    app.startet = true;
+    try {
+      if ($('fuehrung').checked) $('bNavi').textContent = '… Führung wird geladen';
+      await fuehrungLaden();   // Texte vorher holen: unterwegs ist oft kein Netz
+      app.folgen = true;
+      U.folgen = true; $('bOrt').classList.add('an');
+      await senden(true).catch(() => {});
+    } finally { app.startet = false; knoepfe(); }
   };
 
   $('bAufz').onclick = async () => {

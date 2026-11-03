@@ -54,9 +54,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         List<double[]> hinweise = new ArrayList<>(); // Abbiegehinweise {d, befehl, ausfahrt}
         boolean[] hinweisVorab = new boolean[0], hinweisJetzt = new boolean[0];
         List<String> stoppNamen = new ArrayList<>();
-        // Führung: Text je Stopp-Name (Kurzinfo aus Wikipedia), am Stopp statt „… erreicht“ vorgelesen; nach dem Namen, weil
-        // das Umplanen die Stopps aus den Zielen neu aufbaut
+        // Führung: Text je Ort des Stopps („Breite,Länge“ auf 4 Stellen, Kurzinfo aus Wikipedia), am Stopp statt „… erreicht“
+        // vorgelesen. Nach dem Ort, nicht nach Index oder Name: das Umplanen baut die Stopps aus den Zielen neu auf, und zwei
+        // Stopps können gleich heißen. vorgelesen: einmal je Navigation, auch nach Umplanen, Routenänderung oder Neustart.
+        List<String> stoppOrte = new ArrayList<>();
         java.util.Map<String, String> stoppTexte = new java.util.HashMap<>();
+        java.util.Set<String> vorgelesen = new java.util.HashSet<>();
         // Ziele nach dem Start {Breite, Länge, Meter ab Start, Minuten} mit Namen ("" = ohne) und BRouter-Profil fürs
         // Umplanen; ohne Profil (gerade Linie, GPX-Spur) wird nicht umgeplant
         List<double[]> ziele = new ArrayList<>();
@@ -228,6 +231,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (!gpsAktiv) gpsAn();
         synchronized (Z) {
             if (Z.folgen && Z.folgenSeit == 0) {
+                Z.vorgelesen = new java.util.HashSet<>();
                 Z.folgenSeit = System.currentTimeMillis();
                 Z.fortschritt = Double.NaN;
                 Z.zielGemeldet = false;
@@ -348,8 +352,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
                 Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
-                String text = Z.stoppTexte.get(name);
-                sagen(text != null && !text.isEmpty() ? text : name + " erreicht.");
+                String ort = i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "";
+                String text = Z.stoppTexte.get(ort);
+                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) fuehrungSagen(text);
+                else sagen(name + " erreicht.");
             }
         }
         // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
@@ -446,13 +452,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.hinweisVorab = new boolean[n.hinweise.size()];
             Z.hinweisJetzt = new boolean[n.hinweise.size()];
             Z.ziele = new ArrayList<>(); Z.zielNamen = new ArrayList<>();
-            Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+            Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>(); Z.stoppOrte = new ArrayList<>();
             for (int k = 0; k < offen.size(); k++) {
                 double[] z = offen.get(k).clone();
                 z[2] = n.zielMeter[k];
                 Z.ziele.add(z);
                 Z.zielNamen.add(namen.get(k));
-                if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); }
+                if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); Z.stoppOrte.add(ortSchluessel(z[0], z[1])); }
             }
             Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
             Z.stoppErreicht = new boolean[Z.stopps.size()];
@@ -543,12 +549,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 for (int i = 0; i < Z.stopps.size(); i++) {
                     JSONObject s = new JSONObject();
                     s.put("d", Z.stopps.get(i)[0]); s.put("min", Z.stopps.get(i)[1]); s.put("name", Z.stoppNamen.get(i));
+                    s.put("ort", i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "");
                     st.put(s);
                 }
                 o.put("stopps", st);
                 JSONObject tx = new JSONObject();
                 for (java.util.Map.Entry<String, String> e : Z.stoppTexte.entrySet()) tx.put(e.getKey(), e.getValue());
                 o.put("stoppTexte", tx);
+                o.put("vorgelesen", new JSONArray(Z.vorgelesen));
                 JSONArray hw = new JSONArray();
                 for (double[] h : Z.hinweise) { JSONArray q = new JSONArray(); q.put(h[0]); q.put((int) h[1]); q.put((int) h[2]); hw.put(q); }
                 o.put("hinweise", hw);
@@ -643,13 +651,17 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     }
                     Z.strecke = new NaviRechnen.Strecke(lat, lon, ele, lu);
                 }
-                Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>();
+                Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>(); Z.stoppOrte = new ArrayList<>();
                 JSONArray st = o.optJSONArray("stopps");
                 if (st != null) for (int i = 0; i < st.length(); i++) {
                     JSONObject s = st.optJSONObject(i);
                     Z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
                     Z.stoppNamen.add(s.optString("name", "Stopp"));
+                    Z.stoppOrte.add(s.optString("ort", ""));
                 }
+                Z.vorgelesen = new java.util.HashSet<>();
+                JSONArray vg = o.optJSONArray("vorgelesen");
+                if (vg != null) for (int i = 0; i < vg.length(); i++) Z.vorgelesen.add(vg.optString(i, ""));
                 Z.stoppTexte = new java.util.HashMap<>();
                 JSONObject tx = o.optJSONObject("stoppTexte");
                 if (tx != null) for (java.util.Iterator<String> it = tx.keys(); it.hasNext(); ) { String k = it.next(); Z.stoppTexte.put(k, tx.optString(k, "")); }
@@ -769,7 +781,24 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (!ttsBereit) { benachrichtigungAktualisieren(); if (Z.beiNeuem != null) Z.beiNeuem.run(); }
     }
 
+    /** Schlüssel eines Stopps: sein Ort auf 4 Nachkommastellen (wie fuehrungSchluessel in der Web-App, ohne den Namen). */
+    static String ortSchluessel(double lat, double lon) { return String.format(Locale.ROOT, "%.4f,%.4f", lat, lon); }
+
+    // bis wann eine Führung ungefähr spricht (rund 14 Zeichen je Sekunde): eine wichtige Ansage (Abbiegen, abseits) wartet
+    // nicht eine Minute dahinter, sondern unterbricht sie
+    private long fuehrungBis;
+
+    private void fuehrungSagen(String text) {
+        sagen(text);
+        fuehrungBis = System.currentTimeMillis() + text.length() * 1000L / 14;
+    }
+
     private void sagen(String text) {
+        if (ttsBereit && System.currentTimeMillis() < fuehrungBis) {
+            fuehrungBis = 0;
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gug");
+            return;
+        }
         if (ttsBereit) tts.speak(text, TextToSpeech.QUEUE_ADD, null, "gug");
         else if (!ttsGeprueft && ttsWarten.size() < 20) ttsWarten.add(text);   // bis die Sprachausgabe bereit ist
     }
