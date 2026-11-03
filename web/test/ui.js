@@ -529,7 +529,7 @@ function pruef(name, bed, info) {
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
-  await page.click('.leaflet-popup button:has-text("Hier übernachten")');
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Hier übernachten')).click());
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
   const etText = await page.textContent('#etappen');
   pruef('Etappen: zwei Tage mit Strecke und Höhenmetern', etText.includes('Tag 1') && etText.includes('Tag 2') && etText.includes('🛏') && /↑ \d+ m/.test(etText), etText);
@@ -555,6 +555,13 @@ function pruef(name, bed, info) {
     const to = JSON.parse(localStorage.getItem('gug.touren')); localStorage.setItem('gug.touren', JSON.stringify(to.filter(t => t.name !== 'Hüttentour')));
   });
   await page.click('[data-reiter=planen]');
+  // Ziel entfernen: die Übernachtung läge jetzt am Ziel und wird gestrichen (sonst käme sie mit einem neuen Ziel zurück)
+  await page.evaluate(() => document.querySelectorAll('.wp')[2].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Punkt entfernen")', { timeout: 5000 });
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Punkt entfernen')).click());
+  await page.waitForFunction(() => document.getElementById('etappen').hidden && ![...document.querySelectorAll('.wp-name')].some(x => x.textContent.includes('🛏')), null, { timeout: 5000 }).catch(() => {});
+  pruef('Etappen: Übernachtung am Ziel wird gestrichen', await page.isHidden('#etappen') && (await page.textContent('#meldung')).includes('Übernachtung lag jetzt am Ziel') &&
+    !(await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' '))).includes('🛏'), [await page.isHidden('#etappen'), await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | ')), (await page.textContent('#etappen')).slice(0, 80)]);
   await page.click('#bNeu');
   await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   await page.fill('#startZeit', ''); await page.dispatchEvent('#startZeit', 'change');

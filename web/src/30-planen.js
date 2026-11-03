@@ -172,6 +172,7 @@ function zeichenRoute() {
 
 async function neuBerechnen() {
   const nr = ++lauf;
+  nachtAnRaendernWeg();
   zeichenWegpunkte();
   // ein früher Rücksprung beendet auch eine laufende Berechnung: deren Ergebnis wird verworfen (nr !== lauf),
   // ohne dass sie S.rechnet zurücksetzt, sonst blieben Speichern, GPX, Link und Drucken gesperrt
@@ -407,17 +408,18 @@ function stoppAnkunft() {
   const pause = (+$('pausewahl').value || 0) / 60;
   // Mehrtagestour: jede Etappe beginnt am nächsten Tag zur selben Startzeit; Pausen gelten je Tag
   const et = etappenAktuell() || [{ von: 0, bis: S.wps.length - 1, vonD: 0, zeit: e.zeit }];
-  let besicht = 0, k = 0, basisT = 0;
+  let besicht = 0, k = 0;
   return S.wps.map((w, i) => {
     let h = 0;
     if (i > 0) {
-      const t = R.zeitBis(e.pts, e.stueckEnde[i - 1], tempoAktuell(), artAktuell()) - basisT;
+      // Weg seit dem Morgen dieses Tages, für sich gerechnet (wie die Etappe selbst)
+      const t = R.zeitZwischen(e.pts, et[k].vonD, e.stueckEnde[i - 1], tempoAktuell(), artAktuell());
       h = k * 24 + t + besicht / 60 + (et[k].zeit ? pause * t / et[k].zeit : 0);
     }
     besicht += +w.min || 0;
     const an = new Date(start.getTime() + h * 3600e3);
     // hier übernachtet: der nächste Tag zählt von hier
-    if (i === et[k].bis && k < et.length - 1) { k++; besicht = 0; basisT = R.zeitBis(e.pts, e.stueckEnde[i - 1], tempoAktuell(), artAktuell()); }
+    if (i === et[k].bis && k < et.length - 1) { k++; besicht = 0; }
     return an;
   });
 }
@@ -427,6 +429,16 @@ function etappenAktuell() {
   const e = S.ergebnis;
   if (!e || S.fest || S.rechnet || !e.stueckEnde) return null;
   return R.etappen(e.pts, e.stueckEnde, S.wps, tempoAktuell(), artAktuell());
+}
+// Start oder Ziel mit Übernachtung (das Ziel wurde entfernt, die Reihenfolge verkürzt): Übernachtung streichen, sonst hinge
+// sie unsichtbar am Rand und käme später ungefragt zurück
+function nachtAnRaendernWeg() {
+  const n = S.wps.length;
+  for (const i of n ? [0, n - 1] : []) {
+    if (!S.wps[i] || !S.wps[i].nacht) continue;
+    const w = Object.assign({}, S.wps[i]); delete w.nacht; S.wps[i] = w;
+    melde('Die Übernachtung lag jetzt am ' + (i === 0 ? 'Start' : 'Ziel') + ' und ist entfernt.', 5);
+  }
 }
 function nachtUmschalten(i) {
   if (i <= 0 || i >= S.wps.length - 1) return;
@@ -445,7 +457,7 @@ function etappenZeigen(et, tag, startZeit, pause) {
   et.forEach((s, k) => {
     const d = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + k, 12);
     let besicht = 0;
-    for (let i = s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;
+    for (let i = k === 0 ? 0 : s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;   // Tag 1 mit der Besichtigung am Start
     const zeit = s.zeit + besicht / 60;
     const unter = s.ziel ? R.sonnenuntergang(d, s.ziel.lat, s.ziel.lon) : null;
     const start = startZeit ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), startZeit[0], startZeit[1]) : null;

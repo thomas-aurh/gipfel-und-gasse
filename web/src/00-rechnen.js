@@ -411,11 +411,22 @@ var R = (function () {
   }
 
   // Zeit (Stunden) vom Start bis Meter d: dieselbe Formel wie die ganze Strecke, auf das Stück davor angewandt
-  function zeitBis(pts, d, tempo, art) {
-    const teil = pts.filter(p => p.d <= d);
+  function zeitBis(pts, d, tempo, art) { return zeitZwischen(pts, 0, d, tempo, art); }
+  // Zeit (Stunden) für das Stück von Meter a bis b, für sich gerechnet (Etappe, Weg bis zum Stopp ab der Übernachtung):
+  // die Gehzeitformel ist nicht additiv, die Differenz zweier Gesamtzeiten wäre falsch
+  function zeitZwischen(pts, a, b, tempo, art) {
+    const teil = etappenStueck(pts, a, b);
     if (teil.length < 2) return 0;
     const hm = hoehenmeterSpur(teil);
-    return zeitFuer(art, Math.min(d, teil[teil.length - 1].d), hm.auf, hm.ab, tempo);
+    return zeitFuer(art, Math.max(0, Math.min(b, teil[teil.length - 1].d) - Math.max(a, teil[0].d)), hm.auf, hm.ab, tempo);
+  }
+  // Punkte von Meter a bis b; der erste Punkt beginnt nie mit einem Sprung, und ein Punkt hinter einer Lücke genau an der
+  // Grenze (gleiches d) gehört schon zum nächsten Stück
+  function etappenStueck(pts, a, b) {
+    const teil = pts.filter(p => p.d >= a - 0.01 && p.d <= b + 0.01);
+    while (teil.length > 1 && teil[teil.length - 1].luecke) teil.pop();
+    if (teil.length && teil[0].luecke) teil[0] = Object.assign({}, teil[0], { luecke: false });
+    return teil;
   }
 
   // was ein Stopp aus OSM mitnimmt: Öffnungszeiten (Zeitplan-Prüfung) und Wikipedia (Vorlesen unterwegs)
@@ -441,8 +452,8 @@ var R = (function () {
     let vonI = 0, vonD = 0;
     for (const bisI of grenzen.concat([n - 1])) {
       const bisD = stueckEnde[bisI - 1];
-      const teil = pts.filter(p => p.d >= vonD - 0.01 && p.d <= bisD + 0.01);
-      const hm = hoehenmeterSpur(teil.map((p, k) => (k === 0 ? Object.assign({}, p, { luecke: false }) : p)));
+      const teil = etappenStueck(pts, vonD, bisD);
+      const hm = hoehenmeterSpur(teil);
       let hoch = null;
       for (const p of teil) if (p.ele != null && (hoch == null || p.ele > hoch)) hoch = p.ele;
       const meter = Math.max(0, bisD - vonD);
@@ -1716,7 +1727,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };
