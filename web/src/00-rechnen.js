@@ -430,13 +430,51 @@ var R = (function () {
   }
 
   // was ein Stopp aus OSM mitnimmt: Öffnungszeiten (Zeitplan-Prüfung) und Wikipedia (Vorlesen unterwegs)
+  // dazu (Abgleich 03.11., docs/oeffnungszeiten-abgleich.md): Prüfdatum der Zeiten, Webseite und Adresse, damit man die
+  // Angabe vor dem Besuch nachsehen kann
   function stoppInfo(tags) {
     if (!tags) return null;
-    const o = {};
-    if (typeof tags.opening_hours === 'string' && tags.opening_hours.length <= 300) o.oh = tags.opening_hours;
-    if (typeof tags.wikipedia === 'string' && tags.wikipedia.length <= 200) o.wp = tags.wikipedia;
-    if (typeof tags.wikidata === 'string' && /^Q\d{1,12}$/.test(tags.wikidata)) o.wd = tags.wikidata;
+    const adr = [[tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' '), [tags['addr:postcode'], tags['addr:city'] || tags['addr:place']].filter(Boolean).join(' ')]
+      .filter(Boolean).join(', ');
+    return infoPruefen({ oh: tags.opening_hours, wp: tags.wikipedia, wd: tags.wikidata, ohd: ohDatum(tags),
+      web: [tags.website, tags['contact:website']].map(webAdresse).find(Boolean), adr });
+  }
+  // erstes gültiges Prüfdatum (eigenes für die Öffnungszeiten vor dem allgemeinen); auch nur das Jahr
+  const OH_DATUM = /^\d{4}(-(0[1-9]|1[0-2])(-\d{2})?)?$/;
+  function ohDatum(tags) { return [tags['check_date:opening_hours'], tags.check_date].find(d => typeof d === 'string' && OH_DATUM.test(d)); }
+  // Webseite nur als http(s); „www.museum.de“ ohne Schema bekommt https://
+  function webAdresse(w) {
+    if (typeof w !== 'string') return null;
+    w = w.trim();
+    if (/^www\.\S+$/i.test(w)) w = 'https://' + w;
+    return /^https?:\/\/\S+$/i.test(w) ? w : null;
+  }
+  // gespeicherte Info eines Stopps (Tour, Sicherung): nur bekannte Felder, geprüft
+  function infoPruefen(i) {
+    if (!i || typeof i !== 'object') return null;
+    const o = {}, s = (v, n) => typeof v === 'string' && v.length && v.length <= n;
+    if (s(i.oh, 300)) o.oh = i.oh;
+    if (s(i.wp, 200)) o.wp = i.wp;
+    if (typeof i.wd === 'string' && /^Q\d{1,12}$/.test(i.wd)) o.wd = i.wd;
+    if (typeof i.ohd === 'string' && OH_DATUM.test(i.ohd)) o.ohd = i.ohd;
+    if (s(i.web, 300) && webAdresse(i.web)) o.web = webAdresse(i.web);
+    if (s(i.adr, 200)) o.adr = i.adr;
     return Object.keys(o).length ? o : null;
+  }
+  // „Stand 05/2023“ aus dem Prüfdatum in OSM; alt = älter als zwei Jahre (dann eher veraltet, vgl. Abgleich)
+  function ohStand(ohd, jetzt) {
+    if (typeof ohd !== 'string' || !OH_DATUM.test(ohd)) return null;
+    const jahr = +ohd.slice(0, 4), monat = ohd.length >= 7 ? +ohd.slice(5, 7) : null;
+    // nur das Jahr: zur Sicherheit vom Jahresanfang an gerechnet (ein altes Jahr soll die Warnung bekommen)
+    const monate = (jetzt.getFullYear() - jahr) * 12 + (jetzt.getMonth() + 1 - (monat || 1));
+    return { text: 'Stand ' + (monat ? String(monat).padStart(2, '0') + '/' : '') + jahr, alt: monate > 24 };
+  }
+  // Google Maps zu einem Ort: mit Adresse die Suche nach Name und Adresse, sonst nach dem Namen an dieser Stelle
+  // (so findet Google den Ort, eine reine Koordinate zeigte nur einen Punkt)
+  function googleOrtLink(name, adr, lat, lon) {
+    if (name && adr) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ', ' + adr);
+    if (name) return 'https://www.google.com/maps/search/' + encodeURIComponent(name) + '/@' + lat.toFixed(5) + ',' + lon.toFixed(5) + ',17z';
+    return 'https://www.google.com/maps/search/?api=1&query=' + lat.toFixed(6) + ',' + lon.toFixed(6);
   }
 
   // Mehrtagestour: an Wegpunkten mit Übernachtung (w.nacht, nicht Start und Ziel) in Etappen teilen. Je Etappe Strecke,
@@ -754,7 +792,7 @@ var R = (function () {
         if (w.length <= 2) { wps.push([w[0], w[1]]); continue; }
         const p = [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)];
         // fünfter Wert: Öffnungszeiten und Wikipedia des Stopps aus OSM (nur bekannte Felder, geprüft)
-        const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? stoppInfo({ opening_hours: w[4].oh, wikipedia: w[4].wp, wikidata: w[4].wd }) : null;
+        const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? infoPruefen(w[4]) : null;
         if (info || w[5] === 1) p.push(info || 0);
         if (w[5] === 1) p.push(1);   // sechster Wert: Übernachtung (Mehrtagestour)
         wps.push(p);
@@ -1762,7 +1800,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

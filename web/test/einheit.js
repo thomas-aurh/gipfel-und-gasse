@@ -582,5 +582,20 @@ pruef('Tourwetter: außerhalb der Vorhersage', R.wetterStunde(twOrt, 500 * 1000)
 const twT = R.tourWetterText(twW);
 pruef('Tourwetter: Text und Warnungen', twT.text.includes('-1 °C') && twT.text.includes('Böen 65') && twT.warn.join() === 'Gewitter,Sturmböen,Frost', twT);
 
+// Quelle und Alter der Öffnungszeiten (Abgleich 03.11.)
+const qi = R.stoppInfo({ opening_hours: 'Mo 10:00-12:00', check_date: '2021-06-04', website: 'https://x.example', 'addr:street': 'Hauptstr.', 'addr:housenumber': '1', 'addr:postcode': '83671', 'addr:city': 'Benediktbeuern' });
+pruef('Quelle: Prüfdatum, Webseite und Adresse kommen mit', qi.ohd === '2021-06-04' && qi.web === 'https://x.example' && qi.adr === 'Hauptstr. 1, 83671 Benediktbeuern', qi);
+pruef('Quelle: unsichere Werte fallen weg', JSON.stringify(R.infoPruefen({ oh: 'Mo off', ohd: 'gestern', web: 'javascript:alert(1)', adr: 5, x: 1 })) === '{"oh":"Mo off"}');
+pruef('Quelle: Stand und „alt“ ab zwei Jahren', R.ohStand('2021-06-04', new Date('2026-11-03')).text === 'Stand 06/2021' && R.ohStand('2021-06', new Date('2026-11-03')).alt &&
+  !R.ohStand('2025-06-01', new Date('2026-11-03')).alt && R.ohStand('', new Date()) === null);
+pruef('Quelle: Google mit Adresse, sonst Name an der Stelle', R.googleOrtLink('Hütte', 'Weg 1, 83671 Ort', 47, 11).endsWith(encodeURIComponent('Hütte, Weg 1, 83671 Ort')) &&
+  R.googleOrtLink('Hütte', '', 47.123456, 11.5).startsWith('https://www.google.com/maps/search/H%C3%BCtte/@47.12346,11.50000,17z'));
+
+pruef('Quelle: erstes gültiges Datum, nur das Jahr mit Warnung, Monat 13 ungültig',
+  R.ohDatum({ 'check_date:opening_hours': '2023', check_date: '2024-05-01' }) === '2023' && R.ohDatum({ 'check_date:opening_hours': 'bald', check_date: '2024-05-01' }) === '2024-05-01' &&
+  R.ohStand('2019', new Date('2026-11-03')).text === 'Stand 2019' && R.ohStand('2019', new Date('2026-11-03')).alt && R.ohStand('2023-13-01', new Date()) === null);
+pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website: 'www.museum.de' }).web === 'https://www.museum.de' &&
+  R.stoppInfo({ website: 'museum', 'contact:website': 'https://kontakt.example' }).web === 'https://kontakt.example');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

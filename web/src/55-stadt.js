@@ -123,7 +123,7 @@ function sehensZeichnen() {
 function sehensPopup(o, kat, lage) {
   const t = o.tags, box = document.createElement('div');
   const z = ['<b>' + kat.zeichen + ' ' + R.esc(o.name) + '</b>' + (o.bekannt ? ' ⭐' : ''), '<span class="klein">' + R.esc(R.stadtArt(t)) + '</span>'];
-  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours));
+  if (t.opening_hours) z.push(oeffnungHtml(t.opening_hours, t));
   if (t.fee === 'yes' || t.charge) z.push('Eintritt: ' + R.esc(t.charge || 'ja'));
   if (t.fee === 'no') z.push('Eintritt frei');
   if (t.wheelchair === 'yes') z.push('♿ rollstuhlgerecht');

@@ -94,7 +94,7 @@ async function dienste(ctx) {
       const la = amGipfel ? 47.6262 : (+bb[1] + +bb[3]) / 2, lo = amGipfel ? 11.2578 : (+bb[2] + +bb[4]) / 2;
       const dl = amGipfel ? 0.0012 : (+bb[3] - +bb[1]) / 6, dn = amGipfel ? 0.0018 : (+bb[4] - +bb[2]) / 6;
       const el = [
-        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00' } },
+        { type: 'way', id: 101, center: { lat: la + dl, lon: lo }, tags: { tourism: 'museum', name: 'Stadtmuseum', wikipedia: 'de:Stadtmuseum', opening_hours: 'Mo-Su 00:00-24:00', 'check_date:opening_hours': '2022-03-01', website: 'https://museum.example' } },
         { type: 'node', id: 102, lat: la - dl, lon: lo + dn, tags: { historic: 'castle', name: 'Alte Burg', wikidata: 'Q2' } },
         { type: 'node', id: 103, lat: la, lon: lo - dn, tags: { amenity: 'place_of_worship', name: 'Stadtkirche', wikidata: 'Q3' } },
         { type: 'node', id: 104, lat: la + dl, lon: lo + dn, tags: { tourism: 'viewpoint', name: 'Aussicht Schlossberg' } },
@@ -852,6 +852,7 @@ function pruef(name, bed, info) {
   await page.click('#stadtListe li:has-text("Stadtmuseum") .was');
   await page.waitForSelector('.leaflet-popup .wiki p', { timeout: 5000 });
   const popStadt = await page.textContent('.leaflet-popup-content');
+  pruef('Ort-Fenster: Quelle und Prüfdatum der Öffnungszeiten', popStadt.includes('laut OpenStreetMap, Stand 03/2022'), popStadt);
   pruef('Ort-Fenster: geöffnet jetzt und Wikipedia-Kurzinfo mit Bild', popStadt.includes('Durchgehend geöffnet') && popStadt.includes('Das Stadtmuseum ist ein Ort zum Testen.') &&
     popStadt.includes('CC BY-SA') && !!(await page.$('.leaflet-popup .wiki img')), popStadt);
   await page.waitForTimeout(300); await page.screenshot({ path: path.join(OUT, '8b-ort-fenster.png') });
@@ -895,6 +896,10 @@ function pruef(name, bed, info) {
   await page.dispatchEvent('#startZeit', 'change');
   const stoppText = await page.textContent('#stopps');
   pruef('Stopps: Ankunft und geöffnet bei Ankunft', /an 1\d:\d\d Uhr/.test(stoppText) && stoppText.includes('durchgehend geöffnet'), stoppText);
+  pruef('Stopps: Quelle, Alter mit Warnung, Webseite und Google Maps', stoppText.includes('laut OpenStreetMap, Stand 03/2022 ⚠️ über 2 Jahre alt') &&
+    (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h === 'https://museum.example/') &&
+    (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h.startsWith('https://www.google.com/maps/search/Stadtmuseum/@')), stoppText);
+  pruef('Stopps: Hinweis zur Verlässlichkeit', stoppText.includes('nicht immer aktuell'));
   await (await page.$('#stopps')).screenshot({ path: path.join(OUT, '9c-stopps-oeffnung.png') });
   await page.fill('#startZeit', '');
   await page.dispatchEvent('#startZeit', 'change');
