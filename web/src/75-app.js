@@ -152,16 +152,27 @@ if (NATIV) {
     await senden(false).catch(() => {});
   };
 
+  // Höhen nachladen kann dauern: der Knopf ist solange gesperrt, sonst speichert ein zweiter Tipp die Tour doppelt
   $('bAufzSpeichern').onclick = async () => {
-    const r = await Navi.aufzeichnungHolen({ leeren: false });
-    const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; return q; });
-    if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
-    if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
-    const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
-    await Navi.aufzeichnungHolen({ leeren: true });
-    $('bAufzSpeichern').disabled = true;
-    $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
+    const knopf = $('bAufzSpeichern');
+    if (knopf.disabled) return;
+    knopf.disabled = true;
+    let fertig = false;
+    try {
+      const r = await Navi.aufzeichnungHolen({ leeren: false });
+      const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; return q; });
+      if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
+      if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
+      const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
+      fertig = true;
+      await Navi.aufzeichnungHolen({ leeren: true });
+      knopf.textContent = '✓ In „Gegangene Touren“';
+    } catch (e) {
+      if (!fertig) melde('Aufzeichnung nicht gespeichert: ' + (e && e.message || e));
+    } finally {
+      if (!fertig) knopf.disabled = false;
+    }
   };
 
   // Wird die Route geändert, während der Dienst ihr folgt: neue Route nachreichen

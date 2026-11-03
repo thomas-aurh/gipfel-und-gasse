@@ -166,8 +166,11 @@ function zeichenRoute() {
 async function neuBerechnen() {
   const nr = ++lauf;
   zeichenWegpunkte();
-  if (S.fest) { auswertenUndZeigen(); return; }
+  // ein früher Rücksprung beendet auch eine laufende Berechnung: deren Ergebnis wird verworfen (nr !== lauf),
+  // ohne dass sie S.rechnet zurücksetzt, sonst blieben Speichern, GPX, Link und Drucken gesperrt
+  if (S.fest) { S.rechnet = false; auswertenUndZeigen(); return; }
   if (S.wps.length < 2) {
+    S.rechnet = false;
     S.stuecke = []; S.ergebnis = null;
     zeichenRoute(); zeigen();
     $('status').textContent = S.wps.length === 1 ? 'Start gesetzt. Jetzt das Ziel antippen.' : '';
@@ -454,9 +457,11 @@ async function rundkurs(andereRichtung) {
       const [p1, p2] = R.rundkursPunkte(start, soll, rundRichtung, umweg);
       const meine = [{ lat: start.lat, lon: start.lon }, p1, p2, { lat: start.lat, lon: start.lon }];
       S.wps = meine;
-      await neuBerechnen();
-      // inzwischen anders geplant (Punkt gezogen, Tour geöffnet, Neu): diese Runde nicht weiter verfolgen
-      if (S.wps !== meine) return;
+      const rechnung = neuBerechnen(), meinLauf = lauf;
+      await rechnung;
+      // inzwischen anders geplant (Punkt gesetzt oder gezogen, umgekehrt, Tour geöffnet, Neu): diese Runde nicht weiter
+      // verfolgen; Punkt setzen und ziehen ändern dasselbe Feld, darum zählt die Laufnummer der Berechnung
+      if (S.wps !== meine || lauf !== meinLauf) return;
       if (!S.ergebnis || S.stuecke.some(s => s.quelle === 'linie')) break;
       const ist = S.ergebnis.laenge;
       if (Math.abs(ist - soll) / soll <= 0.12) break;
@@ -475,9 +480,15 @@ async function rundkurs(andereRichtung) {
 $('bRundeLos').onclick = () => rundkurs(false);
 $('bRundeAnders').onclick = () => rundkurs(true);
 $('bUmkehren').onclick = () => {
-  if (S.fest) { S.fest.pts.reverse(); S.stuecke = [{ pts: S.fest.pts, abschnitte: S.fest.abschnitte ? S.fest.abschnitte.slice().reverse() : [], quelle: 'spur' }]; auswertenUndZeigen(); return; }
+  if (S.fest) { spurUmkehren(S.fest.pts); S.stuecke = [{ pts: S.fest.pts, abschnitte: S.fest.abschnitte ? S.fest.abschnitte.slice().reverse() : [], quelle: 'spur' }]; auswertenUndZeigen(); return; }
   merken(); S.wps.reverse(); neuBerechnen();
 };
+// Spur umkehren: eine Lücke steht am ersten Punkt nach dem Sprung; umgekehrt ist das der Punkt, der vorher davor lag
+function spurUmkehren(pts) {
+  const luecke = pts.map(p => !!p.luecke);
+  pts.forEach((p, i) => { if (luecke[i + 1]) p.luecke = true; else delete p.luecke; });
+  pts.reverse();
+}
 $('bNeu').onclick = () => {
   if (S.wps.length) merken();
   S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null);

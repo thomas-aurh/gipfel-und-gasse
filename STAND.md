@@ -43,6 +43,17 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
 - **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Wetter je Stunde
   und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern.
+- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
+  (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
+  groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
+  ist (nicht geprüft); GPS bleibt nach „Folgen/Aufzeichnung beenden“ an, bis 📍 aus; BRouter-Grenze von drei
+  gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
+- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Android):** Dienst-Neustart nach Prozess-Tod im
+  Hintergrund (`startForeground` ab Android 12/14 nicht erlaubt ⇒ Absturz oder „Warte auf GPS“); `sitzung.json` wird
+  nicht atomar und von zwei Fäden geschrieben; „Ziel erreicht“ kann eine binnen 10 s neu gestartete Navigation
+  beenden; statisches `Z.beiNeuem` hält die Activity fest; Ansagen gehen still verloren, wenn die Sprachausgabe nicht
+  startet; GPS-Fehler nur im Protokoll; `KartenServer` prüft den Host nicht; `fehlerJe` ohne Synchronisation;
+  `Os.symlink` scheitert an einem alten Verweis (EEXIST).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
@@ -155,6 +166,15 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Code-Durchsicht, Web-Teil behoben: Höhenmeter, Steigung und Rest unterwegs zählen den Sprung zwischen
+  GPX-Abschnitten nicht mehr (Seilbahn ergab bis zu 1000 Hm zu viel); Umkehren einer Spur hält die Abschnitte; Knöpfe
+  bleiben nach „Neu“/„Rückgängig“ während einer Berechnung nicht gesperrt; „Runde mit Länge“ überschreibt keinen
+  gerade gesetzten Punkt; „Als Tour speichern“ nicht doppelt; geteilter Link ohne Name der vorigen Tour; Reiseziele:
+  CSV mit Anführungszeichen und Komma-CSV, selbstschließende GPX-Wegpunkte, leere Listen aus der Sicherung;
+  GPX-Name nicht vom Autor; Öffnungszeiten „, We off“; Sicherung meldet Fehler, Wiederherstellung liest Tagebuch und
+  Ziele auch bei vollem Tourenspeicher; Suche geht nach Schließen nicht wieder auf; große Aufzeichnungen ohne
+  Stapelüberlauf. 13 neue Einheitstests (vorher 10 davon rot).
 
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt

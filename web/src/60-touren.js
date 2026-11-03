@@ -63,6 +63,7 @@ function tourOeffnen(id) {
   if (!t) return;
   const pts = spurEntpacken(t.spur);
   lauf++;   // eine noch laufende Berechnung darf die geöffnete Tour nicht überschreiben
+  S.rechnet = false;   // sie setzt das selbst nicht mehr zurück
   S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name; zeitplanSetzen(t.zeit);
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
@@ -90,7 +91,7 @@ function tourOeffnen(id) {
 
 // feste Spur (GPX oder Aufzeichnung) anzeigen
 function spurAnzeigen(pts, name, art) {
-  lauf++;
+  lauf++; S.rechnet = false;
   S.verlauf = [];
   S.wps = []; S.fest = { pts, art: art || 'spur', abschnitte: [] };
   S.stuecke = [{ pts, abschnitte: [], quelle: 'spur' }];
@@ -103,7 +104,8 @@ function spurAnzeigen(pts, name, art) {
 function tourLoeschen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;
-  const li = document.querySelector('[data-tour="' + id + '"]');
+  // Kennungen aus einer Sicherung können Zeichen wie " oder ] enthalten
+  const li = document.querySelector('[data-tour="' + CSS.escape(id) + '"]');
   if (li && !li.dataset.sicher) {
     li.dataset.sicher = '1';
     li.querySelector('.was small').textContent = 'Nochmal 🗑 tippen löscht die Tour.';
@@ -219,12 +221,14 @@ async function sicherungEinlesen(text) {
   const neu = R.sicherungLesen(text);
   const liste = tourenLesen(), ids = new Set(liste.map(t => t.id));
   const dazu = neu.filter(t => !ids.has(t.id));
-  if (dazu.length && !tourenSchreiben(dazu.concat(liste))) return;
+  // die drei Teile unabhängig: passen die Touren nicht in den Speicher, kommen Tagebuch und Reiseziele trotzdem
+  const tourenOk = !dazu.length || tourenSchreiben(dazu.concat(liste));
   const tb = await tagebuchEinlesen(text);
   const zl = zieleEinlesen(text);
   tourenZeigen();
   const teile = [];
-  if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
+  if (!tourenOk) teile.push(dazu.length + ' Touren NICHT übernommen (Speicher voll)');
+  else if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
   if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
   if (zl) teile.push(zl + ' Reiseziele übernommen');
   melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
@@ -236,7 +240,8 @@ $('bGpx').onclick = () => {
   const n = (S.name || '').trim() || 'Gipfel-und-Gasse-Tour';
   gpxHerunter(n, S.ergebnis.pts, S.wps.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Punkt ' + (i + 1)) })));
 };
-$('bSichern').onclick = sicherungSpeichern;
+// nicht still scheitern: wer sich auf die Sicherung verlässt, muss wissen, dass keine Datei entstand
+$('bSichern').onclick = () => sicherungSpeichern().catch(e => melde('Sicherung fehlgeschlagen: ' + (e && e.message || e) + '. Es wurde keine Datei gespeichert.', 10));
 $('bSicherungLaden').onclick = () => $('sicherungDatei').click();
 $('sicherungDatei').onchange = async e => {
   const f = e.target.files[0];
