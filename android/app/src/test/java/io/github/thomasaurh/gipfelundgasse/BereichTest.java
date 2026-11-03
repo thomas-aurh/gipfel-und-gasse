@@ -62,4 +62,19 @@ public class BereichTest {
         assertNull(Bereich.ausAdresse("1", "5x"));
         assertEquals(100, Bereich.lesen(Bereich.ausAdresse("100", "199"), 1000).laenge());
     }
+    @Test public void stueckMitteUndEnde() throws Exception {
+        java.io.File f = java.io.File.createTempFile("karte", ".pmtiles");
+        f.deleteOnExit();
+        byte[] inhalt = new byte[300000];
+        for (int i = 0; i < inhalt.length; i++) inhalt[i] = (byte) (i * 31 + 7);
+        java.nio.file.Files.write(f.toPath(), inhalt);
+        byte[] mitte = Bereich.stueck(f, 150000, 16384);
+        assertEquals(16384, mitte.length);
+        for (int i = 0; i < mitte.length; i++) assertEquals(inhalt[150000 + i], mitte[i]);
+        assertEquals(100, Bereich.stueck(f, 299900, 16384).length);   // am Ende gekürzt
+        assertEquals(inhalt[299999], Bereich.stueck(f, 299900, 16384)[99]);
+        assertEquals(0, Bereich.stueck(f, 400000, 10).length);         // hinter dem Ende: leer
+        try { Bereich.stueck(f, -1, 10); fail(); } catch (IllegalArgumentException e) { /* gut */ }
+        try { Bereich.stueck(f, 0, Bereich.STUECK_MAX + 1); fail(); } catch (IllegalArgumentException e) { /* gut */ }
+    }
 }

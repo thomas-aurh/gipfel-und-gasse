@@ -46,15 +46,15 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
-- **Offline-Karte leer auf dem Pixel (02.11., Thomas, Bau 98):** Prüfung gemessen: Lesen in Teilen über Kopfzeile und
-  Adresse geht (206, „PMTiles“ v3), der Kopf ist lesbar, die erste Kachel scheitert mit „Failed to fetch“; 45 Kacheln
-  „gezeichnet“ (leer, grau). Die Vermutung „Range-Kopfzeile fehlt“ ist damit widerlegt. #31 lässt den Kartenserver Fehler
-  als Text melden. Neuer Verdacht (#32): mit Range-Kopfzeile springt das WebView selbst noch einmal an den Anfang des
-  Bereichs (ab Byte 0 unauffällig, Kopf und Prüfung bei 0 gingen); darum liest die App nur noch über `?von=&bis=`.
-  Bestätigt ist das erst mit der Prüfung aus dem Bau nach #32 (Zeilen „Stück Mitte/Ende über Adresse/Kopfzeile“); Thomas'
-  letztes Ergebnis (22:00) kam noch ohne diese Zeilen, also aus einem älteren Bau. Nächster Schritt: neue APK, Karte auf
-  „Offline-Karte“, „🔍 Offline-Karte prüfen“, Ergebnis senden.
-  Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
+- **Offline-Karte leer auf dem Pixel (02.11. Bau 98, 03.11. nach #32 weiter grau, Thomas):** Kopf und Lesen ab Byte 0
+  gingen, die Kacheln weiter hinten scheiterten mit „Failed to fetch“, erst mit Range-Kopfzeile, nach #32 auch nur über
+  `?von=&bis=`. Das Grau täuschte: protomaps-leaflet malt bei Lesefehlern den Hintergrund und meldet die Kachel als
+  geladen (Fehler nur in `console.error`). Seit #34 liest die App die Kartendateien über die eigene Brücke
+  (`Karten.lesen`, Java liest den Bereich direkt aus der Datei) statt über das WebView. Geprüft: Java-Test `BereichTest`
+  (lokal), Klicktest mit nachgebildetem Pixel-Fehler (fetch ab Byte 1 bricht ab; Gegenprobe ohne Brücke: Karte nur
+  Hintergrund, Test rot). Nicht geprüft: auf dem Pixel, Tempo der Brücke bei vielen Kacheln. Nächster Schritt: APK aus dem
+  Bau nach #34, Karte auf „Offline-Karte“, „🔍 Offline-Karte prüfen“; erwartet „Kacheln lesen über: App-Brücke“ und
+  „Stück Mitte über Brücke … ✓“. Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -73,9 +73,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Dopplungen** (02.11.): Menü ☰ zeigt nur, was die Leiste unten nicht hat; Berg/Stadt und „Art“ bleiben getrennt
   (Thomas: „gar nicht so schlecht“), ebenso die drei Runden-Funktionen. Läden nicht ins Kartenpaket, dafür der Link zu
   Google Maps (Thomas schaut Öffnungszeiten lieber dort).
-- **Kartenpakete in Teilen nur über die Adresse lesen** (02.11.): `?von=&bis=` statt Range-Kopfzeile, weil das WebView
-  bei Kopfzeile in der Antwort der App selbst springt (Verdacht aus der Messung, siehe Offen); der Kartenserver versteht
-  beides. Overpass mit einem zweiten öffentlichen Server (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
+- **Kartenpakete über die App-Brücke lesen** (03.11.): `Karten.lesen` liefert Stücke als Base64 (höchstens 8 MB je
+  Stück), weil das WebView Bereiche aus `shouldInterceptRequest` ab der Dateimitte nicht auslieferte, weder mit
+  Range-Kopfzeile noch über `?von=&bis=` (#32, verworfen). fetch bleibt für den Browser und als Vergleich in der Prüfung;
+  der Kartenserver bleibt für Orte-Datei und alte APKs. Overpass mit einem zweiten öffentlichen Server
+  (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
 - **Orte-Infos** (02.11.): Öffnungszeiten mit eigenem kleinem Leser (Wochentage, Monate, Zeiten, `;` und `,`), alles
   andere bleibt Rohtext; verworfen die Bibliothek opening_hours.js (groß, für eine HTML-Datei zu schwer). Anreise über die
   dokumentierte URL-Schnittstelle von Google Maps (öffnet am Telefon die App, rechnet Bus und Bahn); verworfen Links zu

@@ -1109,6 +1109,9 @@ function pruef(name, bed, info) {
     if (!t) return r.fulfill({ status: 200, body: daten, headers: { 'Accept-Ranges': 'bytes' } });
     const von = +t[1], bis = Math.min(daten.length - 1, t[2] ? +t[2] : daten.length - 1);
     bereiche.push(m[2] + ':' + von + '-' + bis);
+    // seit 03.11. auf dem Pixel gemessen: auch über die Adresse kommt ab der Dateimitte nichts an („Failed to fetch“).
+    // Nachgebildet für die Kartendateien ab Byte 1: die Karte darf nur über die App-Brücke (Karten.lesen) zeichnen.
+    if (von > 0 && /\.pmtiles$/.test(m[2])) return r.abort('failed');
     const ab = doppelt ? Math.min(daten.length, 2 * von) : von;
     r.fulfill({ status: 206, body: daten.subarray(ab, ab + bis - von + 1), headers: { 'Content-Range': 'bytes ' + von + '-' + bis + '/' + daten.length, 'Accept-Ranges': 'bytes' } });
   });
@@ -1121,7 +1124,9 @@ function pruef(name, bed, info) {
     window.__bruecke({
       Karten: {
         liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30' })] }, frei: 5e9 }),
-        status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => {}
+        status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => {},
+        // wie KartenPlugin.lesen: Stück der Datei als Base64
+        lesen: async o => window.paketStueck(o.id, o.datei, o.von, o.laenge)
       },
       Routing: {
         // Offline-Engine: antwortet wie BRouter (Nachbildung aus dem Test), ohne Netz
@@ -1134,6 +1139,13 @@ function pruef(name, bed, info) {
     });
     localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.585, lon: 11.35, z: 13 }));
   }));
+  await offCtx.exposeFunction('paketStueck', (id, datei, von, laenge) => {
+    const f = path.join(kartenOrdner, id, datei);
+    if (!/^[a-z0-9-]+$/.test(id) || !/^[a-z0-9.-]+$/.test(datei) || !fs.existsSync(f)) throw new Error('Kartenserver: Datei fehlt');
+    const daten = fs.readFileSync(f), b = daten.subarray(von, Math.min(daten.length, von + laenge));
+    bereiche.push(datei + ':' + von + '-' + (von + b.length - 1) + ' (Brücke)');
+    return { daten: b.toString('base64'), laenge: b.length, dateiLaenge: daten.length };
+  });
   // die Offline-Nachbildung nutzt dieselbe Routenerzeugung, zählt aber nicht als Anfrage an brouter.de
   await offCtx.exposeFunction('brouterNach', ll => { const j = brouter('https://brouter.de/brouter?lonlats=' + ll); zaehler.brouter--; return JSON.stringify(j); });
   const po = await offCtx.newPage();
@@ -1150,7 +1162,7 @@ function pruef(name, bed, info) {
   const bericht = await po.textContent('#offlineBericht');
   pruef('Offline prüfen: beide Lesewege gemeldet, Adresse liest, Kopf und Kachel an der Kartenmitte', /Lesen in Teilen \(Adresse\): Status 206.*Kennung „PMTiles“ v3 ✓/.test(bericht) &&
     /Lesen in Teilen \(Kopfzeile\): (Status 200|Status 206)/.test(bericht) && !/Kopf oder Kachel: FEHLER/.test(bericht) && /Kopf: Zoom \d+–\d+.*✓/.test(bericht) &&
-    /Kachel \d+\/\d+\/\d+ \(Kartenmitte\): \d+ Bytes/.test(bericht) && /hoehe\.pmtiles: Status 206, 16 Bytes ✓/.test(bericht) && await po.evaluate(() => !document.querySelector('#bOfflineBericht').hidden), bericht);
+    /Kachel \d+\/\d+\/\d+ \(Kartenmitte\): \d+ Bytes/.test(bericht) && /hoehe\.pmtiles über Brücke: 16 Bytes ✓/.test(bericht) && /Kacheln lesen über: App-Brücke/.test(bericht) && /Stück Anfang über Brücke \(0\+16384\): 538 Bytes.*Kennung „PMTiles“ ✓/.test(bericht) && await po.evaluate(() => !document.querySelector('#bOfflineBericht').hidden), bericht);
   await po.click('#bLagen');
   await po.check('input[name=basis][value=offline]');
   await po.check('#lageRelief');
@@ -1162,11 +1174,15 @@ function pruef(name, bed, info) {
     const voll = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; };
     const ebenen = [...document.querySelectorAll('.leaflet-tile-pane .leaflet-layer')];
     const zaehlen = es => es.flatMap(e => [...e.querySelectorAll('canvas')]).map(voll);
-    return { relief: zaehlen(ebenen.filter(e => e.style.zIndex === '2')), karte: zaehlen(ebenen.filter(e => e.style.zIndex !== '2')) };
+    // Vektorkarte: mehr als eine Farbe je Kachel. Bei Lesefehlern malt protomaps-leaflet nur den grauen Hintergrund und
+    // meldet die Kachel trotzdem als geladen (Fehler nur in console.error), so sah es auf dem Pixel aus
+    const farben = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, f = new Set(); for (let i = 0; i < d.length; i += 4 * 53) f.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return f.size; };
+    const karte = ebenen.filter(e => e.style.zIndex !== '2').flatMap(e => [...e.querySelectorAll('canvas')]);
+    return { relief: zaehlen(ebenen.filter(e => e.style.zIndex === '2')), karte: karte.map(farben) };
   });
-  pruef('Offline: Vektorkarte zeichnet', gezeichnet.karte.filter(n => n > 10).length >= 4, gezeichnet.karte);
+  pruef('Offline: Vektorkarte zeichnet Inhalt, nicht nur den Hintergrund', gezeichnet.karte.filter(n => n > 1).length >= 4, gezeichnet.karte);
   pruef('Offline: Relief zeichnet', gezeichnet.relief.filter(n => n > 10).length >= 4, gezeichnet.relief);
-  pruef('Offline: Dateien mit Byte-Bereichen gelesen', bereiche.some(b => b.startsWith('karte.pmtiles')) && bereiche.some(b => b.startsWith('hoehe.pmtiles')), bereiche.slice(0, 4));
+  pruef('Offline: Kartendateien über die App-Brücke gelesen', bereiche.some(b => b.startsWith('karte.pmtiles') && b.endsWith('(Brücke)')) && bereiche.some(b => b.startsWith('hoehe.pmtiles') && b.endsWith('(Brücke)')), bereiche.slice(0, 6));
   await po.screenshot({ path: path.join(OUT, '11-offline-relief.png') });
   // gerade Linie über den Berg: Höhen aus dem Paket (Gipfel 1800 m)
   await po.click('[data-reiter=planen]');

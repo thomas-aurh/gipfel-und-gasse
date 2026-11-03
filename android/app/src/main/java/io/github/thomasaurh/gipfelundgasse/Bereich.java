@@ -44,6 +44,24 @@ public final class Bereich {
         return "bytes=" + von + "-" + (bis == null ? "" : bis);
     }
 
+    /** Größtes Stück, das die Oberfläche auf einmal über die App-Brücke lesen darf (Kacheln und Verzeichnisse sind kleiner). */
+    public static final int STUECK_MAX = 8 * 1024 * 1024;
+
+    /**
+     * Liest laenge Bytes ab von aus der Datei, am Dateiende gekürzt; leer, wenn von hinter dem Ende liegt.
+     * Für die App-Brücke (KartenPlugin.lesen), die das WebView beim Lesen der Kartenpakete umgeht.
+     */
+    public static byte[] stueck(java.io.File f, long von, int laenge) throws java.io.IOException {
+        if (von < 0 || laenge < 0 || laenge > STUECK_MAX) throw new IllegalArgumentException("Bereich ungültig: " + von + "+" + laenge);
+        try (java.io.RandomAccessFile r = new java.io.RandomAccessFile(f, "r")) {
+            long n = Math.max(0, Math.min((long) laenge, r.length() - von));
+            byte[] b = new byte[(int) n];
+            r.seek(von);
+            r.readFully(b);
+            return b;
+        }
+    }
+
     /** Erlaubte Pfadteile unter /_karten_/: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich (kein „..“). */
     public static boolean sichererName(String s) {
         return s != null && s.matches("[a-z0-9][a-z0-9.\\-]{0,80}") && !s.contains("..");
