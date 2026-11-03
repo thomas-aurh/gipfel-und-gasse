@@ -54,6 +54,7 @@ function spurAlsTour(name, pts, art) {
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
   melde('Gespeichert: ' + name);
+  if (art === 'aufzeichnung') gipfelNachTour(liste[0]);   // Gipfelbuch (im Hintergrund, braucht Paket oder Netz)
   return true;
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }
@@ -212,7 +213,7 @@ async function sicherungSpeichern() {
   if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length) { melde('Keine Touren, kein Tagebuch und keine Reiseziele gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
-    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele }), 'application/json');
+    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() }), 'application/json');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
   if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
@@ -225,12 +226,14 @@ async function sicherungEinlesen(text) {
   const tourenOk = !dazu.length || tourenSchreiben(dazu.concat(liste));
   const tb = await tagebuchEinlesen(text);
   const zl = zieleEinlesen(text);
+  const gb = gipfelbuchEinlesen(text);
   tourenZeigen();
   const teile = [];
   if (!tourenOk) teile.push(dazu.length + ' Touren NICHT übernommen (Speicher voll)');
   else if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
   if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
   if (zl) teile.push(zl + ' Reiseziele übernommen');
+  if (gb) teile.push(gb + ' Gipfel ins Gipfelbuch übernommen');
   melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
 }
 

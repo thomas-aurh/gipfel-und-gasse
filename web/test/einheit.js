@@ -505,5 +505,24 @@ pruef('Führung: Name zuerst, gekürzt am Satzende', ft.startsWith('Alte Burg er
 pruef('Führung: kurzer Text bleibt ganz', R.fuehrungText('Kirche', 'Eine  Kirche.\n') === 'Kirche erreicht. Eine Kirche.');
 pruef('Besuch: unbekannt', ob('nach Vereinbarung', '2026-11-04T12:00', 30).zustand === 'unbekannt');
 
+// Gipfelbuch
+const gbSpur = [{ lat: 47.6, lon: 11.3 }, { lat: 47.601, lon: 11.3 }, { lat: 47.6015, lon: 11.3005 }]; R.laengen(gbSpur);
+const gbEl = [{ type: 'node', id: 1, lat: 47.6012, lon: 11.3002, tags: { natural: 'peak', name: 'Testgipfel', ele: '1650,5' } },
+  { type: 'node', id: 2, lat: 47.61, lon: 11.3, tags: { natural: 'peak', name: 'Weit weg' } },
+  { type: 'node', id: 3, lat: 47.601, lon: 11.3, tags: { natural: 'peak' } }, { type: 'node', id: 4, lat: 47.601, lon: 11.3, tags: { tourism: 'viewpoint', name: 'Aussicht' } }];
+const gbG = R.gipfelErreicht(gbSpur, gbEl);
+pruef('Gipfelbuch: nur benannte Gipfel nahe der Spur', gbG.length === 1 && gbG[0].id === 'n1' && gbG[0].ele === 1651, gbG);
+const gbBuch = { gipfel: {} };
+const gbN1 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-07-01T10:00:00Z', tour: 't1', name: 'Runde' });
+const gbN2 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-07-01T10:00:00Z', tour: 't1', name: 'Runde' });
+const gbN3 = R.gipfelbuchDazu(gbBuch, gbG, { datum: '2026-06-01T10:00:00Z', tour: 't0', name: 'Früher' });
+pruef('Gipfelbuch: neu, derselbe Besuch nicht doppelt, Besuche nach Datum', gbN1.length === 1 && !gbN2.length && !gbN3.length &&
+  gbBuch.gipfel.n1.besuche.length === 2 && gbBuch.gipfel.n1.besuche[0].tour === 't0', gbBuch);
+const gbL = R.gipfelbuchListe(R.gipfelbuchPruefen(JSON.parse(JSON.stringify(gbBuch))));
+pruef('Gipfelbuch: Liste und Kennzahlen', gbL.anzahl === 1 && gbL.besuche === 2 && gbL.hoechster.name === 'Testgipfel' && gbL.liste[0].zuletzt === '2026-07-01T10:00:00Z', gbL);
+pruef('Gipfelbuch: Sicherung geprüft', Object.keys(R.gipfelbuchPruefen({ gipfel: { 'x"]': { name: 'a', lat: 1, lon: 1 }, n5: { name: 'B', lat: 47, lon: 11, besuche: [{ datum: 'kaputt' }, { datum: '2026-01-01' }] } } }).gipfel).join() === 'n5' &&
+  R.gipfelbuchPruefen({ gipfel: { n5: { name: 'B', lat: 47, lon: 11, besuche: [{ datum: 'kaputt' }, { datum: '2026-01-01' }] } } }).gipfel.n5.besuche.length === 1 && Object.keys(R.gipfelbuchPruefen(null).gipfel).length === 0);
+pruef('Gipfelbuch: Abfrage nur benannte Gipfel', R.gipfelAbfrage(gbSpur, 120).includes('node["natural"="peak"]["name"](around:120,'));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);
