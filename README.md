@@ -5,6 +5,13 @@ Sehenswürdigkeiten und Stadtrundgänge, Wetter, Info zu Orten (geöffnet jetzt,
 Reiseziele, GPX, Karte drucken. Als **Web-App** (eine HTML-Datei) und als
 **Android-App**, die unterwegs auch bei gesperrtem Bildschirm navigiert und aufzeichnet.
 
+## Im Browser (PC oder Handy)
+
+**https://thomas-aurh.github.io/gipfel-und-gasse/** öffnen, nichts zu installieren; nach jedem Merge die neue Fassung.
+Planen, Touren, Etappen, Reisetagebuch, Reiseziele, Gipfelbuch, Wetter und Drucken gehen hier genauso. Nur die Android-App
+kann navigieren und aufzeichnen bei gesperrtem Bildschirm und Offline-Kartenpakete. Die Daten liegen je Browser bzw. App:
+am PC „Sicherung speichern“ (Menü › Sicherung), die Datei aufs Handy schicken, dort „Sicherung laden“.
+
 ## Android-App installieren
 
 1. Auf dem Handy öffnen: **https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste**

@@ -34,13 +34,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
 - **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
-- **Web mit den echten Diensten nicht geprüft:** die Cloud-Umgebung sperrt brouter.de, die Kachelserver, Photon,
-  Overpass und Open-Meteo. Offen: CORS bei BRouter aus dem Browser, `WayTags` mit `sac_scale` und `surface`, Kacheln
-  bei `file://`. Nächster Schritt: `web/dist/Gipfel-und-Gasse.html` am PC in Chrome öffnen, Tour um Penzberg planen.
+- **Web mit den echten Diensten am PC geprüft (03.11., Browser über 127.0.0.1):** Karte, Routing über BRouter (mit
+  Wegtypen, Untergrund und SAC-Stufe), Suche über Photon, Höhen. Overpass beantwortete das Info-Antippen an dem Abend
+  nicht (beide Server Zeitüberschreitung bzw. 502), die App meldete das sauber. Ungeprüft: die Seite unter GitHub Pages
+  (siehe Auslieferung), Kacheln bei `file://`.
 - **Stadt nicht mit echten Daten geprüft:** Fußwege des Profils `hiking-mountain` in der Stadt, Fülle der Karte
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
-  (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
+  (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
 - **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Tourliste sortieren und filtern.
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
@@ -63,7 +64,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
-- **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
 - **Offline-Karte leer auf dem Pixel (02.11. Bau 98, 03.11. nach #32 weiter grau, Thomas):** Kopf und Lesen ab Byte 0
   gingen, die Kacheln weiter hinten scheiterten mit „Failed to fetch“, erst mit Range-Kopfzeile, nach #32 auch nur über
   `?von=&bis=`. Das Grau täuschte: protomaps-leaflet malt bei Lesefehlern den Hintergrund und meldet die Kachel als
@@ -180,9 +180,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
   Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
   dort und in der App-Liste. Die App holt die Liste von dort.
-- **Web:** `sh web/pruefen.sh` baut `web/dist/Gipfel-und-Gasse.html` (dazu `node web/test/ui.js`). Wohin, ist offen:
-  Datei am PC in Chrome öffnen (reicht zum Planen) oder eine `https://`-Adresse fürs Telefon, jetzt ohne Kosten über
-  GitHub Pages aus diesem öffentlichen Repo möglich.
+- **Web:** https://thomas-aurh.github.io/gipfel-und-gasse/ (GitHub Pages, Quelle „GitHub Actions“, am 03.11. auf
+  Thomas' Wunsch eingerichtet). Ablauf `pages.yml`: nach jedem Merge auf `main`, der `web/` betrifft, bauen, prüfen
+  (`web/pruefen.sh`) und `web/dist/Gipfel-und-Gasse.html` als `index.html` veröffentlichen. Daten (Touren, Tagebuch)
+  liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
 
