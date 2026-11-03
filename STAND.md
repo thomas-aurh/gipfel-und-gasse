@@ -56,6 +56,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Vorlesen am Stopp braucht echtes GPS.
 - **Gipfelbuch (03.11.) nicht mit echten Daten geprüft:** Erkennung mit echtem Overpass und mit dem Kartenpaket in der App
   (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
+- **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
+  nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
+- **Klicktest „Reiseziele, Datei laden“ zeitabhängig:** fiel am 03.11. in 2 von rund 15 Läufen mit denselben 5 Prüfungen aus
+  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nicht an den Änderungen des Tages, nicht weiter untersucht.
 - **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
   Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
@@ -175,6 +179,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Mehrtagestour: Übernachtung an Zwischenzielen, Etappen je Tag (Strecke, Höhenmeter, Gehzeit, höchster Punkt,
+  Ankunft gegen Sonnenuntergang), Ankunft an den Stopps je Tag, in Touren und Sicherung, als Reise ins Tagebuch.
 
 - **03.11.** Gipfelbuch: Seite im Menü; nach dem Speichern einer Aufzeichnung Gipfel bis 50 m an der Spur (Paket oder
   Overpass), je Gipfel Höhe und Besuche; gegangene Touren nachträglich durchsuchen; in Sicherung und Wiederherstellung.

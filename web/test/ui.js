@@ -526,7 +526,9 @@ function pruef(name, bed, info) {
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76500_11.39000~47.77000_11.40000'; });
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3 && !document.getElementById('ergebnis').hidden, null, { timeout: 8000 });
   await page.click('[data-reiter=planen]');
-  await page.click('.wp >> nth=1');
+  // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
+  await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
   await page.click('.leaflet-popup button:has-text("Hier übernachten")');
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
   const etText = await page.textContent('#etappen');
