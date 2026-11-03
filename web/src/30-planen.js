@@ -387,7 +387,8 @@ function zeitplanStart() {
 // davor liegende Besichtigungen und ein Anteil der Pausen (verteilt nach Gehzeit)
 function stoppAnkunft() {
   const e = S.ergebnis, start = zeitplanStart();
-  if (!e || !start || S.fest || !e.stueckEnde) return S.wps.map(() => null);
+  // während einer Neuberechnung gehört das alte Ergebnis noch zu den alten Wegpunkten: dann keine Ankunft
+  if (!e || !start || S.fest || !e.stueckEnde || S.rechnet || e.stueckEnde.length !== S.wps.length - 1) return S.wps.map(() => null);
   const pause = (+$('pausewahl').value || 0) / 60;
   let besicht = 0;
   return S.wps.map((w, i) => {
@@ -407,8 +408,9 @@ function besuchHtml(w, an) {
   if (!an) return '<small>' + oeffnungKurz(oh) + '</small>';
   const b = R.oeffnungBesuch(oh, an, +w.min || 0);
   if (b.zustand === 'unbekannt') return '<small>an ' + R.uhr(an) + ' Uhr · Öffnungszeiten: ' + R.esc(oh) + '</small>';
-  const zeichen = { offen: '●', knapp: '⚠️', zu: '⛔' }[b.zustand];
-  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>';
+  // vage: laut OSM wohl geöffnet, aber ohne sichere Uhrzeit (keine Warnung, aber auch kein grünes „geöffnet“)
+  const zeichen = { offen: '●', knapp: '⚠️', zu: '⛔', vage: '❔' }[b.zustand];
+  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu', vage: 'vage' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>';
 }
 // Stopps, die bei Ankunft zu sind oder knapp werden (für den Hinweis im Zeitplan)
 function besuchProbleme() {

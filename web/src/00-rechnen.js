@@ -970,14 +970,16 @@ var R = (function () {
   function ohZeiten(text) {
     const z = [];
     for (let teil of text.split(',')) {
-      // „11:30+“: ab 11:30, Ende offen (bis Mitternacht gerechnet); „12:00-22:00+“: das Plus heißt nur „oft länger“
+      // Dritter Wert jeder Zeitspanne: wie sicher sie ist. „11:30+“: ab 11:30, Ende offen ('ab', bis Mitternacht
+      // eingetragen, aber nicht sicher); „12:00-22:00+“: mindestens bis 22:00, danach unklar ('mind')
       const offen = /^(\d{1,2}):(\d{2})\+$/.exec(teil);
       if (offen) {
         const a = +offen[1] * 60 + +offen[2];
         if (a >= 1440 || +offen[2] > 59) return null;
-        z.push([a, 1440]); z.offenesEnde = true;
+        z.push([a, 1440, 'ab']);
         continue;
       }
+      const mind = /\+$/.test(teil);
       teil = teil.replace(/\+$/, '');
       const m = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(teil);
       if (!m) return null;
@@ -985,7 +987,7 @@ var R = (function () {
       let b = +m[3] * 60 + +m[4];
       if (a > 1440 || b > 2880 || +m[2] > 59 || +m[4] > 59) return null;
       if (b <= a) b += 1440;   // über Mitternacht
-      z.push([a, b]);
+      z.push(mind ? [a, b, 'mind'] : [a, b]);
     }
     return z;
   }
@@ -996,7 +998,7 @@ var R = (function () {
     if (s === '24/7') return { regeln: [{ zus: false, monate: null, tage: null, zeiten: [[0, 1440]] }], feiertage: false, immer: true };
     if (/\|\||"|\[|week|easter|sunrise|sunset|dawn|dusk|\d{4}/.test(s)) return null;
     const regeln = [];
-    let feiertage = false, offenesEnde = false, ohneUhrzeit = false, saison = false;
+    let feiertage = false, saison = false;
     const MON = '(?:' + OH_MONATE.join('|') + ')';
     // „Apr-Oct: Mo-Su 10:00-16:00“: der Doppelpunkt nach den Monaten ist nur Gliederung
     const s2 = s.replace(new RegExp('(' + MON + '(?:\\s*\\d{1,2})?)\\s*:\\s+', 'g'), '$1 ');
@@ -1036,17 +1038,18 @@ var R = (function () {
         }
         if (/^(off|closed)$/i.test(rest)) zeiten = [];
         // nur Tage oder Saison, keine Uhrzeit („Tu-Su“, „Jun-Aug“): an diesen Tagen geöffnet, Zeiten unbekannt
-        else if (!rest) { zeiten = monate || tage || datum ? [[0, 1440]] : null; if (zeiten) ohneUhrzeit = true; }
-        else { zeiten = ohZeiten(rest.replace(/\s/g, '')); if (zeiten && zeiten.offenesEnde) offenesEnde = true; }
+        else if (!rest) zeiten = monate || tage || datum ? [[0, 1440, 'ohne']] : null;
+        else zeiten = ohZeiten(rest.replace(/\s/g, ''));
         if (!zeiten) { regeln.length = 0; regeln.push(null); return; }
-        if (monate || datum) saison = true;
+        // Saison: Monate oder Tage mit Datum, an denen geöffnet ist (ein Schließtag wie „Dec 24-Dec 31 off“ ist keine)
+        if ((monate || datum) && zeiten.length) saison = true;
         regeln.push({ zus: i > 0, monate, tage, datum, zeiten });
       });
       if (regeln[0] === null) return null;
     }
     // nur Schließtage („Dec 24 off“) sagen nichts über die übrigen Tage: unbekannt, nicht „immer zu“
     if (!regeln.length || regeln.every(r => !r.zeiten.length)) return null;
-    return { regeln, feiertage, offenesEnde, ohneUhrzeit, saison, immer: false };
+    return { regeln, feiertage, saison, immer: false };
   }
   function ohImDatum(datum, d) {
     const md = (d.getMonth() + 1) * 100 + d.getDate(), [a, b] = datum;
@@ -1065,7 +1068,14 @@ var R = (function () {
     return z;
   }
   function hhmm(min) { min = ((min % 1440) + 1440) % 1440; return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
-  // Stand jetzt: { zustand: 'offen' | 'bald' | 'zu' | 'unbekannt', text }; „bald“ = schließt in höchstens 30 min
+  // „bis“ mit Tag, wenn die Zeitspanne über Mitternacht reicht (Minuten ab dem Tag 0:00)
+  function ohBis(ende, tagPlus) {
+    if (ende === 1440) return '24:00';
+    return (ende > 1440 ? (ende >= 2880 ? TAG_KURZ[tagPlus(Math.floor(ende / 1440)).getDay()] + ' ' : 'morgen ') : '') + hhmm(ende);
+  }
+  // Zustände: 'offen' | 'bald' | 'zu' | 'vage' | 'unbekannt'. vage = laut OSM wohl geöffnet, aber ohne sichere Uhrzeit
+  // (nur Tage oder Saison eingetragen, offenes Ende): die App behauptet dann nichts, was sie nicht weiß.
+  // Stand jetzt; „bald“ = schließt in höchstens 30 min
   function oeffnungJetzt(roh, jetzt) {
     const oh = oeffnungLesen(roh);
     if (!oh) return { zustand: 'unbekannt', text: '' };
@@ -1074,55 +1084,70 @@ var R = (function () {
     const { zus, tagPlus } = ohAchse(oh, jetzt);
     const m = jetzt.getHours() * 60 + jetzt.getMinutes();
     const jetztZ = zus.find(([a, b]) => a <= m && m < b);
-    if (jetztZ && oh.ohneUhrzeit) return { zustand: 'offen', text: 'heute geöffnet (Uhrzeit nicht eingetragen)' + zusatz };
     if (jetztZ) {
+      if (jetztZ[2] === 'ohne') return { zustand: 'vage', text: 'heute geöffnet laut OSM, Uhrzeit nicht eingetragen' + zusatz };
       if (jetztZ[1] - m > 8 * 1440) return { zustand: 'offen', text: 'durchgehend geöffnet' + zusatz };
-      if (oh.offenesEnde && jetztZ[1] % 1440 === 0) return { zustand: 'offen', text: 'geöffnet (Ende offen)' + zusatz };
-      const bis = (jetztZ[1] >= 1440 ? (jetztZ[1] >= 2880 ? TAG_KURZ[tagPlus(Math.floor(jetztZ[1] / 1440)).getDay()] + ' ' : 'morgen ') : '') + hhmm(jetztZ[1]);
-      return jetztZ[1] - m <= 30 ? { zustand: 'bald', text: 'schließt bald, um ' + hhmm(jetztZ[1]) + zusatz } : { zustand: 'offen', text: 'geöffnet bis ' + bis + zusatz };
+      if (jetztZ[2] === 'ab') return { zustand: 'vage', text: 'geöffnet ab ' + hhmm(jetztZ[0]) + ', Ende offen' + zusatz };
+      if (jetztZ[2] === 'mind') return { zustand: 'offen', text: 'geöffnet mindestens bis ' + ohBis(jetztZ[1], tagPlus) + zusatz };
+      return jetztZ[1] - m <= 30 ? { zustand: 'bald', text: 'schließt bald, um ' + hhmm(jetztZ[1]) + zusatz } : { zustand: 'offen', text: 'geöffnet bis ' + ohBis(jetztZ[1], tagPlus) + zusatz };
     }
+    const vorher = zus.filter(([, b]) => b <= m && b > 0).pop();
+    if (vorher && vorher[2] === 'mind') return { zustand: 'vage', text: 'geöffnet mindestens bis ' + hhmm(vorher[1]) + ', danach unklar' + zusatz };
     const naechst = zus.find(([a]) => a > m);
     const heuteZu = !zus.some(([a, b]) => a < 1440 && b > 0) ? 'heute geschlossen' : 'geschlossen';
     if (!naechst || naechst[0] >= 8 * 1440) return { zustand: 'zu', text: (oh.saison ? 'geschlossen, außerhalb der Saison' : heuteZu) + zusatz };
     const n = Math.floor(naechst[0] / 1440);
+    if (naechst[2] === 'ohne') return { zustand: 'zu', text: heuteZu + ', geöffnet wieder ' + (n === 1 ? 'morgen' : TAG_KURZ[tagPlus(n).getDay()]) + ' (Uhrzeit nicht eingetragen)' + zusatz };
     const wann = n === 0 ? 'um ' : n === 1 ? 'morgen ' : TAG_KURZ[tagPlus(n).getDay()] + ' ';
-    if (oh.ohneUhrzeit) return { zustand: 'zu', text: heuteZu + ', geöffnet wieder ' + (n === 1 ? 'morgen' : TAG_KURZ[tagPlus(n).getDay()]) + zusatz };
     return { zustand: 'zu', text: heuteZu + ', öffnet ' + wann + hhmm(naechst[0]) + zusatz };
   }
-  // alle Zeiträume von gestern bis in 8 Tagen auf einer Achse (Minuten ab dem Tag von `wann`, 0:00), zusammengefügt
+  // alle Zeiträume von gestern bis in 8 Tagen auf einer Achse (Minuten ab dem Tag von `wann`, 0:00), zusammengefügt.
+  // Gewissheit der zusammengefügten Spanne: 'ohne', sobald ein Teil ohne Uhrzeit ist, sonst die des Teils mit dem spätesten Ende
   function ohAchse(oh, wann) {
     const tag0 = new Date(wann.getFullYear(), wann.getMonth(), wann.getDate());
     const tagPlus = n => new Date(tag0.getFullYear(), tag0.getMonth(), tag0.getDate() + n);
     const alle = [];
-    for (let n = -1; n <= 8; n++) for (const [a, b] of ohTag(oh, tagPlus(n))) alle.push([a + n * 1440, b + n * 1440]);
+    for (let n = -1; n <= 8; n++) for (const [a, b, art] of ohTag(oh, tagPlus(n))) alle.push([a + n * 1440, b + n * 1440, art]);
     alle.sort((x, y) => x[0] - y[0]);
     const zus = [];
-    for (const z of alle) { const l = zus[zus.length - 1]; if (l && z[0] <= l[1]) l[1] = Math.max(l[1], z[1]); else zus.push(z.slice()); }
+    for (const z of alle) {
+      const l = zus[zus.length - 1];
+      if (l && z[0] <= l[1]) {
+        if (l[2] === 'ohne' || z[2] === 'ohne') l[2] = 'ohne';
+        else if (z[1] > l[1]) l[2] = z[2];
+        l[1] = Math.max(l[1], z[1]);
+      } else zus.push(z.slice());
+    }
     return { zus, tagPlus };
   }
 
-  // Passt ein Besuch? Ankunft `an` (Date), Aufenthalt `minuten`. { zustand: 'offen' | 'knapp' | 'zu' | 'unbekannt', text }
+  // Passt ein Besuch? Ankunft `an` (Date), Aufenthalt `minuten`. { zustand: 'offen' | 'knapp' | 'zu' | 'vage' | 'unbekannt', text }
   // knapp = schließt während des Besuchs oder öffnet erst kurz nach der Ankunft (bis 30 min warten)
   function oeffnungBesuch(roh, an, minuten) {
     const oh = oeffnungLesen(roh);
     if (!oh) return { zustand: 'unbekannt', text: '' };
     if (oh.immer) return { zustand: 'offen', text: 'rund um die Uhr geöffnet' };
     const zusatz = oh.feiertage ? ' (Feiertage nicht berücksichtigt)' : '';
-    const { zus } = ohAchse(oh, an);
+    const { zus, tagPlus } = ohAchse(oh, an);
     const m = an.getHours() * 60 + an.getMinutes(), bleib = Math.max(0, minuten || 0);
     const offen = zus.find(([a, b]) => a <= m && m < b);
     if (offen) {
-      if (oh.ohneUhrzeit) return { zustand: 'offen', text: 'an dem Tag geöffnet, Uhrzeit nicht eingetragen' + zusatz };
+      if (offen[2] === 'ohne') return { zustand: 'vage', text: 'an dem Tag geöffnet laut OSM, Uhrzeit nicht eingetragen' + zusatz };
       if (offen[1] - m > 8 * 1440) return { zustand: 'offen', text: 'durchgehend geöffnet' + zusatz };
-      if (oh.offenesEnde && offen[1] % 1440 === 0) return { zustand: 'offen', text: 'bei Ankunft geöffnet (Ende offen)' + zusatz };
-      const bis = offen[1] === 1440 ? '24:00' : hhmm(offen[1]);
+      if (offen[2] === 'ab') return { zustand: 'vage', text: 'geöffnet ab ' + hhmm(offen[0]) + ', Ende offen' + zusatz };
+      const bis = ohBis(offen[1], tagPlus);
+      if (offen[2] === 'mind') return offen[1] >= m + bleib
+        ? { zustand: 'offen', text: 'bei Ankunft geöffnet, mindestens bis ' + bis + zusatz }
+        : { zustand: 'vage', text: 'geöffnet mindestens bis ' + bis + ', danach unklar' + zusatz };
       if (offen[1] < m + bleib) return { zustand: 'knapp', text: 'schließt um ' + bis + ', ' + (offen[1] - m) + ' min nach der Ankunft' + zusatz };
       return { zustand: 'offen', text: 'bei Ankunft geöffnet, bis ' + bis + zusatz };
     }
+    const vorher = zus.filter(([, b]) => b <= m && b > 0).pop();
+    if (vorher && vorher[2] === 'mind') return { zustand: 'vage', text: 'geöffnet mindestens bis ' + hhmm(vorher[1]) + ', danach unklar' + zusatz };
     const naechst = zus.find(([a]) => a > m);
-    if (naechst && naechst[0] - m <= 30) return { zustand: 'knapp', text: 'öffnet erst um ' + hhmm(naechst[0]) + zusatz };
-    const amTag = naechst && naechst[0] < 1440;
-    return { zustand: 'zu', text: 'bei Ankunft geschlossen' + (amTag ? ', öffnet ' + hhmm(naechst[0]) : !naechst && oh.saison ? ' (außerhalb der Saison)' : ', an dem Tag nicht mehr') + zusatz };
+    if (naechst && naechst[2] !== 'ohne' && naechst[0] - m <= 30) return { zustand: 'knapp', text: 'öffnet erst um ' + hhmm(naechst[0]) + zusatz };
+    const amTag = naechst && naechst[0] < 1440 && naechst[2] !== 'ohne';
+    return { zustand: 'zu', text: 'bei Ankunft geschlossen' + (amTag ? ', öffnet ' + hhmm(naechst[0]) : (!naechst || naechst[0] >= 8 * 1440) && oh.saison ? ' (außerhalb der Saison)' : ', an dem Tag nicht mehr') + zusatz };
   }
 
   // ---------- Reiseziele: Listen mit Orten, aus Dateien laden, als GPX weitergeben ----------

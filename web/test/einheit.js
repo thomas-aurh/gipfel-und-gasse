@@ -468,8 +468,21 @@ pruef('Öffnung: Zusatzregel „, We off“ schließt', oj('Mo-Fr 10:00-18:00, W
 pruef('Öffnung: Zusatzregel ergänzt weiter Zeiten', oj('Mo 10:00-12:00, Mo 14:00-16:00', '2026-11-02T15:00').zustand === 'offen');
 
 // Öffnungszeiten: Formen aus den Kartenpaketen (Saison, offenes Ende, Monate mit Doppelpunkt, Tage mit Datum)
-pruef('Öffnung: offenes Ende', oj('Mo-Su 11:30+', '2026-11-04T12:00').text === 'geöffnet (Ende offen)' && oj('Mo-Su 11:30+', '2026-11-04T10:00').text === 'geschlossen, öffnet um 11:30');
-pruef('Öffnung: Saison ohne Uhrzeit', oj('Jun-Aug', '2026-07-08T12:00').zustand === 'offen' && oj('Jun-Aug', '2026-11-04T12:00').text === 'geschlossen, außerhalb der Saison');
+// offenes Ende und Tage ohne Uhrzeit sind „vage“: die App behauptet keine Uhrzeit, die nicht eingetragen ist
+pruef('Öffnung: offenes Ende', oj('Mo-Su 11:30+', '2026-11-04T12:00').zustand === 'vage' && oj('Mo-Su 11:30+', '2026-11-04T12:00').text === 'geöffnet ab 11:30, Ende offen' &&
+  oj('Mo-Su 11:30+', '2026-11-04T10:00').text === 'geschlossen, öffnet um 11:30');
+pruef('Öffnung: Saison ohne Uhrzeit', oj('Jun-Aug', '2026-07-08T12:00').zustand === 'vage' && oj('Jun-Aug', '2026-11-04T12:00').text === 'geschlossen, außerhalb der Saison');
+// Fälle aus der Prüfung vom 03.11.
+const obP = (oh, t, min) => R.oeffnungBesuch(oh, new Date(t), min);
+pruef('Besuch: „Su 10:00+“ spät abends nicht sicher offen', obP('Su 10:00+', '2026-11-08T23:00', 60).zustand === 'vage', obP('Su 10:00+', '2026-11-08T23:00', 60));
+pruef('Besuch: „07:00-12:00+“ nach 12 nicht sicher zu', obP('Mo-Fr 07:00-12:00+', '2026-11-04T12:30', 30).zustand === 'vage' &&
+  obP('Mo-Fr 07:00-12:00+', '2026-11-04T10:00', 60).text === 'bei Ankunft geöffnet, mindestens bis 12:00', obP('Mo-Fr 07:00-12:00+', '2026-11-04T12:30', 30));
+pruef('Besuch: offenes Ende einer Regel gilt nicht für die anderen', obP('Mo-Fr 10:00-24:00; Su 12:00+', '2026-11-04T23:00', 120).zustand === 'knapp', obP('Mo-Fr 10:00-24:00; Su 12:00+', '2026-11-04T23:00', 120));
+pruef('Besuch: Tag ohne Uhrzeit überdeckt nicht die bekannten Zeiten', obP('Mo-Fr 10:00-18:00; Sa', '2026-11-04T12:00', 480).zustand === 'knapp' &&
+  oj('Mo-Fr 10:00-18:00; Sa', '2026-11-04T08:00').text === 'geschlossen, öffnet um 10:00', oj('Mo-Fr 10:00-18:00; Sa', '2026-11-04T08:00'));
+pruef('Besuch: „Tu-Su“ ohne Uhrzeit ist vage, kein „öffnet um 00:00“', obP('Tu-Su', '2026-11-04T23:30', 30).zustand === 'vage' && obP('Tu-Su', '2026-11-02T23:45', 30).zustand === 'zu');
+pruef('Besuch: Schließtage sind keine Saison', obP('Mo-Su 10:00-18:00; Dec 24-Dec 31 off', '2026-12-23T19:00', 30).text === 'bei Ankunft geschlossen, an dem Tag nicht mehr', obP('Mo-Su 10:00-18:00; Dec 24-Dec 31 off', '2026-12-23T19:00', 30));
+pruef('Besuch: „bis“ mit Tag über Mitternacht', obP('Mo-Fr 00:00-24:00', '2026-11-04T12:00', 60).text === 'bei Ankunft geöffnet, bis Sa 00:00', obP('Mo-Fr 00:00-24:00', '2026-11-04T12:00', 60));
 pruef('Öffnung: Monate mit Doppelpunkt', oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-11-04T12:00').text === 'geöffnet bis 15:00' &&
   oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-07-08T12:00').text === 'geöffnet bis 16:00');
 pruef('Öffnung: Zeitraum mit Tagen', oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-12T12:00').zustand === 'offen' && oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-08T12:00').zustand === 'zu' &&
