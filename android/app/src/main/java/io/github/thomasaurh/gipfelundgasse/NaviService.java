@@ -95,6 +95,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     static final Zustand Z = new Zustand();
 
     private LocationManager lm;
+    private boolean gpsAktiv;   // GPS-Abfrage eingeschaltet (Main-Thread)
     // alle 30 min beim Folgen oder Aufzeichnen: Gewitter in den nächsten drei Stunden am Standort (Open-Meteo)?
     private final Handler wetter = new Handler(Looper.getMainLooper());
     private final Runnable wetterLauf = new Runnable() {
@@ -208,18 +209,21 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             unterbrochen();
             return START_NOT_STICKY;
         }
-        synchronized (Z) { Z.unterbrochen = false; }
+        boolean warUnterbrochen;
+        synchronized (Z) { warUnterbrochen = Z.unterbrochen; Z.unterbrochen = false; }
+        if (warUnterbrochen) sitzungSichern(this);   // auch in der Datei, sonst setzte die App sie später noch einmal fort
         // eine gerade neu gestartete Navigation: das verzögerte Ende nach „Ziel erreicht“ gilt nicht mehr
-        boolean warEnde = ausstehendesEnde != null;
-        if (warEnde) { endeHandler.removeCallbacks(ausstehendesEnde); ausstehendesEnde = null; }
-        if (!Z.laeuft || warEnde) {
-            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; }   // neue Sitzung: keine alte Warnung zeigen
-            gpsAn();
+        if (ausstehendesEnde != null) { endeHandler.removeCallbacks(ausstehendesEnde); ausstehendesEnde = null; }
+        boolean neu = !Z.laeuft;
+        if (neu) {
+            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; Z.gpsFehler = null; }   // neue Sitzung: keine alte Warnung
             takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000);
             wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
         }
+        synchronized (Z) { Z.laeuft = true; }
+        // am GPS-Zustand selbst festmachen, nicht an Z.laeuft: „Ziel erreicht“ schaltet GPS ab, bevor der Dienst endet
+        if (!gpsAktiv) gpsAn();
         synchronized (Z) {
-            Z.laeuft = true;
             if (Z.folgen && Z.folgenSeit == 0) {
                 Z.folgenSeit = System.currentTimeMillis();
                 Z.fortschritt = Double.NaN;
@@ -269,13 +273,24 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         String fehler = null;
         try {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 3, this, Looper.getMainLooper());
+            gpsAktiv = true;
         } catch (Exception e) {
             // Erlaubnis entzogen oder kein GPS: nicht still mit „Warte auf GPS …“ weiterlaufen, sondern anzeigen
             Log.e(TAG, "GPS nicht verfügbar", e);
             fehler = e instanceof SecurityException ? "Standort-Erlaubnis fehlt" : "GPS nicht verfügbar";
         }
         synchronized (Z) { Z.gpsFehler = fehler; }
-        if (fehler != null) { benachrichtigungAktualisieren(); if (Z.beiNeuem != null) Z.beiNeuem.run(); }
+        if (fehler != null) {
+            // sofort, ohne die 5-s-Drossel: ohne GPS kommt keine Position, die die Mitteilung später erneuert
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null && Z.laeuft) nm.notify(NR, benachrichtigung());
+            if (Z.beiNeuem != null) Z.beiNeuem.run();
+        }
+    }
+
+    private void gpsAus() {
+        if (lm != null) lm.removeUpdates(this);
+        gpsAktiv = false;
     }
 
     @Override
@@ -370,7 +385,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             sitzungSichern(this);
             if (Z.aufzeichnen) sagen("Ziel erreicht. Schön war's!");
             else {
-                if (lm != null) lm.removeUpdates(this);
+                gpsAus();
                 sagenDannBeenden("Ziel erreicht. Schön war's!");
             }
         }
@@ -501,6 +516,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             synchronized (Z) {
                 nr = ++Z.sicherNr;   // Reihenfolge der Stände: der Umplan-Faden und der Haupt-Faden sichern beide
                 o.put("unterbrochen", Z.unterbrochen);
+                o.put("gesichert", System.currentTimeMillis());
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
                 o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
@@ -586,13 +602,15 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         return new String(b, 0, n, StandardCharsets.UTF_8);
     }
 
-    /** Liegt eine Sitzung bereit, die Android im Hintergrund nicht fortsetzen durfte? */
-    static boolean unterbrochenGesichert(Context c) {
+    /** Seit wann liegt eine Sitzung bereit, die Android im Hintergrund nicht fortsetzen durfte? 0 = keine. */
+    static long unterbrochenSeit(Context c) {
         try {
             File f = new File(c.getFilesDir(), "sitzung.json");
-            return f.exists() && new JSONObject(dateiLesen(f)).optBoolean("unterbrochen", false);
+            if (!f.exists()) return 0;
+            JSONObject o = new JSONObject(dateiLesen(f));
+            return o.optBoolean("unterbrochen", false) ? o.optLong("gesichert", f.lastModified()) : 0;
         } catch (Exception e) {
-            return false;
+            return 0;
         }
     }
 
@@ -698,7 +716,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         synchronized (Z) { Z.gewitter = null; }
         takt.removeCallbacks(taktLauf);
         if (Z.aufzStart != 0) spurSichern(this);
-        if (lm != null) lm.removeUpdates(this);
+        gpsAus();
         synchronized (Z) { Z.laeuft = false; Z.folgenSeit = 0; }
         sitzungSichern(this);
         stopForeground(STOP_FOREGROUND_REMOVE);
@@ -711,7 +729,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         ausstehendesEnde = null;
         wetter.removeCallbacks(wetterLauf);
         takt.removeCallbacks(taktLauf);
-        if (lm != null) lm.removeUpdates(this);
+        gpsAus();
         if (Z.aufzStart != 0) spurSichern(this);
         synchronized (Z) { Z.laeuft = false; }
         if (tts != null) { tts.stop(); tts.shutdown(); }

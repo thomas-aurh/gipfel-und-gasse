@@ -227,6 +227,7 @@ if (NATIV) {
   Navi.status().then(st => {
     anzeigen(st);
     if (st.fortgesetzt) { reiter('unterwegs'); melde('Android hatte die App beendet: Navigation und Aufzeichnung laufen jetzt weiter.', 8); }
+    else if (st.unterbrochenAlt) { reiter('unterwegs'); melde('Android hatte die App unterwegs beendet. Die Navigation ist zu lange her und läuft nicht weiter; eine Aufzeichnung endet an der Unterbrechung.', 10); }
     else if (st.folgen || st.aufzeichnen) { reiter('unterwegs'); melde('Navigation läuft im Hintergrund weiter.'); }
     if (!st.aufzeichnen) {
       Navi.aufzeichnungHolen({ leeren: false }).then(r => {
