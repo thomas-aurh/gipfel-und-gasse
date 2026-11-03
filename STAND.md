@@ -88,8 +88,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Tagebuch im Gipfelbuch.
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
   (Liste je Punkt, UTC-Stunden, `elevation=nan`), im Browser und in der App aber nur mit nachgebildeter Antwort.
-- **Prüfdatum der Öffnungszeiten ohne Netz (#47):** steht erst in den Kartenpaketen ab dem Neubau nach #47; auf dem
-  Handy das Paket aktualisieren (Menü › Offline-Karten). Wie viele Orte `check_date` tragen, ist nicht gemessen.
+- **Prüfdatum der Öffnungszeiten ohne Netz (#47):** in den Kartenpaketen seit dem Bau vom 03.11. abends (von Hand
+  gestartet). Oberbayern gemessen: 3847 von 12 711 Orten mit Öffnungszeiten (30 %) tragen ein Prüfdatum, 886 davon älter
+  als 2 Jahre; Museen 28 %, Gasthäuser 33 %, Hütten 21 %. Datei 7,15 statt 7,10 MB. Auf dem Pixel nicht geprüft: das
+  Paket aktualisieren (Menü › Offline-Karten) und „Stand …“ in einem Ort-Fenster ohne Netz.
 
 ## Entscheidungen
 
