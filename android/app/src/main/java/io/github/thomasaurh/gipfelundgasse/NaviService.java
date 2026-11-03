@@ -54,6 +54,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         List<double[]> hinweise = new ArrayList<>(); // Abbiegehinweise {d, befehl, ausfahrt}
         boolean[] hinweisVorab = new boolean[0], hinweisJetzt = new boolean[0];
         List<String> stoppNamen = new ArrayList<>();
+        // Führung: Text je Stopp-Name (Kurzinfo aus Wikipedia), am Stopp statt „… erreicht“ vorgelesen; nach dem Namen, weil
+        // das Umplanen die Stopps aus den Zielen neu aufbaut
+        java.util.Map<String, String> stoppTexte = new java.util.HashMap<>();
         // Ziele nach dem Start {Breite, Länge, Meter ab Start, Minuten} mit Namen ("" = ohne) und BRouter-Profil fürs
         // Umplanen; ohne Profil (gerade Linie, GPX-Spur) wird nicht umgeplant
         List<double[]> ziele = new ArrayList<>();
@@ -343,7 +346,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
             if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
-            if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) { Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true; sagen(name + " erreicht."); }
+            if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
+                Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
+                String text = Z.stoppTexte.get(name);
+                sagen(text != null && !text.isEmpty() ? text : name + " erreicht.");
+            }
         }
         // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
         // zählt; folgt ihm der übernächste binnen 40 m, wird er angehängt („…, dann links abbiegen“) und nicht eigens angesagt.
@@ -539,6 +546,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     st.put(s);
                 }
                 o.put("stopps", st);
+                JSONObject tx = new JSONObject();
+                for (java.util.Map.Entry<String, String> e : Z.stoppTexte.entrySet()) tx.put(e.getKey(), e.getValue());
+                o.put("stoppTexte", tx);
                 JSONArray hw = new JSONArray();
                 for (double[] h : Z.hinweise) { JSONArray q = new JSONArray(); q.put(h[0]); q.put((int) h[1]); q.put((int) h[2]); hw.put(q); }
                 o.put("hinweise", hw);
@@ -640,6 +650,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     Z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
                     Z.stoppNamen.add(s.optString("name", "Stopp"));
                 }
+                Z.stoppTexte = new java.util.HashMap<>();
+                JSONObject tx = o.optJSONObject("stoppTexte");
+                if (tx != null) for (java.util.Iterator<String> it = tx.keys(); it.hasNext(); ) { String k = it.next(); Z.stoppTexte.put(k, tx.optString(k, "")); }
                 Z.hinweise = new ArrayList<>();
                 JSONArray hw = o.optJSONArray("hinweise");
                 if (hw != null) for (int i = 0; i < hw.length(); i++) {

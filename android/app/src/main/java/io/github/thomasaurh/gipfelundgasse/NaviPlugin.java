@@ -117,11 +117,16 @@ public class NaviPlugin extends Plugin {
             if (stopps != null) {
                 z.stopps = new ArrayList<>();
                 z.stoppNamen = new ArrayList<>();
+                z.stoppTexte = new java.util.HashMap<>();
                 for (int i = 0; i < stopps.length(); i++) {
                     JSONObject s = stopps.optJSONObject(i);
                     if (s == null) continue;
+                    String name = s.optString("name", "Stopp");
                     z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
-                    z.stoppNamen.add(s.optString("name", "Stopp"));
+                    z.stoppNamen.add(name);
+                    // Führung: höchstens rund 4000 Zeichen nimmt die Sprachausgabe auf einmal
+                    String text = s.optString("text", "");
+                    if (!text.isEmpty()) z.stoppTexte.put(name, text.length() > 3800 ? text.substring(0, 3800) : text);
                 }
             }
             JSArray hinweise = call.getArray("hinweise", null);

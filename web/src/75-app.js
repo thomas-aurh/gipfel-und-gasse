@@ -22,7 +22,11 @@ if (NATIV) {
     const out = [];
     S.wps.forEach((w, i) => {
       if (i === 0 || !w.name) return;
-      out.push({ d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0 });
+      // text: Führung, liest der Dienst am Stopp statt „… erreicht“ vor (auch bei gesperrtem Bildschirm)
+      const s = { d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0 };
+      const text = FUEHRUNG.get(fuehrungSchluessel(w));
+      if (text) s.text = text;
+      out.push(s);
     });
     return out;
   }
@@ -141,6 +145,7 @@ if (NATIV) {
     if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
     app.folgen = true;
     U.folgen = true; $('bOrt').classList.add('an');
+    await fuehrungLaden();   // Texte vorher holen: unterwegs ist oft kein Netz
     await senden(true).catch(() => {});
   };
 
