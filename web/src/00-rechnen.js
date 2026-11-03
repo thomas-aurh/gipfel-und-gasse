@@ -903,6 +903,41 @@ var R = (function () {
     return ['❔', 'unbekannt'];
   }
 
+  // Wetter für die Tour: eine Anfrage für mehrere Punkte (Start, höchster Punkt, Ziel je Tag), mit ihrer Höhe: Open-Meteo
+  // rechnet die Vorhersage auf diese Höhe um (sonst gälte die Geländehöhe des Rasters, am Gipfel oft Hunderte Meter tiefer)
+  const TOUR_WETTER = 'temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m';
+  function tourWetterUrl(punkte) {
+    const z = f => punkte.map(f).join(',');
+    // ohne eigene Höhe „nan“: dann nimmt Open-Meteo für diesen Punkt die Geländehöhe, die anderen behalten ihre
+    const hoehe = p => (p.ele != null && isFinite(p.ele) ? Math.round(p.ele) : 'nan');
+    return 'https://api.open-meteo.com/v1/forecast?latitude=' + z(p => p.lat.toFixed(4)) + '&longitude=' + z(p => p.lon.toFixed(4)) +
+      '&elevation=' + z(hoehe) + '&hourly=' + TOUR_WETTER + '&timeformat=unixtime&forecast_days=16';
+  }
+  // Werte der Stunde, in der man an diesem Ort ist; null außerhalb der Vorhersage
+  function wetterStunde(ort, t) {
+    const h = ort && ort.hourly;
+    if (!h || !Array.isArray(h.time)) return null;
+    const s = Math.floor(t / 1000);
+    let i = -1;
+    for (let k = 0; k < h.time.length; k++) if (h.time[k] <= s) i = k; else break;
+    if (i < 0 || s - h.time[i] >= 3600) return null;
+    const w = k => (Array.isArray(h[k]) && h[k][i] != null ? h[k][i] : null);
+    return { temp: w('temperature_2m'), regen: w('precipitation_probability'), code: w('weather_code'), wind: w('wind_speed_10m'), boe: w('wind_gusts_10m') };
+  }
+  // „⛅ heiter, 8 °C · Regen 20 % · Wind 25 km/h, Böen 45“ und Warnungen (Gewitter, Sturmböen, Frost)
+  function tourWetterText(w, vorbei) {
+    if (!w) return { text: vorbei ? 'liegt in der Vergangenheit' : 'außerhalb der Vorhersage (höchstens 16 Tage)', warn: [] };
+    const [zeichen, art] = wetterText(w.code), teile = [zeichen + ' ' + art];
+    if (w.temp != null) teile[0] += ', ' + Math.round(w.temp) + ' °C';
+    if (w.regen != null) teile.push('Regen ' + Math.round(w.regen) + ' %');
+    if (w.wind != null) teile.push('Wind ' + Math.round(w.wind) + ' km/h' + (w.boe != null ? ', Böen ' + Math.round(w.boe) : ''));
+    const warn = [];
+    if (+w.code >= 95) warn.push('Gewitter');
+    if (w.boe != null && w.boe >= 60) warn.push('Sturmböen');
+    if (w.temp != null && w.temp <= 0) warn.push('Frost');
+    return { text: teile.join(' · '), warn };
+  }
+
 
   // ---------- Stadt: Sehenswürdigkeiten im Kartenausschnitt ----------
   // min = vorgeschlagene Besichtigungszeit in Minuten, wenn der Ort als Stopp in die Tour kommt
@@ -1727,7 +1762,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

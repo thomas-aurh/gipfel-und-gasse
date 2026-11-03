@@ -41,8 +41,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); braucht die `https://`-Auslieferung.
-- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Wetter je Stunde
-  und am Gipfel; Blickrichtung des Standorts; Tourliste sortieren und filtern.
+- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Tourliste sortieren und filtern.
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
@@ -179,6 +178,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Wetter für die Tour: eine Open-Meteo-Anfrage für Start, höchsten Punkt (ab 100 m über den Enden) und Ziel,
+  je Tag bei Etappen, zur Stunde des Zeitplans und auf die Höhe der Punkte umgerechnet; Warnungen Gewitter, Sturmböen, Frost.
 
 - **03.11.** Mehrtagestour: Übernachtung an Zwischenzielen, Etappen je Tag (Strecke, Höhenmeter, Gehzeit, höchster Punkt,
   Ankunft gegen Sonnenuntergang), Ankunft an den Stopps je Tag, in Touren und Sicherung, als Reise ins Tagebuch.

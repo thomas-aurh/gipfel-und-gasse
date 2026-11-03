@@ -362,6 +362,7 @@ function zeitplanZeigen() {
   const probleme = start ? besuchProbleme() : 0;
   if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
   else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
+  if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;

@@ -36,6 +36,10 @@ Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder
 Tag beginnt zur selben Startzeit). „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.
 
+**Wetter für die Tour:** In *Planen* „🌦 Wetter für die Tour“: Vorhersage für Start, höchsten Punkt und Ziel (bei Etappen je
+Tag), jeweils für die Stunde, in der man laut Zeitplan dort ist, umgerechnet auf die Höhe des Punkts. Warnt bei Gewitter,
+Sturmböen (ab 60 km/h) und Frost. Ohne Startzeit rechnet die App ab 9 Uhr; bis 16 Tage voraus.
+
 **Reiseziele:** Menü ☰ › *Reiseziele*: Listen mit Zielen (Ort per Suche, Notiz, Link, Stichworte, Stand Idee/geplant/
 besucht), als ⭐ auf der Karte; Fenster mit Anreise, Wetter dort und „Als Stopp“. „📂 Datei laden“ liest Text (eine Zeile
 je Ziel, die App sucht den Ort), CSV (`Name;Ort;Notiz;Link`, auch mit `lat;lon`), GPX-Wegpunkte, KML aus Google My Maps
