@@ -57,9 +57,12 @@ import org.json.JSONObject;
 )
 public class NaviPlugin extends Plugin {
 
+    private Runnable beiNeuem;
+
     @Override
     public void load() {
-        NaviService.Z.beiNeuem = () -> getBridge().executeOnMainThread(() -> notifyListeners("position", stand()));
+        beiNeuem = () -> getBridge().executeOnMainThread(() -> notifyListeners("position", stand()));
+        NaviService.Z.beiNeuem = beiNeuem;
     }
 
     @PluginMethod
@@ -103,7 +106,9 @@ public class NaviPlugin extends Plugin {
                 }
                 NaviRechnen.Strecke neu = new NaviRechnen.Strecke(lat, lon, ele, lu);
                 neueGeometrie = !neu.gleich(z.strecke);
-                z.strecke = neu;
+                // gleiche Strecke: das alte Objekt behalten, sonst verwürfe eine laufende Umplanung ihr Ergebnis
+                // (sie prüft, ob noch dieselbe Strecke gilt)
+                if (neueGeometrie) z.strecke = neu;
             }
             JSArray stopps = call.getArray("stopps", null);
             int stoppsVorher = z.stopps.size();
@@ -204,7 +209,21 @@ public class NaviPlugin extends Plugin {
 
     @PluginMethod
     public void status(PluginCall call) {
-        call.resolve(stand());
+        // Android hat die App unterwegs beendet und der Dienst durfte im Hintergrund nicht neu starten: jetzt, mit
+        // offener App, die gesicherte Sitzung fortsetzen (aus dem Vordergrund ist der Start erlaubt)
+        NaviService.Zustand z = NaviService.Z;
+        Context c = getContext();
+        boolean fortgesetzt = false;
+        if (!z.laeuft && NaviService.unterbrochenGesichert(c) && getPermissionState("standort") == PermissionState.GRANTED) {
+            NaviService.sitzungLaden(c);
+            if (z.folgen || z.aufzeichnen) {
+                ContextCompat.startForegroundService(c, new Intent(c, NaviService.class));
+                fortgesetzt = true;
+            }
+        }
+        JSObject st = stand();
+        if (fortgesetzt) st.put("fortgesetzt", true);
+        call.resolve(st);
     }
 
     @PluginMethod
@@ -303,6 +322,8 @@ public class NaviPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         if (sprache != null) { sprache.shutdown(); sprache = null; }
+        // der Dienst läuft weiter, wenn die Activity geht: er darf sie samt WebView nicht über den Rückruf festhalten
+        if (NaviService.Z.beiNeuem == beiNeuem) NaviService.Z.beiNeuem = null;
         super.handleOnDestroy();
     }
 
@@ -397,6 +418,8 @@ public class NaviPlugin extends Plugin {
             o.put("folgen", z.folgen);
             o.put("aufzeichnen", z.aufzeichnen);
             if (z.gewitter != null && z.laeuft && (z.folgen || z.aufzeichnen)) o.put("gewitter", z.gewitter);
+            if (z.gpsFehler != null && z.laeuft) o.put("gpsFehler", z.gpsFehler);
+            if (z.spracheFehlt && z.laeuft && z.ansagen) o.put("spracheFehlt", true);
             Location l = z.letzte;
             if (l != null) {
                 o.put("lat", l.getLatitude());
