@@ -614,6 +614,9 @@ function pruef(name, bed, info) {
   await page.waitForTimeout(300);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
+  // GPS kam mit „Route folgen“ und geht mit dem Ende von Folgen und Aufzeichnen wieder aus (📍 nie angetippt)
+  pruef('GPS aus nach Folgen und Aufzeichnen', await page.evaluate(() => !document.querySelector('.ich') && document.querySelector('#gpsStatus').textContent === 'GPS aus.'),
+    await page.textContent('#gpsStatus'));
   // Gipfelbuch: die gespeicherte Aufzeichnung kam am Aufnahmegipfel vorbei (bis 50 m), am Fernberg nicht
   await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Gipfelbuch') || document.getElementById('meldung').textContent.includes('Wieder oben'), null, { timeout: 8000 }).catch(() => {});
   await zuSeite(page, 'gipfelbuch');
@@ -623,6 +626,15 @@ function pruef(name, bed, info) {
   await page.click('#gbSuchen');
   await page.waitForFunction(() => !document.getElementById('gbSuchen').disabled, null, { timeout: 8000 });
   pruef('Gipfelbuch: schon geprüfte Tour wird übersprungen, nichts doppelt', (await page.textContent('#gbStatus')).includes('schon durchsucht') && (await page.$$('#gbListe li')).length === 1, await page.textContent('#gbStatus'));
+  // mit 📍 eingeschaltet bleibt GPS nach dem Folgen an
+  const gpsBleibt = await page.evaluate(async () => {
+    const k = id => document.getElementById(id).click(), warte = ms => new Promise(r => setTimeout(r, ms));
+    k('bOrt'); await warte(300); k('bNavi'); await warte(300); k('bNavi'); await warte(200);
+    const an = !!document.querySelector('.ich') && document.querySelector('#gpsStatus').textContent !== 'GPS aus.';
+    k('bOrt'); await warte(100);   // Folgen war an: 📍 schaltet aus
+    return [an, document.querySelector('#gpsStatus').textContent];
+  });
+  pruef('GPS bleibt an, wenn es mit 📍 eingeschaltet war; 📍 schaltet aus', gpsBleibt[0] && gpsBleibt[1] === 'GPS aus.', gpsBleibt);
   await page.click('[data-reiter=touren]');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');

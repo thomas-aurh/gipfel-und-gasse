@@ -27,10 +27,12 @@ public class KartenServer extends BridgeWebViewClient {
     static final String PFAD = "/_karten_/";
 
     private final Context context;
+    private final Bridge bridge;
 
     public KartenServer(Bridge bridge) {
         super(bridge);
         this.context = bridge.getContext();
+        this.bridge = bridge;
     }
 
     /** Ordner der Kartenpakete (App-eigener Speicher, wird beim Deinstallieren gelöscht). */
@@ -45,6 +47,10 @@ public class KartenServer extends BridgeWebViewClient {
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
         String pfad = request.getUrl().getPath();
         if (pfad == null || !pfad.startsWith(PFAD)) return super.shouldInterceptRequest(view, request);
+        // nur für die eigene App-Adresse (https://localhost), nicht für eine fremde Seite mit demselben Pfad
+        if (!Bereich.eigeneAdresse(request.getUrl().getScheme(), request.getUrl().getHost(), bridge.getScheme(), bridge.getHost())) {
+            return text(403, "Forbidden", "Kartenserver: nur für die App");
+        }
         try {
             return liefern(pfad.substring(PFAD.length()), request.getRequestHeaders(),
                 Bereich.ausAdresse(request.getUrl().getQueryParameter("von"), request.getUrl().getQueryParameter("bis")));

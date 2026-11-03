@@ -33,6 +33,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
+- **Klicktest läuft nicht in GitHub Actions:** am 03.11. war `main` darum unbemerkt rot (Info-Fenster nach #50, behoben
+  in #51). Grün in Actions heißt nur Prüfung, Einheitstests und APK; vor jedem Merge mit Oberflächenänderung lokal
+  `node web/test/ui.js`. Den Klicktest in `app.yml` aufzunehmen ist nicht gebaut (braucht Chromium und die Testkarten).
 - **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
 - **Web mit den echten Diensten am PC geprüft (03.11., Browser über 127.0.0.1):** Karte, Routing über BRouter (mit
   Wegtypen, Untergrund und SAC-Stufe), Suche über Photon, Höhen. Overpass beantwortete das Info-Antippen an dem Abend
@@ -46,7 +49,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
-  ist (nicht geprüft); GPS bleibt nach „Folgen/Aufzeichnung beenden“ an, bis 📍 aus; BRouter-Grenze von drei
+  ist (nicht geprüft); BRouter-Grenze von drei
   gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
   unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
@@ -59,9 +62,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
 - **Klicktest „Reiseziele, Datei laden“ zeitabhängig:** fiel am 03.11. in 2 von rund 15 Läufen mit denselben 5 Prüfungen aus
-  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nicht an den Änderungen des Tages, nicht weiter untersucht.
-- **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
-  Harmlos, solange die WebView nur App-Inhalte lädt; die leere Offline-Karte ist seit #34 geklärt (Lesen über die Brücke), der Punkt kann jetzt angegangen werden.
+  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nachgemessen am 03.11. abends: 2 von 10 Läufen, beide Male
+  kam die zweite Ortssuche nie bei der Photon-Nachbildung an (10 statt 11 Anfragen), die Suchschleife in `zlImport`
+  (`web/src/67-ziele.js`) bleibt also vor dem Netz stehen oder steigt aus. Ursache nicht gefunden.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
@@ -83,8 +86,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Tagebuch im Gipfelbuch.
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
   (Liste je Punkt, UTC-Stunden, `elevation=nan`), im Browser und in der App aber nur mit nachgebildeter Antwort.
-- **Prüfdatum der Öffnungszeiten ohne Netz (#47):** steht erst in den Kartenpaketen ab dem Neubau nach #47; auf dem
-  Handy das Paket aktualisieren (Menü › Offline-Karten). Wie viele Orte `check_date` tragen, ist nicht gemessen.
+- **Prüfdatum der Öffnungszeiten ohne Netz (#47):** in den Kartenpaketen seit dem Bau vom 03.11. abends (von Hand
+  gestartet). Oberbayern gemessen: 3847 von 12 711 Orten mit Öffnungszeiten (30 %) tragen ein Prüfdatum, 886 davon älter
+  als 2 Jahre; Museen 28 %, Gasthäuser 33 %, Hütten 21 %. Datei 7,15 statt 7,10 MB. Auf dem Pixel nicht geprüft: das
+  Paket aktualisieren (Menü › Offline-Karten) und „Stand …“ in einem Ort-Fenster ohne Netz.
 
 ## Entscheidungen
 
@@ -94,7 +99,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Kartenpakete über die App-Brücke lesen** (03.11.): `Karten.lesen` liefert Stücke als Base64 (höchstens 8 MB je
   Stück), weil das WebView Bereiche aus `shouldInterceptRequest` ab der Dateimitte nicht auslieferte, weder mit
   Range-Kopfzeile noch über `?von=&bis=` (#32, verworfen). fetch bleibt für den Browser und als Vergleich in der Prüfung;
-  der Kartenserver bleibt für Orte-Datei und alte APKs. Overpass mit einem zweiten öffentlichen Server
+  der Kartenserver bleibt für Orte-Datei und alte APKs. Falle beim Messen: protomaps-leaflet malt bei Lesefehlern den
+  grauen Hintergrund und meldet die Kachel als geladen (Fehler nur in `console.error`), „geladen“ heißt also nicht
+  „gezeichnet“; Prüfung und Klicktest zählen darum Kacheln mit nur Hintergrund. Overpass mit einem zweiten öffentlichen Server
   (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
 - **Öffnungszeiten der Stopps gegen den Zeitplan** (03.11.): Quelle bleibt OpenStreetMap (`opening_hours`, mit dem
   Stopp gespeichert), kein zweiter Dienst. Abdeckung im Oberbayern-Paket gemessen: Hütten 21 %, Museen 58 %, Gasthäuser
@@ -182,6 +189,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **03.11. (abends)** `KartenServer` bedient `/_karten_/…` nur noch für die eigene App-Adresse (Schema und Host der
+  Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen
+  und Aufzeichnen wieder aus, wenn es nur dafür eingeschaltet war; mit 📍 eingeschaltet bleibt es an (Klicktest mit
+  Gegenprobe) (#53).
 - **03.11.** Offline-Karte: Kartendateien über die App-Brücke (`Karten.lesen`) statt über das WebView, Prüfung zählt
   Kacheln mit nur Hintergrund (#34). Von Thomas am 03.11. auf dem Pixel bestätigt (Bau 107): Karte zeichnet bei
   Penzberg und Innsbruck (liegt im Rechteck von „Oberbayern“, Südkante 47,25°); in Verona und Kempten (außerhalb der
@@ -194,7 +205,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Zeitplan mit erweitertem Leser (#40), Führung mit Wikipedia-Kurzinfo am Stopp (#41), Gipfelbuch (#42), Mehrtagestour
   mit Etappen (#43), Wetter für die Tour an Start, Gipfel und Ziel (#44). Abgleich der Öffnungszeiten OSM gegen Google
   an 30 Orten (#45, `docs/oeffnungszeiten-abgleich.md`), daraus Quelle, Prüfdatum und Links an den Zeiten (#46) und das
-  Prüfdatum im Kartenpaket (#47). Jeder PR vor dem Merge von einem unabhängigen Prüfer gelesen, Befunde behoben.
+  Prüfdatum im Kartenpaket (#47, Pakete am Abend neu gebaut, #52). Web-Seite über GitHub Pages (#49); Info-Fenster mit
+  „Diese Stelle in Google Maps“ als Ausweg, als Overpass ausfiel (#50). Jeder Feature-PR vor dem Merge von einem
+  unabhängigen Prüfer gelesen, Befunde behoben.
 
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt

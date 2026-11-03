@@ -62,6 +62,12 @@ public final class Bereich {
         }
     }
 
+    /** Kommt die Anfrage von der eigenen App-Adresse (Schema und Host wie die der Capacitor-Brücke)? */
+    public static boolean eigeneAdresse(String schema, String host, String appSchema, String appHost) {
+        return schema != null && host != null && appSchema != null && appHost != null
+            && schema.equalsIgnoreCase(appSchema) && host.equalsIgnoreCase(appHost);
+    }
+
     /** Erlaubte Pfadteile unter /_karten_/: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich (kein „..“). */
     public static boolean sichererName(String s) {
         return s != null && s.matches("[a-z0-9][a-z0-9.\\-]{0,80}") && !s.contains("..");
