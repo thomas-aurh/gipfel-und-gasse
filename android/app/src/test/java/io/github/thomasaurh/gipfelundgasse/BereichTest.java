@@ -77,4 +77,12 @@ public class BereichTest {
         try { Bereich.stueck(f, -1, 10); fail(); } catch (IllegalArgumentException e) { /* gut */ }
         try { Bereich.stueck(f, 0, Bereich.STUECK_MAX + 1); fail(); } catch (IllegalArgumentException e) { /* gut */ }
     }
+    @Test public void nurEigeneAdresse() {
+        assertTrue(Bereich.eigeneAdresse("https", "localhost", "https", "localhost"));
+        assertTrue(Bereich.eigeneAdresse("HTTPS", "LocalHost", "https", "localhost"));
+        assertFalse(Bereich.eigeneAdresse("https", "beispiel.de", "https", "localhost"));
+        assertFalse(Bereich.eigeneAdresse("http", "localhost", "https", "localhost"));
+        assertFalse(Bereich.eigeneAdresse(null, "localhost", "https", "localhost"));
+        assertFalse(Bereich.eigeneAdresse("https", null, "https", "localhost"));
+    }
 }

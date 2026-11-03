@@ -19,7 +19,19 @@ function gpsAn() {
   }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 });
   return true;
 }
+// GPS für Folgen oder Aufzeichnen: schaltet es eines davon ein, geht es mit dem Ende beider wieder aus; wer es über 📍
+// selbst eingeschaltet oder dort zum Mitziehen angetippt hat, behält es (Durchsicht 03.11.: GPS blieb bis 📍 aus an)
+function gpsFuer() {
+  const neu = U.watch == null;
+  if (!gpsAn()) return false;
+  if (neu) U.gpsNurFuer = true;
+  return true;
+}
+function gpsFreigeben() {
+  if (U.gpsNurFuer && !U.navi && !aufzLaeuft()) gpsAus();
+}
 function gpsAus() {
+  U.gpsNurFuer = false;
   if (U.watch != null) navigator.geolocation.clearWatch(U.watch);
   U.watch = null; U.folgen = false; U.ersterFix = true;
   ebeneIch.clearLayers(); ichMarke = ichKreis = null;
@@ -138,6 +150,7 @@ function sonnenHinweis(ankunft, lat, lon) {
 
 $('bOrt').onclick = () => {
   if (U.watch == null) { if (gpsAn()) { U.folgen = true; $('bOrt').classList.add('an'); } return; }
+  U.gpsNurFuer = false;   // 📍 angetippt: Standort ist gewollt, auch nach Folgen und Aufzeichnen
   if (!U.folgen) { U.folgen = true; $('bOrt').classList.add('an'); if (U.pos) karte.setView([U.pos.lat, U.pos.lon], Math.max(karte.getZoom(), 15)); return; }
   if (U.navi || aufzLaeuft()) { U.folgen = false; $('bOrt').classList.remove('an'); return; }
   gpsAus();
@@ -158,9 +171,9 @@ function aufzLaeuft() { return !!(U.aufz && U.aufz.laeuft); }
 $('bNavi').onclick = () => {
   setTimeout(gewitterPruefen, 60000);
   setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);
-  if (U.navi) { U.navi = false; fuehrungAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); return; }
+  if (U.navi) { U.navi = false; fuehrungAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); gpsFreigeben(); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
-  if (!gpsAn()) return;
+  if (!gpsFuer()) return;
   U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); U.vorgelesen = new Set(); $('bOrt').classList.add('an');
   fuehrungLaden();
   $('bNavi').textContent = '■ Folgen beenden';
@@ -253,9 +266,10 @@ $('bAufz').onclick = () => {
     $('bAufzSpeichern').disabled = U.aufz.pts.length < 2;
     if (!U.navi) wachHalten(false);
     aufzZahlen();
+    gpsFreigeben();
     return;
   }
-  if (!gpsAn()) return;
+  if (!gpsFuer()) return;
   U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0 };
   U.aufz.pause = R.autoPause(U.aufz.start, 0);
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
