@@ -14,6 +14,15 @@
       const links = window.innerWidth > 760 ? Math.max(0, $('panel').getBoundingClientRect().right - k.left) : 0;
       this.options.autoPanPaddingTopLeft = L.point(links + 10, Math.max(10, oben));
       this.options.autoPanPaddingBottomRight = L.point(62, blatt + 10);
+      // höchstens so hoch wie der freie Platz zwischen Suche und Blatt, der Inhalt scrollt dann: sonst kann die Karte das
+      // Fenster nicht ganz freischieben (am Telefon mit mittlerem Blatt und langer Liste, seit dem Google-Link aus #50)
+      if (this._contentNode && this._container) {
+        this._contentNode.style.maxHeight = ''; this._contentNode.style.overflowY = '';
+        const frei = k.height - Math.max(10, oben) - blatt - 10;
+        const rand = this._container.offsetHeight - this._contentNode.offsetHeight;
+        const hoch = Math.max(120, Math.floor(frei - rand));
+        if (this._contentNode.offsetHeight > hoch) { this._contentNode.style.maxHeight = hoch + 'px'; this._contentNode.style.overflowY = 'auto'; }
+      }
     }
     return alt.apply(this, arguments);
   };
