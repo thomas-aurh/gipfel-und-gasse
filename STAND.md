@@ -55,6 +55,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Hintergrund, Test rot). Nicht geprüft: auf dem Pixel, Tempo der Brücke bei vielen Kacheln. Nächster Schritt: APK aus dem
   Bau nach #34, Karte auf „Offline-Karte“, „🔍 Offline-Karte prüfen“; erwartet „Kacheln lesen über: App-Brücke“ und
   „Stück Mitte über Brücke … ✓“. Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
+- **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
+  und Salzburg“ steht in `karten/regionen.json`; die App zeigt ihn in Liste und Rahmen, sobald `pakete.json` neu gebaut
+  ist (von Hand: Actions › Kartenpakete › Run workflow, sonst am 3.12.). Die ID `oberbayern` bleibt, nichts muss neu
+  geladen werden. Rahmen auf dem Pixel nicht geprüft.
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -155,6 +159,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Rahmen der installierten Kartenpakete auf der Offline-Karte (gestrichelt, Name oben links), Paket
+  Oberbayern umbenannt, weil das Rechteck bis Innsbruck und Salzburg reicht (#36).
 
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt

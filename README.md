@@ -20,7 +20,7 @@ Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sic
 im Inhalt nach unten wischen, wenn er ganz oben steht.
 
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
-herunterladen (Oberbayern mit München, Allgäu und Bodensee; die Größe steht
+herunterladen (Oberbayern mit München, Innsbruck und Salzburg; Allgäu und Bodensee; die Größe steht
 in der Liste). Danach unter Kartenart und Ebenen (rechts an der Karte) „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
 schaltet die App selbst um. Auch Höhen für gerade Linien und GPX-Dateien kommen dann aus dem Paket. Enthält das Paket Routendaten,
 plant die App auch Routen ohne Netz (BRouter läuft im Handy). Mit der Orte-Datei des Pakets kommen „Orte entlang der Route“

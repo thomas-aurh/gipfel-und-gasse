@@ -320,9 +320,22 @@ function offlineEbenen() {
       ebene.on('tileload', () => { OFF.kachelnOk = (OFF.kachelnOk || 0) + 1; });
       return ebene;
     }));
+    paketRahmen();
     LAGEN.relief = new Relief({ maxZoom: 19, zIndex: 2, attribution: 'Höhen: Mapzen Terrain Tiles (SRTM, EU-DEM u. a.)' });
   }
   lagenAnwenden();
+}
+
+// Rahmen je installiertem Paket: gestrichelt, Name in der Ecke oben links; Name aus der Angebotsliste, sonst vom Paket
+function paketRahmen() {
+  ebenePaketRahmen.clearLayers();
+  for (const p of OFF.installiert) {
+    if (!p.bbox) continue;
+    const g = paketGrenzen(p), neu = ((OFF.verfuegbar && OFF.verfuegbar.pakete) || []).find(q => q.id === p.id);
+    L.rectangle(g, { className: 'paket-rahmen', color: '#2e7d32', weight: 2.5, opacity: 0.85, dashArray: '8 6', fill: false, interactive: false }).addTo(ebenePaketRahmen);
+    L.marker(g.getNorthWest(), { interactive: false, keyboard: false,
+      icon: L.divIcon({ className: 'paket-rahmen-name', html: '<span>🗺️ ' + R.esc((neu && neu.name) || p.name || p.id) + '</span>', iconSize: null, iconAnchor: [-4, -4] }) }).addTo(ebenePaketRahmen);
+  }
 }
 
 // ---------- Offline-Karte prüfen: misst auf dem Gerät, wo es hakt (Datei, Lesen in Teilen, Kopf, Kachel, Zeichnen) ----------
@@ -455,6 +468,7 @@ async function paketeLaden(mitListe) {
     OFF.frei = r.frei;
     if (r.fehler) $('paketStatus').textContent = r.fehler;
     if (vorher !== OFF.installiert.map(p => p.id + p.stand).join()) offlineEbenen();
+    else if (r.verfuegbar) paketRahmen();
     // letztes Paket gelöscht: gespeicherte Wahl „Offline-Karte“ zurück auf topografisch
     if (!OFF.installiert.length && lagenWahl.basis === 'offline') { lagenWahl.basis = 'topo'; lagenAnwenden(); }
     ohneNetzUmschalten();

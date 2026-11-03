@@ -75,6 +75,8 @@ const ebeneTagebuch = L.layerGroup();
 const ebeneZiele = L.layerGroup();   // Reiseziele (67-ziele.js)
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
 const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
+// Rahmen der installierten Kartenpakete (gefüllt in 58-offline.js), sichtbar bei gewählter Offline-Karte
+const ebenePaketRahmen = L.layerGroup();
 function lagenAnwenden() {
   // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen) oder Offline-Karte außerhalb jedes Pakets:
   // solange topografisch zeigen, Wahl behalten (zurück im Paketgebiet erscheint wieder die Offline-Karte)
@@ -83,6 +85,7 @@ function lagenAnwenden() {
   for (const k of DARUEBER) if (LAGEN[k]) { if (lagenWahl[k]) LAGEN[k].addTo(karte); else LAGEN[k].remove(); }
   // markiert bleibt die Wahl; zeigt die Karte stattdessen topografisch, sagt das der Hinweis darunter
   document.querySelectorAll('input[name=basis]').forEach(r => { r.checked = r.value === (LAGEN[lagenWahl.basis] ? lagenWahl.basis : basis); });
+  if (lagenWahl.basis === 'offline' && LAGEN.offline) ebenePaketRahmen.addTo(karte); else ebenePaketRahmen.remove();
   $('offlineAussen').hidden = !(lagenWahl.basis === 'offline' && basis !== 'offline' && LAGEN.offline);
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
