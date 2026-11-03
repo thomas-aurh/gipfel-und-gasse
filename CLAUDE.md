@@ -8,4 +8,5 @@ Geheimnisse, keine Schlüssel. Antworten auf Deutsch.
   (`.github/workflows/app.yml`), gebunden an den geprüften Commit.
 - Prüfen lokal: `sh web/pruefen.sh` und `node web/test/ui.js` (Klicktest, Dienste nachgebildet). Android-SDK und die
   Kartendienste sind in der Cloud-Umgebung gesperrt: Android baut und testet GitHub Actions.
-- Session-Abschluss: `STAND.md` und README nachziehen (wie der Skill `projekt-abschluss` in other-projects).
+- Session-Abschluss: Skill `projekt-abschluss` (`.claude/skills/`), nicht der globale `session-abschluss`. Pläne
+  vorher stress-testen: Skill `grill-me`.
