@@ -816,6 +816,15 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#ergebnis:not([hidden])');
   pruef('Tempo der Tour wiederhergestellt', (await page.inputValue('#tempowahl')) === '0.7');
   pruef('Gespeicherte Stopps mit Namen und Zeiten', (await page.$$('.wp-name')).length >= 4 && (await page.inputValue('#stopps select >> nth=1')) === '180');
+  // Öffnungszeiten der Stopps (aus OSM, mit der Tour gespeichert): mit Startzeit die Ankunft und „geöffnet?“
+  pruef('Stopps: ohne Startzeit der Hinweis im Zeitplan', (await page.textContent('#zeitplan')).includes('Mit Startzeit prüft die App'), await page.textContent('#zeitplan'));
+  await page.fill('#startZeit', '10:00');
+  await page.dispatchEvent('#startZeit', 'change');
+  const stoppText = await page.textContent('#stopps');
+  pruef('Stopps: Ankunft und geöffnet bei Ankunft', /an 1\d:\d\d Uhr/.test(stoppText) && stoppText.includes('durchgehend geöffnet'), stoppText);
+  await (await page.$('#stopps')).screenshot({ path: path.join(OUT, '9c-stopps-oeffnung.png') });
+  await page.fill('#startZeit', '');
+  await page.dispatchEvent('#startZeit', 'change');
   // Drucken: Druckdialog abfangen, die Rückkehr nach 500 ms aufhalten und die Seite als echtes PDF drucken
   await page.evaluate(() => {
     window.print = () => { window.__gedruckt = true; };

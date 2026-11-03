@@ -88,6 +88,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Range-Kopfzeile noch über `?von=&bis=` (#32, verworfen). fetch bleibt für den Browser und als Vergleich in der Prüfung;
   der Kartenserver bleibt für Orte-Datei und alte APKs. Overpass mit einem zweiten öffentlichen Server
   (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
+- **Öffnungszeiten der Stopps gegen den Zeitplan** (03.11.): Quelle bleibt OpenStreetMap (`opening_hours`, mit dem
+  Stopp gespeichert), kein zweiter Dienst. Abdeckung im Oberbayern-Paket gemessen: Hütten 21 %, Museen 58 %, Gasthäuser
+  58 %, Cafés 66 % mit Zeiten; Burgen, Kirchen und Bergbahnen kaum (unter 6 %). Der Leser versteht jetzt auch Saison
+  ohne Uhrzeit („Jun-Aug“), offenes Ende („11:30+“), Monate mit Doppelpunkt und Tage mit Datum („May 1-Sep 15“);
+  lesbar damit Hütten 90 %, Museen 78 %, Gasthäuser 97 %. Feiertage bleiben außen vor (steht im Text dazu).
 - **Orte-Infos** (02.11.): Öffnungszeiten mit eigenem kleinem Leser (Wochentage, Monate, Zeiten, `;` und `,`), alles
   andere bleibt Rohtext; verworfen die Bibliothek opening_hours.js (groß, für eine HTML-Datei zu schwer). Anreise über die
   dokumentierte URL-Schnittstelle von Google Maps (öffnet am Telefon die App, rechnet Bus und Bahn); verworfen Links zu
@@ -165,6 +170,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Öffnungszeiten gegen den Zeitplan: Stopps nehmen Öffnungszeiten und Wikipedia aus OSM mit (auch in
+  gespeicherten Touren und der Sicherung); mit Startzeit Ankunft je Stopp und „geöffnet / knapp / geschlossen“, Hinweis
+  im Zeitplan. Leser für Öffnungszeiten um Saison, offenes Ende, Monate mit Doppelpunkt und Tage mit Datum erweitert.
 
 - **03.11.** Code-Durchsicht, Android-Teil: Neustart nach Prozess-Tod stürzt nicht mehr ab und wartet nicht endlos auf
   GPS, sondern meldet „Navigation unterbrochen“ und setzt beim Öffnen der App fort; `sitzung.json` und

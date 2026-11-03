@@ -379,7 +379,7 @@ pruef('Öffnung: spätere Regel ersetzt den Tag', oj('Mo-Fr 08:00-12:00; We off'
 pruef('Öffnung: Komma-Regel kommt dazu', oj('Mo-Fr 10:00-18:00, Sa 10:00-14:00', '2026-11-07T11:00').text === 'geöffnet bis 14:00');
 pruef('Öffnung: Feiertage genannt, nicht ausgewertet', oj('Mo-Fr 10:00-18:00; PH off', '2026-11-02T12:00').text === 'geöffnet bis 18:00 (Feiertage nicht berücksichtigt)');
 pruef('Öffnung: 24/7 und durchgehend', oj('24/7', '2026-11-02T03:00').text === 'rund um die Uhr geöffnet' && oj('Mo-Su 00:00-24:00', '2026-11-02T12:00').text === 'durchgehend geöffnet');
-pruef('Öffnung: Unverstandenes bleibt unbekannt', ['sunrise-sunset', 'Mo-Fr 10:00+', 'Dec 24 off', '2026 Mo-Fr 10:00-12:00', 'Mo[1] 10:00-12:00', '', null, 'nach Vereinbarung']
+pruef('Öffnung: Unverstandenes bleibt unbekannt', ['sunrise-sunset', 'Dec 24 off', '2026 Mo-Fr 10:00-12:00', 'Mo[1] 10:00-12:00', '', null, 'nach Vereinbarung']
   .every(x => R.oeffnungJetzt(x, new Date('2026-11-02T12:00')).zustand === 'unbekannt'));
 // Wikipedia: Quelle aus OSM, Wikidata-Sitelinks, Kurzfassung
 pruef('Wiki: Titel aus OSM', JSON.stringify(R.wikiQuelle({ wikipedia: 'de:Kloster Benediktbeuern' })) === '{"sprache":"de","titel":"Kloster_Benediktbeuern"}' &&
@@ -466,6 +466,26 @@ pruef('Ziele: offenes Anführungszeichen behält die Spalten', csvOffen.suche ==
 pruef('Ziele: Komma ohne Kopfzeile bleibt Suchbegriff', R.zieleLesen('Lindau, Bodensee', 't.txt').ziele[0].suche === 'Lindau, Bodensee');
 pruef('Öffnung: Zusatzregel „, We off“ schließt', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00').zustand === 'zu', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00'));
 pruef('Öffnung: Zusatzregel ergänzt weiter Zeiten', oj('Mo 10:00-12:00, Mo 14:00-16:00', '2026-11-02T15:00').zustand === 'offen');
+
+// Öffnungszeiten: Formen aus den Kartenpaketen (Saison, offenes Ende, Monate mit Doppelpunkt, Tage mit Datum)
+pruef('Öffnung: offenes Ende', oj('Mo-Su 11:30+', '2026-11-04T12:00').text === 'geöffnet (Ende offen)' && oj('Mo-Su 11:30+', '2026-11-04T10:00').text === 'geschlossen, öffnet um 11:30');
+pruef('Öffnung: Saison ohne Uhrzeit', oj('Jun-Aug', '2026-07-08T12:00').zustand === 'offen' && oj('Jun-Aug', '2026-11-04T12:00').text === 'geschlossen, außerhalb der Saison');
+pruef('Öffnung: Monate mit Doppelpunkt', oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-11-04T12:00').text === 'geöffnet bis 15:00' &&
+  oj('Apr-Oct: Mo-Su 10:00-16:00; Nov-Mar: Mo-Su 11:00-15:00', '2026-07-08T12:00').text === 'geöffnet bis 16:00');
+pruef('Öffnung: Zeitraum mit Tagen', oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-12T12:00').zustand === 'offen' && oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-08T12:00').zustand === 'zu' &&
+  oj('May 09-Oct 18 Tu-Su 10:00-22:00', '2026-05-11T12:00').zustand === 'zu');
+pruef('Öffnung: Zeitraum über den Jahreswechsel', oj('Dec 20-Jan 10 10:00-16:00', '2027-01-05T12:00').zustand === 'offen' && oj('Dec 20-Jan 10 10:00-16:00', '2027-02-05T12:00').zustand === 'zu');
+// Besuch: Ankunft und Aufenthalt gegen die Öffnungszeiten
+const ob = (oh, t, min) => R.oeffnungBesuch(oh, new Date(t), min);
+pruef('Besuch: offen', ob('Mo-Fr 10:00-18:00', '2026-11-04T14:00', 60).zustand === 'offen' && ob('Mo-Fr 10:00-18:00', '2026-11-04T14:00', 60).text === 'bei Ankunft geöffnet, bis 18:00');
+pruef('Besuch: schließt während des Besuchs', ob('Mo-Fr 10:00-18:00', '2026-11-04T17:30', 60).zustand === 'knapp', ob('Mo-Fr 10:00-18:00', '2026-11-04T17:30', 60));
+pruef('Besuch: öffnet kurz nach der Ankunft', ob('Mo-Fr 10:00-18:00', '2026-11-04T09:45', 30).text === 'öffnet erst um 10:00');
+pruef('Besuch: geschlossen, öffnet später', ob('Mo-Fr 10:00-12:00,14:00-18:00', '2026-11-04T12:30', 30).text === 'bei Ankunft geschlossen, öffnet 14:00');
+pruef('Besuch: Ruhetag', ob('Tu-Su 10:00-17:00', '2026-11-02T12:00', 30).text === 'bei Ankunft geschlossen, an dem Tag nicht mehr');
+pruef('Besuch: außerhalb der Saison', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30).text === 'bei Ankunft geschlossen (außerhalb der Saison)', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30));
+pruef('Besuch: durchgehend und bis Mitternacht', ob('Mo-Su 00:00-24:00', '2026-11-04T10:00', 60).text === 'durchgehend geöffnet' &&
+  ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60).text === 'bei Ankunft geöffnet, bis 24:00', ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60));
+pruef('Besuch: unbekannt', ob('nach Vereinbarung', '2026-11-04T12:00', 30).zustand === 'unbekannt');
 
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

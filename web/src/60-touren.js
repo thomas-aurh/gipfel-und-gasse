@@ -29,7 +29,7 @@ function tourSpeichern() {
     // erneutes Speichern behält das ursprüngliche Datum (Statistik je Jahr)
     name, datum: ((liste.find(t => t.id === (S.tourId || '')) || {}).datum) || new Date().toISOString(),
     profil: S.profil, tempo: S.tempo, pace: S.pace,
-    wps: S.fest ? null : S.wps.map(w => (w.name || w.min) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0] : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
+    wps: S.fest ? null : S.wps.map(w => (w.name || w.min || w.info) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0].concat(w.info ? [w.info] : []) : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
     zeit: S.fest ? null : zeitplanLesen(),
     spur: spurPacken(e.pts),
@@ -72,7 +72,7 @@ function tourOeffnen(id) {
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
     S.fest = null;
-    S.wps = t.wps.map(w => w.length > 2 ? { lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 } : { lat: w[0], lon: w[1] });
+    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}) : { lat: w[0], lon: w[1] });
     if (t.modus) modusSetzen(t.modus, { karte: true });
     S.stuecke = planEntpacken(S.wps, S.profil, t.spur, t.stuecke);
     S.stueckeFuer = stueckSignatur();
