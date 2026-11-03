@@ -825,6 +825,16 @@ function pruef(name, bed, info) {
   await (await page.$('#stopps')).screenshot({ path: path.join(OUT, '9c-stopps-oeffnung.png') });
   await page.fill('#startZeit', '');
   await page.dispatchEvent('#startZeit', 'change');
+  // Führung: beim Losgehen die Kurzinfos der Stopps mit Wikipedia-Artikel laden (Stopps aus der Stadt-Liste bringen ihn mit)
+  await page.click('[data-reiter=unterwegs]');
+  await page.check('#fuehrung');
+  await page.click('#bNavi');
+  await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Führung:'), null, { timeout: 12000 }).catch(() => {});
+  const fuehrungMeldung = await page.textContent('#meldung');
+  pruef('Führung: Texte der Stopps geladen', /Führung: Texte für [1-9]\d* von [1-9]\d* Stopps geladen/.test(fuehrungMeldung), fuehrungMeldung);
+  await page.click('#bNavi');
+  await page.uncheck('#fuehrung');
+  await page.click('[data-reiter=planen]');
   // Drucken: Druckdialog abfangen, die Rückkehr nach 500 ms aufhalten und die Seite als echtes PDF drucken
   await page.evaluate(() => {
     window.print = () => { window.__gedruckt = true; };

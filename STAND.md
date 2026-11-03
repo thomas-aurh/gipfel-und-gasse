@@ -51,6 +51,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
   unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
   `adb shell am kill io.github.thomasaurh.gipfelundgasse` im Hintergrund beenden, Mitteilung antippen.
+- **Führung (03.11.) nicht auf dem Gerät geprüft:** Vorlesen der Kurzinfo am Stopp bei gesperrtem Bildschirm (Dienst),
+  Länge der Ansage, echte Wikipedia-Antworten (im Klicktest nachgebildet). Im Browser nur der Ladevorgang geprüft, das
+  Vorlesen am Stopp braucht echtes GPS.
 - **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
   Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
@@ -171,6 +174,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **03.11.** Führung: Schalter „🎧 Führung“ unter Unterwegs; beim Losgehen lädt die App die Wikipedia-Kurzinfos der
+  Stopps (höchstens 10 s), am Stopp liest sie Name und Kurzinfo vor (gekürzt auf rund eine Minute). In der App spricht
+  der Dienst, auch bei gesperrtem Bildschirm; die Texte überstehen Umplanen und Neustart.
 - **03.11.** Öffnungszeiten gegen den Zeitplan: Stopps nehmen Öffnungszeiten und Wikipedia aus OSM mit (auch in
   gespeicherten Touren und der Sicherung); mit Startzeit Ankunft je Stopp und „geöffnet / knapp / geschlossen“, Hinweis
   im Zeitplan. Leser für Öffnungszeiten um Saison, offenes Ende, Monate mit Doppelpunkt und Tage mit Datum erweitert.

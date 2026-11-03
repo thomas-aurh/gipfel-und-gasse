@@ -158,10 +158,11 @@ function aufzLaeuft() { return !!(U.aufz && U.aufz.laeuft); }
 $('bNavi').onclick = () => {
   setTimeout(gewitterPruefen, 60000);
   setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);
-  if (U.navi) { U.navi = false; $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); return; }
+  if (U.navi) { U.navi = false; fuehrungAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
   if (!gpsAn()) return;
-  U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); $('bOrt').classList.add('an');
+  U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); U.vorgelesen = new Set(); $('bOrt').classList.add('an');
+  fuehrungLaden();
   $('bNavi').textContent = '■ Folgen beenden';
   wachHalten(true);
   if (U.pos) naviNeu();
@@ -198,8 +199,49 @@ function naviNeu() {
       U.gewarnt = true;
     }
   } else { U.abseitsSeit = 0; U.gewarnt = false; $('abseits').hidden = true; }
+  // Führung: am Stopp (30 m) einmal die Kurzinfo vorlesen
+  if (FUEHRUNG.size && lage.abw < 40 && e.stueckEnde && !S.fest) S.wps.forEach((w, i) => {
+    const k = fuehrungSchluessel(w), text = i > 0 && FUEHRUNG.get(k), d = e.stueckEnde[i - 1];
+    if (text && d != null && !U.vorgelesen.has(k) && Math.abs(d - lage.d) <= 30) { U.vorgelesen.add(k); sagenBrowser(text); }
+  });
   if (rest.meter < 30 && lage.abw < 40 && lage.d > e.laenge / 2 && Date.now() - U.naviStart > 60000) { melde('Ziel erreicht. Schön war’s!', 6); $('bNavi').click(); }
 }
+
+// ---------- Führung: Kurzinfo aus Wikipedia an den Stopps ----------
+// Die Texte kommen vor dem Losgehen (mit Netz); unterwegs liest die App sie am Stopp vor, in der Android-App auch bei
+// gesperrtem Bildschirm (der Dienst bekommt sie mit den Stopps). Schlüssel: Name und Ort des Stopps, damit ein
+// umsortierter oder verschobener Stopp seinen Text behält und kein anderer ihn bekommt.
+const FUEHRUNG = new Map();
+const fuehrungSchluessel = w => (w.name || '') + '@' + w.lat.toFixed(4) + ',' + w.lon.toFixed(4);
+$('fuehrung').checked = SPEICHER.lesen('fuehrung', false);
+$('fuehrung').onchange = e => { SPEICHER.schreiben('fuehrung', e.target.checked); if (!e.target.checked) fuehrungAus(); };
+let fuehrungNr = 0;   // jedes Laden zählt: eine späte Antwort eines früheren Ladens schreibt nicht mehr hinein
+async function fuehrungLaden() {
+  const nr = ++fuehrungNr;
+  FUEHRUNG.clear();
+  if (!$('fuehrung').checked || S.fest) return;
+  const n = S.wps.length, rund = n > 2 && R.abstand(S.wps[0], S.wps[n - 1]) < 30;
+  const auftraege = [];
+  let ohneText = 0, fehler = 0;
+  S.wps.forEach((w, i) => {
+    // nur Stopps mit Namen (die App kennt nur solche); Start und Rückkehr zum Start nicht
+    if (i === 0 || (rund && i === n - 1) || !w.info || !w.name) return;
+    const q = R.wikiQuelle({ wikipedia: w.info.wp, wikidata: w.info.wd });
+    if (q) auftraege.push(wikiHolen(q).then(k => {
+      if (nr !== fuehrungNr) return;
+      if (k && k.text) FUEHRUNG.set(fuehrungSchluessel(w), R.fuehrungText(w.name, k.text)); else ohneText++;
+    }).catch(() => { fehler++; }));
+  });
+  if (!auftraege.length) { melde('Führung: Keiner der Stopps hat einen Wikipedia-Artikel. Stopps aus „Entdecken“ oder der Stadt-Liste bringen ihn mit.', 7); return; }
+  // nicht ewig warten: ohne Netz geht die Navigation trotzdem los, nur ohne Texte
+  await Promise.race([Promise.all(auftraege), new Promise(r => setTimeout(r, 10000))]);
+  if (nr !== fuehrungNr) return;
+  const fehlt = auftraege.length - FUEHRUNG.size - ohneText;
+  melde('Führung: Texte für ' + FUEHRUNG.size + ' von ' + auftraege.length + ' Stopps geladen' +
+    (ohneText ? ', ' + ohneText + ' ohne Kurzinfo' : '') + (fehlt > 0 ? ', ' + fehlt + ' nicht erreichbar (Netz)' : '') + '.', 6);
+}
+// Führung beim Beenden oder Abschalten verwerfen: kein Vorlesen mehr, auch nicht aus einem noch laufenden Laden
+function fuehrungAus() { fuehrungNr++; FUEHRUNG.clear(); }
 
 // ---------- Aufzeichnen ----------
 $('bAufz').onclick = () => {

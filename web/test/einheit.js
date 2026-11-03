@@ -498,6 +498,11 @@ pruef('Besuch: Ruhetag', ob('Tu-Su 10:00-17:00', '2026-11-02T12:00', 30).text ==
 pruef('Besuch: außerhalb der Saison', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30).text === 'bei Ankunft geschlossen (außerhalb der Saison)', ob('May-Oct 10:00-17:00', '2026-11-04T12:00', 30));
 pruef('Besuch: durchgehend und bis Mitternacht', ob('Mo-Su 00:00-24:00', '2026-11-04T10:00', 60).text === 'durchgehend geöffnet' &&
   ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60).text === 'bei Ankunft geöffnet, bis 24:00', ob('Mo-Su 18:00-24:00', '2026-11-04T20:00', 60));
+// Führung: Text am Stopp
+const langerText = Array.from({ length: 60 }, (_, i) => 'Satz Nummer ' + i + ' über die Burg.').join(' ');
+const ft = R.fuehrungText('Alte Burg', langerText);
+pruef('Führung: Name zuerst, gekürzt am Satzende', ft.startsWith('Alte Burg erreicht. Satz Nummer 0') && ft.length <= 1200 + 20 && ft.endsWith('.'), ft.length);
+pruef('Führung: kurzer Text bleibt ganz', R.fuehrungText('Kirche', 'Eine  Kirche.\n') === 'Kirche erreicht. Eine Kirche.');
 pruef('Besuch: unbekannt', ob('nach Vereinbarung', '2026-11-04T12:00', 30).zustand === 'unbekannt');
 
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');

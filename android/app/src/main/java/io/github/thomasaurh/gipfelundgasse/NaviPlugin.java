@@ -115,13 +115,23 @@ public class NaviPlugin extends Plugin {
             JSArray stopps = call.getArray("stopps", null);
             int stoppsVorher = z.stopps.size();
             if (stopps != null) {
+                // neue Navigation: Texte der vorigen weg (sonst läse die Führung sie weiter, auch wenn sie jetzt aus ist)
+                if (call.getBoolean("folgen", z.folgen) && !z.folgen) z.stoppTexte = new java.util.HashMap<>();
                 z.stopps = new ArrayList<>();
                 z.stoppNamen = new ArrayList<>();
+                z.stoppOrte = new ArrayList<>();
                 for (int i = 0; i < stopps.length(); i++) {
                     JSONObject s = stopps.optJSONObject(i);
                     if (s == null) continue;
+                    String name = s.optString("name", "Stopp");
                     z.stopps.add(new double[] { s.optDouble("d", 0), s.optDouble("min", 0) });
-                    z.stoppNamen.add(s.optString("name", "Stopp"));
+                    z.stoppNamen.add(name);
+                    String ort = s.has("lat") && s.has("lon") ? NaviService.ortSchluessel(s.optDouble("lat"), s.optDouble("lon")) : "";
+                    z.stoppOrte.add(ort);
+                    // Führung: höchstens rund 4000 Zeichen nimmt die Sprachausgabe auf einmal. Ohne Text bleibt ein schon
+                    // bekannter stehen (die App nach einem Neustart kennt die Texte nicht mehr, der Dienst schon)
+                    String text = s.optString("text", "");
+                    if (!text.isEmpty() && !ort.isEmpty()) z.stoppTexte.put(ort, text.length() > 3800 ? text.substring(0, 3800) : text);
                 }
             }
             JSArray hinweise = call.getArray("hinweise", null);
