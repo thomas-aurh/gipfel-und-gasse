@@ -1102,8 +1102,9 @@ var R = (function () {
     const trenner = zeilen[0].includes('\t') ? '\t' : zeilen[0].includes(';') ? ';'
       : /^"?(name|titel|ziel)"?\s*,/i.test(zeilen[0]) ? ',' : null;
     // Felder in Anführungszeichen dürfen den Trenner enthalten: "Café; Bar";Lindau
+    const ohneQ = x => x.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
     const teile = z => {
-      if (!trenner) return [z];
+      if (!trenner) return [ohneQ(z)];
       const out = [];
       let feld = '', inQ = false;
       for (let i = 0; i < z.length; i++) {
@@ -1116,6 +1117,8 @@ var R = (function () {
         else if (c === trenner) { out.push(feld.trim()); feld = ''; }
         else feld += c;
       }
+      // nicht geschlossenes Anführungszeichen: lieber einfach am Trenner teilen als die Spalten verlieren
+      if (inQ) return z.split(trenner).map(ohneQ);
       out.push(feld.trim());
       return out;
     };

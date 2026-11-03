@@ -63,6 +63,7 @@ function tourOeffnen(id) {
   if (!t) return;
   const pts = spurEntpacken(t.spur);
   lauf++;   // eine noch laufende Berechnung darf die geöffnete Tour nicht überschreiben
+  S.rechnet = false;   // sie setzt das selbst nicht mehr zurück
   S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name; zeitplanSetzen(t.zeit);
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
@@ -90,7 +91,7 @@ function tourOeffnen(id) {
 
 // feste Spur (GPX oder Aufzeichnung) anzeigen
 function spurAnzeigen(pts, name, art) {
-  lauf++;
+  lauf++; S.rechnet = false;
   S.verlauf = [];
   S.wps = []; S.fest = { pts, art: art || 'spur', abschnitte: [] };
   S.stuecke = [{ pts, abschnitte: [], quelle: 'spur' }];

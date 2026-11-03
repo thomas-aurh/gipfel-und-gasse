@@ -460,6 +460,9 @@ const csvQ = R.zieleLesen('"Café; Bar";Lindau;"sagt ""hallo"""', 'q.csv').ziele
 pruef('Ziele: Trenner in Anführungszeichen', csvQ.name === 'Café; Bar' && csvQ.suche === 'Lindau' && csvQ.notiz === 'sagt "hallo"', csvQ);
 const csvK = R.zieleLesen('name,lat,lon\nZugspitze,47.42,10.98', 'k.csv').ziele;
 pruef('Ziele: Komma-CSV mit Kopfzeile', csvK.length === 1 && csvK[0].name === 'Zugspitze' && csvK[0].lat === 47.42, csvK);
+pruef('Ziele: Zeile in Anführungszeichen ohne Trenner', R.zieleLesen('"Lindau, Bodensee"', 't.txt').ziele[0].name === 'Lindau, Bodensee');
+const csvOffen = R.zieleLesen('"Café;Lindau;Notiz', 'o.csv').ziele[0];
+pruef('Ziele: offenes Anführungszeichen behält die Spalten', csvOffen.suche === 'Lindau' && csvOffen.notiz === 'Notiz', csvOffen);
 pruef('Ziele: Komma ohne Kopfzeile bleibt Suchbegriff', R.zieleLesen('Lindau, Bodensee', 't.txt').ziele[0].suche === 'Lindau, Bodensee');
 pruef('Öffnung: Zusatzregel „, We off“ schließt', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00').zustand === 'zu', oj('Mo-Fr 10:00-18:00, We off', '2026-11-04T12:00'));
 pruef('Öffnung: Zusatzregel ergänzt weiter Zeiten', oj('Mo 10:00-12:00, Mo 14:00-16:00', '2026-11-02T15:00').zustand === 'offen');
