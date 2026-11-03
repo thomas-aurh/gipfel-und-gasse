@@ -48,12 +48,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
   ist (nicht geprüft); GPS bleibt nach „Folgen/Aufzeichnung beenden“ an, bis 📍 aus; BRouter-Grenze von drei
   gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
-- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Android):** Dienst-Neustart nach Prozess-Tod im
-  Hintergrund (`startForeground` ab Android 12/14 nicht erlaubt ⇒ Absturz oder „Warte auf GPS“); `sitzung.json` wird
-  nicht atomar und von zwei Fäden geschrieben; „Ziel erreicht“ kann eine binnen 10 s neu gestartete Navigation
-  beenden; statisches `Z.beiNeuem` hält die Activity fest; Ansagen gehen still verloren, wenn die Sprachausgabe nicht
-  startet; GPS-Fehler nur im Protokoll; `KartenServer` prüft den Host nicht; `fehlerJe` ohne Synchronisation;
-  `Os.symlink` scheitert an einem alten Verweis (EEXIST).
+- **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
+  unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
+  `adb shell am kill io.github.thomasaurh.gipfelundgasse` im Hintergrund beenden, Mitteilung antippen.
+- **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
+  Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
@@ -166,6 +165,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   GitHub Pages aus diesem öffentlichen Repo möglich.
 
 ## Erledigt
+
+- **03.11.** Code-Durchsicht, Android-Teil: Neustart nach Prozess-Tod stürzt nicht mehr ab und wartet nicht endlos auf
+  GPS, sondern meldet „Navigation unterbrochen“ und setzt beim Öffnen der App fort; `sitzung.json` und
+  `aufzeichnung.json` werden sicher ersetzt (daneben schreiben, sync, umbenennen) und ein älterer Stand überschreibt
+  keinen neueren; „Ziel erreicht“ beendet keine gerade neu gestartete Navigation; GPS- und Sprachausfall werden in
+  Mitteilung und App gemeldet; Activity wird nicht mehr festgehalten; gleiche Route verwirft keine laufende Umplanung;
+  Paketfehler threadsicher; alter Verweis kippt das Offline-Routing nicht.
 
 - **03.11.** Code-Durchsicht, Web-Teil behoben: Höhenmeter, Steigung und Rest unterwegs zählen den Sprung zwischen
   GPX-Abschnitten nicht mehr (Seilbahn ergab bis zu 1000 Hm zu viel); Umkehren einer Spur hält die Abschnitte; Knöpfe

@@ -113,6 +113,11 @@ if (NATIV) {
     }
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);
     gewitterZeigen(st.gewitter || null);
+    // Ausfälle des Dienstes einmal je Art melden: ohne GPS oder Sprachausgabe gibt es keine Warnung abseits der Route
+    const ausfall = st.gpsFehler ? st.gpsFehler + ': die Navigation bekommt keinen Standort. In den Android-Einstellungen prüfen.'
+      : st.spracheFehlt ? 'Die Sprachausgabe von Android startet nicht: es kommen keine Ansagen und keine Abseits-Warnung.' : '';
+    if (ausfall && ausfall !== app.ausfall) melde(ausfall, 10);
+    app.ausfall = ausfall;
     if (st.aufz) {
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
       // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt
@@ -221,7 +226,9 @@ if (NATIV) {
   // Nach dem Öffnen der App: läuft der Dienst schon (z. B. nach dem Wischen aus der Übersicht)?
   Navi.status().then(st => {
     anzeigen(st);
-    if (st.folgen || st.aufzeichnen) { reiter('unterwegs'); melde('Navigation läuft im Hintergrund weiter.'); }
+    if (st.fortgesetzt) { reiter('unterwegs'); melde('Android hatte die App beendet: Navigation und Aufzeichnung laufen jetzt weiter.', 8); }
+    else if (st.unterbrochenAlt) { reiter('unterwegs'); melde('Android hatte die App unterwegs beendet. Die Navigation ist zu lange her und läuft nicht weiter; eine Aufzeichnung endet an der Unterbrechung.', 10); }
+    else if (st.folgen || st.aufzeichnen) { reiter('unterwegs'); melde('Navigation läuft im Hintergrund weiter.'); }
     if (!st.aufzeichnen) {
       Navi.aufzeichnungHolen({ leeren: false }).then(r => {
         if (r.spur && r.spur.length > 1) {
