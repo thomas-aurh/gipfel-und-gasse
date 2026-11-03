@@ -591,5 +591,11 @@ pruef('Quelle: Stand und „alt“ ab zwei Jahren', R.ohStand('2021-06-04', new 
 pruef('Quelle: Google mit Adresse, sonst Name an der Stelle', R.googleOrtLink('Hütte', 'Weg 1, 83671 Ort', 47, 11).endsWith(encodeURIComponent('Hütte, Weg 1, 83671 Ort')) &&
   R.googleOrtLink('Hütte', '', 47.123456, 11.5).startsWith('https://www.google.com/maps/search/H%C3%BCtte/@47.12346,11.50000,17z'));
 
+pruef('Quelle: erstes gültiges Datum, nur das Jahr mit Warnung, Monat 13 ungültig',
+  R.ohDatum({ 'check_date:opening_hours': '2023', check_date: '2024-05-01' }) === '2023' && R.ohDatum({ 'check_date:opening_hours': 'bald', check_date: '2024-05-01' }) === '2024-05-01' &&
+  R.ohStand('2019', new Date('2026-11-03')).text === 'Stand 2019' && R.ohStand('2019', new Date('2026-11-03')).alt && R.ohStand('2023-13-01', new Date()) === null);
+pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website: 'www.museum.de' }).web === 'https://www.museum.de' &&
+  R.stoppInfo({ website: 'museum', 'contact:website': 'https://kontakt.example' }).web === 'https://kontakt.example');
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

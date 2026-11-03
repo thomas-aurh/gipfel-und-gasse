@@ -143,7 +143,7 @@ function ortPopup(o, kat, lage) {
 // Öffnungszeiten: Stand jetzt farbig (geöffnet, schließt bald, geschlossen), darunter der Eintrag aus OSM mit Prüfdatum
 function oeffnungHtml(roh, tags) {
   const j = R.oeffnungJetzt(roh, new Date());
-  const stand = tags ? R.ohStand(tags['check_date:opening_hours'] || tags.check_date, new Date()) : null;
+  const stand = tags ? R.ohStand(R.ohDatum(tags), new Date()) : null;
   const quelle = ' (laut OpenStreetMap' + (stand ? ', ' + stand.text + (stand.alt ? ' ⚠️ über 2 Jahre alt' : '') : '') + ')';
   if (j.zustand === 'unbekannt') return 'Geöffnet: ' + R.esc(roh) + '<span class="klein">' + R.esc(quelle) + '</span>';
   return '<span class="oh oh-' + j.zustand + '">● ' + R.esc(j.text.charAt(0).toUpperCase() + j.text.slice(1)) + '</span><br><span class="klein">' + R.esc(roh + quelle) + '</span>';
