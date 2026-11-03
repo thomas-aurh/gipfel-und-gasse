@@ -46,7 +46,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
-  ist (nicht geprüft); GPS bleibt nach „Folgen/Aufzeichnung beenden“ an, bis 📍 aus; BRouter-Grenze von drei
+  ist (nicht geprüft); BRouter-Grenze von drei
   gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
   unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
@@ -59,9 +59,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
 - **Klicktest „Reiseziele, Datei laden“ zeitabhängig:** fiel am 03.11. in 2 von rund 15 Läufen mit denselben 5 Prüfungen aus
-  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nicht an den Änderungen des Tages, nicht weiter untersucht.
-- **`KartenServer` prüft den Host nicht** (bewusst noch nicht geändert): jede Anfrage auf `/_karten_/…` wird bedient.
-  Harmlos, solange die WebView nur App-Inhalte lädt; erst anfassen, wenn die leere Offline-Karte (unten) geklärt ist.
+  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nachgemessen am 03.11. abends: 1 von 4 Läufen, dabei
+  kam die zweite Ortssuche nie bei der Photon-Nachbildung an (10 statt 11 Anfragen), die Suchschleife in `zlImport`
+  (`web/src/67-ziele.js`) bleibt also vor dem Netz stehen oder steigt aus. Ursache nicht gefunden.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Offline-Karte leer auf dem Pixel (02.11. Bau 98, 03.11. nach #32 weiter grau, Thomas):** Kopf und Lesen ab Byte 0
@@ -188,6 +188,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **03.11. (abends)** `KartenServer` bedient `/_karten_/…` nur noch für die eigene App-Adresse (Schema und Host der
+  Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen
+  und Aufzeichnen wieder aus, wenn es nur dafür eingeschaltet war; mit 📍 eingeschaltet bleibt es an (Klicktest mit
+  Gegenprobe) (#53).
 
 - **03.11.** Code-Durchsicht mit Prüfern: Web (#38, u. a. Seilbahn-Sprung zählte bis 1000 Hm, Import-Parser) und
   Android (#39, Neustart nach Prozess-Tod, sicheres Schreiben der Sitzung). Neu: Öffnungszeiten der Stopps gegen den
