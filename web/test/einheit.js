@@ -540,5 +540,35 @@ pruef('Gipfelbuch: Gipfel ohne gültigen Besuch fällt weg, way mit eigener Kenn
 pruef('Gipfelbuch: Besuche ohne Tour nach dem Tag unterschieden', R.gipfelBesuchGleich({ tour: '', datum: '2026-01-01' }, { tour: '', datum: '2026-01-02' }) === false &&
   R.gipfelBesuchGleich({ tour: 't1', datum: 'a' }, { tour: 't1', datum: 'b' }) === true);
 
+// Mehrtagestour: Etappen an den Übernachtungen
+const etPts = []; for (let i = 0; i <= 30; i++) etPts.push({ lat: 47 + i * 0.001, lon: 11, ele: i <= 10 ? 500 + i * 50 : i <= 20 ? 1000 - (i - 10) * 30 : 700 + (i - 20) * 20 });
+R.laengen(etPts);
+const etSe = [etPts[10].d, etPts[20].d, etPts[30].d];
+const et = R.etappen(etPts, etSe, [{}, { name: 'Hütte', nacht: true }, { name: 'Alm' }, {}], 1, 'fuss');
+pruef('Etappen: an der Übernachtung geteilt', et.length === 2 && et[0].bis === 1 && et[1].von === 1 && et[1].bis === 3, et);
+pruef('Etappen: Höhenmeter und höchster Punkt je Tag', et[0].auf === 500 && et[0].ab === 0 && et[0].hoch === 1000 && et[1].auf === 200 && et[1].ab === 300 && et[1].hoch === 1000, et.map(s => [s.auf, s.ab, s.hoch]));
+pruef('Etappen: Strecke und Gehzeit wie zwei einzelne Touren', Math.abs(et[0].meter + et[1].meter - etPts[30].d) < 1 &&
+  Math.abs(et[0].zeit - R.zeitFuer('fuss', et[0].meter, 500, 0, 1)) < 1e-9, et.map(s => s.zeit));
+pruef('Etappen: ohne Übernachtung keine, Ziel und Start zählen nicht', R.etappen(etPts, etSe, [{ nacht: true }, {}, {}, { nacht: true }], 1, 'fuss') === null);
+// Zeit ab der Übernachtung für sich gerechnet (die Formel ist nicht additiv): steiler Tag 1, flacher Tag 2
+{
+  const p = []; for (let i = 0; i <= 30; i++) p.push({ lat: 47 + i * 0.0003, lon: 11, ele: 500 + i * 33.3 });
+  for (let i = 1; i <= 120; i++) p.push({ lat: 47 + 30 * 0.0003 + i * 0.001, lon: 11, ele: 1500 });
+  R.laengen(p);
+  const se = [p[30].d, p[150].d], st = R.etappen(p, se, [{}, { name: 'Hütte', nacht: true }, {}], 1, 'fuss');
+  const zw = R.zeitZwischen(p, st[1].vonD, se[1], 1, 'fuss'), diff = R.zeitBis(p, se[1], 1, 'fuss') - R.zeitBis(p, se[0], 1, 'fuss');
+  pruef('Etappen: Zeit des zweiten Tages für sich, nicht als Differenz', Math.abs(zw - st[1].zeit) < 1e-9 && Math.abs(diff - st[1].zeit) > 0.5, [zw, st[1].zeit, diff]);
+}
+// Lücke genau an der Etappengrenze: der Punkt hinter dem Sprung gehört zum nächsten Tag
+{
+  const p = [{ lat: 47, lon: 11, ele: 500 }, { lat: 47.01, lon: 11, ele: 900 }, { lat: 47.5, lon: 11.5, ele: 2000, luecke: true }, { lat: 47.51, lon: 11.5, ele: 2100 }];
+  R.laengen(p);
+  const st = R.etappen(p, [p[1].d, p[3].d], [{}, { nacht: true }, {}], 1, 'fuss');
+  pruef('Etappen: Punkt hinter der Lücke an der Grenze gehört zu Tag 2', st[0].hoch === 900 && st[0].ziel.lat === 47.01 && st[1].auf === 100, st.map(s => [s.hoch, s.auf, s.ziel && s.ziel.lat]));
+}
+const etTour = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', version: 1, touren: [{ id: 't1', name: 'x', datum: '2026-07-10T08:00:00Z', spur: [[47, 11], [47.1, 11], [47.2, 11]], art: 'plan',
+  wps: [[47, 11], [47.1, 11, 'Hütte', 0, 0, 1], [47.2, 11]], stuecke: [{ n: 2, q: 'linie', a: [] }, { n: 2, q: 'linie', a: [] }], kurz: { laenge: 1, auf: 0, ab: 0, zeit: 1 } }] }))[0];
+pruef('Etappen: Tour aus der Sicherung behält die Übernachtung', etTour && JSON.stringify(etTour.wps[1]) === JSON.stringify([47.1, 11, 'Hütte', 0, 0, 1]), etTour && etTour.wps);
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

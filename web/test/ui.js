@@ -522,6 +522,49 @@ function pruef(name, bed, info) {
 
   // Unterwegs: Route folgen mit GPS
   await page.click('#bNeu');
+  // Mehrtagestour: am Zwischenziel übernachten teilt die Tour in Etappen, je Tag mit Zeitplan; bleibt beim Speichern; als Reise ins Tagebuch
+  await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76500_11.39000~47.77000_11.40000'; });
+  await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3 && !document.getElementById('ergebnis').hidden, null, { timeout: 8000 });
+  await page.click('[data-reiter=planen]');
+  // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
+  await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Hier übernachten')).click());
+  await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
+  const etText = await page.textContent('#etappen');
+  pruef('Etappen: zwei Tage mit Strecke und Höhenmetern', etText.includes('Tag 1') && etText.includes('Tag 2') && etText.includes('🛏') && /↑ \d+ m/.test(etText), etText);
+  pruef('Etappen: Zeitplan nennt die Etappen', (await page.textContent('#zeitplan')).includes('2 Etappen'), await page.textContent('#zeitplan'));
+  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  await page.fill('#startZeit', '09:00'); await page.dispatchEvent('#startZeit', 'change');
+  const etPlan = await page.textContent('#etappen');
+  pruef('Etappen: mit Startzeit Ankunft und Sonnenuntergang je Tag, zweiter Tag am Folgetag', etPlan.includes('Fr., 10.7.') && etPlan.includes('Sa., 11.7.') && (etPlan.match(/Ankunft etwa/g) || []).length === 2, etPlan);
+  await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
+  await page.fill('#tourname', 'Hüttentour');
+  await page.click('#bSpeichern');
+  await page.click('#bNeu');
+  await page.click('[data-reiter=touren]');
+  await page.click('#tourliste li:has-text("Hüttentour") .was');
+  await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
+  pruef('Etappen: gespeicherte Tour behält die Übernachtung', (await page.textContent('#etappen')).includes('Tag 2'));
+  await page.click('#bEtappenReise');
+  pruef('Etappen: als Reise ins Tagebuch (zwei Tage)', (await page.textContent('#seitenTitel')) === 'Reisetagebuch' && (await page.textContent('#tbTitel')).includes('Hüttentour'), await page.textContent('#tbTitel'));
+  // aufräumen: Testreise und Testtour wieder weg (spätere Tests erwarten ein leeres Tagebuch)
+  await page.click('#tbZurueck');
+  await page.evaluate(() => {
+    const tb = JSON.parse(localStorage.getItem('gug.tagebuch')); tb.reisen = tb.reisen.filter(r => r.name !== 'Hüttentour'); localStorage.setItem('gug.tagebuch', JSON.stringify(tb));
+    const to = JSON.parse(localStorage.getItem('gug.touren')); localStorage.setItem('gug.touren', JSON.stringify(to.filter(t => t.name !== 'Hüttentour')));
+  });
+  await page.click('[data-reiter=planen]');
+  // Ziel entfernen: die Übernachtung läge jetzt am Ziel und wird gestrichen (sonst käme sie mit einem neuen Ziel zurück)
+  await page.evaluate(() => document.querySelectorAll('.wp')[2].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Punkt entfernen")', { timeout: 5000 });
+  await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Punkt entfernen')).click());
+  await page.waitForFunction(() => document.getElementById('etappen').hidden && ![...document.querySelectorAll('.wp-name')].some(x => x.textContent.includes('🛏')), null, { timeout: 5000 }).catch(() => {});
+  pruef('Etappen: Übernachtung am Ziel wird gestrichen', await page.isHidden('#etappen') && (await page.textContent('#meldung')).includes('Übernachtung lag jetzt am Ziel') &&
+    !(await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' '))).includes('🛏'), [await page.isHidden('#etappen'), await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | ')), (await page.textContent('#etappen')).slice(0, 80)]);
+  await page.click('#bNeu');
+  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
+  await page.fill('#startZeit', ''); await page.dispatchEvent('#startZeit', 'change');
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.77000_11.40000'; });
   await page.waitForSelector('#ergebnis:not([hidden])');
   await page.click('[data-reiter=unterwegs]');

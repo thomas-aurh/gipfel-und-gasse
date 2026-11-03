@@ -411,11 +411,22 @@ var R = (function () {
   }
 
   // Zeit (Stunden) vom Start bis Meter d: dieselbe Formel wie die ganze Strecke, auf das Stück davor angewandt
-  function zeitBis(pts, d, tempo, art) {
-    const teil = pts.filter(p => p.d <= d);
+  function zeitBis(pts, d, tempo, art) { return zeitZwischen(pts, 0, d, tempo, art); }
+  // Zeit (Stunden) für das Stück von Meter a bis b, für sich gerechnet (Etappe, Weg bis zum Stopp ab der Übernachtung):
+  // die Gehzeitformel ist nicht additiv, die Differenz zweier Gesamtzeiten wäre falsch
+  function zeitZwischen(pts, a, b, tempo, art) {
+    const teil = etappenStueck(pts, a, b);
     if (teil.length < 2) return 0;
     const hm = hoehenmeterSpur(teil);
-    return zeitFuer(art, Math.min(d, teil[teil.length - 1].d), hm.auf, hm.ab, tempo);
+    return zeitFuer(art, Math.max(0, Math.min(b, teil[teil.length - 1].d) - Math.max(a, teil[0].d)), hm.auf, hm.ab, tempo);
+  }
+  // Punkte von Meter a bis b; der erste Punkt beginnt nie mit einem Sprung, und ein Punkt hinter einer Lücke genau an der
+  // Grenze (gleiches d) gehört schon zum nächsten Stück
+  function etappenStueck(pts, a, b) {
+    const teil = pts.filter(p => p.d >= a - 0.01 && p.d <= b + 0.01);
+    while (teil.length > 1 && teil[teil.length - 1].luecke) teil.pop();
+    if (teil.length && teil[0].luecke) teil[0] = Object.assign({}, teil[0], { luecke: false });
+    return teil;
   }
 
   // was ein Stopp aus OSM mitnimmt: Öffnungszeiten (Zeitplan-Prüfung) und Wikipedia (Vorlesen unterwegs)
@@ -426,6 +437,31 @@ var R = (function () {
     if (typeof tags.wikipedia === 'string' && tags.wikipedia.length <= 200) o.wp = tags.wikipedia;
     if (typeof tags.wikidata === 'string' && /^Q\d{1,12}$/.test(tags.wikidata)) o.wd = tags.wikidata;
     return Object.keys(o).length ? o : null;
+  }
+
+  // Mehrtagestour: an Wegpunkten mit Übernachtung (w.nacht, nicht Start und Ziel) in Etappen teilen. Je Etappe Strecke,
+  // Höhenmeter, Gehzeit (dieselbe Formel wie die ganze Tour, auf das Stück angewandt) und höchster Punkt; null ohne Übernachtung.
+  // stueckEnde[i-1] = Meter ab Start, an dem Wegpunkt i liegt
+  function etappen(pts, stueckEnde, wps, tempo, art) {
+    const n = wps.length;
+    if (!stueckEnde || stueckEnde.length !== n - 1) return null;
+    const grenzen = [];
+    for (let i = 1; i < n - 1; i++) if (wps[i].nacht) grenzen.push(i);
+    if (!grenzen.length) return null;
+    const aus = [];
+    let vonI = 0, vonD = 0;
+    for (const bisI of grenzen.concat([n - 1])) {
+      const bisD = stueckEnde[bisI - 1];
+      const teil = etappenStueck(pts, vonD, bisD);
+      const hm = hoehenmeterSpur(teil);
+      let hoch = null;
+      for (const p of teil) if (p.ele != null && (hoch == null || p.ele > hoch)) hoch = p.ele;
+      const meter = Math.max(0, bisD - vonD);
+      aus.push({ von: vonI, bis: bisI, vonD, bisD, meter, auf: hm.auf, ab: hm.ab, hoch: hoch == null ? null : Math.round(hoch),
+        zeit: zeitFuer(art, meter, hm.auf, hm.ab, tempo), ziel: teil.length ? teil[teil.length - 1] : null });
+      vonI = bisI; vonD = bisD;
+    }
+    return aus;
   }
 
   // Text der Führung am Stopp: Name, dann die Kurzinfo, höchstens etwa 1200 Zeichen und am Satzende gekürzt
@@ -719,7 +755,8 @@ var R = (function () {
         const p = [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)];
         // fünfter Wert: Öffnungszeiten und Wikipedia des Stopps aus OSM (nur bekannte Felder, geprüft)
         const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? stoppInfo({ opening_hours: w[4].oh, wikipedia: w[4].wp, wikidata: w[4].wd }) : null;
-        if (info) p.push(info);
+        if (info || w[5] === 1) p.push(info || 0);
+        if (w[5] === 1) p.push(1);   // sechster Wert: Übernachtung (Mehrtagestour)
         wps.push(p);
       }
     }
@@ -1690,7 +1727,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };
