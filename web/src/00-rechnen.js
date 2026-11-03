@@ -428,6 +428,31 @@ var R = (function () {
     return Object.keys(o).length ? o : null;
   }
 
+  // Mehrtagestour: an Wegpunkten mit Übernachtung (w.nacht, nicht Start und Ziel) in Etappen teilen. Je Etappe Strecke,
+  // Höhenmeter, Gehzeit (dieselbe Formel wie die ganze Tour, auf das Stück angewandt) und höchster Punkt; null ohne Übernachtung.
+  // stueckEnde[i-1] = Meter ab Start, an dem Wegpunkt i liegt
+  function etappen(pts, stueckEnde, wps, tempo, art) {
+    const n = wps.length;
+    if (!stueckEnde || stueckEnde.length !== n - 1) return null;
+    const grenzen = [];
+    for (let i = 1; i < n - 1; i++) if (wps[i].nacht) grenzen.push(i);
+    if (!grenzen.length) return null;
+    const aus = [];
+    let vonI = 0, vonD = 0;
+    for (const bisI of grenzen.concat([n - 1])) {
+      const bisD = stueckEnde[bisI - 1];
+      const teil = pts.filter(p => p.d >= vonD - 0.01 && p.d <= bisD + 0.01);
+      const hm = hoehenmeterSpur(teil.map((p, k) => (k === 0 ? Object.assign({}, p, { luecke: false }) : p)));
+      let hoch = null;
+      for (const p of teil) if (p.ele != null && (hoch == null || p.ele > hoch)) hoch = p.ele;
+      const meter = Math.max(0, bisD - vonD);
+      aus.push({ von: vonI, bis: bisI, vonD, bisD, meter, auf: hm.auf, ab: hm.ab, hoch: hoch == null ? null : Math.round(hoch),
+        zeit: zeitFuer(art, meter, hm.auf, hm.ab, tempo), ziel: teil.length ? teil[teil.length - 1] : null });
+      vonI = bisI; vonD = bisD;
+    }
+    return aus;
+  }
+
   // Text der Führung am Stopp: Name, dann die Kurzinfo, höchstens etwa 1200 Zeichen und am Satzende gekürzt
   // (eine Minute Vorlesen; die Sprachausgabe von Android nimmt ohnehin nur rund 4000 Zeichen auf einmal)
   function fuehrungText(name, text) {
@@ -719,7 +744,8 @@ var R = (function () {
         const p = [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)];
         // fünfter Wert: Öffnungszeiten und Wikipedia des Stopps aus OSM (nur bekannte Felder, geprüft)
         const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? stoppInfo({ opening_hours: w[4].oh, wikipedia: w[4].wp, wikidata: w[4].wd }) : null;
-        if (info) p.push(info);
+        if (info || w[5] === 1) p.push(info || 0);
+        if (w[5] === 1) p.push(1);   // sechster Wert: Übernachtung (Mehrtagestour)
         wps.push(p);
       }
     }
@@ -1690,7 +1716,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };
