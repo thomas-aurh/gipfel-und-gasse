@@ -370,6 +370,8 @@ function pruef(name, bed, info) {
     !/query=\d/.test(gLink), gLink);
   await page.click('.leaflet-popup button:has-text("Liste")');
   pruef('Info: zurück zur Liste', (await page.$$('.info-liste button')).length === 2);
+  const gStelle = await page.evaluate(() => { const a = [...document.querySelectorAll('.leaflet-popup a')].find(x => x.textContent.includes('Diese Stelle in Google Maps')); return a && a.href; });
+  pruef('Info: jede Stelle auch in Google Maps (Ausweg, wenn Overpass ausfällt)', !!gStelle && /query=\d+\.\d+%2C\d+\.\d+/.test(gStelle), gStelle);
   // als Reiseziel merken: Formular mit Name und Ort aus dem Info-Fenster
   await page.click('.info-liste button >> nth=0');
   await page.click('.leaflet-popup button:has-text("Merken")');
