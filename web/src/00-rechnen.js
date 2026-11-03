@@ -1378,10 +1378,12 @@ var R = (function () {
   }
 
   // ---------- Gipfelbuch: erreichte Gipfel aus gegangenen Touren ----------
-  // Overpass: benannte Gipfel im Umkreis der Spur
-  function gipfelAbfrage(pts, radius) {
-    const ll = ausduennen(pts, 250).map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join(',');
-    return '[out:json][timeout:25];node["natural"="peak"]["name"](around:' + radius + ',' + ll + ');out 200;';
+  // Overpass: benannte Gipfel im Umkreis der Spur. Die Spur wird auf 100 m ausgedünnt; der Radius muss die Lücke plus die
+  // 50 m für „erreicht“ abdecken, sonst fehlt der Gipfel am Umkehrpunkt (er liegt zwischen zwei behaltenen Punkten)
+  const GIPFEL_RADIUS = 160;
+  function gipfelAbfrage(pts) {
+    const ll = ausduennen(pts, 100).map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join(',');
+    return '[out:json][timeout:25];node["natural"="peak"]["name"](around:' + GIPFEL_RADIUS + ',' + ll + ');out 200;';
   }
   // erreicht = die Spur kommt bis auf `radius` Meter an den Gipfel (GPS und Kartenpunkt liegen oft 10–30 m auseinander)
   function gipfelErreicht(spur, elemente, radius) {
@@ -1393,7 +1395,7 @@ var R = (function () {
       if (abstandZurLinie(spur, lat, lon) > radius) continue;
       ids.add(e.id);
       const ele = parseFloat(String(t.ele || '').replace(',', '.'));
-      aus.push({ id: 'n' + e.id, name: String(t.name).slice(0, 120), ele: isFinite(ele) ? Math.round(ele) : null, lat: +lat.toFixed(5), lon: +lon.toFixed(5) });
+      aus.push({ id: ({ way: 'w', relation: 'r' }[e.type] || 'n') + e.id, name: String(t.name).slice(0, 120), ele: isFinite(ele) ? Math.round(ele) : null, lat: +lat.toFixed(5), lon: +lon.toFixed(5) });
     }
     return aus;
   }
@@ -1403,20 +1405,24 @@ var R = (function () {
     for (const g of gefunden) {
       let e = buch.gipfel[g.id];
       if (!e) { e = buch.gipfel[g.id] = { name: g.name, ele: g.ele, lat: g.lat, lon: g.lon, besuche: [] }; neu.push(g); }
-      if (!e.besuche.some(b => b.tour === besuch.tour)) e.besuche.push({ datum: besuch.datum, tour: besuch.tour, name: besuch.name });
+      if (!e.besuche.some(b => gipfelBesuchGleich(b, besuch))) e.besuche.push({ datum: besuch.datum, tour: besuch.tour, name: besuch.name });
       e.besuche.sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
     }
     return neu;
   }
-  // Gipfelbuch aus Speicher oder Sicherung prüfen: nur bekannte Felder, Kennungen n<Zahl>
+  function gipfelBesuchGleich(a, b) { return a.tour === b.tour && (a.tour !== '' || a.datum === b.datum); }
+  // Gipfelbuch aus Speicher oder Sicherung prüfen: nur bekannte Felder, Kennungen n/w/r<Zahl>, nur Gipfel mit gültigem
+  // Besuch (ein Gipfel ohne Besuch hätte die Seite angehalten). geprueft: Touren, die schon durchsucht sind
   function gipfelbuchPruefen(roh) {
-    const buch = { gipfel: {} };
+    const buch = { gipfel: {}, geprueft: [] };
+    if (roh && Array.isArray(roh.geprueft)) buch.geprueft = roh.geprueft.filter(x => typeof x === 'string' && x.length <= 64).slice(-5000);
     const g = roh && typeof roh === 'object' ? roh.gipfel : null;
     if (!g || typeof g !== 'object' || Array.isArray(g)) return buch;
     for (const [id, e] of Object.entries(g)) {
-      if (!/^n\d{1,15}$/.test(id) || !e || typeof e.name !== 'string' || !zielOrt(e.lat, e.lon)) continue;
+      if (!/^[nwr]\d{1,15}$/.test(id) || !e || typeof e.name !== 'string' || !zielOrt(e.lat, e.lon)) continue;
       const besuche = (Array.isArray(e.besuche) ? e.besuche : []).filter(b => b && typeof b.datum === 'string' && !isNaN(Date.parse(b.datum)))
         .slice(0, 500).map(b => ({ datum: b.datum.slice(0, 40), tour: typeof b.tour === 'string' ? b.tour.slice(0, 64) : '', name: typeof b.name === 'string' ? b.name.slice(0, 120) : '' }));
+      if (!besuche.length) continue;
       buch.gipfel[id] = { name: e.name.slice(0, 120), ele: typeof e.ele === 'number' && isFinite(e.ele) ? Math.round(e.ele) : null, lat: e.lat, lon: e.lon, besuche };
     }
     return buch;
@@ -1684,7 +1690,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, stoppInfo, fuehrungText, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

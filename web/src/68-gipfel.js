@@ -7,22 +7,30 @@ function gipfelbuchSchreiben(buch) {
   return false;
 }
 
-// Gipfel an einer Spur: ohne Netz aus der Orte-Datei des Pakets, sonst Overpass
+// Gipfel an einer Spur: ohne Netz aus der Orte-Datei des Pakets (nur benannte Gipfel im Rahmen der Spur, ohne die
+// Obergrenze aller Orte, an der sonst Haltestellen und Parkplätze die Gipfel verdrängen), sonst Overpass
 async function gipfelAnSpur(pts) {
   if (pts.length < 2) return [];
-  const off = await orteOffline(pts, 120);
-  if (off) return R.gipfelErreicht(pts, off.elements);
-  const j = await overpassHolen(R.gipfelAbfrage(pts, 120), 30);
+  const ps = await ortePakete(pts, R.GIPFEL_RADIUS);
+  if (ps) {
+    const [s, w, n, o] = R.streckenRahmen(pts, 100), els = [];
+    for (const p of ps) for (const e of (await orteLaden(p)).orte) {
+      const t = e[3];
+      if (t && t.natural === 'peak' && t.name && e[0] >= s && e[0] <= n && e[1] >= w && e[1] <= o) els.push(R.ortElement(e));
+    }
+    return R.gipfelErreicht(pts, els);
+  }
+  const j = await overpassHolen(R.gipfelAbfrage(pts), 30);
   return R.gipfelErreicht(pts, j.elements || []);
 }
 
 // eine gegangene Tour ins Gipfelbuch; liefert { gefunden, neu }
 async function gipfelFuerTour(t) {
   const gefunden = await gipfelAnSpur(spurEntpacken(t.spur));
-  if (!gefunden.length) return { gefunden, neu: [] };
   const buch = gipfelbuchLesen();
-  const neu = R.gipfelbuchDazu(buch, gefunden, { datum: t.datum, tour: t.id, name: t.name });
-  gipfelbuchSchreiben(buch);
+  const neu = gefunden.length ? R.gipfelbuchDazu(buch, gefunden, { datum: t.datum, tour: t.id, name: t.name }) : [];
+  if (!buch.geprueft.includes(t.id)) buch.geprueft.push(t.id);
+  if (!gipfelbuchSchreiben(buch)) throw new Error('Speicher voll');
   return { gefunden, neu };
 }
 
@@ -62,20 +70,29 @@ function gipfelbuchZeigen() {
 }
 
 // alle gegangenen Touren (neu) durchsuchen, z. B. nach dem Laden einer Sicherung oder für Touren von vor dem Gipfelbuch
+// (schon geprüfte Touren überspringt es; zwischen zwei Anfragen an Overpass eine Pause, bei „zu viele Anfragen“ Schluss)
 $('gbSuchen').onclick = async () => {
-  const touren = tourenLesen().filter(t => t.art === 'aufzeichnung');
-  if (!touren.length) { melde('Noch keine gegangenen Touren.'); return; }
+  const alle = tourenLesen().filter(t => t.art === 'aufzeichnung');
+  if (!alle.length) { melde('Noch keine gegangenen Touren.'); return; }
+  const geprueft = new Set(gipfelbuchLesen().geprueft), touren = alle.filter(t => !geprueft.has(t.id));
+  if (!touren.length) { $('gbStatus').textContent = 'Alle ' + alle.length + ' gegangenen Touren sind schon durchsucht.'; return; }
   const knopf = $('gbSuchen');
   knopf.disabled = true;
-  let neu = 0, fehler = 0;
+  let neu = 0, fehler = 0, abbruch = false;
   try {
     for (let i = 0; i < touren.length; i++) {
       $('gbStatus').textContent = 'Suche Gipfel: Tour ' + (i + 1) + ' von ' + touren.length + ' …';
-      try { neu += (await gipfelFuerTour(touren[i])).neu.length; } catch (e) { fehler++; }
+      try { neu += (await gipfelFuerTour(touren[i])).neu.length; }
+      catch (e) {
+        fehler++;
+        if (/zu viele Anfragen|Speicher voll/.test(e.message)) { abbruch = true; break; }
+      }
+      if (i < touren.length - 1) await new Promise(r => setTimeout(r, 1500));
     }
   } finally { knopf.disabled = false; }
   $('gbStatus').textContent = (neu ? neu + ' Gipfel neu im Gipfelbuch.' : 'Keine neuen Gipfel.') +
-    (fehler ? ' ' + fehler + ' Touren ließen sich nicht prüfen (kein Netz oder Overpass ausgelastet), später noch einmal.' : '');
+    (abbruch ? ' Abgebrochen (Overpass ausgelastet oder Speicher voll), später noch einmal: geprüfte Touren werden übersprungen.'
+      : fehler ? ' ' + fehler + ' Touren ließen sich nicht prüfen (kein Netz), später noch einmal.' : '');
   gipfelbuchZeigen();
 };
 
@@ -86,9 +103,10 @@ function gipfelbuchEinlesen(text) {
   const aus = R.gipfelbuchPruefen(roh), buch = gipfelbuchLesen();
   let dazu = 0;
   for (const [id, g] of Object.entries(aus.gipfel)) {
-    if (!buch.gipfel[id]) { buch.gipfel[id] = g; dazu++; continue; }
-    for (const b of g.besuche) if (!buch.gipfel[id].besuche.some(x => x.tour === b.tour && x.datum === b.datum)) buch.gipfel[id].besuche.push(b);
+    if (!buch.gipfel[id]) { buch.gipfel[id] = g; dazu += g.besuche.length; continue; }
+    for (const b of g.besuche) if (!buch.gipfel[id].besuche.some(x => R.gipfelBesuchGleich(x, b))) { buch.gipfel[id].besuche.push(b); dazu++; }
     buch.gipfel[id].besuche.sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
   }
+  for (const t of aus.geprueft) if (!buch.geprueft.includes(t)) buch.geprueft.push(t);
   return gipfelbuchSchreiben(buch) ? dazu : 0;
 }

@@ -210,7 +210,7 @@ async function sicherungSpeichern() {
   const liste = tourenLesen();
   const tb = await tagebuchFuerSicherung();
   const ziele = zieleLesenSp();
-  if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length) { melde('Keine Touren, kein Tagebuch und keine Reiseziele gespeichert.'); return; }
+  if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length && !Object.keys(gipfelbuchLesen().gipfel).length) { melde('Keine Touren, kein Tagebuch, keine Reiseziele und kein Gipfelbuch gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
   dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
     JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() }), 'application/json');
@@ -233,7 +233,7 @@ async function sicherungEinlesen(text) {
   else if (dazu.length) teile.push(dazu.length + ' Touren übernommen' + (neu.length > dazu.length ? ' (' + (neu.length - dazu.length) + ' waren schon da)' : ''));
   if (tb) teile.push(tb + ' Reisen und Tagebuch-Einträge übernommen');
   if (zl) teile.push(zl + ' Reiseziele übernommen');
-  if (gb) teile.push(gb + ' Gipfel ins Gipfelbuch übernommen');
+  if (gb) teile.push(gb + ' Gipfelbesuche ins Gipfelbuch übernommen');
   melde(teile.length ? 'Aus der Sicherung: ' + teile.join(', ') + '.' : 'Alles aus der Sicherung ist schon da.', 6);
 }
 

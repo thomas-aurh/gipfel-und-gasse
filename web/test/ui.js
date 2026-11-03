@@ -561,7 +561,7 @@ function pruef(name, bed, info) {
   pruef('Gipfelbuch: Kennzahlen', (await page.textContent('#gbZahlen')).includes('höchster: Aufnahmegipfel'), await page.textContent('#gbZahlen'));
   await page.click('#gbSuchen');
   await page.waitForFunction(() => !document.getElementById('gbSuchen').disabled, null, { timeout: 8000 });
-  pruef('Gipfelbuch: erneut durchsuchen zählt nichts doppelt', (await page.textContent('#gbStatus')).includes('Keine neuen Gipfel') && (await page.$$('#gbListe li')).length === 1, await page.textContent('#gbStatus'));
+  pruef('Gipfelbuch: schon geprüfte Tour wird übersprungen, nichts doppelt', (await page.textContent('#gbStatus')).includes('schon durchsucht') && (await page.$$('#gbListe li')).length === 1, await page.textContent('#gbStatus'));
   await page.click('[data-reiter=touren]');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
