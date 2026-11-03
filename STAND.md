@@ -82,9 +82,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
-  Wie viele Orte in Oberbayern `opening_hours` in der verstandenen Form tragen, ist nicht gemessen (sonst Rohtext).
 - **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
-  oder Einkehr auf halber Strecke); eigene zugeschnittene Routendaten (kleineres Paket).
+  oder Einkehr auf halber Strecke); Rundgang nach Zeitbudget („2 Stunden in Verona“); Packliste je Tourart und Wetter;
+  kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket); Fotos aus dem
+  Tagebuch im Gipfelbuch.
+- **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
+  (Liste je Punkt, UTC-Stunden, `elevation=nan`), im Browser und in der App aber nur mit nachgebildeter Antwort.
+- **Prüfdatum der Öffnungszeiten ohne Netz (#47):** steht erst in den Kartenpaketen ab dem Neubau nach #47; auf dem
+  Handy das Paket aktualisieren (Menü › Offline-Karten). Wie viele Orte `check_date` tragen, ist nicht gemessen.
 
 ## Entscheidungen
 
@@ -181,37 +186,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **03.11.** Wetter für die Tour: eine Open-Meteo-Anfrage für Start, höchsten Punkt (ab 100 m über den Enden) und Ziel,
-  je Tag bei Etappen, zur Stunde des Zeitplans und auf die Höhe der Punkte umgerechnet; Warnungen Gewitter, Sturmböen, Frost.
-
-- **03.11.** Mehrtagestour: Übernachtung an Zwischenzielen, Etappen je Tag (Strecke, Höhenmeter, Gehzeit, höchster Punkt,
-  Ankunft gegen Sonnenuntergang), Ankunft an den Stopps je Tag, in Touren und Sicherung, als Reise ins Tagebuch.
-
-- **03.11.** Gipfelbuch: Seite im Menü; nach dem Speichern einer Aufzeichnung Gipfel bis 50 m an der Spur (Paket oder
-  Overpass), je Gipfel Höhe und Besuche; gegangene Touren nachträglich durchsuchen; in Sicherung und Wiederherstellung.
-
-- **03.11.** Führung: Schalter „🎧 Führung“ unter Unterwegs; beim Losgehen lädt die App die Wikipedia-Kurzinfos der
-  Stopps (höchstens 10 s), am Stopp liest sie Name und Kurzinfo vor (gekürzt auf rund eine Minute). In der App spricht
-  der Dienst, auch bei gesperrtem Bildschirm; die Texte überstehen Umplanen und Neustart.
-- **03.11.** Öffnungszeiten gegen den Zeitplan: Stopps nehmen Öffnungszeiten und Wikipedia aus OSM mit (auch in
-  gespeicherten Touren und der Sicherung); mit Startzeit Ankunft je Stopp und „geöffnet / knapp / geschlossen“, Hinweis
-  im Zeitplan. Leser für Öffnungszeiten um Saison, offenes Ende, Monate mit Doppelpunkt und Tage mit Datum erweitert.
-
-- **03.11.** Code-Durchsicht, Android-Teil: Neustart nach Prozess-Tod stürzt nicht mehr ab und wartet nicht endlos auf
-  GPS, sondern meldet „Navigation unterbrochen“ und setzt beim Öffnen der App fort; `sitzung.json` und
-  `aufzeichnung.json` werden sicher ersetzt (daneben schreiben, sync, umbenennen) und ein älterer Stand überschreibt
-  keinen neueren; „Ziel erreicht“ beendet keine gerade neu gestartete Navigation; GPS- und Sprachausfall werden in
-  Mitteilung und App gemeldet; Activity wird nicht mehr festgehalten; gleiche Route verwirft keine laufende Umplanung;
-  Paketfehler threadsicher; alter Verweis kippt das Offline-Routing nicht.
-
-- **03.11.** Code-Durchsicht, Web-Teil behoben: Höhenmeter, Steigung und Rest unterwegs zählen den Sprung zwischen
-  GPX-Abschnitten nicht mehr (Seilbahn ergab bis zu 1000 Hm zu viel); Umkehren einer Spur hält die Abschnitte; Knöpfe
-  bleiben nach „Neu“/„Rückgängig“ während einer Berechnung nicht gesperrt; „Runde mit Länge“ überschreibt keinen
-  gerade gesetzten Punkt; „Als Tour speichern“ nicht doppelt; geteilter Link ohne Name der vorigen Tour; Reiseziele:
-  CSV mit Anführungszeichen und Komma-CSV, selbstschließende GPX-Wegpunkte, leere Listen aus der Sicherung;
-  GPX-Name nicht vom Autor; Öffnungszeiten „, We off“; Sicherung meldet Fehler, Wiederherstellung liest Tagebuch und
-  Ziele auch bei vollem Tourenspeicher; Suche geht nach Schließen nicht wieder auf; große Aufzeichnungen ohne
-  Stapelüberlauf. 13 neue Einheitstests (vorher 10 davon rot).
+- **03.11.** Code-Durchsicht mit Prüfern: Web (#38, u. a. Seilbahn-Sprung zählte bis 1000 Hm, Import-Parser) und
+  Android (#39, Neustart nach Prozess-Tod, sicheres Schreiben der Sitzung). Neu: Öffnungszeiten der Stopps gegen den
+  Zeitplan mit erweitertem Leser (#40), Führung mit Wikipedia-Kurzinfo am Stopp (#41), Gipfelbuch (#42), Mehrtagestour
+  mit Etappen (#43), Wetter für die Tour an Start, Gipfel und Ziel (#44). Abgleich der Öffnungszeiten OSM gegen Google
+  an 30 Orten (#45, `docs/oeffnungszeiten-abgleich.md`), daraus Quelle, Prüfdatum und Links an den Zeiten (#46) und das
+  Prüfdatum im Kartenpaket (#47). Jeder PR vor dem Merge von einem unabhängigen Prüfer gelesen, Befunde behoben.
 
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt

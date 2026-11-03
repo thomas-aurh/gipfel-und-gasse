@@ -43,6 +43,14 @@ sh build.sh
 
 `sh pruefen.sh` baut, prüft die Syntax und rechnet die Einheitstests. Genau das läuft bei jedem Pull Request auf GitHub.
 
+Klicktest `node test/ui.js` (nicht in GitHub Actions): braucht `npx playwright install chromium-headless-shell` und für
+den Teil mit den Offline-Karten `python3` mit `pmtiles mapbox-vector-tile pillow` (`test/testkarten.py`); ohne sie
+bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritte:
+- Marker und Fenster von Leaflet per `page.evaluate(() => element.click())` auslösen, nicht mit `page.click`: die Karte
+  bewegt sich nach dem Einpassen noch, Playwright wartet dann auf „stabil“ bis zur Zeitüberschreitung.
+- Nach einer Änderung auf das Ergebnis warten (`waitForFunction`), nicht sofort lesen.
+- Testdaten (Touren, Reisen), die spätere Schritte nicht erwarten, am Ende des Schritts wieder entfernen.
+
 ## Aufbau
 
 | Datei/Ordner | Inhalt |
