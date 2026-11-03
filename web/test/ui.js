@@ -133,6 +133,13 @@ async function dienste(ctx) {
   await ctx.route(/api\.open-meteo\.com\/v1\/forecast(?!.*current=)/, r => { zaehler.wetter++; r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elevation: 612, daily: {
     time: ['2026-11-01', '2026-11-02', '2026-11-03'], weather_code: [1, 61, 95], temperature_2m_max: [14.2, 9.1, 11], temperature_2m_min: [3.1, 4, 2],
     precipitation_probability_max: [5, 80, 60], wind_speed_10m_max: [12, 25, 30], sunset: ['2026-11-01T16:52', '2026-11-02T16:50', '2026-11-03T16:49'] } }) }); });
+  // Wetter für die Tour: stündlich für mehrere Punkte (später registriert, also vor der Tagesvorhersage geprüft); Böen 70 km/h
+  await ctx.route(/api\.open-meteo\.com\/v1\/forecast.*hourly=temperature_2m/, r => {
+    const url = new URL(r.request().url()), n = url.searchParams.get('latitude').split(',').length, ab = Math.floor(Date.now() / 3600e3) * 3600 - 86400;
+    const ort = i => ({ elevation: 1000 + i, hourly: { time: Array.from({ length: 400 }, (_, k) => ab + k * 3600), temperature_2m: Array(400).fill(7 - i), precipitation_probability: Array(400).fill(20),
+      weather_code: Array(400).fill(2), wind_speed_10m: Array(400).fill(30), wind_gusts_10m: Array(400).fill(70) } });
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(n === 1 ? ort(0) : Array.from({ length: n }, (_, i) => ort(i))) });
+  });
   await ctx.route(/api\.open-meteo\.com\/v1\/elevation/, r => {
     zaehler.hoehe++;
     const n = new URL(r.request().url()).searchParams.get('latitude').split(',').length;
@@ -526,6 +533,15 @@ function pruef(name, bed, info) {
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76500_11.39000~47.77000_11.40000'; });
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3 && !document.getElementById('ergebnis').hidden, null, { timeout: 8000 });
   await page.click('[data-reiter=planen]');
+  // Wetter für die Tour: Start und Ziel zur Stunde, in der man dort ist; Böen über 60 km/h als Warnung; neuer Tag leert die Anzeige
+  await page.click('#bTourWetter');
+  await page.waitForFunction(() => document.getElementById('tourWetter').textContent.includes('°C'), null, { timeout: 8000 }).catch(() => {});
+  const tw = await page.textContent('#tourWetter');
+  pruef('Tourwetter: Start und Ziel mit Temperatur, Wind und Böen', tw.includes('Start') && tw.includes('Ziel') && tw.includes('7 °C') && tw.includes('Böen 70'), tw);
+  pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab 9 Uhr gerechnet'), tw);
+  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
+  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });

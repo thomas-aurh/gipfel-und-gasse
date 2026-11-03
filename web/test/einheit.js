@@ -570,5 +570,16 @@ const etTour = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', versio
   wps: [[47, 11], [47.1, 11, 'Hütte', 0, 0, 1], [47.2, 11]], stuecke: [{ n: 2, q: 'linie', a: [] }, { n: 2, q: 'linie', a: [] }], kurz: { laenge: 1, auf: 0, ab: 0, zeit: 1 } }] }))[0];
 pruef('Etappen: Tour aus der Sicherung behält die Übernachtung', etTour && JSON.stringify(etTour.wps[1]) === JSON.stringify([47.1, 11, 'Hütte', 0, 0, 1]), etTour && etTour.wps);
 
+// Wetter für die Tour
+const twUrl = R.tourWetterUrl([{ lat: 47.6, lon: 11.3, ele: 800 }, { lat: 47.61, lon: 11.31, ele: 1700.4 }]);
+pruef('Tourwetter: eine Anfrage für alle Punkte, mit Höhe', twUrl.includes('latitude=47.6000,47.6100') && twUrl.includes('elevation=800,1700') && twUrl.includes('timeformat=unixtime'), twUrl);
+pruef('Tourwetter: ohne Höhe eines Punkts keine Höhen', !R.tourWetterUrl([{ lat: 47, lon: 11, ele: null }, { lat: 47, lon: 11, ele: 500 }]).includes('elevation='));
+const twOrt = { hourly: { time: [1000, 4600, 8200], temperature_2m: [5, -1, 3], precipitation_probability: [10, 60, 0], weather_code: [2, 95, 0], wind_speed_10m: [10, 20, 5], wind_gusts_10m: [20, 65, 10] } };
+const twW = R.wetterStunde(twOrt, 5000 * 1000);
+pruef('Tourwetter: Stunde der Ankunft', twW && twW.temp === -1 && twW.code === 95, twW);
+pruef('Tourwetter: außerhalb der Vorhersage', R.wetterStunde(twOrt, 500 * 1000) === null && R.wetterStunde(twOrt, 20000 * 1000) === null);
+const twT = R.tourWetterText(twW);
+pruef('Tourwetter: Text und Warnungen', twT.text.includes('-1 °C') && twT.text.includes('Böen 65') && twT.warn.join() === 'Gewitter,Sturmböen,Frost', twT);
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);
