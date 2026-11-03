@@ -33,6 +33,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
+- **Klicktest läuft nicht in GitHub Actions:** am 03.11. war `main` darum unbemerkt rot (Info-Fenster nach #50, behoben
+  in #51). Grün in Actions heißt nur Prüfung, Einheitstests und APK; vor jedem Merge mit Oberflächenänderung lokal
+  `node web/test/ui.js`. Den Klicktest in `app.yml` aufzunehmen ist nicht gebaut (braucht Chromium und die Testkarten).
 - **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
 - **Web mit den echten Diensten am PC geprüft (03.11., Browser über 127.0.0.1):** Karte, Routing über BRouter (mit
   Wegtypen, Untergrund und SAC-Stufe), Suche über Photon, Höhen. Overpass beantwortete das Info-Antippen an dem Abend
@@ -59,20 +62,15 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
 - **Klicktest „Reiseziele, Datei laden“ zeitabhängig:** fiel am 03.11. in 2 von rund 15 Läufen mit denselben 5 Prüfungen aus
-  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nachgemessen am 03.11. abends: 1 von 4 Läufen, dabei
+  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nachgemessen am 03.11. abends: 2 von 10 Läufen, beide Male
   kam die zweite Ortssuche nie bei der Photon-Nachbildung an (10 statt 11 Anfragen), die Suchschleife in `zlImport`
   (`web/src/67-ziele.js`) bleibt also vor dem Netz stehen oder steigt aus. Ursache nicht gefunden.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
-- **Offline-Karte leer auf dem Pixel (02.11. Bau 98, 03.11. nach #32 weiter grau, Thomas):** Kopf und Lesen ab Byte 0
-  gingen, die Kacheln weiter hinten scheiterten mit „Failed to fetch“, erst mit Range-Kopfzeile, nach #32 auch nur über
-  `?von=&bis=`. Das Grau täuschte: protomaps-leaflet malt bei Lesefehlern den Hintergrund und meldet die Kachel als
-  geladen (Fehler nur in `console.error`). Seit #34 liest die App die Kartendateien über die eigene Brücke
-  (`Karten.lesen`, Java liest den Bereich direkt aus der Datei) statt über das WebView. Geprüft: Java-Test `BereichTest`
-  (lokal), Klicktest mit nachgebildetem Pixel-Fehler (fetch ab Byte 1 bricht ab; Gegenprobe ohne Brücke: Karte nur
-  Hintergrund, Test rot). Nicht geprüft: auf dem Pixel, Tempo der Brücke bei vielen Kacheln. Nächster Schritt: APK aus dem
-  Bau nach #34, Karte auf „Offline-Karte“, „🔍 Offline-Karte prüfen“; erwartet „Kacheln lesen über: App-Brücke“ und
-  „Stück Mitte über Brücke … ✓“. Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
+- **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
+  und Salzburg“ steht in `karten/regionen.json`; die App zeigt ihn in Liste und Rahmen, sobald `pakete.json` neu gebaut
+  ist (von Hand: Actions › Kartenpakete › Run workflow, sonst am 3.12.). Die ID `oberbayern` bleibt, nichts muss neu
+  geladen werden. Rahmen auf dem Pixel nicht geprüft.
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -101,7 +99,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Kartenpakete über die App-Brücke lesen** (03.11.): `Karten.lesen` liefert Stücke als Base64 (höchstens 8 MB je
   Stück), weil das WebView Bereiche aus `shouldInterceptRequest` ab der Dateimitte nicht auslieferte, weder mit
   Range-Kopfzeile noch über `?von=&bis=` (#32, verworfen). fetch bleibt für den Browser und als Vergleich in der Prüfung;
-  der Kartenserver bleibt für Orte-Datei und alte APKs. Overpass mit einem zweiten öffentlichen Server
+  der Kartenserver bleibt für Orte-Datei und alte APKs. Falle beim Messen: protomaps-leaflet malt bei Lesefehlern den
+  grauen Hintergrund und meldet die Kachel als geladen (Fehler nur in `console.error`), „geladen“ heißt also nicht
+  „gezeichnet“; Prüfung und Klicktest zählen darum Kacheln mit nur Hintergrund. Overpass mit einem zweiten öffentlichen Server
   (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
 - **Öffnungszeiten der Stopps gegen den Zeitplan** (03.11.): Quelle bleibt OpenStreetMap (`opening_hours`, mit dem
   Stopp gespeichert), kein zweiter Dienst. Abdeckung im Oberbayern-Paket gemessen: Hütten 21 %, Museen 58 %, Gasthäuser
@@ -193,6 +193,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen
   und Aufzeichnen wieder aus, wenn es nur dafür eingeschaltet war; mit 📍 eingeschaltet bleibt es an (Klicktest mit
   Gegenprobe) (#53).
+- **03.11.** Offline-Karte: Kartendateien über die App-Brücke (`Karten.lesen`) statt über das WebView, Prüfung zählt
+  Kacheln mit nur Hintergrund (#34). Von Thomas am 03.11. auf dem Pixel bestätigt (Bau 107): Karte zeichnet bei
+  Penzberg und Innsbruck (liegt im Rechteck von „Oberbayern“, Südkante 47,25°); in Verona und Kempten (außerhalb der
+  installierten Pakete) zeigt sie wie vorgesehen topografisch mit Hinweis. Rahmen der installierten Pakete auf der
+  Offline-Karte (gestrichelt, Name oben links), Paket Oberbayern umbenannt in „Oberbayern mit München, Innsbruck und
+  Salzburg“ (#36).
 
 - **03.11.** Code-Durchsicht mit Prüfern: Web (#38, u. a. Seilbahn-Sprung zählte bis 1000 Hm, Import-Parser) und
   Android (#39, Neustart nach Prozess-Tod, sicheres Schreiben der Sitzung). Neu: Öffnungszeiten der Stopps gegen den

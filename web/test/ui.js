@@ -1234,7 +1234,7 @@ function pruef(name, bed, info) {
     window.__routing = []; window.__naviStart = [];
     window.__bruecke({
       Karten: {
-        liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30' })] }, frei: 5e9 }),
+        liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30', name: 'Probegebiet mit Gipfel' })] }, frei: 5e9 }),
         status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => {},
         // wie KartenPlugin.lesen: Stück der Datei als Base64
         lesen: async o => window.paketStueck(o.id, o.datei, o.von, o.laenge)
@@ -1294,6 +1294,14 @@ function pruef(name, bed, info) {
   pruef('Offline: Vektorkarte zeichnet Inhalt, nicht nur den Hintergrund', gezeichnet.karte.filter(n => n > 1).length >= 4, gezeichnet.karte);
   pruef('Offline: Relief zeichnet', gezeichnet.relief.filter(n => n > 10).length >= 4, gezeichnet.relief);
   pruef('Offline: Kartendateien über die App-Brücke gelesen', bereiche.some(b => b.startsWith('karte.pmtiles') && b.endsWith('(Brücke)')) && bereiche.some(b => b.startsWith('hoehe.pmtiles') && b.endsWith('(Brücke)')), bereiche.slice(0, 6));
+  // Rahmen des installierten Pakets bei gewählter Offline-Karte, Name aus der Angebotsliste
+  const rahmen = await po.evaluate(() => ({ n: document.querySelectorAll('path.paket-rahmen').length, name: [...document.querySelectorAll('.paket-rahmen-name')].map(e => e.textContent).join('|') }));
+  pruef('Offline: Rahmen des Pakets mit Namen', rahmen.n === 1 && rahmen.name.includes('Probegebiet mit Gipfel'), rahmen);
+  const ohneRahmen = await po.evaluate(() => {
+    const wahl = v => { const r = document.querySelector('input[name=basis][value=' + v + ']'); r.checked = true; r.dispatchEvent(new Event('change')); };
+    wahl('topo'); const n = document.querySelectorAll('path.paket-rahmen').length; wahl('offline'); return n;
+  });
+  pruef('Offline: Rahmen nur bei gewählter Offline-Karte', ohneRahmen === 0, ohneRahmen);
   await po.screenshot({ path: path.join(OUT, '11-offline-relief.png') });
   // gerade Linie über den Berg: Höhen aus dem Paket (Gipfel 1800 m)
   await po.click('[data-reiter=planen]');

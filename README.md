@@ -27,12 +27,13 @@ Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sic
 im Inhalt nach unten wischen, wenn er ganz oben steht.
 
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
-herunterladen (Oberbayern mit München, Allgäu und Bodensee; die Größe steht
+herunterladen (Oberbayern mit München, Innsbruck und Salzburg; Allgäu und Bodensee; die Größe steht
 in der Liste). Danach unter Kartenart und Ebenen (rechts an der Karte) „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
 schaltet die App selbst um. Auch Höhen für gerade Linien und GPX-Dateien kommen dann aus dem Paket. Enthält das Paket Routendaten,
 plant die App auch Routen ohne Netz (BRouter läuft im Handy). Mit der Orte-Datei des Pakets kommen „Orte entlang der Route“
 und die Sehenswürdigkeiten der Stadt aus dem Paket, die Suche findet Orte, Gipfel, Hütten, Straßen und Haltestellen auch ohne Netz
-(mit Netz mischt sie die Treffer mit denen von Photon). Nur das Wetter braucht Netz. Zeigt die Offline-Karte nichts:
+(mit Netz mischt sie die Treffer mit denen von Photon). Nur das Wetter braucht Netz. Bei gewählter Offline-Karte zeigt ein
+gestrichelter Rahmen mit Namen, wie weit jedes installierte Paket reicht; außerhalb davon zeigt die App die topografische Karte (mit Netz). Zeigt die Offline-Karte nichts:
 *Offline-Karten* › „🔍 Offline-Karte prüfen“ und das Ergebnis senden.
 
 **Zeitplan:** In *Planen* Tag, Startzeit und Pausen eintragen: die App nennt die Ankunft und den Sonnenuntergang am Ziel
