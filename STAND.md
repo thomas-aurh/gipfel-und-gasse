@@ -46,15 +46,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Web-Auslieferung wartet auf Thomas' Wahl** (siehe Auslieferung).
-- **Offline-Karte leer auf dem Pixel (02.11. Bau 98, 03.11. nach #32 weiter grau, Thomas):** Kopf und Lesen ab Byte 0
-  gingen, die Kacheln weiter hinten scheiterten mit „Failed to fetch“, erst mit Range-Kopfzeile, nach #32 auch nur über
-  `?von=&bis=`. Das Grau täuschte: protomaps-leaflet malt bei Lesefehlern den Hintergrund und meldet die Kachel als
-  geladen (Fehler nur in `console.error`). Seit #34 liest die App die Kartendateien über die eigene Brücke
-  (`Karten.lesen`, Java liest den Bereich direkt aus der Datei) statt über das WebView. Geprüft: Java-Test `BereichTest`
-  (lokal), Klicktest mit nachgebildetem Pixel-Fehler (fetch ab Byte 1 bricht ab; Gegenprobe ohne Brücke: Karte nur
-  Hintergrund, Test rot). Nicht geprüft: auf dem Pixel, Tempo der Brücke bei vielen Kacheln. Nächster Schritt: APK aus dem
-  Bau nach #34, Karte auf „Offline-Karte“, „🔍 Offline-Karte prüfen“; erwartet „Kacheln lesen über: App-Brücke“ und
-  „Stück Mitte über Brücke … ✓“. Die Datei auf dem Pixel ist vollständig (493523938 Bytes wie veröffentlicht).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -156,14 +147,18 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **03.11.** Offline-Karte: Kartendateien über die App-Brücke (`Karten.lesen`) statt über das WebView, Prüfung zählt
+  Kacheln mit nur Hintergrund (#34). Von Thomas am 03.11. auf dem Pixel bestätigt (Bau 107): Karte zeichnet bei
+  Penzberg und Innsbruck (liegt im Rechteck von „Oberbayern“, Südkante 47,25°); in Verona und Kempten (außerhalb der
+  installierten Pakete) zeigt sie wie vorgesehen topografisch mit Hinweis.
+
 - **02.11. (zweite Hälfte)** Blatt unten am Kopf ziehen und im Inhalt zuwischen; Menü ☰ ohne die Seiten der Leiste,
   eigenes Zeichen für Kartenart (#25). Ort-Fenster mit „geöffnet bis …“ aus `opening_hours`, Wikipedia-Kurzinfo samt
   Vorlesen, Anreise zum Start, „☔ Drinnen in der Nähe“ (#26). Info-Modus ⓘ: Antippen zeigt, was dort ist, statt einen
   Punkt zu setzen; Fenster nicht mehr hinter Blatt oder Suche (#27). Reiseziele mit Listen, ⭐-Ebene, eintippen,
   einfügen, Datei laden (Text, CSV, GPX, KML, GeoJSON), als GPX weitergeben (#28). Link „In Google Maps“ in allen
   Ort-Fenstern, von Thomas auf dem Pixel bestätigt (#30). Overpass mit zweitem Server bei 429 (#31). Offline-Karte:
-  Prüfung auf dem Gerät (#29, #31), Lesen nur über `?von=&bis=` (#32); behoben ist die leere Karte damit erst, wenn
-  Thomas' Prüfung es zeigt (siehe Offen).
+  Prüfung auf dem Gerät (#29, #31), Lesen nur über `?von=&bis=` (#32, half nicht).
 
 - **02.11.** Ablauf „Kartenpakete“ bei Pull Requests, die nur die App betreffen: prüft die veröffentlichten Pakete statt
   neu zu bauen (Minuten statt einer halben Stunde) (#11).
