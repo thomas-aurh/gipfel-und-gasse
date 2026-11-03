@@ -908,9 +908,10 @@ var R = (function () {
   const TOUR_WETTER = 'temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m';
   function tourWetterUrl(punkte) {
     const z = f => punkte.map(f).join(',');
-    const mitHoehe = punkte.every(p => p.ele != null && isFinite(p.ele));
+    // ohne eigene Höhe „nan“: dann nimmt Open-Meteo für diesen Punkt die Geländehöhe, die anderen behalten ihre
+    const hoehe = p => (p.ele != null && isFinite(p.ele) ? Math.round(p.ele) : 'nan');
     return 'https://api.open-meteo.com/v1/forecast?latitude=' + z(p => p.lat.toFixed(4)) + '&longitude=' + z(p => p.lon.toFixed(4)) +
-      (mitHoehe ? '&elevation=' + z(p => Math.round(p.ele)) : '') + '&hourly=' + TOUR_WETTER + '&timeformat=unixtime&forecast_days=16';
+      '&elevation=' + z(hoehe) + '&hourly=' + TOUR_WETTER + '&timeformat=unixtime&forecast_days=16';
   }
   // Werte der Stunde, in der man an diesem Ort ist; null außerhalb der Vorhersage
   function wetterStunde(ort, t) {
@@ -924,8 +925,8 @@ var R = (function () {
     return { temp: w('temperature_2m'), regen: w('precipitation_probability'), code: w('weather_code'), wind: w('wind_speed_10m'), boe: w('wind_gusts_10m') };
   }
   // „⛅ heiter, 8 °C · Regen 20 % · Wind 25 km/h, Böen 45“ und Warnungen (Gewitter, Sturmböen, Frost)
-  function tourWetterText(w) {
-    if (!w) return { text: 'außerhalb der Vorhersage (höchstens 16 Tage)', warn: [] };
+  function tourWetterText(w, vorbei) {
+    if (!w) return { text: vorbei ? 'liegt in der Vergangenheit' : 'außerhalb der Vorhersage (höchstens 16 Tage)', warn: [] };
     const [zeichen, art] = wetterText(w.code), teile = [zeichen + ' ' + art];
     if (w.temp != null) teile[0] += ', ' + Math.round(w.temp) + ' °C';
     if (w.regen != null) teile.push('Regen ' + Math.round(w.regen) + ' %');

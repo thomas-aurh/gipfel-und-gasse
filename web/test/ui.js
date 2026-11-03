@@ -538,7 +538,7 @@ function pruef(name, bed, info) {
   await page.waitForFunction(() => document.getElementById('tourWetter').textContent.includes('°C'), null, { timeout: 8000 }).catch(() => {});
   const tw = await page.textContent('#tourWetter');
   pruef('Tourwetter: Start und Ziel mit Temperatur, Wind und Böen', tw.includes('Start') && tw.includes('Ziel') && tw.includes('7 °C') && tw.includes('Böen 70'), tw);
-  pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab 9 Uhr gerechnet'), tw);
+  pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab der nächsten vollen Stunde gerechnet'), tw);
   await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
   pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
   await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');

@@ -573,7 +573,8 @@ pruef('Etappen: Tour aus der Sicherung behält die Übernachtung', etTour && JSO
 // Wetter für die Tour
 const twUrl = R.tourWetterUrl([{ lat: 47.6, lon: 11.3, ele: 800 }, { lat: 47.61, lon: 11.31, ele: 1700.4 }]);
 pruef('Tourwetter: eine Anfrage für alle Punkte, mit Höhe', twUrl.includes('latitude=47.6000,47.6100') && twUrl.includes('elevation=800,1700') && twUrl.includes('timeformat=unixtime'), twUrl);
-pruef('Tourwetter: ohne Höhe eines Punkts keine Höhen', !R.tourWetterUrl([{ lat: 47, lon: 11, ele: null }, { lat: 47, lon: 11, ele: 500 }]).includes('elevation='));
+pruef('Tourwetter: ohne Höhe eines Punkts nur dort die Geländehöhe', R.tourWetterUrl([{ lat: 47, lon: 11, ele: null }, { lat: 47, lon: 11, ele: 500 }]).includes('elevation=nan,500'));
+pruef('Tourwetter: vergangene Zeit eigens benannt', R.tourWetterText(null, true).text === 'liegt in der Vergangenheit' && R.tourWetterText(null, false).text.includes('16 Tage'));
 const twOrt = { hourly: { time: [1000, 4600, 8200], temperature_2m: [5, -1, 3], precipitation_probability: [10, 60, 0], weather_code: [2, 95, 0], wind_speed_10m: [10, 20, 5], wind_gusts_10m: [20, 65, 10] } };
 const twW = R.wetterStunde(twOrt, 5000 * 1000);
 pruef('Tourwetter: Stunde der Ankunft', twW && twW.temp === -1 && twW.code === 95, twW);
