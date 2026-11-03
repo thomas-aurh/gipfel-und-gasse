@@ -44,7 +44,9 @@ Fenster geht es weiter mit „Als Stopp“ oder „Hier starten“.
 **Orte und Sehenswürdigkeiten:** Das Ort-Fenster zeigt, ob jetzt geöffnet ist (aus den Öffnungszeiten in OpenStreetMap,
 ohne Feiertage), und bei Orten mit Wikipedia-Artikel eine Kurzinfo mit Bild, auf Wunsch vorgelesen. In *Entdecken* sucht
 „☔ Drinnen in der Nähe“ Museen, Bäder, Kino und Ähnliches rund um den Wetterort; bei Regen heute oder morgen ist der Knopf
-hervorgehoben.
+hervorgehoben. Ein Ort, der „Als Stopp“ in die Tour kommt, nimmt seine Öffnungszeiten mit: Mit Startzeit im Zeitplan steht
+unter jedem Stopp die Ankunft und ob dann geöffnet ist (⛔ geschlossen, ⚠️ schließt während des Besuchs oder öffnet erst kurz
+danach). Die Zeiten stammen aus OpenStreetMap (bei Museen und Gasthäusern meist eingetragen, bei Hütten selten).
 
 **Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 

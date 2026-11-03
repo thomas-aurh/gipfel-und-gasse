@@ -150,7 +150,9 @@ function stoppDazu(o) {
   if (S.wps.some(w => w.name === o.name && R.abstand(w, o) < 30)) { melde(o.name + ' ist schon in der Tour.'); return; }
   const n = S.wps.length;
   const rund = n > 2 && R.abstand(S.wps[0], S.wps[n - 1]) < 30;
-  wegpunktDazu(o.lat, o.lon, rund ? n - 1 : null, { name: o.name, min: o.min });
+  // Öffnungszeiten und Wikipedia aus OSM kommen mit (Zeitplan-Prüfung, Vorlesen am Stopp)
+  const info = R.stoppInfo(o.tags);
+  wegpunktDazu(o.lat, o.lon, rund ? n - 1 : null, Object.assign({ name: o.name, min: o.min }, info ? { info } : {}));
   melde(n ? o.name + ' als Stopp dazu.' : o.name + ' ist der Start. Jetzt weitere Orte wählen.');
 }
 
@@ -166,7 +168,7 @@ $('bRundgang').onclick = async () => {
   const kandidaten = sehensSichtbar().filter(o => /^(sehens|museum|aussicht|park|kunst)$/.test(o.kat) && o.tags.name);
   if (kandidaten.length < 2) { melde('Zu wenige Sehenswürdigkeiten im Ausschnitt.'); return; }
   const c = karte.getCenter();
-  const start = S.wps[0] ? { lat: S.wps[0].lat, lon: S.wps[0].lon, name: S.wps[0].name, min: S.wps[0].min }
+  const start = S.wps[0] ? Object.assign({ lat: S.wps[0].lat, lon: S.wps[0].lon, name: S.wps[0].name, min: S.wps[0].min }, S.wps[0].info ? { info: S.wps[0].info } : {})
     : (U.pos && karte.getBounds().contains([U.pos.lat, U.pos.lon])) ? { lat: U.pos.lat, lon: U.pos.lon, name: 'Mein Standort' }
     : { lat: c.lat, lon: c.lng };
   // Auswahl: bekannte zuerst; nicht zwei Orte fast am selben Fleck und nicht der Start selbst
@@ -178,7 +180,7 @@ $('bRundgang').onclick = async () => {
     wahl.push(o);
   }
   if (!wahl.length) { melde('Zu wenige Sehenswürdigkeiten im Ausschnitt.'); return; }
-  const reihe = R.rundgangOrdnen(start, wahl.map(o => ({ lat: o.lat, lon: o.lon, name: o.name, min: o.min })));
+  const reihe = R.rundgangOrdnen(start, wahl.map(o => { const info = R.stoppInfo(o.tags); return Object.assign({ lat: o.lat, lon: o.lon, name: o.name, min: o.min }, info ? { info } : {}); }));
   merken();
   S.wps = [start].concat(reihe, [{ lat: start.lat, lon: start.lon }]);
   if (S.profil === 'wandern') { S.profil = 'stadt'; $('profilwahl').value = 'stadt'; }

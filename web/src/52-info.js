@@ -116,7 +116,7 @@ function infoDetail(popup, o, ll, zurueck) {
   const stopp = document.createElement('button');
   stopp.type = 'button'; stopp.className = 'popup-knopf';
   stopp.textContent = S.wps.length ? '➕ Als Stopp' : '📍 Hier starten';
-  stopp.onclick = () => { karte.closePopup(); stoppDazu({ lat: o.lat, lon: o.lon, name: o.name }); };
+  stopp.onclick = () => { karte.closePopup(); stoppDazu({ lat: o.lat, lon: o.lon, name: o.name, tags: o.tags }); };
   knoepfe.appendChild(stopp);
   const merken = document.createElement('button');
   merken.type = 'button'; merken.className = 'popup-knopf'; merken.textContent = '⭐ Merken';

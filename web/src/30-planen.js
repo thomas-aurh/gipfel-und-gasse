@@ -342,11 +342,16 @@ function zeitplanZeigen() {
   } else {
     text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
+  // Stopps mit Öffnungszeiten: geschlossen oder knapp bei Ankunft?
+  const probleme = start ? besuchProbleme() : 0;
+  if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
+  else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
   box.textContent = text;
-  box.classList.toggle('warnung', !!(z.knapp || (!start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
+  box.classList.toggle('warnung', !!(z.knapp || probleme || (!start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
 }
-['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); entwurfSichern(); }));
+// Startzeit und Pausen verschieben auch die Ankunft an den Stopps (Öffnungszeiten)
+['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); stoppsZeigen(); entwurfSichern(); }));
 // Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
 function zeitplanLesen() {
   const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
@@ -371,20 +376,63 @@ function besichtigung(abIndex) {
   return min;
 }
 
+// Startzeit des Zeitplans als Date, sonst null
+function zeitplanStart() {
+  if (!$('startZeit').value) return null;
+  const tag = $('startTag').value ? new Date($('startTag').value + 'T12:00') : new Date();
+  const [h, m] = $('startZeit').value.split(':').map(Number);
+  return new Date(tag.getFullYear(), tag.getMonth(), tag.getDate(), h, m);
+}
+// Ankunft an jedem Wegpunkt (Date, null ohne Startzeit): Weg bis dorthin nach derselben Formel wie die ganze Tour,
+// davor liegende Besichtigungen und ein Anteil der Pausen (verteilt nach Gehzeit)
+function stoppAnkunft() {
+  const e = S.ergebnis, start = zeitplanStart();
+  // während einer Neuberechnung gehört das alte Ergebnis noch zu den alten Wegpunkten: dann keine Ankunft
+  if (!e || !start || S.fest || !e.stueckEnde || S.rechnet || e.stueckEnde.length !== S.wps.length - 1) return S.wps.map(() => null);
+  const pause = (+$('pausewahl').value || 0) / 60;
+  let besicht = 0;
+  return S.wps.map((w, i) => {
+    let h = 0;
+    if (i > 0) {
+      const t = R.zeitBis(e.pts, e.stueckEnde[i - 1], tempoAktuell(), artAktuell());
+      h = t + besicht / 60 + (e.zeit ? pause * t / e.zeit : 0);
+    }
+    besicht += +w.min || 0;
+    return new Date(start.getTime() + h * 3600e3);
+  });
+}
+// Zeile unter einem Stopp: geöffnet bei Ankunft? (nur mit Öffnungszeiten aus OSM)
+function besuchHtml(w, an) {
+  const oh = w.info && w.info.oh;
+  if (!oh) return an && w.name ? '<small>an ' + R.uhr(an) + ' Uhr</small>' : '';
+  if (!an) return '<small>' + oeffnungKurz(oh) + '</small>';
+  const b = R.oeffnungBesuch(oh, an, +w.min || 0);
+  if (b.zustand === 'unbekannt') return '<small>an ' + R.uhr(an) + ' Uhr · Öffnungszeiten: ' + R.esc(oh) + '</small>';
+  // vage: laut OSM wohl geöffnet, aber ohne sichere Uhrzeit (keine Warnung, aber auch kein grünes „geöffnet“)
+  const zeichen = { offen: '●', knapp: '⚠️', zu: '⛔', vage: '❔' }[b.zustand];
+  return '<small>an ' + R.uhr(an) + ' Uhr · <span class="oh oh-' + ({ offen: 'offen', knapp: 'bald', zu: 'zu', vage: 'vage' }[b.zustand]) + '">' + zeichen + ' ' + R.esc(b.text) + '</span></small>';
+}
+// Stopps, die bei Ankunft zu sind oder knapp werden (für den Hinweis im Zeitplan)
+function besuchProbleme() {
+  const an = stoppAnkunft();
+  return S.wps.map((w, i) => w.info && w.info.oh && an[i] ? R.oeffnungBesuch(w.info.oh, an[i], +w.min || 0).zustand : '')
+    .filter(z => z === 'zu' || z === 'knapp').length;
+}
+
 // Liste der Stopps mit Besichtigungszeit (sobald ein Punkt einen Namen hat oder im Stadtmodus)
 const MINUTEN = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180];
 function stoppsZeigen() {
   const box = $('stopps');
   box.innerHTML = '';
   if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.some(w => w.name))) return;
-  const n = S.wps.length;
+  const n = S.wps.length, ankunft = stoppAnkunft();
   S.wps.forEach((w, i) => {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
     d.className = 'stopp';
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
     d.innerHTML = '<span class="nr' + (nr === 'S' ? ' s' : '') + '">' + nr + '</span><span class="name">' +
-      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + '</span>';
+      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + besuchHtml(w, ankunft[i]) + '</span>';
     if (!rund) {
       const sel = document.createElement('select');
       sel.title = 'Besichtigungszeit';
