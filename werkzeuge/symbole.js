@@ -5,7 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const wurzel = path.join(__dirname, '..');
 const res = path.join(wurzel, 'android/app/src/main/res');
-const logo = fs.readFileSync(path.join(wurzel, 'web/src/logo.svg'), 'utf8');
+// ohne den Wanderer der Ladeanzeige (im Symbol soll er nicht stehen)
+const logo = fs.readFileSync(path.join(wurzel, 'web/src/logo.svg'), 'utf8').replace(/<!--wanderer-->[\s\S]*?<!--\/wanderer-->/, '');
 
 function groesse(f) { const b = fs.readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; }
 

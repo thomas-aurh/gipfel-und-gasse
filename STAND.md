@@ -211,6 +211,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Routen (`way(around) → rel(bw)`, ohne Mittelpunkt) statt Routen direkt im Umkreis; bei Zeitüberschreitung der Hinweis
   auf einen kleineren Umkreis. Ladeanzeige für alle Dienste (ab 0,4 s): Logo mit Wanderer auf dem Weg zum Gipfel
   (SVG-Animation, ruhig bei „weniger Bewegung“), nicht im Druck-Logo. Klicktest 338, Einheitstests 261.
+  Logo mit himmelblauem Himmel (Thomas' Wunsch), App-Symbole und Startbilder neu erzeugt (`werkzeuge/symbole.js`, ohne
+  den Wanderer, der zwischen `<!--wanderer-->`-Markierungen im Logo steht).
 - **04.11. (Abend, Wanderwege)** „🥾 Wanderwege in der Nähe“ in *Entdecken*: markierte Routen aus OSM (`route=hiking|foot`)
   über Overpass, Verlauf aus den Wegstücken der Relation (Alternativen weg, Lücken als Abschnitte), „＋ Tour“ speichert
   unter „Geplant“. Quellen geprüft: OSM offen (ODbL); Freizeitwege Bayern CC BY 4.0, aber nur wenige Fernwege als GPX;
