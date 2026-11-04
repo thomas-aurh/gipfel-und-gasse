@@ -5,6 +5,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Planen neu (04.11.) nicht auf dem Pixel geprüft:** Klappzeilen, Einstiege, Start mit halb offenem Blatt (verdeckt
+  die halbe Karte), Zoom nur mit zwei Fingern. Offen für Stufe 2: Leiste und Tourseite (siehe Entscheidungen).
 - **Android-App (Stufen 1–5) gebaut, auf dem Pixel nicht geprüft.** Bis zur Korrektur in #5 lief die Anbindung an
   Android auf dem Handy gar nicht (Capacitor-Kern fehlte, Routen nur als gerade Linie). Von Thomas am 01.11. auf dem
   Pixel geprüft (Verona, neue APK): Route über Wege (online) und Standort auf der Karte. Offen bleibt der Rest unten. Geprüft in GitHub Actions: Bau, Java-Tests,
@@ -82,6 +84,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Übersicht in Stufen** (04.11., Thomas' Wahl): erst Planen, Karte und Einstiege umbauen (wenig Umbruch), danach
+  vielleicht Leiste Entdecken · Planen · Touren · Ich und eine eigene Seite je Tour mit „▶ Los“ statt der Seite
+  Unterwegs, wenn die erste Stufe auf dem Pixel gefällt. Berg/Stadt bleibt vorerst getrennt von „Art“ (02.11.).
 - **Dopplungen** (02.11.): Menü ☰ zeigt nur, was die Leiste unten nicht hat; Berg/Stadt und „Art“ bleiben getrennt
   (Thomas: „gar nicht so schlecht“), ebenso die drei Runden-Funktionen. Läden nicht ins Kartenpaket, dafür der Link zu
   Google Maps (Thomas schaut Öffnungszeiten lieber dort).
@@ -178,6 +183,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Nachmittag)** Durchsicht: Prüfung und Klicktest grün, alles Ausgelieferte auf `main`; Branch
+  `claude/stand-offline-bestaetigt` überholt (ältere STAND-Fassung). Planen übersichtlicher (Vorbild gängige
+  Tourenplaner): Kennzahlen und Höhenprofil zuerst, Art und Tempo sowie Name und Zeitplan am Telefon je eine
+  aufklappbare Zeile (am PC offen); ohne Route Einstiege „Runde mit Länge“, „Stadtrundgang“, „Letzte Tour“ im halb
+  offenen Blatt; Zoom-Knöpfe nur mit Maus, Fadenkreuz nur auf Karte und Planen. Klicktest 285.
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen

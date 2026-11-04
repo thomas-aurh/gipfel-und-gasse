@@ -6,6 +6,9 @@ function reiter(name) {
   if (!SEITEN[name]) name = 'planen';
   seite = name;
   menue(false);
+  // Fadenkreuz gehört zum Planen (Karte und Planen); auf anderen Seiten ist der Knopf weg und das Kreuz aus
+  document.body.dataset.seite = name;
+  if (name !== 'planen' && name !== 'karte' && kreuzAn) kreuz(false);
   // in der Leiste stehen nur die vier Hauptbereiche; Geplant und Gegangen gehören zu „Touren“
   const leiste = name === 'gegangen' ? 'touren' : name;
   document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
@@ -190,4 +193,3 @@ if (!ausLink()) {
   } else zeigen();
 }
 tourenZeigen();
-if (window.innerWidth <= 760 && !S.wps.length) blatt('klein');

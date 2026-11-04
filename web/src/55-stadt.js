@@ -191,5 +191,12 @@ $('bRundgang').onclick = async () => {
   if (S.ergebnis) einpassen(L.latLngBounds(S.ergebnis.pts.map(p => [p.lat, p.lon])));
 };
 
+// Einstieg „Stadtrundgang“ im leeren Planen: Stadt einschalten und zu den Sehenswürdigkeiten
+$('eStadt').onclick = () => {
+  modusSetzen('stadt', { karte: true, profil: true });
+  reiter('entdecken');
+  if (karte.getZoom() < 14) melde('Stadt oder Viertel heranzoomen, dann „✨ Rundgang vorschlagen“.', 5);
+};
+
 stadtBereit = true;
 sehensPruefen();   // gespeicherter Ausschnitt beim Start: Sehenswürdigkeiten gleich laden, nicht erst nach dem Verschieben

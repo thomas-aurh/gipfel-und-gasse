@@ -59,6 +59,16 @@ function spurAlsTour(name, pts, art) {
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }
 
+// Einstieg „Letzte Tour“ im leeren Planen: die zuletzt gespeicherte geplante Tour
+function letzteTourZeigen() {
+  const t = tourenLesen().find(x => x.art === 'plan');
+  $('eLetzte').hidden = !t;
+  if (!t) return;
+  $('eLetzte').dataset.id = t.id;
+  $('eLetzteName').textContent = t.name + (t.kurz && t.kurz.laenge ? ' · ' + R.kmText(t.kurz.laenge) : '');
+}
+$('eLetzte').onclick = () => tourOeffnen($('eLetzte').dataset.id);
+
 function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;

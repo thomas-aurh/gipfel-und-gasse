@@ -284,7 +284,10 @@ const FARBE_BODEN = { 'Befestigt': '#6d7884', 'Schotter': '#c9a66b', 'Naturboden
 
 function zeigen() {
   const e = S.ergebnis;
-  $('leerHinweis').hidden = S.wps.length > 0 || !!S.fest;
+  $('einstiege').hidden = S.wps.length > 0 || !!S.fest;
+  if (!$('einstiege').hidden) letzteTourZeigen();
+  $('ergebnisKopf').hidden = !e;
+  einstellTextSetzen(); planDetailsTextSetzen();
   // Tipp zu Zwischenpunkten nur, bis man es einmal gemacht hat (drei Punkte)
   if (S.wps.length >= 3 && !SPEICHER.lesen('tippGesehen', false)) SPEICHER.schreiben('tippGesehen', true);
   $('planHinweis').hidden = S.wps.length < 2 || !!S.fest || SPEICHER.lesen('tippGesehen', false);
@@ -368,7 +371,7 @@ function zeitplanZeigen() {
   box.hidden = !text;
 }
 // Startzeit und Pausen verschieben auch die Ankunft an den Stopps (Öffnungszeiten)
-['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); stoppsZeigen(); entwurfSichern(); }));
+['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); stoppsZeigen(); entwurfSichern(); planDetailsTextSetzen(); }));
 // Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
 function zeitplanLesen() {
   const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
@@ -655,11 +658,12 @@ $('bNeu').onclick = () => {
 $('profilwahl').onchange = e => {
   S.profil = e.target.value; SPEICHER.schreiben('profil', S.profil);
   tempoFelder();
+  einstellTextSetzen();
   // wer laufen geht, will meist die Kilometer hören: einmal einschalten, abschalten bleibt möglich
   if (artAktuell() === 'lauf' && !SPEICHER.lesen('kmAnsageGewaehlt', false)) { $('kmAnsage').checked = true; SPEICHER.schreiben('kmAnsage', true); }
   neuBerechnen();
 };
-$('pacewahl').onchange = e => { S.pace = +e.target.value; SPEICHER.schreiben('pace', S.pace); if (S.stuecke.length) auswertenUndZeigen(); };
+$('pacewahl').onchange = e => { S.pace = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('pace', S.pace); if (S.stuecke.length) auswertenUndZeigen(); };
 // „Mehr“ in der Aktionsleiste (nur am Telefon sichtbar): weitere Funktionen auf- und zuklappen
 $('bMehr').onclick = () => {
   const offen = !$('aktionen').classList.contains('offen');
@@ -667,8 +671,37 @@ $('bMehr').onclick = () => {
   $('bMehr').setAttribute('aria-expanded', String(offen));
   $('bMehr').textContent = offen ? '▴ Weniger' : '⋯ Mehr';
 };
-$('tempowahl').onchange = e => { S.tempo = +e.target.value; SPEICHER.schreiben('tempo', S.tempo); if (S.stuecke.length) auswertenUndZeigen(); };
-$('tourname').oninput = e => { S.name = e.target.value; entwurfSichern(); };
+$('tempowahl').onchange = e => { S.tempo = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('tempo', S.tempo); if (S.stuecke.length) auswertenUndZeigen(); };
+$('tourname').oninput = e => { S.name = e.target.value; entwurfSichern(); planDetailsTextSetzen(); };
+
+// Aufklappbare Zeilen im Planen (am Telefon; am PC ist der Inhalt immer offen, die Kopfzeile versteckt)
+function klapp(box, auf) {
+  box.classList.toggle('offen', auf);
+  box.querySelector('.klapp-kopf').setAttribute('aria-expanded', String(auf));
+}
+document.querySelectorAll('.klapp-kopf').forEach(b => { b.onclick = () => klapp(b.parentElement, !b.parentElement.classList.contains('offen')); });
+// Art und Tempo in einer Zeile: „🥾 Wandern · Normal“ (Werte auch nach Tour öffnen oder Rundgang, darum aus den Feldern)
+const ART_ZEICHEN = { wandern: '🥾', stadt: '🚶', laufen: '🏃', rad: '🚲', kurz: '📏', linie: '📐' };
+function gewaehlt(id) { const s = $(id); return s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : ''; }
+function einstellTextSetzen() {
+  const p = $('profilwahl').value;
+  $('einstellText').textContent = (ART_ZEICHEN[p] || '🥾') + ' ' + gewaehlt('profilwahl') + ' · ' + gewaehlt(artAktuell() === 'lauf' ? 'pacewahl' : 'tempowahl');
+}
+// Name und Zeitplan in einer Zeile: was eingetragen ist, sonst wozu die Zeile da ist
+function planDetailsTextSetzen() {
+  const teile = [];
+  if ((S.name || '').trim()) teile.push(S.name.trim());
+  if ($('startTag').value) teile.push(new Date($('startTag').value + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' }));
+  if ($('startZeit').value) teile.push('ab ' + $('startZeit').value);
+  if (+$('pausewahl').value) teile.push(gewaehlt('pausewahl') + ' Pause');
+  $('planDetailsText').textContent = '🗓 ' + (teile.length ? teile.join(' · ') : 'Name, Tag und Startzeit');
+}
+// Einstiege ohne Route
+$('eRunde').onclick = () => {
+  $('rundFeld').hidden = false;
+  $('bRunde').setAttribute('aria-expanded', 'true');
+  $('rundFeld').scrollIntoView({ block: 'nearest' });
+};
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); rueckgaengig(); }
 });
