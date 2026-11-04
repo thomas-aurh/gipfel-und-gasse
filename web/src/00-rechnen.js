@@ -502,6 +502,20 @@ var R = (function () {
     return aus;
   }
 
+  // Ausschnitt einer Etappe aus der Auswertung der ganzen Tour, als eigene Route ab Meter 0 (zum Folgen eines Tages):
+  // Punkte, Teilstück-Enden der Wegpunkte von s.von bis s.bis und Abbiegehinweise dieses Stücks
+  function etappeAusschnitt(e, s) {
+    const a = s.vonD, b = s.bisD;
+    const pts = e.pts.filter(p => p.d >= a - 0.01 && p.d <= b + 0.01).map((p, i) => {
+      const q = Object.assign({}, p, { d: Math.max(0, p.d - a) });
+      if (i === 0) delete q.luecke;
+      return q;
+    });
+    return { pts, laenge: Math.max(0, b - a), zeit: s.zeit, auf: s.auf, ab: s.ab, hoch: s.hoch,
+      stueckEnde: (e.stueckEnde || []).slice(s.von, s.bis).map(d => d - a),
+      hinweise: (e.hinweise || []).filter(h => h.d >= a && h.d <= b).map(h => Object.assign({}, h, { d: h.d - a })) };
+  }
+
   // Text der Führung am Stopp: Name, dann die Kurzinfo, höchstens etwa 1200 Zeichen und am Satzende gekürzt
   // (eine Minute Vorlesen; die Sprachausgabe von Android nimmt ohnehin nur rund 4000 Zeichen auf einmal)
   function fuehrungText(name, text) {
@@ -884,7 +898,12 @@ var R = (function () {
     if (t.zeit && typeof t.zeit === 'object') {
       const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
         pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };
-      if (z.tag || z.start || z.pause) out.zeit = z;
+      // Startzeit je Tag einer Mehrtagestour (Index = Tag − 1; leer: wie Tag 1)
+      if (Array.isArray(t.zeit.tage) && t.zeit.tage.length <= 60) {
+        const tage = t.zeit.tage.map(x => (typeof x === 'string' && /^\d{2}:\d{2}$/.test(x) ? x : ''));
+        if (tage.some(Boolean)) z.tage = tage;
+      }
+      if (z.tag || z.start || z.pause || z.tage) out.zeit = z;
     }
     return out;
   }
@@ -2240,7 +2259,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

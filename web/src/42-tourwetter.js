@@ -4,7 +4,7 @@ let tourWetterNr = 0, tourWetterFuer = '';
 // zuletzt geladene Vorhersage zusammengefasst (für die Packliste), gilt für tourWetterFuer
 const TOURWETTER = { fuer: '', wetter: null };
 // gezeigte Vorhersage gilt für diese Route, diesen Tag und diese Startzeit; ändert sich etwas, ist sie weg (neu laden)
-const tourWetterSchluessel = () => (S.ergebnis ? S.ergebnis.laenge.toFixed(0) + '|' + S.ergebnis.pts.length + '|' + S.ergebnis.zeit.toFixed(3) : '') + '|' + artAktuell() + '|' + JSON.stringify(S.wps.map(w => [w.lat, w.lon, w.nacht ? 1 : 0, w.min || 0])) + '|' + $('startTag').value + '|' + $('startZeit').value + '|' + $('pausewahl').value + '|' + tempoAktuell();
+const tourWetterSchluessel = () => (S.ergebnis ? S.ergebnis.laenge.toFixed(0) + '|' + S.ergebnis.pts.length + '|' + S.ergebnis.zeit.toFixed(3) : '') + '|' + artAktuell() + '|' + JSON.stringify(S.wps.map(w => [w.lat, w.lon, w.nacht ? 1 : 0, w.min || 0])) + '|' + $('startTag').value + '|' + $('startZeit').value + '|' + (S.tagesStart || []).join(',') + '|' + $('pausewahl').value + '|' + tempoAktuell();
 function tourWetterPruefen() {
   if (tourWetterSchluessel() === tourWetterFuer) return;
   tourWetterNr++; tourWetterFuer = ''; $('tourWetter').innerHTML = '';
@@ -21,7 +21,8 @@ function tourWetterPunkte() {
   const pause = (+$('pausewahl').value || 0) / 60;
   const punkte = [];
   et.forEach((s, k) => {
-    const start = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + k, h, m);
+    const [hk, mk] = k && S.tagesStart && S.tagesStart[k] ? S.tagesStart[k].split(':').map(Number) : [h, m];
+    const start = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + k, hk, mk);
     const teil = e.pts.filter(p => p.d >= s.vonD - 0.01 && p.d <= s.bisD + 0.01);
     if (teil.length < 2) return;
     const a = teil[0], z = teil[teil.length - 1];

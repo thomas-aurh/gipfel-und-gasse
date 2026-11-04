@@ -16,11 +16,11 @@ if (NATIV) {
     '„Sicherung speichern“ gibt alle Touren samt Planung, Tagebuch und Fotos als eine ZIP-Datei weiter (z. B. an Drive oder per Mail); „Sicherung laden“ holt sie zurück.';
 
   // Stopps mit Namen und Besichtigungszeit: an welchem Meter der Route sie liegen
-  function stoppsFuerApp() {
-    const e = S.ergebnis;
+  function stoppsFuerApp(plan) {
+    const e = plan.e;
     if (!e || S.fest) return [];
     const out = [];
-    S.wps.forEach((w, i) => {
+    plan.wps.forEach((w, i) => {
       if (i === 0 || !w.name) return;
       // text: Führung, liest der Dienst am Stopp statt „… erreicht“ vor (auch bei gesperrtem Bildschirm)
       // lat/lon: daran erkennt der Dienst den Stopp für die Führung (auch nach dem Umplanen und bei gleichen Namen)
@@ -34,9 +34,9 @@ if (NATIV) {
 
   // Kennung des Plans, der zuletzt an den Dienst ging: Neuberechnungen ohne Planänderung (z. B. anderes Tempo) schicken
   // nur Einstellungen, sonst ersetzte die geplante Strecke eine unterwegs umgeplante
-  const planKennung = () => JSON.stringify([S.wps, S.profil, S.fest, S.ergebnis ? S.ergebnis.pts.length : 0, S.ergebnis ? S.ergebnis.laenge : 0]);
+  const planKennung = () => JSON.stringify([S.wps, S.profil, S.fest, S.ergebnis ? S.ergebnis.pts.length : 0, S.ergebnis ? S.ergebnis.laenge : 0, naviPlan().tag]);
   async function senden(mitRoute) {
-    const e = S.ergebnis;
+    const plan = naviPlan(), e = plan.e;   // Mehrtagestour: nur der gewählte Tag
     if (mitRoute && e) app.plan = planKennung();
     // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen
     const opt = { tempo: tempoAktuell(), rad: artAktuell() === 'rad', lauf: artAktuell() === 'lauf', kmAnsage: $('kmAnsage').checked,
@@ -44,14 +44,14 @@ if (NATIV) {
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
-      opt.stopps = stoppsFuerApp();
+      opt.stopps = stoppsFuerApp(plan);
       // Abbiegehinweise für die Ansagen: [Meter ab Start, Befehl, Ausfahrt]
       opt.hinweise = S.fest ? [] : (e.hinweise || []).map(h => [h.d, h.cmd, h.exit]);
       // fürs Umplanen unterwegs: alle Ziele nach dem Start [Breite, Länge, Meter ab Start, Minuten, Name] und das Profil;
       // eine geöffnete Spur (GPX) oder gerade Linien werden nicht umgeplant
       const prof = (PROFILE[S.profil] || PROFILE.wandern).brouter;
       opt.profil = S.fest || !prof ? null : prof;
-      opt.ziele = S.fest ? [] : S.wps.slice(1).map((w, i) => [w.lat, w.lon, e.stueckEnde[i], +w.min || 0, w.name || '']);
+      opt.ziele = S.fest ? [] : plan.wps.slice(1).map((w, i) => [w.lat, w.lon, e.stueckEnde[i], +w.min || 0, w.name || '']);
     }
     try {
       const st = await Navi.starten(opt);
@@ -106,7 +106,8 @@ if (NATIV) {
       $('uAuf').textContent = Math.round(st.rest.auf) + ' m';
       const an = new Date(Date.now() + st.rest.stunden * 3600e3);
       // weit weg (noch nicht am Start): Weg zum Start statt eines Rests ab der nächsten Stelle der Route
-      const start = S.ergebnis && S.ergebnis.pts.length && st.lat != null ? R.abstand({ lat: st.lat, lon: st.lon }, S.ergebnis.pts[0]) : null;
+      const ne = naviPlan().e;
+      const start = ne && ne.pts.length && st.lat != null ? R.abstand({ lat: st.lat, lon: st.lon }, ne.pts[0]) : null;
       $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' +
         (st.abw == null ? '' : st.abw >= 1000 && start != null ? ' · zum Start ' + R.kmText(start) : ' · ' + Math.round(st.abw) + ' m neben der Route') +
         (st.lat != null ? sonnenHinweis(an, st.lat, st.lon) : '');
@@ -191,6 +192,8 @@ if (NATIV) {
     }
   };
 
+  // anderer Tag einer Mehrtagestour gewählt, während der Dienst folgt: neue Route nachreichen
+  naviEtappeGewechselt = () => { if (app.folgen && S.ergebnis) senden(true).catch(() => {}); };
   // Wird die Route geändert, während der Dienst ihr folgt: neue Route nachreichen
   const altesAuswerten = auswertenUndZeigen;
   auswertenUndZeigen = function () {

@@ -78,8 +78,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Vorlesen am Stopp braucht echtes GPS.
 - **Gipfelbuch (03.11.) nicht mit echten Daten geprüft:** Erkennung mit echtem Overpass und mit dem Kartenpaket in der App
   (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
-- **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
-  nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
+- **Mehrtagestour:** seit 04.11. Startzeit je Tag, Folgen je Etappe (Browser und Dienst der App) und Etappen im Druck;
+  nur im Klicktest geprüft (in der App nur die Übergabe an den Dienst nachgebildet, kein echtes Folgen auf dem Pixel).
+  Noch nicht gebaut: Etappen im Reisetagebuch-Heft. Die Startzeiten je Tag hängen an der Nummer des Tages: wer eine
+  Übernachtung davor einfügt oder streicht, verschiebt sie.
+- **Packliste (04.11.) nur im Klicktest geprüft:** ob die Dinge und Mengen auf echten Touren passen (Thomas' Urteil steht
+  aus); Wetter kommt nur, wenn „Wetter für die Tour“ für denselben Plan geladen ist.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
@@ -91,7 +95,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
-- **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Packliste je Tourart und Wetter;
+- **Ideen, nicht gebaut:** Notizen an Punkten der Tour;
   kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket); Fotos aus dem
   Tagebuch im Gipfelbuch.
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
@@ -214,6 +218,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Packliste und Mehrtagestour)** „🎒 Packliste“ im Planen und auf der Tourseite (R.packliste,
+  R.packWetter): je Tourart, Gehzeit, Höhenmetern, Höhe, Tagen und geladenem Tourwetter, mit Kind; Abhaken je Tour,
+  eigene Dinge für alle. Mehrtagestour: eigene Startzeit ab Tag 2 (gespeichert in `zeit.tage`), gilt für Etappen, Stopps,
+  Tourwetter und Druck; Unterwegs „Folgen“ je Tag (R.etappeAusschnitt, Browser und Dienst der App), Druck mit Etappen je
+  Tag. Thomas' Wunsch. Einheitstests 289, Klicktest 359.
 - **04.11. (Abend, Sicherung als ZIP, Fotos auf der Tourkarte)** Sicherung als ZIP (eigener ZIP-Schreiber und -Leser,
   ungepackt, CRC-32): `sicherung.json` (version 2, `fotoDateien`) und je Foto `fotos/<id>.jpg`; die App schreibt in
   Stücken zu 3 MB (`NaviPlugin.dateiStueck`) und teilt die fertige Datei (`teilen` mit `entwurf`); ältere JSON-Sicherungen
