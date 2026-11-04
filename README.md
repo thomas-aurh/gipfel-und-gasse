@@ -96,10 +96,14 @@ derselben Grenze filtern.
 wählen: Die App nimmt die bekanntesten Orte, so viele in die Zeit passen (Weg samt Besichtigung), misst nach dem Routen nach
 und lässt bei Bedarf den letzten Ort weg.
 
-**Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
+**Mehrtagestour:** Im Reiter *Route* der Schalter **„☀️ 1 Tag | 🛏 Mehrere Tage“**. „Mehrere Tage“ teilt die Tour nach
+Gehzeit in gleich lange Tage (darunter 2 · 3 · 4 · 5 Tage): liegt ein vorhandener Punkt höchstens 15 % eines Tages neben der
+Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt auf die Route (ziehen verschiebt ihn). Die Punktliste
+ist dann nach Tagen gegliedert, 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. „1 Tag“
+nimmt Übernachtungen und gesetzte Punkte zurück. Weiter geht auch: Zwischenziel antippen › „🛏 Hier übernachten“. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel.
 Ab Tag 2 lässt sich eine eigene Startzeit eintragen (leer: wie Tag 1); sie gilt auch für Stopps, Tourwetter und Druck und
-bleibt mit der Tour gespeichert. Unter *Unterwegs* wählt „Folgen“ einen Tag (vorgewählt der Tag, der nach dem geplanten
+bleibt mit der Tour gespeichert. Unter *Unterwegs* wählt „Welcher Tag?“ mit großen Knöpfen (Strecke, Gehzeit, Ziel je Tag) einen Tag (vorgewählt der Tag, der nach dem geplanten
 Starttag heute ist, sonst Tag 1) oder die ganze Tour: die Navigation, auch der Dienst der App mit Ansagen und Umplanen,
 bekommt dann nur diese Etappe und meldet am Abend „Etappe geschafft“. Der Druck listet die Etappen je Tag.
 „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.

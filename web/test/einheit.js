@@ -793,5 +793,21 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Etappe: Startzeit je Tag bleibt, Unsinn fällt weg', t && JSON.stringify(t.zeit.tage) === '["","07:30",""]', t && t.zeit);
 }
 
+// Mehrtagestour: Tour nach Gehzeit in gleich lange Tage teilen
+{
+  // 12 km flach, 13 Punkte je 1 km; Wegpunkte Start, ein Stopp bei 5 km, Ziel
+  const pts = []; for (let i = 0; i <= 24; i++) pts.push({ lat: 47 + i * 0.0045, lon: 11, ele: 600, d: i * 500 });
+  const wps = [{ lat: 47, lon: 11 }, { lat: 47.045, lon: 11 }, { lat: 47.108, lon: 11 }];
+  const a2 = R.tagesAufteilung(pts, [5500, 12000], wps, 2, 1, 'fuss');
+  pruef('Tage teilen: 2 Tage nutzen den Stopp bei 5,5 km (nah an der Hälfte)', a2.nacht.join() === '1' && a2.neu.length === 0, a2);
+  const a3 = R.tagesAufteilung(pts, [5500, 12000], wps, 3, 1, 'fuss');
+  pruef('Tage teilen: 3 Tage brauchen neue Punkte bei etwa 4 und 8 km', a3.nacht.length + a3.neu.length === 2 &&
+    a3.neu.every(p => p.vor >= 1 && p.vor <= 2) && a3.neu.some(p => Math.abs(p.d - 8000) < 300), a3);
+  const a1 = R.tagesAufteilung(pts, [5500, 12000], wps, 1, 1, 'fuss');
+  pruef('Tage teilen: 1 Tag teilt nichts', a1.nacht.length === 0 && a1.neu.length === 0);
+  const zwei = R.tagesAufteilung(pts, [12000], [wps[0], wps[2]], 2, 1, 'fuss');
+  pruef('Tage teilen: ohne Zwischenpunkt ein neuer in der Mitte', zwei.neu.length === 1 && zwei.neu[0].vor === 1 && Math.abs(zwei.neu[0].d - 6000) < 300, zwei);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -209,6 +209,24 @@ function naviEtappenFeld() {
   }
   sel.value = warDa && [...sel.options].some(o => o.value === vorher) ? vorher : wahl;
   feld.hidden = false;
+  naviTageChips();
+}
+// große Knöpfe je Tag (das Auswahlfeld bleibt verborgen die Quelle der Wahl)
+function naviTageChips() {
+  const box = $('naviTage'), sel = $('naviEtappe');
+  box.innerHTML = '';
+  const et = etappenAktuell();
+  [...sel.options].forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.wert = o.value;
+    b.className = sel.value === o.value ? 'an' : '';
+    b.setAttribute('aria-pressed', String(sel.value === o.value));
+    const k = o.value === '' ? null : +o.value, s = et && k != null ? et[k] : null;
+    b.innerHTML = o.value === '' ? 'Ganze Tour<small>' + R.esc(o.textContent.replace(/^ganze Tour /, '')) + '</small>'
+      : '<b style="color:' + tagFarbe(k) + '">Tag ' + (k + 1) + '</b><small>' + R.esc((s ? R.kmText(s.meter) + ' · ' + R.zeitText(s.zeit) : '') + ' · bis ' + o.textContent.replace(/^Tag \d+: bis /, '').replace(/ \([^)]*\)$/, '')) + '</small>';
+    b.onclick = () => { sel.value = o.value; sel.dispatchEvent(new Event('change')); naviTageChips(); };
+    box.appendChild(b);
+  });
 }
 // was die Navigation verfolgt: { e (Auswertung), wps (Wegpunkte dazu), tag (0, 1 … oder null für die ganze Tour) }
 function naviPlan() {

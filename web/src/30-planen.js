@@ -107,7 +107,7 @@ function zeichenWegpunkte() {
       draggable: true, autoPan: true, zIndexOffset: i === 0 ? 1000 : 0,
       icon: L.divIcon({ className: '', html: '<div class="wp ' + art + '">' + text + '</div>', iconSize: [26, 26], iconAnchor: rund ? [-2, 30] : [13, 13] })
     });
-    if (w.name || w.nacht) m.bindTooltip((w.nacht ? '🛏 ' : '') + R.esc(w.name || 'Übernachtung'), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
+    if (w.name || w.nacht) m.bindTooltip((w.nacht ? '🛏 ' : '') + R.esc(w.name || 'Übernachtung') + (w.nacht ? ' · Tag ' + (stueckTag(i) + 1) + ' ab hier' : ''), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
     m.on('dragend', () => {
       const p = m.getLatLng();
       merken();
@@ -137,6 +137,12 @@ function zeichenWegpunkte() {
   });
 }
 
+// Farbe je Tag einer Mehrtagestour (Tag 1 wie bisher rot)
+const TAG_FARBEN = ['#e5532d', '#1f6fd1', '#8e44ad', '#16a085', '#c48a00', '#d6336c'];
+const tagFarbe = k => TAG_FARBEN[k % TAG_FARBEN.length];
+// Tag (0, 1, …) des Teilstücks k (von Punkt k nach k+1): Zahl der Übernachtungen bis Punkt k
+function stueckTag(k) { let t = 0; for (let i = 1; i <= k && i < S.wps.length - 1; i++) if (S.wps[i] && S.wps[i].nacht) t++; return t; }
+
 function zeichenRoute() {
   ebeneRoute.clearLayers();
   ebeneHervor.clearLayers();
@@ -152,7 +158,7 @@ function zeichenRoute() {
     // Lücken (mehrere Abschnitte einer GPX-Datei) als getrennte Linien
     const teil = [[]];
     e.pts.filter(p => p.d >= d0 - 0.01 && p.d <= d1 + 0.01).forEach(p => { if (p.luecke && teil[teil.length - 1].length) teil.push([]); teil[teil.length - 1].push([p.lat, p.lon]); });
-    const linie = L.polyline(teil, { color: '#e5532d', weight: 5, opacity: 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
+    const linie = L.polyline(teil, { color: S.fest ? '#e5532d' : tagFarbe(stueckTag(k)), weight: 5, opacity: 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }
@@ -400,6 +406,7 @@ function zeitplanZeigen() {
       (etKnapp ? ' ⚠️ An mindestens einem Tag wird es vor Sonnenuntergang knapp.' : '');
   } else { $('etappen').hidden = true; $('etappen').innerHTML = ''; }
   if (typeof naviEtappenFeld === 'function') naviEtappenFeld();
+  tageSchalterZeigen();
   // Stopps mit Öffnungszeiten: geschlossen oder knapp bei Ankunft?
   const probleme = start ? besuchProbleme() : 0;
   if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
@@ -478,6 +485,54 @@ function stoppAnkunft() {
   });
 }
 
+// ---------- Mehrtagestour: Schalter „1 Tag | Mehrere Tage“ und Zahl der Tage ----------
+function tageSchalterZeigen() {
+  const e = S.ergebnis, et = etappenAktuell();
+  $('tageBox').hidden = !e || !!S.fest || S.wps.length < 2;
+  if ($('tageBox').hidden) return;
+  const mehr = !!et;
+  document.querySelectorAll('#tageBox [data-tage]').forEach(b => {
+    const an = (b.dataset.tage === 'mehr') === mehr;
+    b.classList.toggle('an', an); b.setAttribute('aria-pressed', String(an));
+  });
+  $('tageHinweis').hidden = !mehr;
+  const box = $('tageZahl');
+  box.hidden = !mehr;
+  box.innerHTML = '';
+  if (!mehr) return;
+  for (const z of [2, 3, 4, 5]) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip' + (et.length === z ? ' an' : ''); b.dataset.zahl = z;
+    b.textContent = z + ' Tage';
+    b.onclick = () => tageTeilen(z);
+    box.appendChild(b);
+  }
+}
+// Tour in z Tage teilen: vorhandene Punkte nutzen, sonst neue (automatische) Punkte auf der Route; z = 1 nimmt alles zurück
+function tageTeilen(z) {
+  const e = S.ergebnis;
+  if (!e || S.fest || S.rechnet || !e.stueckEnde || e.stueckEnde.length !== S.wps.length - 1) return;
+  merken();
+  const auf = z > 1 ? R.tagesAufteilung(e.pts, e.stueckEnde, S.wps, z, tempoAktuell(), artAktuell()) : { nacht: [], neu: [] };
+  const nacht = new Set(auf.nacht);
+  // automatisch gesetzte Punkte, die nicht mehr gebraucht werden, fallen weg; benannte und eigene Punkte bleiben
+  let wps = S.wps.map((w, i) => { const x = Object.assign({}, w); delete x.nacht; if (nacht.has(i)) x.nacht = true; x._i = i; return x; });
+  for (const p of auf.neu.slice().sort((a, b) => b.vor - a.vor)) wps.splice(wps.findIndex(w => w._i === p.vor), 0, { lat: p.lat, lon: p.lon, nacht: true, auto: true });
+  wps = wps.filter((w, i) => !(w.auto && !w.nacht && i > 0 && i < wps.length - 1));
+  wps.forEach(w => delete w._i);
+  const neuePunkte = wps.length !== S.wps.length || wps.some((w, i) => w.lat !== S.wps[i].lat || w.lon !== S.wps[i].lon);
+  S.wps = wps;
+  if (neuePunkte) neuBerechnen(); else { zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern(); }
+  melde(z > 1 ? 'Tour in ' + z + ' Tage geteilt (nach Gehzeit)' + (auf.neu.length ? ', ' + (auf.neu.length === 1 ? 'ein Übernachtungspunkt' : auf.neu.length + ' Übernachtungspunkte') + ' auf der Route gesetzt' : '') + '. Ziehen verschiebt sie.' : 'Wieder eine Tagestour.', 5);
+}
+document.querySelectorAll('#tageBox [data-tage]').forEach(b => {
+  b.onclick = () => {
+    const mehr = b.dataset.tage === 'mehr', ist = !!etappenAktuell();
+    if (mehr === ist) return;
+    tageTeilen(mehr ? 2 : 1);
+  };
+});
+
 // ---------- Mehrtagestour: Etappen an den Übernachtungen ----------
 function etappenAktuell() {
   const e = S.ergebnis;
@@ -500,8 +555,8 @@ function nachtUmschalten(i) {
   const w = Object.assign({}, S.wps[i]);
   if (w.nacht) delete w.nacht; else w.nacht = true;
   S.wps[i] = w;
-  zeichenWegpunkte(); zeigen(); entwurfSichern();
-  melde(w.nacht ? 'Übernachtung eingetragen: die Tour ist jetzt in Etappen geteilt (siehe Etappen).' : 'Übernachtung entfernt.', 5);
+  zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern();
+  melde(w.nacht ? 'Übernachtung eingetragen: Tag ' + (stueckTag(i) + 1) + ' beginnt hier (siehe Reiter Route).' : 'Übernachtung entfernt.', 5);
 }
 // je Tag: Strecke, Höhenmeter, Gehzeit, Ziel; mit Startzeit Ankunft gegen den Sonnenuntergang am Etappenziel
 function etappenZeigen(et, tag, startZeit, pause) {
@@ -524,6 +579,7 @@ function etappenZeigen(et, tag, startZeit, pause) {
     else if (unter) plan = 'spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (Sonnenuntergang ' + R.uhr(unter) + ')';
     const div = document.createElement('div');
     div.className = 'etappe' + (z.knapp ? ' knapp' : '');
+    div.style.setProperty('--tagfarbe', tagFarbe(k));
     div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
       ' · bis ' + R.esc(ziel) + (k < et.length - 1 ? ' 🛏' : '') + '<br><span class="klein">' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
       R.zeitText(zeit) + (s.hoch != null ? ' · höchster Punkt ' + s.hoch + ' m' : '') + (plan ? '<br>' + R.esc(plan) : '') + '</span>';
@@ -603,6 +659,13 @@ function stoppsZeigen() {
   const n = S.wps.length, ankunft = stoppAnkunft();
   // verschiebbar ist alles außer dem Start und, bei einer Rundtour, dem Schluss (der Start bleibt, „⇄ Umkehren“ dreht die Tour)
   const rundTour = n > 2 && R.abstand(S.wps[n - 1], S.wps[0]) < 30, letzter = rundTour ? n - 2 : n - 1;
+  const mehrtags = S.wps.some(w => w.nacht);
+  const tagKopf = k => {
+    const h = document.createElement('div');
+    h.className = 'stopp-tag'; h.style.setProperty('--tagfarbe', tagFarbe(k)); h.textContent = 'Tag ' + (k + 1);
+    box.appendChild(h);
+  };
+  if (mehrtags) tagKopf(0);
   S.wps.forEach((w, i) => {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
@@ -629,11 +692,26 @@ function stoppsZeigen() {
         d.appendChild(b);
       }
     }
+    // Mehrtagestour: an jedem Zwischenpunkt den Tag beenden (oder die Übernachtung wieder weg)
+    if (mehrtags && i > 0 && i < n - 1) {
+      const b = document.createElement('button');
+      b.className = 'nacht-knopf' + (w.nacht ? ' an' : '');
+      b.textContent = '🛏'; b.title = w.nacht ? 'Übernachtung entfernen' : 'Tag hier beenden';
+      b.setAttribute('aria-label', b.title); b.setAttribute('aria-pressed', String(!!w.nacht));
+      b.onclick = () => nachtUmschalten(i);
+      d.appendChild(b);
+    }
     const x = document.createElement('button');
     x.title = 'Entfernen'; x.textContent = '✕';
     x.onclick = () => wegpunktWeg(i);
     d.appendChild(x);
     box.appendChild(d);
+    if (mehrtags && w.nacht && i > 0 && i < n - 1) {
+      const t = document.createElement('div');
+      t.className = 'stopp-nacht'; t.textContent = '🛏 Übernachtung';
+      box.appendChild(t);
+      tagKopf(stueckTag(i));
+    }
   });
   if (S.wps.some(w => w.info && w.info.oh)) {
     const hinweis = document.createElement('p');

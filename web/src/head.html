@@ -181,6 +181,17 @@ html.heft #tbHeft{display:block;color:#1c2620;background:#fff;padding:0 2mm;font
 .warn-punkt{position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:#d9822b}
 #planDetails .klapp-kopf{display:none}
 #planDetails .klapp-inhalt{display:block}
+.tage-schalter{margin:4px 0 8px}
+#tageZahl{margin:0 0 6px}
+.stopp-tag{font-weight:700;font-size:13px;margin:10px 0 2px;padding-left:8px;border-left:4px solid var(--tagfarbe,#e5532d)}
+.stopp-nacht{font-size:13px;color:var(--grau);margin:2px 0 2px 4px}
+.stopp button.nacht-knopf{font-size:15px;opacity:.45}
+.stopp button.nacht-knopf.an{opacity:1}
+.etappe{border-left:4px solid var(--tagfarbe,#e5532d);padding-left:10px}
+.navi-tage{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.navi-tage button{border:1.5px solid var(--linie,#ccd);background:var(--karte);border-radius:12px;padding:8px 12px;font:inherit;font-size:14px;text-align:left;color:var(--text)}
+.navi-tage button.an{border-color:var(--gruen);background:var(--gruen2);font-weight:700}
+.navi-tage small{display:block;color:var(--grau);font-weight:400}
 #tbBildTeilen{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff3;color:#fff;font:600 15px system-ui,sans-serif}
 #tbBildZu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff3;color:#fff;font-size:20px}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
@@ -245,6 +256,7 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .chips button{border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:4px 10px;font-size:13px}
 .chips button.aus{opacity:.45}
+.chips button.an{background:var(--gruen2);border-color:var(--gruen);color:var(--gruen);font-weight:700}
 .wetter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .wetter div{background:var(--karte);border:1px solid var(--linie);border-radius:10px;padding:8px;text-align:center;font-size:13px}
 .wetter b{display:block;font-size:24px}

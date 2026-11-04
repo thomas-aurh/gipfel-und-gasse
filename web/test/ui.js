@@ -665,6 +665,23 @@ function pruef(name, bed, info) {
   await planReiter(page, 'route'); await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
   pruef('Familien-Check: neue Auswertung leert ihn', (await page.textContent('#familie')) === '');
   await planReiter(page, 'vorbereiten'); await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
+  // Mehrtagestour über den Schalter im Reiter Route: „Mehrere Tage“ teilt nach Gehzeit, 3 Tage, zurück zu 1 Tag
+  await planReiter(page, 'route');
+  pruef('Tage: Schalter 1 Tag | Mehrere Tage im Reiter Route, 1 Tag gewählt', await page.isVisible('#tageBox') && (await page.getAttribute('#tageBox [data-tage="1"]', 'class')).includes('an') && await page.isHidden('#tageZahl'));
+  const wpsVor = (await page.$$('.wp')).length;
+  await page.click('#tageBox [data-tage=mehr]');
+  await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  pruef('Tage: „Mehrere Tage“ teilt in 2 Tage, Liste nach Tagen, Chips für die Zahl', (await page.textContent('#etappen')).includes('Tag 2') &&
+    (await page.$$eval('#stopps .stopp-tag', l => l.map(x => x.textContent))).join() === 'Tag 1,Tag 2' && (await page.getAttribute('#tageZahl [data-zahl="2"]', 'class')).includes('an') &&
+    await page.isVisible('#stopps .nacht-knopf'), [await page.$$eval('#stopps .stopp-tag', l => l.map(x => x.textContent)), wpsVor]);
+  pruef('Tage: Route je Tag in eigener Farbe', await page.evaluate(() => { const f = new Set([...document.querySelectorAll('.leaflet-overlay-pane path.leaflet-interactive')].map(p => p.getAttribute('stroke'))); return f.has('#e5532d') && f.has('#1f6fd1'); }));
+  await page.click('#tageZahl [data-zahl="3"]');
+  await page.waitForFunction(() => (document.getElementById('etappen').textContent.match(/Tag 3/) || []).length > 0, null, { timeout: 8000 }).catch(() => {});
+  pruef('Tage: 3 Tage setzt Übernachtungspunkte auf der Route', (await page.textContent('#etappen')).includes('Tag 3') && (await page.$$('.wp')).length >= 4, (await page.$$('.wp')).length);
+  await page.click('#tageBox [data-tage="1"]');
+  await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});
+  pruef('Tage: „1 Tag“ nimmt die gesetzten Punkte und Übernachtungen zurück', await page.isHidden('#etappen') && (await page.$$('.wp')).length === wpsVor, (await page.$$('.wp')).length);
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
@@ -690,17 +707,20 @@ function pruef(name, bed, info) {
   const etWahl = await page.$$eval('#naviEtappe option', l => l.map(o => o.value + '=' + o.textContent));
   pruef('Folgen: Auswahl Tag 1, Tag 2, ganze Tour', await page.isVisible('#naviEtappeFeld') && etWahl.length === 3 && etWahl[0].startsWith('0=Tag 1: bis') && etWahl[1].startsWith('1=Tag 2: bis Ziel') &&
     etWahl[2].startsWith('=ganze Tour (2 Tage)') && (await page.inputValue('#naviEtappe')) === '0', etWahl);
+  pruef('Folgen: große Knöpfe je Tag', (await page.$$('#naviTage button')).length === 3 && (await page.getAttribute('#naviTage button >> nth=0', 'class')) === 'an' &&
+    (await page.textContent('#naviTage button >> nth=1')).startsWith('Tag 2'), await page.textContent('#naviTage'));
   await ctx.setGeolocation({ latitude: 47.7650, longitude: 11.3900, accuracy: 8 });
-  await page.selectOption('#naviEtappe', '1');
+  await page.click('#naviTage button >> nth=1');
+  pruef('Folgen: Knopf wählt den Tag', (await page.inputValue('#naviEtappe')) === '1' && (await page.getAttribute('#naviTage button >> nth=1', 'class')) === 'an');
   await page.click('#bNavi');
   await page.waitForFunction(() => /^Tag 2: /.test(document.getElementById('uAnkunft').textContent), null, { timeout: 8000 }).catch(() => {});
   const restTag2 = parseFloat((await page.textContent('#uRest')).replace(',', '.'));
-  await page.selectOption('#naviEtappe', '');
+  await page.click('#naviTage button >> nth=2');   // ganze Tour
   await page.waitForFunction(() => /^Ankunft/.test(document.getElementById('uAnkunft').textContent), null, { timeout: 8000 }).catch(() => {});
   const restGanz = parseFloat((await page.textContent('#uRest')).replace(',', '.'));
   pruef('Folgen: Tag 2 hat den Rest nur dieser Etappe', restTag2 > 0 && restGanz >= restTag2 && (await page.textContent('#uAnkunft')).startsWith('Ankunft'), [restTag2, restGanz, await page.textContent('#uAnkunft')]);
   await page.click('#bNavi');
-  await page.selectOption('#naviEtappe', '0');
+  await page.click('#naviTage button >> nth=0');
   await page.click('[data-reiter=planen]');
   await planReiter(page, 'vorbereiten'); await page.fill('#tourname', 'Hüttentour');
   await page.click('#bSpeichern');
