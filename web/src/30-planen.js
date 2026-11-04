@@ -395,7 +395,8 @@ function zeitplanZeigen() {
     text = 'Start ' + R.uhr(start) + ' → Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr' + amTag(z.ankunft) + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + (sonne ? ' · ' + sonne : '');
     if (unter) text += z.knapp ? '. ⚠️ Knapp: spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen (30 min Reserve).' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve.';
   } else {
-    text = sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
+    text = sonne && zuLangFuerTag(z.spaetestens, tag) ? '⚠️ Länger als das Tageslicht (' + sonne + '): als Mehrtagestour planen (Reiter Route, „Mehrere Tage“).'
+      : sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
   // Mehrtagestour: Zeitplan je Tag in den Etappen statt eines Tages
   const et = etappenAktuell();
@@ -558,6 +559,8 @@ function nachtUmschalten(i) {
   zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern();
   melde(w.nacht ? 'Übernachtung eingetragen: Tag ' + (stueckTag(i) + 1) + ' beginnt hier (siehe Reiter Route).' : 'Übernachtung entfernt.', 5);
 }
+// passt der Tag ins Tageslicht? Spätester Start vor 5 Uhr (oder am Vortag) heißt: länger als das Tageslicht
+function zuLangFuerTag(spaetestens, d) { return !!spaetestens && spaetestens < new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5, 0); }
 // je Tag: Strecke, Höhenmeter, Gehzeit, Ziel; mit Startzeit Ankunft gegen den Sonnenuntergang am Etappenziel
 function etappenZeigen(et, tag, startZeit, pause) {
   const box = $('etappen');
@@ -572,13 +575,16 @@ function etappenZeigen(et, tag, startZeit, pause) {
     const sz = k && S.tagesStart && S.tagesStart[k] ? S.tagesStart[k].split(':').map(Number) : startZeit;
     const start = sz ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), sz[0], sz[1]) : null;
     const z = R.zeitplan(start, zeit, pause, unter);
-    if (z.knapp) knapp = true;
+    const zuLang = unter && zuLangFuerTag(z.spaetestens, d);
+    if (z.knapp || zuLang) knapp = true;
     const ziel = S.wps[s.bis].name || (k === et.length - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1));
     let plan = '';
-    if (start && unter) plan = 'Start ' + R.uhr(start) + ', Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr · Sonnenuntergang ' + R.uhr(unter) + (z.knapp ? ' · ⚠️ knapp, spätestens ' + R.uhr(z.spaetestens) + ' Uhr los' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve');
+    if (zuLang) plan = '⚠️ Länger als das Tageslicht (Sonnenuntergang ' + R.uhr(unter) + '): Tag kürzer planen oder mehr Tage wählen';
+    else if (start && unter) plan = 'Start ' + R.uhr(start) + ', Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr · Sonnenuntergang ' + R.uhr(unter) + (z.knapp ? ' · ⚠️ knapp, spätestens ' + R.uhr(z.spaetestens) + ' Uhr los' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve');
     else if (unter) plan = 'spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (Sonnenuntergang ' + R.uhr(unter) + ')';
     const div = document.createElement('div');
-    div.className = 'etappe' + (z.knapp ? ' knapp' : '');
+    div.className = 'etappe' + (z.knapp || zuLang ? ' knapp' : '');
+    div.dataset.tag = k;
     div.style.setProperty('--tagfarbe', tagFarbe(k));
     div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
       ' · bis ' + R.esc(ziel) + (k < et.length - 1 ? ' 🛏' : '') + '<br><span class="klein">' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
@@ -590,6 +596,8 @@ function etappenZeigen(et, tag, startZeit, pause) {
       lab.textContent = 'Start an Tag ' + (k + 1) + ' ';
       const inp = document.createElement('input');
       inp.type = 'time'; inp.step = 300; inp.value = (S.tagesStart && S.tagesStart[k]) || ''; inp.dataset.tag = k;
+      const leer = document.createElement('small');
+      leer.textContent = inp.value ? '' : ' leer: wie Tag 1' + ($('startZeit').value ? ' (' + $('startZeit').value + ')' : '');
       inp.title = 'leer: wie an Tag 1' + ($('startZeit').value ? ' (' + $('startZeit').value + ')' : '');
       inp.onchange = () => {
         S.tagesStart = (S.tagesStart || []).slice();
@@ -598,9 +606,13 @@ function etappenZeigen(et, tag, startZeit, pause) {
         entwurfSichern(); zeitplanZeigen();
         if (typeof stoppsZeigen === 'function') stoppsZeigen();
       };
-      lab.appendChild(inp);
+      lab.appendChild(inp); lab.appendChild(leer);
       div.appendChild(lab);
     }
+    // die Punkte dieses Tages (stoppsZeigen legt sie hier hinein)
+    const pk = document.createElement('div');
+    pk.className = 'etappe-punkte'; pk.dataset.tag = k;
+    div.appendChild(pk);
     box.appendChild(div);
   });
   const b = document.createElement('button');
@@ -608,7 +620,15 @@ function etappenZeigen(et, tag, startZeit, pause) {
   b.onclick = () => etappenAlsReise(et.length, tag);
   box.appendChild(b);
   box.hidden = false;
+  stoppsInEtappen();
   return knapp;
+}
+// Mehrtagestour: Punkte aus der Liste in die Karte ihres Tages (Tag, Strecke, Zeit und Punkte beieinander)
+function stoppsInEtappen() {
+  document.querySelectorAll('#stopps .stopp[data-tag]').forEach(z => {
+    const ziel = document.querySelector('#etappen .etappe-punkte[data-tag="' + z.dataset.tag + '"]');
+    if (ziel) ziel.appendChild(z);
+  });
 }
 // Reise im Tagebuch über die Tage der Etappen anlegen (gegangene Touren dieser Tage zeigt das Tagebuch von selbst)
 function etappenAlsReise(tage, tag) {
@@ -660,16 +680,13 @@ function stoppsZeigen() {
   // verschiebbar ist alles außer dem Start und, bei einer Rundtour, dem Schluss (der Start bleibt, „⇄ Umkehren“ dreht die Tour)
   const rundTour = n > 2 && R.abstand(S.wps[n - 1], S.wps[0]) < 30, letzter = rundTour ? n - 2 : n - 1;
   const mehrtags = S.wps.some(w => w.nacht);
-  const tagKopf = k => {
-    const h = document.createElement('div');
-    h.className = 'stopp-tag'; h.style.setProperty('--tagfarbe', tagFarbe(k)); h.textContent = 'Tag ' + (k + 1);
-    box.appendChild(h);
-  };
-  if (mehrtags) tagKopf(0);
+  document.querySelectorAll('#etappen .etappe-punkte').forEach(x => { x.innerHTML = ''; });
   S.wps.forEach((w, i) => {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
     d.className = 'stopp';
+    // Tag des Punkts: der Start gehört zu Tag 1, jeder weitere Punkt zum Tag, an dessen Ende er liegt
+    if (mehrtags) d.dataset.tag = i === 0 ? 0 : stueckTag(i - 1);
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
     d.innerHTML = '<span class="nr' + (nr === 'S' ? ' s' : '') + '">' + nr + '</span><span class="name">' +
       R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + '</span>';
@@ -706,13 +723,8 @@ function stoppsZeigen() {
     x.onclick = () => wegpunktWeg(i);
     d.appendChild(x);
     box.appendChild(d);
-    if (mehrtags && w.nacht && i > 0 && i < n - 1) {
-      const t = document.createElement('div');
-      t.className = 'stopp-nacht'; t.textContent = '🛏 Übernachtung';
-      box.appendChild(t);
-      tagKopf(stueckTag(i));
-    }
   });
+  if (mehrtags) stoppsInEtappen();
   if (S.wps.some(w => w.info && w.info.oh)) {
     const hinweis = document.createElement('p');
     hinweis.className = 'klein oh-hinweis';
