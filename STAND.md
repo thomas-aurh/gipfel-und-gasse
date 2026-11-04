@@ -5,6 +5,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **GPX laden, Anreise und Parkplätze (04.11. abends) nur nachgebildet geprüft:** Dateiwahl mit mehreren Dateien im
+  WebView der App, echte Overpass-Antworten zu Parkplätzen (Gebühr und Plätze sind in OSM oft nicht eingetragen).
 - **Familien-Check und Rundgang nach Zeit (04.11.) nur nachgebildet geprüft:** echte Overpass-Antworten zum Mittelstück
   der Route (Spielplatz, Einkehr), ob 250 m neben der Route das Gemeinte trifft; wie gut die Schätzung (Luftlinie × 1,3 bei
   4 km/h) und das Nachmessen die Zeit in einer echten Altstadt treffen. Die Wiederholung im Schritt „Download-Seite
@@ -196,6 +198,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend)** GPX laden über Menü › Werkzeuge und unter Touren, mehrere Dateien auf einmal, jede gleich unter
+  „Geplant“ gespeichert (Thomas' Wunsch; vorher nur geöffnet, Speichern von Hand). Tourseite mit Anreise zum Start
+  (Google Maps, Bus und Bahn oder Auto) und Parkplätzen bis 1 km um den Start (OpenStreetMap, ohne private; Abstand,
+  Gebühr, Plätze, Parkhaus, Wanderparkplatz; „🚗 hin“). Klicktest 327, Einheitstests 250.
 - **04.11. (später Nachmittag)** Download-Seite: GitHub-Aufrufe bis zu fünfmal wiederholt (Bau 167 und 169 waren an 502
   gescheitert). Familien-Filter in den geplanten Touren (bis 5/8/12 km und 200/400/700 Hm) und „👨‍👩‍👧 Familien-Check“ im
   Planen (Grenze, Spielplatz oder Einkehr auf halber Strecke, nur das Mittelstück bei Overpass). Stadtrundgang nach

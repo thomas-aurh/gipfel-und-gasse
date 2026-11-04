@@ -479,6 +479,27 @@ function pruef(name, bed, info) {
   pruef('Einstieg „Letzte Tour“ öffnet die Tourseite', (await page.textContent('#tourName')) === 'Testrunde am See' && (await page.textContent('#seitenTitel')) === 'Tour' &&
     (await page.textContent('#tourZahlen')).includes(await page.textContent('#zLaenge')) && await page.isEnabled('#tLos') &&
     (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
+  // Anreise und Parkplätze am Start (Overpass hier mit zwei Parkplätzen nachgebildet)
+  pruef('Tourseite: Anreise mit Bus und Bahn und mit dem Auto zum Start', /travelmode=transit/.test(await page.getAttribute('#tOepnv', 'href')) && /travelmode=driving/.test(await page.getAttribute('#tAuto', 'href')));
+  const parkRoute = r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    const m = /around:1000,(-?[\d.]+),(-?[\d.]+)/.exec(q);
+    if (!m) return r.fallback();
+    const la = +m[1], lo = +m[2];
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'way', id: 61, center: { lat: la + 0.004, lon: lo }, tags: { amenity: 'parking', name: 'Wanderparkplatz Seeblick', fee: 'no', capacity: '40' } },
+      { type: 'node', id: 62, lat: la + 0.001, lon: lo, tags: { amenity: 'parking', fee: 'yes', parking: 'multi-storey' } },
+      { type: 'node', id: 63, lat: la + 0.0005, lon: lo, tags: { amenity: 'parking', access: 'private', name: 'Privat' } }
+    ] }) });
+  };
+  await page.route(/overpass-api\.de/, parkRoute);
+  await page.click('#tParken');
+  await page.waitForFunction(() => document.querySelectorAll('#tParkListe li').length > 0, null, { timeout: 8000 }).catch(() => {});
+  const park = await page.$$eval('#tParkListe li', l => l.map(x => x.textContent));
+  pruef('Parkplätze: öffentliche nach Abstand, mit Gebühr, Plätzen und Art', park.length === 2 && /Parkplatz.*110 m vom Start · gebührenpflichtig · Parkhaus/.test(park[0]) &&
+    /Wanderparkplatz Seeblick.*440 m vom Start · kostenlos · 40 Plätze · Wanderparkplatz/.test(park[1]), park);
+  pruef('Parkplätze: „hin“ öffnet Google Maps mit dem Auto', /travelmode=driving/.test(await page.getAttribute('#tParkListe li >> nth=0 >> a', 'href')));
+  await page.unroute(/overpass-api\.de/, parkRoute);
   await page.click('#tBearbeiten');
   await page.waitForSelector('#ergebnis:not([hidden])');
   pruef('Tourseite: „Bearbeiten“ führt zum Planen', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
@@ -505,24 +526,34 @@ function pruef(name, bed, info) {
   pruef('Gerade Linie mit Höhen', zaehler.hoehe > 0 && (await page.textContent('#zHoch')).includes('m'));
   pruef('Gerade Linie gestrichelt', await page.evaluate(() => [...document.querySelectorAll('.leaflet-overlay-pane path')].some(p => p.getAttribute('stroke-dasharray'))));
 
-  // GPX öffnen
+  // GPX laden: kommt gleich unter „Geplant“, eine Datei öffnet ihre Tourseite; die offene Planung bleibt als eigene Tour
   await zuSeite(page, 'touren');
+  const vorImport = (await page.$$('#tourliste li[data-tour]')).length;
   await page.setInputFiles('#gpxDatei', gpxPfad);
-  await page.waitForFunction(() => document.querySelector('#tourname').value === 'Testrunde am See' && document.querySelector('[data-reiter=planen]').classList.contains('an'));
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an') && document.querySelector('#tourName').textContent === 'Testrunde am See', null, { timeout: 8000 });
+  pruef('GPX laden: gleich unter „Geplant“ gespeichert, Tourseite offen', (await page.textContent('#meldung')).includes('1 Tour unter „Geplant“ gespeichert') &&
+    (await page.textContent('#tourArt')).includes('GPX-Spur'), await page.textContent('#meldung'));
+  await page.click('#tBearbeiten');
   pruef('GPX geöffnet als Spur', (await page.textContent('#status')).includes('Geöffnete Spur'));
   pruef('Rückgängig bei geöffneter Spur gesperrt', await page.isDisabled('#bZurueck'));
-  // GPX bei geöffneter Tour: Speichern legt eine neue Tour an und ersetzt die alte nicht
-  const vorImport = (await page.$$('#tourliste li')).length;
-  await page.click('#bSpeichern');
   await zuSeite(page, 'touren');
-  pruef('Import ersetzt keine geöffnete Tour', (await page.$$('#tourliste li')).length === vorImport + 1, [vorImport, (await page.$$('#tourliste li')).length]);
+  pruef('Import ersetzt keine geöffnete Tour', (await page.$$('#tourliste li[data-tour]')).length === vorImport + 1, [vorImport, (await page.$$('#tourliste li[data-tour]')).length]);
   pruef('Tour öffnen ist ein Knopf', (await page.$$('#tourliste button.oeffnen')).length >= 2);
-  const fehlerDatei = path.join(OUT, 'kaputt.gpx');
+  // mehrere Dateien auf einmal über Menü › Werkzeuge, eine davon kaputt: die guten kommen in die Liste, die kaputte wird genannt
+  const gpxB = path.join(OUT, 'zweite.gpx'), fehlerDatei = path.join(OUT, 'kaputt.gpx');
+  fs.writeFileSync(gpxB, gpx.replace(/<name>[^<]*<\/name>/, '<name>Zweite Runde</name>'));
   fs.writeFileSync(fehlerDatei, '<gpx></gpx>');
+  await page.click('#bMenue');
+  const [waehler] = await Promise.all([page.waitForEvent('filechooser'), page.click('#bMenueGpx')]);
+  await waehler.setFiles([gpxB, fehlerDatei]);
+  await page.waitForFunction(() => /Nicht lesbar/.test(document.getElementById("meldung").textContent), null, { timeout: 8000 }).catch(() => {});
+  const mehrMeldung = await page.textContent('#meldung');
+  pruef('Menü › GPX laden: gute Datei gespeichert, kaputte genannt', mehrMeldung.includes('1 Tour unter „Geplant“ gespeichert') && mehrMeldung.includes('Nicht lesbar: kaputt.gpx'), mehrMeldung);
   await zuSeite(page, 'touren');
+  pruef('Menü › GPX laden: in der Liste „Geplant“', (await page.textContent('#tourliste')).includes('Zweite Runde'));
   await page.setInputFiles('#gpxDatei', fehlerDatei);
   await page.waitForTimeout(200);
-  pruef('Kaputtes GPX meldet Fehler', (await page.textContent('#meldung')).includes('GPX nicht lesbar'));
+  pruef('Kaputtes GPX meldet Fehler', (await page.textContent('#meldung')).includes('Nicht lesbar'));
 
   // Teilen-Link öffnen (die geplante Tour, nicht die importierte Spur)
   await page.click('#tourliste li:has-text("🥾") >> nth=0');

@@ -14,6 +14,7 @@
     <div class="menue-kopf">Gipfel &amp; Gasse</div>
     <!-- Karte, Entdecken, Planen, Unterwegs und Ich (Touren, Tagebuch, Reiseziele, Gipfelbuch) stehen in der Leiste; hier nur, was dort fehlt -->
     <h4>Werkzeuge</h4>
+    <button id="bMenueGpx">📂 GPX-Dateien laden (zu Geplant)</button>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
     <button data-ziel="daten">💾 Sicherung</button>
@@ -276,8 +277,8 @@
       <section data-reiter="touren">
         <div class="umschalter" role="group" aria-label="Touren"><button data-ziel="touren" class="an">Geplant</button><button data-ziel="gegangen">Gegangen</button></div>
         <div class="knopfreihe">
-          <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
-          <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
+          <button class="knopf" id="bGpxOeffnen">📂 GPX laden</button>
+          <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" multiple hidden>
         </div>
         <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select><select class="tf-familie" aria-label="Familie: Länge und Höhenmeter begrenzen"><option value="">Jede Länge</option><option value="5-200">👨‍👩‍👧 bis 5 km, 200 Hm</option><option value="8-400">👨‍👩‍👧 bis 8 km, 400 Hm</option><option value="12-700">👨‍👩‍👧 bis 12 km, 700 Hm</option></select></div>
         <ul id="tourliste" class="liste"></ul>
@@ -296,6 +297,16 @@
           <button class="knopf" id="tDrucken">🖨 Drucken</button>
         </div>
         <p class="klein">„▶ Los“ folgt der Tour mit Ansagen; „✏️ Bearbeiten“ zeigt Höhenprofil, Wege, Zeitplan und Wetter.</p>
+        <h3>Anreise zum Start</h3>
+        <div class="knopfreihe">
+          <a class="knopf" id="tOepnv" target="_blank" rel="noopener">🚆 Bus und Bahn</a>
+          <a class="knopf" id="tAuto" target="_blank" rel="noopener">🚗 Auto</a>
+          <button class="knopf" id="tParken">🅿️ Parkplätze am Start</button>
+        </div>
+        <div id="tParkStatus" class="klein" hidden></div>
+        <ul id="tParkListe" class="liste"></ul>
+        <p class="klein">Bus, Bahn und Auto öffnen Google Maps mit dem Weg zum Start. Parkplätze aus OpenStreetMap (bis 1 km
+          um den Start, ohne private), ohne Gewähr für Gebühren und freie Plätze.</p>
       </section>
 
       <!-- Ich: eigene Sammlungen -->

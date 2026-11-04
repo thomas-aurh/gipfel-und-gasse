@@ -49,6 +49,13 @@ Ziel eine Stelle weiter (der Start bleibt, „↶ Rückgängig“ holt die alte 
 *Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
 Rad, Stadt, GPX).
 
+**GPX laden:** Menü ☰ › „📂 GPX-Dateien laden“ (oder unter Ich › Touren „📂 GPX laden“), auch mehrere Dateien auf einmal:
+jede kommt gleich als Tour unter „Geplant“, bei einer Datei geht ihre Tourseite auf. Fehlen Höhen, ergänzt die App sie.
+
+**Anreise und Parkplatz:** Auf der Tourseite unter „Anreise zum Start“: „🚆 Bus und Bahn“ und „🚗 Auto“ öffnen Google Maps mit
+dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz
+aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mit Google Maps dorthin.
+
 **Familie:** In *Planen* „👨‍👩‍👧 Familien-Check“: passt die Tour zur gewählten Grenze (bis 5 km und 200 Hm, 8 km und 400 Hm
 oder 12 km und 700 Hm; gewählt unter *Touren* in der Liste, sonst 8 km und 400 Hm), und gibt es auf halber Strecke (30 bis
 70 % der Länge, bis 250 m neben der Route) einen Spielplatz oder eine Einkehr? Die geplanten Touren lassen sich mit
