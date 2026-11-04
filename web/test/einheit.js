@@ -644,5 +644,29 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
   pruef('Sicherung: Wegpunkte, Herkunft, Dauer der Datei', zur.punkte.length === 2 && zur.punkte[1][3] === 'punkt' && zur.quelle === 'beispiel-touren.de' && zur.dateiDauer === 2.5, zur);
 }
 
+// Wanderwege: Liste aus Relationen (ohne Namen raus, Fernwege zuletzt), Verlauf aus Wegstücken (umgedreht, Lücke)
+{
+  const mitte = { lat: 47.6, lon: 11.3 };
+  const json = { elements: [
+    { type: 'relation', id: 1, center: { lat: 47.62, lon: 11.3 }, tags: { route: 'hiking', name: 'Fernweg', network: 'nwn' } },
+    { type: 'relation', id: 2, center: { lat: 47.61, lon: 11.3 }, tags: { route: 'hiking', name: 'Gratweg', network: 'lwn', distance: '6,1', roundtrip: 'yes', ref: '12' } },
+    { type: 'relation', id: 3, center: { lat: 47.6, lon: 11.3 }, tags: { route: 'hiking' } },
+    { type: 'relation', id: 4, center: { lat: 47.605, lon: 11.3 }, tags: { route: 'foot', ref: '7' } },
+    { type: 'node', id: 5, lat: 47.6, lon: 11.3, tags: { name: 'kein Weg' } }] };
+  const w = R.wegeLesen(json, mitte);
+  pruef('Wanderwege: Namen, Nummer als Ersatz, Fernweg zuletzt', w.map(x => x.name).join('|') === 'Weg 7|Gratweg|Fernweg', w.map(x => x.name));
+  pruef('Wanderwege: Beschreibung', R.wegText(w[1]) === '6,1 km · Rundweg · örtlich · Nr. 12 · 1,1 km entfernt', R.wegText(w[1]));
+  const g = (a, b) => ({ lat: a, lon: b });
+  const rel = { elements: [{ type: 'relation', id: 9, members: [
+    { type: 'way', role: '', geometry: [g(47.600, 11.300), g(47.601, 11.300)] },
+    { type: 'way', role: '', geometry: [g(47.602, 11.300), g(47.601, 11.300)] },
+    { type: 'way', role: 'alternative', geometry: [g(47.7, 11.3), g(47.71, 11.3)] },
+    { type: 'way', role: '', geometry: [g(47.610, 11.300), g(47.611, 11.300)] }] }] };
+  const v = R.wegVerlauf(rel);
+  pruef('Wanderwege: Stücke verbunden, zweites umgedreht, Alternative weg, Lücke markiert',
+    v.length === 5 && v[1].lat === 47.601 && v[2].lat === 47.602 && !v[2].luecke && v[3].luecke === true && v[4].lat === 47.611, v);
+  pruef('Wanderwege: ohne Relation kein Verlauf', R.wegVerlauf({ elements: [] }).length === 0);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

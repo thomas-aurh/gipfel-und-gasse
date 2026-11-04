@@ -1551,6 +1551,68 @@ var R = (function () {
     return z.join(' · ');
   }
 
+  // ---------- Markierte Wanderwege (OSM-Routen route=hiking/foot) ----------
+  function wegeAbfrage(lat, lon, radius) {
+    return '[out:json][timeout:25];relation["route"~"^(hiking|foot)$"](around:' + radius + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ');out tags center 80;';
+  }
+  const WEG_NETZ = { iwn: 'international', nwn: 'Fernwanderweg', rwn: 'regional', lwn: 'örtlich' };
+  // Liste: Name (sonst Nummer oder Start–Ziel), Netz, Rundweg, Länge laut OSM, Abstand der Mitte; nach Abstand sortiert
+  function wegeLesen(json, mitte) {
+    const out = [];
+    for (const el of (json && json.elements) || []) {
+      if (el.type !== 'relation' || !el.tags) continue;
+      const t = el.tags;
+      const name = t.name || t['name:de'] || (t.ref ? 'Weg ' + t.ref : '') || (t.from && t.to ? t.from + ' – ' + t.to : '');
+      if (!name) continue;
+      const km = parseFloat(String(t.distance || '').replace(',', '.'));
+      out.push({ id: el.id, name, ref: t.ref || '', netz: WEG_NETZ[t.network] || '', rund: t.roundtrip === 'yes',
+        km: isFinite(km) && km > 0 ? km : null, betreiber: t.operator || '',
+        abstand: el.center && mitte ? abstand(mitte, { lat: el.center.lat, lon: el.center.lon }) : null });
+    }
+    // Fernwege zuletzt (sie laufen durch, sind aber selten das Ziel eines Tages), sonst nach Abstand
+    const rang = w => (w.netz === 'Fernwanderweg' || w.netz === 'international' ? 1 : 0);
+    return out.sort((a, b) => rang(a) - rang(b) || (a.abstand || 0) - (b.abstand || 0));
+  }
+  function wegText(w) {
+    const z = [];
+    if (w.km) z.push(String(w.km).replace('.', ',') + ' km');
+    if (w.rund) z.push('Rundweg');
+    if (w.netz) z.push(w.netz);
+    if (w.ref && !w.name.includes(w.ref)) z.push('Nr. ' + w.ref);
+    if (w.abstand != null) z.push((w.abstand < 1000 ? Math.round(w.abstand / 50) * 50 + ' m' : kmText(w.abstand)) + ' entfernt');
+    return z.join(' · ');
+  }
+  // Verlauf einer Route aus `out geom`: die Wege der Relation der Reihe nach aneinanderhängen (umdrehen, wenn das Ende
+  // näher liegt); passt ein Stück nirgends an (unter 80 m), beginnt es einen neuen Abschnitt (luecke)
+  function wegVerlauf(json) {
+    const rel = ((json && json.elements) || []).find(e => e.type === 'relation' && Array.isArray(e.members));
+    if (!rel) return [];
+    const stuecke = rel.members.filter(m => m.type === 'way' && Array.isArray(m.geometry) && m.geometry.length > 1 && !/^(alternative|excursion|approach|connection)$/.test(m.role || ''))
+      .map(m => m.geometry.map(g => ({ lat: g.lat, lon: g.lon })));
+    if (!stuecke.length) return [];
+    const pts = stuecke.shift().slice();
+    while (stuecke.length) {
+      const ende = pts[pts.length - 1];
+      let best = -1, umdrehen = false, d = Infinity;
+      stuecke.forEach((st, i) => {
+        const a = abstand(ende, st[0]), b = abstand(ende, st[st.length - 1]);
+        if (a < d) { d = a; best = i; umdrehen = false; }
+        if (b < d) { d = b; best = i; umdrehen = true; }
+      });
+      // erstes Stück verkehrt herum? (sein Anfang hängt am zweiten)
+      if (pts.length && stuecke.length && best >= 0 && d > 80) {
+        const anf = pts[0], st = stuecke[best];
+        if (Math.min(abstand(anf, st[0]), abstand(anf, st[st.length - 1])) < 80) { pts.reverse(); continue; }
+      }
+      const st = stuecke.splice(best, 1)[0];
+      const teil = umdrehen ? st.slice().reverse() : st.slice();
+      if (d < 1) teil.shift();
+      else if (d > 80) teil[0] = Object.assign({}, teil[0], { luecke: true });
+      for (const q of teil) pts.push(q);
+    }
+    return pts;
+  }
+
   // ---------- Orte und Suche ohne Netz (Datei orte.json.gz im Kartenpaket, gebaut von karten/orte.py) ----------
   // Eintrag [lat, lon, "n123", Merkmale] → Element wie in der Antwort von Overpass (für orteLesen und stadtLesen)
   function ortElement(e) {
@@ -1874,7 +1936,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

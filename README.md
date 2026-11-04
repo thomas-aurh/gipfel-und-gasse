@@ -59,6 +59,11 @@ die Herkunft („aus komoot.de“) und, wenn die Punkte Zeitstempel tragen, die 
 dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz
 aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mit Google Maps dorthin.
 
+**Wanderwege in der Nähe:** In *Entdecken* „Wanderwege suchen“ (2, 5 oder 10 km um die Kartenmitte): markierte Wanderwege
+aus OpenStreetMap mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
+der Karte, „＋ Tour“ legt ihn mit Höhen unter „Geplant“ ab („aus OpenStreetMap“). Es sind beschilderte Wege, keine
+ausgesuchten Touren mit Beschreibung; Stücke, die in OSM nicht zusammenhängen, bleiben getrennte Abschnitte. Braucht Netz.
+
 **Familie:** In *Planen* „👨‍👩‍👧 Familien-Check“: passt die Tour zur gewählten Grenze (bis 5 km und 200 Hm, 8 km und 400 Hm
 oder 12 km und 700 Hm; gewählt unter *Touren* in der Liste, sonst 8 km und 400 Hm), und gibt es auf halber Strecke (30 bis
 70 % der Länge, bis 250 m neben der Route) einen Spielplatz oder eine Einkehr? Die geplanten Touren lassen sich mit
