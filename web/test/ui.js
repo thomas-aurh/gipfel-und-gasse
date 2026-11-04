@@ -629,8 +629,21 @@ function pruef(name, bed, info) {
   const tw = await page.textContent('#tourWetter');
   pruef('Tourwetter: Start und Ziel mit Temperatur, Wind und Böen', tw.includes('Start') && tw.includes('Ziel') && tw.includes('7 °C') && tw.includes('Böen 70'), tw);
   pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab der nächsten vollen Stunde gerechnet'), tw);
+  // Packliste: aus Tourart und dem geladenen Wetter (Böen 70 km/h ⇒ Windjacke); Abhaken bleibt, eigenes Ding für alle Touren
+  await page.click('#ergebnis [data-pack]');
+  const packText = () => page.textContent('#ergebnis .pack');
+  pruef('Packliste: Grundausstattung und Windjacke nach dem Wetter', (await packText()).includes('Regenjacke') && (await packText()).includes('Windjacke') &&
+    (await packText()).includes('Böen bis 70') && !(await packText()).includes('Wetter für die Tour“ laden'), await packText());
+  await page.check('#ergebnis .pack input[data-id=regenjacke]');
+  pruef('Packliste: Abhaken zählt', /^1 von \d+ eingepackt/.test(await page.textContent('#ergebnis .pack-stand')) && await page.isChecked('#ergebnis .pack input[data-id=regenjacke]'), await page.textContent('#ergebnis .pack-stand'));
+  await page.fill('#ergebnis .pack-eigen input', 'Fernglas');
+  await page.click('#ergebnis .pack-eigen button[type=submit]');
+  pruef('Packliste: eigenes Ding unter „Eigenes“', (await packText()).includes('Eigenes') && (await packText()).includes('Fernglas') &&
+    (await page.evaluate(() => localStorage.getItem('gug.packEigene'))) === '["Fernglas"]');
   await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
   pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
+  pruef('Packliste: ohne passende Vorhersage der Hinweis aufs Wetter, Haken bleibt', (await packText()).includes('Wetter für die Tour“ laden') && !(await packText()).includes('Windjacke') &&
+    await page.isChecked('#ergebnis .pack input[data-id=regenjacke]'), await packText());
   // Familien-Check: Länge und Aufstieg gegen die Grenze (Standard bis 8 km und 400 Hm), Spielplatz oder Einkehr auf halber Strecke
   await page.click('#bFamilie');
   await page.waitForFunction(() => /halber Strecke/.test(document.getElementById('familie').textContent) && !/suche/.test(document.getElementById('familie').textContent), null, { timeout: 8000 }).catch(() => {});
@@ -648,6 +661,9 @@ function pruef(name, bed, info) {
   const etText = await page.textContent('#etappen');
   pruef('Etappen: zwei Tage mit Strecke und Höhenmetern', etText.includes('Tag 1') && etText.includes('Tag 2') && etText.includes('🛏') && /↑ \d+ m/.test(etText), etText);
   pruef('Etappen: Zeitplan nennt die Etappen', (await page.textContent('#zeitplan')).includes('2 Etappen'), await page.textContent('#zeitplan'));
+  pruef('Packliste: mit Übernachtung Hüttenschlafsack und Wäsche für 1 Nacht', (await page.textContent('#ergebnis .pack')).includes('Hüttenschlafsack') && (await page.textContent('#ergebnis .pack')).includes('Wechselwäsche für 1 Nacht'));
+  await page.click('#ergebnis [data-pack]');
+  pruef('Packliste: zuklappen', await page.isHidden('#ergebnis .pack'));
   await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
   await page.fill('#startZeit', '09:00'); await page.dispatchEvent('#startZeit', 'change');
   const etPlan = await page.textContent('#etappen');

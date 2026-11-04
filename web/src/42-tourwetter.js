@@ -1,6 +1,8 @@
 // Wetter für die Tour: Start, höchster Punkt und Ziel (je Tag bei Etappen), jeweils für die Stunde, in der man dort ist.
 // Eine Anfrage an Open-Meteo, mit Höhe der Punkte (die Vorhersage gilt dann für diese Höhe, nicht für das Raster).
 let tourWetterNr = 0, tourWetterFuer = '';
+// zuletzt geladene Vorhersage zusammengefasst (für die Packliste), gilt für tourWetterFuer
+const TOURWETTER = { fuer: '', wetter: null };
 // gezeigte Vorhersage gilt für diese Route, diesen Tag und diese Startzeit; ändert sich etwas, ist sie weg (neu laden)
 const tourWetterSchluessel = () => (S.ergebnis ? S.ergebnis.laenge.toFixed(0) + '|' + S.ergebnis.pts.length + '|' + S.ergebnis.zeit.toFixed(3) : '') + '|' + artAktuell() + '|' + JSON.stringify(S.wps.map(w => [w.lat, w.lon, w.nacht ? 1 : 0, w.min || 0])) + '|' + $('startTag').value + '|' + $('startZeit').value + '|' + $('pausewahl').value + '|' + tempoAktuell();
 function tourWetterPruefen() {
@@ -44,6 +46,72 @@ function tourWetterPunkte() {
   return { punkte, ohneStart: !$('startZeit').value };
 }
 
+// ---------- Packliste: aus Tourart, Länge, Höhe, Tagen und dem geladenen Wetter; Abhaken je Tour, eigene Dinge für alle ----------
+function packDaten() {
+  const e = S.ergebnis;
+  if (!e) return null;
+  const et = etappenAktuell();
+  const pause = (+$('pausewahl').value || 0) / 60;
+  const stunden = (et ? Math.max(...et.map(x => x.zeit)) : e.zeit + besichtigung() / 60) + pause;
+  return { profil: S.profil, stunden, auf: e.auf, ab: e.ab, hoch: e.hoch, tage: et ? et.length : 1, kind: tempoAktuell() <= 0.7 && artAktuell() === 'fuss',
+    dunkel: $('zeitplan').classList.contains('warnung') && /knapp/.test($('zeitplan').textContent),
+    wetter: TOURWETTER.fuer && TOURWETTER.fuer === tourWetterSchluessel() ? TOURWETTER.wetter : null };
+}
+const packSchluessel = () => 'pack.' + (S.tourId || 'neu');
+function packlisteZeigen(box) {
+  const d = packDaten();
+  box.innerHTML = '';
+  if (!d) { box.textContent = 'Erst eine Route planen.'; return; }
+  const l = R.packliste(d), hak = SPEICHER.lesen(packSchluessel(), {}) || {};
+  const eigene = (SPEICHER.lesen('packEigene', []) || []).filter(x => typeof x === 'string');
+  if (eigene.length) l.gruppen.push({ name: 'Eigenes', dinge: eigene.map((was, i) => ({ id: 'eigen:' + was, was, warum: '', weg: i })) });
+  let alle = 0, fertig = 0;
+  for (const gr of l.gruppen) {
+    const h = document.createElement('h4'); h.textContent = gr.name; box.appendChild(h);
+    for (const x of gr.dinge) {
+      alle++; if (hak[x.id]) fertig++;
+      const lab = document.createElement('label');
+      lab.className = hak[x.id] ? 'erledigt' : '';
+      const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!hak[x.id]; c.dataset.id = x.id;
+      c.onchange = () => { const m = SPEICHER.lesen(packSchluessel(), {}) || {}; if (c.checked) m[x.id] = 1; else delete m[x.id]; SPEICHER.schreiben(packSchluessel(), m); packlisteNeu(); };
+      const sp = document.createElement('span');
+      sp.innerHTML = R.esc(x.was) + (x.warum ? '<small>' + R.esc(x.warum) + '</small>' : '');
+      lab.append(c, sp);
+      if (x.weg != null) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'mini'; b.textContent = '✕'; b.title = 'Aus „Eigenes“ entfernen';
+        b.onclick = ev => { ev.preventDefault(); const l2 = (SPEICHER.lesen('packEigene', []) || []).filter(v => v !== x.was); SPEICHER.schreiben('packEigene', l2); packlisteNeu(); };
+        lab.appendChild(b);
+      }
+      box.appendChild(lab);
+    }
+  }
+  const kopf = document.createElement('p'); kopf.className = 'klein pack-stand';
+  kopf.textContent = fertig + ' von ' + alle + ' eingepackt.' + (l.hinweise.length ? ' ' + l.hinweise.join(' ') : '');
+  box.prepend(kopf);
+  const f = document.createElement('form'); f.className = 'pack-eigen';
+  f.innerHTML = '<input type="text" maxlength="80" placeholder="Eigenes dazu, z. B. Fernglas" aria-label="Eigenes Ding für die Packliste"><button class="knopf" type="submit">＋</button>' +
+    '<button class="knopf" type="button" data-leeren>Haken weg</button>';
+  f.onsubmit = ev => {
+    ev.preventDefault();
+    const v = f.querySelector('input').value.trim();
+    if (!v) return;
+    const l2 = (SPEICHER.lesen('packEigene', []) || []).filter(x => x !== v).concat([v]).slice(-40);
+    SPEICHER.schreiben('packEigene', l2); packlisteNeu();
+  };
+  f.querySelector('[data-leeren]').onclick = () => { SPEICHER.schreiben(packSchluessel(), {}); packlisteNeu(); };
+  box.appendChild(f);
+}
+// offene Packlisten neu zeichnen (Haken, Wetter, andere Tour)
+function packlisteNeu() { document.querySelectorAll('.pack-box .pack:not([hidden])').forEach(packlisteZeigen); }
+document.querySelectorAll('[data-pack]').forEach(b => {
+  b.onclick = () => {
+    const box = b.parentElement.querySelector('.pack');
+    box.hidden = !box.hidden;
+    b.setAttribute('aria-expanded', String(!box.hidden));
+    if (!box.hidden) packlisteZeigen(box);
+  };
+});
+
 $('bTourWetter').onclick = async () => {
   const { punkte, ohneStart } = tourWetterPunkte();
   const box = $('tourWetter');
@@ -56,6 +124,9 @@ $('bTourWetter').onclick = async () => {
     if (nr !== tourWetterNr) return;
     if (!Array.isArray(j)) j = [j];   // ein Punkt: Open-Meteo antwortet ohne Liste
     const warn = new Set();
+    TOURWETTER.fuer = tourWetterFuer;
+    TOURWETTER.wetter = R.packWetter(punkte.map((p, i) => R.wetterStunde(j[i], p.t)));
+    packlisteNeu();
     const zeilen = punkte.map((p, i) => {
       const w = R.tourWetterText(R.wetterStunde(j[i], p.t), p.t < Date.now() - 3600e3);
       w.warn.forEach(x => warn.add(x));

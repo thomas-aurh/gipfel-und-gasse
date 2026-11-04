@@ -374,6 +374,7 @@ function zeitplanZeigen() {
   if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
   else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
   if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
+  if (typeof packlisteNeu === 'function') packlisteNeu();   // offene Packliste folgt Zeitplan und Route
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
