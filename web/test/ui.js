@@ -1535,8 +1535,19 @@ function pruef(name, bed, info) {
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   // leere Planung am Telefon: Einstiege im halb offenen Blatt; „Stadtrundgang“ schaltet die Stadt ein und führt zu Entdecken
   await pt.reload(); await pt.waitForTimeout(500);
-  pruef('Telefon: Start ohne Route mit halbem Blatt und Einstiegen', await pt.evaluate(() => !document.querySelector('#panel').classList.contains('klein')) && await pt.isVisible('#eRunde') && await pt.isVisible('#eStadt'));
+  pruef('Telefon: Start ohne Route mit der reinen Karte', await pt.evaluate(() => document.body.classList.contains('ohneBlatt') &&
+    document.querySelector('#leiste [data-reiter=karte]').classList.contains('an')) && await pt.isHidden('#eRunde'));
   await pt.screenshot({ path: path.join(OUT, '7b-telefon-start.png') });
+  // auf der reinen Karte planen: Start antippen meldet sich, mit dem Ziel geht es zum Planen mit dem Ergebnis
+  const kk = await (await pt.$('#karte')).boundingBox();
+  await pt.tap('#karte', { position: { x: kk.width * 0.35, y: kk.height * 0.45 } }); await pt.waitForTimeout(250);
+  pruef('Telefon: Start auf der reinen Karte wird gemeldet', (await pt.textContent('#meldung')).includes('Start gesetzt'));
+  await pt.tap('#karte', { position: { x: kk.width * 0.6, y: kk.height * 0.3 } });
+  await pt.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(() => !document.body.classList.contains('ohneBlatt') &&
+    document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#zLaenge'));
+  await klick('#bNeu'); await pt.waitForTimeout(300);
+  pruef('Telefon: Planen ohne Route zeigt die Einstiege', await pt.isVisible('#eRunde') && await pt.isVisible('#eStadt'));
   await pt.tap('#eStadt'); await pt.waitForTimeout(300);
   pruef('Einstieg „Stadtrundgang“: Stadt an, Entdecken mit Rundgang', await pt.evaluate(() => document.querySelector('.modus [data-modus=stadt]').classList.contains('an') &&
     document.querySelector('section[data-reiter=entdecken]').classList.contains('an')) && await pt.isVisible('#bRundgang'));

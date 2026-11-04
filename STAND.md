@@ -5,8 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Planen neu (04.11.) nicht auf dem Pixel geprüft:** Klappzeilen, Einstiege, Start mit halb offenem Blatt (verdeckt
-  die halbe Karte), Zoom nur mit zwei Fingern. Offen für Stufe 2: Leiste und Tourseite (siehe Entscheidungen).
+- **Planen neu (04.11.):** von Thomas auf dem Pixel gesehen (Bau 165): Einstiege mit „Letzte Tour“ und die Zeile Art und
+  Tempo. Noch nicht geprüft: Klappzeilen mit Route, Start mit der reinen Karte (seit #59), Zoom nur mit zwei Fingern.
+  Offen für Stufe 2: Leiste und Tourseite (siehe Entscheidungen).
 - **Android-App (Stufen 1–5) gebaut, auf dem Pixel nicht geprüft.** Bis zur Korrektur in #5 lief die Anbindung an
   Android auf dem Handy gar nicht (Capacitor-Kern fehlte, Routen nur als gerade Linie). Von Thomas am 01.11. auf dem
   Pixel geprüft (Verona, neue APK): Route über Wege (online) und Standort auf der Karte. Offen bleibt der Rest unten. Geprüft in GitHub Actions: Bau, Java-Tests,
@@ -190,7 +191,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   offenen Blatt; Zoom-Knöpfe nur mit Maus, Fadenkreuz nur auf Karte und Planen. Klicktest 285.
   Danach, Befund von Thomas auf dem Pixel (Bau 165): schwarzer Punkt blieb ohne Route auf der Karte. Es war die Marke vom
   Antippen des Höhenprofils (am Touchscreen nimmt kein „Maus weg“ sie weg); jetzt geht sie mit jeder neuen Route und mit
-  „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot).
+  „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot) (#58).
+  Start am Telefon ohne Route mit der reinen Karte statt mit halb offenem Blatt (Thomas' Wunsch nach dem Test): Start
+  antippen meldet sich, mit dem Ziel geht es zum Planen; die Einstiege stehen unter *Planen* (Klicktest 290) (#59).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
