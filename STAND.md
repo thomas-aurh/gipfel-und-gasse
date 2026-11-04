@@ -188,6 +188,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Tourenplaner): Kennzahlen und Höhenprofil zuerst, Art und Tempo sowie Name und Zeitplan am Telefon je eine
   aufklappbare Zeile (am PC offen); ohne Route Einstiege „Runde mit Länge“, „Stadtrundgang“, „Letzte Tour“ im halb
   offenen Blatt; Zoom-Knöpfe nur mit Maus, Fadenkreuz nur auf Karte und Planen. Klicktest 285.
+  Danach, Befund von Thomas auf dem Pixel (Bau 165): schwarzer Punkt blieb ohne Route auf der Karte. Es war die Marke vom
+  Antippen des Höhenprofils (am Touchscreen nimmt kein „Maus weg“ sie weg); jetzt geht sie mit jeder neuen Route und mit
+  „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
