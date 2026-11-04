@@ -682,5 +682,16 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Waymarked Trails: Relationen, Nummer als Name, Fernweg zuletzt', w.map(x => x.name + '/' + x.netz).join() === 'Weg 7/örtlich,Fern/Fernwanderweg', w);
 }
 
+// Fotos: neueste zuerst, mit Reise und der zeitlich nächsten gegangenen Tour desselben Tages
+{
+  const t0 = Date.parse('2026-08-01T10:00:00Z');
+  const tb = { reisen: [{ id: 'r1', name: 'Sommer' }], eintraege: [
+    { id: 'e1', reise: 'r1', zeit: t0, fotos: ['f1', 'f2'] }, { id: 'e2', reise: 'r1', zeit: t0 + 864e5, fotos: ['f3'] }, { id: 'e3', reise: 'r1', zeit: t0, fotos: [] }] };
+  const touren = [{ id: 'ta', art: 'aufzeichnung', datum: '2026-08-01T07:00:00Z', spur: [[47, 11, 0, t0 - 3 * 3.6e6]] },
+    { id: 'tb', art: 'aufzeichnung', datum: '2026-08-01T07:00:00Z', spur: [[47, 11, 0, t0 + 0.5 * 3.6e6]] }, { id: 'tp', art: 'plan', datum: '2026-08-01T09:00:00Z', spur: [[47, 11, 0]] }];
+  const l = R.fotoListe(tb, touren);
+  pruef('Fotos: Liste neueste zuerst, mit Reise und Tour des Tages', l.map(x => x.foto).join() === 'f3,f1,f2' && l[0].tour === null && l[1].tour.id === 'tb' && l[1].reise.name === 'Sommer', l.map(x => [x.foto, x.tour && x.tour.id]));
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

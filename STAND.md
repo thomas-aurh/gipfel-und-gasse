@@ -5,6 +5,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
+  wird aus IndexedDB gelesen), Verknüpfung nur über den Tag (ohne Aufzeichnung an dem Tag kein „Zur Tour“).
 - **Wanderwege in der Nähe:** auf dem Pixel (Bau 190, 193) scheiterte Overpass (Zeitüberschreitung, Überlast). Seitdem
   erst Waymarked Trails; dessen Antwortformat ist aus dem Quellcode (`wmt_api`) abgelesen, nicht gegen den echten Dienst
   gemessen (aus der Cloud gesperrt). Der Verlauf beim Antippen kommt weiter von Overpass. Offen: Antwortzeit bei 5 und 10 km in den
@@ -207,6 +209,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Fotos)** Ich › Fotos: alle Bilder des Tagebuchs als Raster, großes Bild mit Blättern (Wischen, ‹ ›,
+  Pfeiltasten), Reise und Zeitpunkt; Querverweise „Zur Reise“ (Eintrag hervorgehoben) und zur gegangenen Tour desselben
+  Tages (zeitlich nächste); Tourseite zeigt die Fotos des Tages (Thomas' Wunsch, Vorbild Fotos im Profil gängiger
+  Tourenplaner). Klicktest 345, Einheitstests 266.
 - **04.11. (Abend, Wanderwege 2)** Befund auf dem Pixel (Bau 193): Ladeanzeige funktioniert, Overpass antwortete „502 …
   at capacity“. Wanderwege kommen jetzt zuerst von Waymarked Trails (`list/by_area`, Ausschnitt in EPSG:3857, eigene
   Datenbank aus OSM, CORS offen), Overpass nur noch als Ersatz und für den Verlauf einer Route. Fehler von Diensten kurz

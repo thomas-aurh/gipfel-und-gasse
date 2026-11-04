@@ -1,6 +1,6 @@
 // Start: Seiten (Menü links oben, Leiste unten), Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
 const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren', tour: 'Tour', ich: 'Ich',
-  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', gipfelbuch: 'Gipfelbuch', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
+  gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', gipfelbuch: 'Gipfelbuch', fotos: 'Fotos', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
 let seite = 'planen';
 function reiter(name) {
   if (!SEITEN[name]) name = 'planen';
@@ -10,7 +10,7 @@ function reiter(name) {
   document.body.dataset.seite = name;
   if (name !== 'planen' && name !== 'karte' && kreuzAn) kreuz(false);
   // in der Leiste stehen die fünf Hauptbereiche; Touren (geplant, gegangen, eine Tour) und die Sammlungen gehören zu „Ich“
-  const leiste = { touren: 'ich', gegangen: 'ich', tour: 'ich', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich' }[name] || name;
+  const leiste = { touren: 'ich', gegangen: 'ich', tour: 'ich', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich', fotos: 'ich' }[name] || name;
   document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
   document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === name));
   balkenZeigen();
@@ -29,6 +29,7 @@ function reiter(name) {
   if (name === 'tagebuch') tagebuchZeigen();
   if (name === 'ziele') zieleZeigen();
   if (name === 'gipfelbuch') gipfelbuchZeigen();
+  if (name === 'fotos') fotosZeigen();
   if (name === 'planen') requestAnimationFrame(() => profilZeichnen());
   if ($('panel').classList.contains('klein')) blatt('mittel');
 }

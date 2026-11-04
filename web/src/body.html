@@ -39,7 +39,12 @@
   </div>
 
   <!-- Foto aus dem Reisetagebuch groß (über allem, darum nicht im Blatt) -->
-  <div id="tbBild" hidden role="dialog" aria-modal="true" aria-label="Foto"><img alt="Foto"><button type="button" id="tbBildZu" aria-label="Foto schließen">✕</button></div>
+  <div id="tbBild" hidden role="dialog" aria-modal="true" aria-label="Foto"><img alt="Foto"><button type="button" id="tbBildZu" aria-label="Foto schließen">✕</button>
+    <!-- beim Blättern durch alle Fotos (Ich › Fotos): vor, zurück und wohin das Foto gehört -->
+    <button type="button" id="tbBildVor" class="bild-nav links" aria-label="Voriges Foto" hidden>‹</button>
+    <button type="button" id="tbBildNach" class="bild-nav rechts" aria-label="Nächstes Foto" hidden>›</button>
+    <div id="tbBildInfo" hidden><span id="tbBildText"></span><span class="links"><button type="button" id="tbBildReise">📔 Zur Reise</button><button type="button" id="tbBildTour" hidden>🥾 Zur Tour</button></span></div>
+  </div>
 
   <div id="lagenwahl" hidden>
     <h4>Karte</h4>
@@ -308,6 +313,10 @@
           <button class="knopf" id="tDrucken">🖨 Drucken</button>
         </div>
         <p class="klein">„▶ Los“ folgt der Tour mit Ansagen; „✏️ Bearbeiten“ zeigt Höhenprofil, Wege, Zeitplan und Wetter.</p>
+        <div id="tourFotosBox" hidden>
+          <h3 id="tourFotosTitel">Fotos von diesem Tag</h3>
+          <div id="tourFotos" class="foto-raster klein"></div>
+        </div>
         <div id="tourPunkteBox" hidden>
           <h3 id="tourPunkteTitel">Wegpunkte aus der Datei</h3>
           <ul id="tourPunkte" class="liste"></ul>
@@ -324,6 +333,12 @@
           um den Start, ohne private), ohne Gewähr für Gebühren und freie Plätze.</p>
       </section>
 
+      <!-- Fotos: alle Bilder aus dem Reisetagebuch, neueste zuerst -->
+      <section data-reiter="fotos">
+        <div id="fotoStatus" class="klein"></div>
+        <div id="fotoRaster" class="foto-raster"></div>
+      </section>
+
       <!-- Ich: eigene Sammlungen -->
       <section data-reiter="ich">
         <div class="einstieg-liste ich-liste">
@@ -331,6 +346,7 @@
           <button class="einstieg" data-ziel="tagebuch"><span>📔</span><b>Reisetagebuch</b><small>Reisen, Einträge, Fotos</small></button>
           <button class="einstieg" data-ziel="ziele"><span>⭐</span><b>Reiseziele</b><small>Listen mit Orten</small></button>
           <button class="einstieg" data-ziel="gipfelbuch"><span>⛰️</span><b>Gipfelbuch</b><small>erreichte Gipfel</small></button>
+          <button class="einstieg" data-ziel="fotos"><span>🖼️</span><b>Fotos</b><small>alle Bilder, mit Reise und Tour</small></button>
         </div>
       </section>
 

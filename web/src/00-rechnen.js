@@ -908,6 +908,20 @@ var R = (function () {
     return touren.filter(t => t.art === 'aufzeichnung' && tagIso(tourZeit(t)) >= reise.von && tagIso(tourZeit(t)) <= reise.bis)
       .sort((a, b) => tourZeit(a) - tourZeit(b));
   }
+  // alle Fotos des Tagebuchs, neueste zuerst: je Foto Eintrag, Reise und die gegangene Tour desselben Tages (die zeitlich
+  // nächste, wenn es mehrere gibt); touren aus tourenLesen
+  function fotoListe(tagebuch, touren) {
+    const reisen = new Map(((tagebuch && tagebuch.reisen) || []).map(r => [r.id, r]));
+    const gegangen = (touren || []).filter(t => t.art === 'aufzeichnung');
+    const out = [];
+    const eintraege = ((tagebuch && tagebuch.eintraege) || []).filter(e => Array.isArray(e.fotos) && e.fotos.length).slice().sort((a, b) => b.zeit - a.zeit);
+    for (const e of eintraege) {
+      const tag = tagIso(e.zeit);
+      const amTag = gegangen.filter(t => tagIso(tourZeit(t)) === tag).sort((a, b) => Math.abs(tourZeit(a) - e.zeit) - Math.abs(tourZeit(b) - e.zeit));
+      for (const f of e.fotos) out.push({ foto: f, eintrag: e.id, zeit: e.zeit, reise: reisen.get(e.reise) || null, tour: amTag[0] || null });
+    }
+    return out;
+  }
   // Reise, die heute läuft (für „Eintrag schreiben“ ohne Umweg); bei mehreren die zuletzt begonnene
   function reiseHeute(reisen, heute) {
     return reisen.filter(r => r.von <= heute && r.bis >= heute).sort((a, b) => (a.von < b.von ? 1 : -1))[0] || null;
@@ -1968,7 +1982,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

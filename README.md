@@ -59,6 +59,12 @@ die Herkunft („aus komoot.de“) und, wenn die Punkte Zeitstempel tragen, die 
 dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz
 aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mit Google Maps dorthin.
 
+**Fotos:** Ich › *Fotos* zeigt alle Bilder aus dem Reisetagebuch als Raster, neueste zuerst. Antippen zeigt ein Foto groß;
+wischen oder ‹ › blättert. Unten stehen Reise und Zeitpunkt, „📔 Zur Reise“ springt zum Eintrag, „🥾 …“ öffnet die gegangene
+Tour desselben Tages. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages. Die Fotos liegen im
+Speicher der App (IndexedDB, auf 1600 px verkleinert, Originale der Kamera auf Wunsch in der Galerie unter Bilder › Gipfel
+und Gasse) und kommen mit in die Sicherung.
+
 **Ladeanzeige:** Dauert eine Anfrage an einen Dienst (Route, Suche, Orte, Wetter, Wanderwege) länger als einen Moment,
 erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum Gipfel hinauf- und wieder hinuntergeht.
 

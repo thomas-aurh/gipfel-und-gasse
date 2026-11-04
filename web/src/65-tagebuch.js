@@ -87,21 +87,123 @@ function fotoKachel(blob, weg) {
   return fig;
 }
 let bildVon = null;
+// GALERIE: beim Blättern (Ich › Fotos, Tourseite) die Liste aus R.fotoListe und die Stelle; sonst ein einzelnes Bild
+const GALERIE = { liste: null, i: 0, urls: new Map() };
 function bildZeigen(src, von) {
   bildVon = von;
+  GALERIE.liste = null;
+  ['tbBildVor', 'tbBildNach', 'tbBildInfo'].forEach(id => { $(id).hidden = true; });
   $('tbBild').querySelector('img').src = src;
   $('tbBild').hidden = false;
   $('tbBildZu').focus();
+}
+async function galerieUrl(f) {
+  if (GALERIE.urls.has(f)) return GALERIE.urls.get(f);
+  const b = await FOTOS.holen(f).catch(() => null);
+  const u = b ? URL.createObjectURL(b) : '';
+  GALERIE.urls.set(f, u);
+  return u;
+}
+async function galerieZeigen(liste, i, von) {
+  bildVon = von;
+  GALERIE.liste = liste; GALERIE.i = i;
+  $('tbBild').hidden = false;
+  await galerieBild();
+  $('tbBildZu').focus();
+}
+async function galerieBild() {
+  const l = GALERIE.liste, x = l && l[GALERIE.i];
+  if (!x) return;
+  $('tbBild').querySelector('img').src = await galerieUrl(x.foto);
+  $('tbBildVor').hidden = GALERIE.i <= 0;
+  $('tbBildNach').hidden = GALERIE.i >= l.length - 1;
+  $('tbBildInfo').hidden = false;
+  const wann = new Date(x.zeit).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + R.uhr(new Date(x.zeit)) + ' Uhr';
+  $('tbBildText').textContent = (GALERIE.i + 1) + '/' + l.length + ' · ' + (x.reise ? x.reise.name + ' · ' : '') + wann;
+  $('tbBildReise').hidden = !x.reise;
+  $('tbBildTour').hidden = !x.tour;
+  if (x.tour) $('tbBildTour').textContent = '🥾 ' + x.tour.name;
+}
+function galerieSchritt(d) {
+  if (!GALERIE.liste) return;
+  const i = GALERIE.i + d;
+  if (i < 0 || i >= GALERIE.liste.length) return;
+  GALERIE.i = i;
+  galerieBild();
 }
 function bildZu() {
   if ($('tbBild').hidden) return false;
   $('tbBild').hidden = true;
   $('tbBild').querySelector('img').removeAttribute('src');
+  GALERIE.liste = null;
   if (bildVon && bildVon.isConnected) bildVon.focus();
   bildVon = null;
   return true;
 }
 $('tbBild').onclick = bildZu;
+$('tbBildVor').onclick = ev => { ev.stopPropagation(); galerieSchritt(-1); };
+$('tbBildNach').onclick = ev => { ev.stopPropagation(); galerieSchritt(1); };
+$('tbBildInfo').onclick = ev => ev.stopPropagation();
+// Querverweise: zum Eintrag in der Reise, zur gegangenen Tour des Tages
+$('tbBildReise').onclick = async () => {
+  const x = GALERIE.liste && GALERIE.liste[GALERIE.i];
+  if (!x || !x.reise) return;
+  bildZu();
+  reiter('tagebuch');
+  await reiseZeigen(x.reise.id);
+  const k = document.querySelector('.tb-eintrag[data-eintrag="' + CSS.escape(x.eintrag) + '"]');
+  if (k) { k.scrollIntoView({ block: 'start' }); k.classList.add('hervor'); setTimeout(() => k.classList.remove('hervor'), 2500); }
+};
+$('tbBildTour').onclick = () => {
+  const x = GALERIE.liste && GALERIE.liste[GALERIE.i];
+  if (!x || !x.tour) return;
+  bildZu();
+  tourAnsehen(x.tour.id);
+};
+// Wischen nach links und rechts blättert
+(function () {
+  let x0 = null;
+  $('tbBild').addEventListener('touchstart', e => { x0 = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+  $('tbBild').addEventListener('touchend', e => {
+    if (x0 == null || !GALERIE.liste) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) > 50) { e.preventDefault(); galerieSchritt(dx < 0 ? 1 : -1); }
+  });
+})();
+document.addEventListener('keydown', e => {
+  if ($('tbBild').hidden || !GALERIE.liste) return;
+  if (e.key === 'ArrowRight') galerieSchritt(1);
+  if (e.key === 'ArrowLeft') galerieSchritt(-1);
+});
+
+// Raster aus Fotos (Ich › Fotos, Tourseite); Antippen öffnet das Bildfenster zum Blättern
+function fotoRaster(box, liste) {
+  box.innerHTML = '';
+  liste.forEach((x, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Foto ' + (i + 1) + (x.reise ? ' aus ' + x.reise.name : ''));
+    const img = document.createElement('img');
+    img.alt = ''; img.loading = 'lazy';
+    b.appendChild(img);
+    galerieUrl(x.foto).then(u => { if (u) img.src = u; });
+    b.onclick = () => galerieZeigen(liste, i, b);
+    box.appendChild(b);
+  });
+}
+function fotosZeigen() {
+  const liste = R.fotoListe(tagebuchLesen(), tourenLesen());
+  $('fotoStatus').textContent = liste.length ? liste.length + (liste.length === 1 ? ' Foto' : ' Fotos') + ' aus dem Reisetagebuch, neueste zuerst. Antippen zeigt groß, wischen blättert.'
+    : 'Noch keine Fotos. Im Reisetagebuch einen Eintrag mit Foto schreiben, dann stehen sie hier.';
+  fotoRaster($('fotoRaster'), liste);
+}
+// Tourseite: Fotos aus dem Tagebuch vom Tag einer gegangenen Tour
+function tourFotosZeigen(t) {
+  const liste = t && t.art === 'aufzeichnung' ? R.fotoListe(tagebuchLesen(), tourenLesen()).filter(x => x.tour && x.tour.id === t.id) : [];
+  $('tourFotosBox').hidden = !liste.length;
+  if (liste.length) { $('tourFotosTitel').textContent = 'Fotos von diesem Tag (' + liste.length + ')'; fotoRaster($('tourFotos'), liste); }
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') bildZu(); });
 
 // ---------- Ansichten ----------

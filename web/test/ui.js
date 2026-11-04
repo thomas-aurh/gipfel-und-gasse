@@ -155,7 +155,7 @@ let ok = 0, fehler = 0;
 async function zuSeite(seite, ziel) {
   // Leiste: Karte, Entdecken, Planen, Unterwegs, Ich (Touren mit Geplant/Gegangen, Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
   if (['karte', 'entdecken', 'planen', 'unterwegs', 'ich'].includes(ziel)) { await seite.click('#leiste [data-reiter=' + ziel + ']'); return; }
-  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) {
+  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch', 'fotos'].includes(ziel)) {
     await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
     if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
     return;
@@ -796,6 +796,29 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Ich › Fotos: alle Bilder, groß mit Reise und Tour des Tages; Querverweise zur Reise und zur Tour
+  await zuSeite(page, 'fotos');
+  await page.waitForFunction(() => document.querySelectorAll('#fotoRaster img[src]').length >= 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: Raster unter „Ich“', (await page.$$('#fotoRaster button')).length === 1 && (await page.textContent('#fotoStatus')).includes('1 Foto') &&
+    (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
+  await page.click('#fotoRaster button >> nth=0');
+  await page.waitForFunction(() => /Testurlaub/.test(document.getElementById('tbBildText').textContent), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: groß mit Reise, Datum und Tour des Tages', await page.isVisible('#tbBild') && (await page.textContent('#tbBildText')).startsWith('1/1 · Testurlaub · ') &&
+    await page.isVisible('#tbBildReise') && await page.isVisible('#tbBildTour') && await page.isHidden('#tbBildVor') && await page.isHidden('#tbBildNach'),
+    [await page.textContent('#tbBildText'), await page.isVisible('#tbBildTour')]);
+  await page.click('#tbBildReise');
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') && !!document.querySelector('.tb-eintrag.hervor'), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: „Zur Reise“ springt zum Eintrag', await page.isHidden('#tbBild') && (await page.textContent('#tbTitel')).includes('Testurlaub') && (await page.$$('.tb-eintrag.hervor')).length === 1);
+  await zuSeite(page, 'fotos');
+  await page.click('#fotoRaster button >> nth=0');
+  await page.waitForSelector('#tbBildTour:not([hidden])', { timeout: 5000 }).catch(() => {});
+  await page.click('#tbBildTour');
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an'), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: „Zur Tour“ öffnet die gegangene Tour, dort die Fotos des Tages', await page.isHidden('#tbBild') && await page.isVisible('#tourFotosBox') && (await page.$$('#tourFotos button')).length === 1);
+  await zuSeite(page, 'tagebuch');
+  if (await page.isVisible('#tbZurueck')) await page.click('#tbZurueck');
+  await page.click('#tbReisen li:has-text("Testurlaub") .was').catch(() => {});
+  await page.waitForSelector('.tb-eintrag', { timeout: 5000 }).catch(() => {});
   // Eintrag als Punkt auf der Karte; „Öffnen“ springt zum Eintrag
   pruef('Tagebuch: Eintrag als Punkt auf der Karte', (await page.$$('.tb-mk')).length === 1);
   await page.click('[data-reiter=karte]');
@@ -1637,7 +1660,7 @@ function pruef(name, bed, info) {
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   // Ich: Sammlungen als Kacheln; Tagebuch gehört in der Leiste zu „Ich“
   await zuSeite(pt, 'ich');
-  pruef('Ich: Touren (geplant und gegangen), Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,tagebuch,ziele,gipfelbuch');
+  pruef('Ich: Touren (geplant und gegangen), Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,tagebuch,ziele,gipfelbuch,fotos');
   await pt.tap('.ich-liste [data-ziel=tagebuch]'); await pt.waitForTimeout(200);
   pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
     document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
