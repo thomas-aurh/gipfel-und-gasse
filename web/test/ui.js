@@ -1520,6 +1520,14 @@ function pruef(name, bed, info) {
   pruef('Runde: andere Richtung, gleicher Start', runde2.length === 4 && runde2[0].lat === runde[0].lat && (runde2[1].lat !== runde[1].lat || runde2[1].lon !== runde[1].lon));
   await klick('#bZurueck'); await pt.waitForTimeout(600);
   pruef('Runde: Rückgängig holt die vorige Runde zurück', JSON.stringify((await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps))) === JSON.stringify(runde));
+  // Höhenprofil antippen setzt eine Marke auf die Karte; am Touchscreen gibt es kein „Maus weg“, sie muss mit der Route gehen
+  const profilMarkeDa = () => pt.evaluate(() => !!document.querySelector('#karte path[fill="#1f2a22"]'));
+  await pt.evaluate(() => { const c = document.querySelector('#profil'), r = c.getBoundingClientRect();
+    c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); });
+  pruef('Telefon: Antippen des Profils zeigt die Stelle auf der Karte', await profilMarkeDa());
+  await klick('#bNeu'); await pt.waitForTimeout(300);
+  pruef('Telefon: „Neu“ nimmt die Marke vom Profil mit', !(await profilMarkeDa()));
+  await klick('#bZurueck'); await pt.waitForTimeout(600);
   // während die Runde noch rechnet, „Neu“: die überholte Runde darf die neue (leere) Planung nicht überschreiben
   await pt.evaluate(() => { document.querySelector('#bRundeLos').click(); setTimeout(() => document.querySelector('#bNeu').click(), 30); });
   await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });

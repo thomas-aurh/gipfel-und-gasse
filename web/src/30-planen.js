@@ -241,6 +241,8 @@ function tempoFelder() {
 
 function auswertenUndZeigen() {
   tempoFelder();
+  // Marke vom Antippen des Höhenprofils gehört zur alten Route (am Touchscreen gibt es kein „Maus weg“, das sie entfernt)
+  profilWeg();
   S.ergebnis = S.stuecke.length ? R.auswerten(S.stuecke, tempoAktuell(), artAktuell()) : null;
   zeichenRoute();
   zeigen();
@@ -286,6 +288,7 @@ function zeigen() {
   const e = S.ergebnis;
   $('einstiege').hidden = S.wps.length > 0 || !!S.fest;
   if (!$('einstiege').hidden) letzteTourZeigen();
+  if (!e) profilWeg();   // ohne Route keine Marke vom Höhenprofil
   $('ergebnisKopf').hidden = !e;
   einstellTextSetzen(); planDetailsTextSetzen();
   // Tipp zu Zwischenpunkten nur, bis man es einmal gemacht hat (drei Punkte)
