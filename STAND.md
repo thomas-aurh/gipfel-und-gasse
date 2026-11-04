@@ -5,8 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **GPX laden, Anreise und Parkplätze (04.11. abends) nur nachgebildet geprüft:** Dateiwahl mit mehreren Dateien im
-  WebView der App, echte Overpass-Antworten zu Parkplätzen (Gebühr und Plätze sind in OSM oft nicht eingetragen).
+- **GPX laden, Anreise und Parkplätze:** von Thomas am 04.11. auf dem Pixel geprüft (Bau 186): GPX-Import mit Wegpunkten
+  (Datei aus komoot) und Parkplätze am Start. Nicht geprüft: mehrere Dateien auf einmal im WebView der App, die Links
+  zu Google Maps für Anreise und „🚗 hin“.
 - **Familien-Check und Rundgang nach Zeit (04.11.) nur nachgebildet geprüft:** echte Overpass-Antworten zum Mittelstück
   der Route (Spielplatz, Einkehr), ob 250 m neben der Route das Gemeinte trifft; wie gut die Schätzung (Luftlinie × 1,3 bei
   4 km/h) und das Nachmessen die Zeit in einer echten Altstadt treffen. Die Wiederholung im Schritt „Download-Seite
