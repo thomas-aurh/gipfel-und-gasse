@@ -670,5 +670,17 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
 
 pruef('Wanderwege: Abfrage über die Wege im Umkreis (schnell), ohne Mittelpunkt', /way\["highway"\]\(around:5000,47\.60000,11\.30000\);rel\(bw\)\["route"~"\^\(hiking\|foot\)\$"\];out tags 80;/.test(R.wegeAbfrage(47.6, 11.3, 5000)), R.wegeAbfrage(47.6, 11.3, 5000));
 
+// Dienstfehler, Web-Mercator-Rechteck, Antwort von Waymarked Trails
+pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout ... at capacity') === 'Dienst gerade überlastet (alle Server belegt), bitte in ein paar Minuten noch einmal' &&
+  R.dienstFehler(429, '') === 'zu viele Anfragen, bitte kurz warten' && R.dienstFehler(404, '<html>x</html>') === 'Fehler 404' && R.dienstFehler(400, 'position not mapped') === 'position not mapped');
+{
+  const b = R.bbox3857(0, 0, 1000);
+  pruef('Web-Mercator: 1 km um 0/0', Math.abs(b[0] + 1000) < 2 && Math.abs(b[2] - 1000) < 2 && Math.abs(b[1] + 1000) < 2, b);
+  const bb = R.bbox3857(47.6, 11.3, 5000);
+  pruef('Web-Mercator: Walchensee in Metern', bb[0] > 1250000 && bb[0] < 1260000 && bb[1] > 6030000 && bb[3] < 6050000, bb);
+  const w = R.wegeAusWmt({ results: [{ type: 'relation', id: 1, name: 'Fern', group: 'NAT' }, { type: 'relation', id: 2, ref: '7', group: 'LOC' }, { type: 'way', id: 3, name: 'x' }, { id: 'kaputt', name: 'y' }] });
+  pruef('Waymarked Trails: Relationen, Nummer als Name, Fernweg zuletzt', w.map(x => x.name + '/' + x.netz).join() === 'Weg 7/örtlich,Fern/Fernwanderweg', w);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

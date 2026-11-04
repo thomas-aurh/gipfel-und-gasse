@@ -5,8 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Wanderwege in der Nähe:** auf dem Pixel (Bau 190) bei 5 km am Walchensee Zeitüberschreitung; Abfrage seitdem schneller
-  gebaut, aber nicht gegen den echten Overpass gemessen (aus der Cloud gesperrt). Offen: Antwortzeit bei 5 und 10 km in den
+- **Wanderwege in der Nähe:** auf dem Pixel (Bau 190, 193) scheiterte Overpass (Zeitüberschreitung, Überlast). Seitdem
+  erst Waymarked Trails; dessen Antwortformat ist aus dem Quellcode (`wmt_api`) abgelesen, nicht gegen den echten Dienst
+  gemessen (aus der Cloud gesperrt). Der Verlauf beim Antippen kommt weiter von Overpass. Offen: Antwortzeit bei 5 und 10 km in den
   Bergen, wie gut sich echte Relationen zu einem Verlauf fügen; ohne Netz nicht verfügbar (nicht im Kartenpaket).
 - **GPX laden, Anreise und Parkplätze:** von Thomas am 04.11. auf dem Pixel geprüft (Bau 186): GPX-Import mit Wegpunkten
   (Datei aus komoot) und Parkplätze am Start. Nicht geprüft: mehrere Dateien auf einmal im WebView der App, die Links
@@ -206,6 +207,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Wanderwege 2)** Befund auf dem Pixel (Bau 193): Ladeanzeige funktioniert, Overpass antwortete „502 …
+  at capacity“. Wanderwege kommen jetzt zuerst von Waymarked Trails (`list/by_area`, Ausschnitt in EPSG:3857, eigene
+  Datenbank aus OSM, CORS offen), Overpass nur noch als Ersatz und für den Verlauf einer Route. Fehler von Diensten kurz
+  und verständlich („Dienst gerade überlastet …“) statt der Fehlerseite. Klicktest 341, Einheitstests 265.
 - **04.11. (Abend, Ladeanzeige)** Befund von Thomas auf dem Pixel (Bau 190): „Wanderwege suchen“ bei 5 km am Walchensee
   endete mit Zeitüberschreitung, ohne dass man sah, dass etwas lädt. Abfrage jetzt über die Wege im Umkreis und deren
   Routen (`way(around) → rel(bw)`, ohne Mittelpunkt) statt Routen direkt im Umkreis; bei Zeitüberschreitung der Hinweis

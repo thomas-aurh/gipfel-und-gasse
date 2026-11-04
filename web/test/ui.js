@@ -57,6 +57,8 @@ function server() {
 }
 
 async function dienste(ctx) {
+  // Waymarked Trails nicht nachgebildet: antwortet wie überlastet, dann fragt die App Overpass (eigene Prüfung unten)
+  await ctx.route(/hiking\.waymarkedtrails\.org\/api/, r => r.fulfill({ status: 503, contentType: 'text/html', body: '<html>busy</html>' }));
   await ctx.route(/tile\.opentopomap\.org|tile\.openstreetmap\.org|tile\.waymarkedtrails\.org/, r => r.fulfill({ status: 200, contentType: 'image/png', body: KACHEL }));
   await ctx.route(/brouter\.de\/brouter/, r => {
     const u = r.request().url();
@@ -1749,6 +1751,7 @@ function pruef(name, bed, info) {
   pruef('Ladeanzeige: nach der Antwort wieder weg', await pf.isHidden('#ladeZeichen'));
   const wege = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
   pruef('Wanderwege: Liste mit Länge, Rundweg, Fernweg zuletzt', wege.length === 2 && /Seerundweg.*3 km · Rundweg · örtlich/.test(wege[0]) && wege[1].includes('Maximiliansweg'), wege);
+  pruef('Wanderwege: Waymarked Trails überlastet, dann Overpass', (await pf.textContent('#wegeStatus')).includes('über Overpass'), await pf.textContent('#wegeStatus'));
   await pf.click('#wegeListe li >> nth=0');
   await pf.waitForFunction(() => /Seerundweg“: /.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
   pruef('Wanderwege: Antippen zeigt den Verlauf mit Länge', /„Seerundweg“: [\d,]+ (m|km)\./.test(await pf.textContent('#wegeStatus')), await pf.textContent('#wegeStatus'));
@@ -1757,6 +1760,26 @@ function pruef(name, bed, info) {
   pruef('Wanderwege: „＋ Tour“ speichert unter „Geplant“ mit Herkunft', (await pf.textContent('#tourArt')).includes('aus OpenStreetMap') &&
     await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).some(t => t.name === 'Seerundweg' && t.art === 'spur' && t.spur.length === 3 && t.spur.every(p => p[2] != null))), await pf.textContent('#tourArt'));
   await pf.unroute(/overpass-api\.de/, wegeRoute);
+  // erste Quelle Waymarked Trails (Liste nach Ausschnitt in Web-Mercator-Metern), Verlauf weiter über Overpass
+  let wmtUrl = '';
+  const wmtRoute = r => { wmtUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ results: [{ type: 'relation', id: 905, name: 'Maximiliansweg', group: 'NAT' }, { type: 'relation', id: 906, name: 'Rund um den Rabenkopf', group: 'LOC', ref: 'R4' }] }) }); };
+  await pf.route(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
+  await zuSeite(pf, 'entdecken');
+  await pf.click('#bWege');
+  await pf.waitForFunction(() => /über Waymarked Trails/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  const wegeW = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
+  pruef('Wanderwege: zuerst Waymarked Trails, örtliche vor Fernwegen', wegeW.length === 2 && wegeW[0].includes('Rund um den Rabenkopf') && wegeW[0].includes('Nr. R4') && wegeW[1].includes('Fernwanderweg') &&
+    /\/list\/by_area\?bbox=\d+,\d+,\d+,\d+&limit=60/.test(wmtUrl), [wegeW, wmtUrl]);
+  await pf.unroute(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
+  // überlasteter Dienst: kurze Meldung statt der Fehlerseite des Servers
+  const vollRoute = r => r.fulfill({ status: 504, contentType: 'text/html', body: '# 502 Gateway Timeout This Overpass API server is currently at capacity. All query workers are busy.' });
+  await pf.route(/overpass-api\.de|overpass\.private\.coffee/, vollRoute);
+  await pf.click('#bWege');
+  await pf.waitForFunction(() => /nicht abrufbar/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Wanderwege: Überlast verständlich gemeldet', /Dienst gerade überlastet \(alle Server belegt\), bitte in ein paar Minuten noch einmal/.test(await pf.textContent('#wegeStatus')) &&
+    !(await pf.textContent('#wegeStatus')).includes('workers'), await pf.textContent('#wegeStatus'));
+  await pf.unroute(/overpass-api\.de|overpass\.private\.coffee/, vollRoute);
   pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
   await fc.close();
 

@@ -6,7 +6,9 @@ const DIENST = {
   // zweiter öffentlicher Overpass-Server (OSM-Wiki, weltweit), wenn der erste abweist oder nicht antwortet
   overpass2: 'https://overpass.private.coffee/api/interpreter',
   wetter: 'https://api.open-meteo.com/v1/forecast',
-  hoehe: 'https://api.open-meteo.com/v1/elevation'
+  hoehe: 'https://api.open-meteo.com/v1/elevation',
+  // Waymarked Trails: Liste der markierten Wanderwege aus eigener Datenbank (OSM), schneller als Overpass (CORS offen)
+  wanderwege: 'https://hiking.waymarkedtrails.org/api/v1'
 };
 
 // Profile: was der Nutzer wählt → BRouter-Profil und Zeitrechnung
@@ -44,7 +46,7 @@ async function holenRoh(url, opt, sekunden) {
     let text;
     try { text = await r.text(); }
     catch (e) { throw new Error(e.name === 'AbortError' ? 'Zeitüberschreitung' : 'Antwort abgebrochen'); }
-    if (!r.ok) throw new Error(r.status === 429 ? 'zu viele Anfragen, bitte kurz warten' : (text.slice(0, 160) || ('Fehler ' + r.status)));
+    if (!r.ok) throw new Error(R.dienstFehler(r.status, text));
     try { return JSON.parse(text); } catch (e) { throw new Error('unlesbare Antwort'); }
   } finally { clearTimeout(uhr); }
 }
