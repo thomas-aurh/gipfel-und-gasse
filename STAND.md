@@ -7,7 +7,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 - **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
   wird aus IndexedDB gelesen), Verknüpfung nur über den Tag (ohne Aufzeichnung an dem Tag kein „Zur Tour“).
-  „📤 Teilen“ im großen Bild ungeprüft auf dem Pixel (Teilen-Menü von Android mit Bilddatei, neuer Teil in NaviPlugin.teilen).
+  „📤 Teilen“ von Thomas am 04.11. auf dem Pixel geprüft (Bau 197).
+- **Sicherung als ZIP und Fotos auf der Tourkarte (04.11.) nur im Klicktest geprüft:** auf dem Pixel offen: Sicherung
+  mit vielen Fotos (Dauer, Speicher, Stücke über `NaviPlugin.dateiStueck`), Laden der ZIP aus Drive im WebView (Dateiwahl
+  mit `.zip`), ob die Kamera und die Galerie-Auswahl Ort und Zeit in den EXIF-Daten lassen (Android entfernt den Ort ohne
+  ACCESS_MEDIA_LOCATION oft), wie gut die Stelle nach der Zeit trifft. Fotos von vor dem 04.11. haben keine Foto-Infos:
+  bei ihnen zählt die Zeit des Eintrags.
 - **Wanderwege in der Nähe:** auf dem Pixel (Bau 190, 193) scheiterte Overpass (Zeitüberschreitung, Überlast). Seitdem
   erst Waymarked Trails; dessen Antwortformat ist aus dem Quellcode (`wmt_api`) abgelesen, nicht gegen den echten Dienst
   gemessen (aus der Cloud gesperrt). Der Verlauf beim Antippen kommt weiter von Overpass. Offen: Antwortzeit bei 5 und 10 km in den
@@ -62,8 +67,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
-  (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
-  groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
+  (Tab im Hintergrund verworfen ⇒ Spur weg); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
   ist (nicht geprüft); BRouter-Grenze von drei
   gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
@@ -210,6 +214,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Sicherung als ZIP, Fotos auf der Tourkarte)** Sicherung als ZIP (eigener ZIP-Schreiber und -Leser,
+  ungepackt, CRC-32): `sicherung.json` (version 2, `fotoDateien`) und je Foto `fotos/<id>.jpg`; die App schreibt in
+  Stücken zu 3 MB (`NaviPlugin.dateiStueck`) und teilt die fertige Datei (`teilen` mit `entwurf`); ältere JSON-Sicherungen
+  laden weiter; ZIP an den ersten Bytes erkannt. Fotos: Ort und Aufnahmezeit aus dem EXIF des Originals (`R.exifLesen`),
+  je Foto im Eintrag (`fotoInfo`, mit in der Sicherung); Tourkarte zeigt die Fotos als Bilder an ihrer Stelle
+  (`R.fotoOrt`: Foto-GPS, sonst Zeit auf der Spur, sonst Ort des Eintrags), Antippen öffnet das Bild. Thomas' Wunsch.
+  Einheitstests 281, Klicktest 350.
 - **04.11. (Abend, Fotos)** Ich › Fotos: alle Bilder des Tagebuchs als Raster, großes Bild mit Blättern (Wischen, ‹ ›,
   Pfeiltasten), Reise und Zeitpunkt; Querverweise „Zur Reise“ (Eintrag hervorgehoben) und zur gegangenen Tour desselben
   Tages (zeitlich nächste); Tourseite zeigt die Fotos des Tages (Thomas' Wunsch, Vorbild Fotos im Profil gängiger

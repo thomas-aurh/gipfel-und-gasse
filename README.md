@@ -62,9 +62,19 @@ aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mi
 **Fotos:** Ich › *Fotos* zeigt alle Bilder aus dem Reisetagebuch als Raster, neueste zuerst. Antippen zeigt ein Foto groß;
 wischen oder ‹ › blättert. Unten stehen Reise und Zeitpunkt, „📔 Zur Reise“ springt zum Eintrag, „🥾 …“ öffnet die gegangene
 Tour desselben Tages. „📤 Teilen“ (oben links) gibt das Foto weiter, in der App über das Teilen-Menü von Android
-(WhatsApp, Signal, Mail …), im Browser über dessen Teilen-Funktion oder als Download. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages. Die Fotos liegen im
-Speicher der App (IndexedDB, auf 1600 px verkleinert, Originale der Kamera auf Wunsch in der Galerie unter Bilder › Gipfel
-und Gasse) und kommen mit in die Sicherung.
+(WhatsApp, Signal, Mail …), im Browser über dessen Teilen-Funktion oder als Download. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages, und auf ihrer Karte liegen sie als kleine
+Bilder an der Stelle, an der sie entstanden sind. Die Stelle kommt aus dem Foto selbst (GPS in den EXIF-Daten, höchstens
+1 km neben der Spur), sonst aus dem Aufnahmezeitpunkt auf der Spur der Aufzeichnung (± 15 min um die Tour), sonst aus dem
+Ort des Eintrags (höchstens 300 m neben der Spur); ohne passende Stelle bleibt das Foto nur im Raster. Ort und Zeitpunkt
+werden beim Hinzufügen aus dem Original gelesen; Android entfernt den Ort bei der Auswahl aus der Galerie oft, dann zählt
+die Zeit. Die Fotos liegen im Speicher der App (IndexedDB, auf 1600 px verkleinert, Originale der Kamera auf Wunsch in der
+Galerie unter Bilder › Gipfel und Gasse) und kommen mit in die Sicherung.
+
+**Sicherung:** Menü › Sicherung › „💾 Sicherung speichern“ schreibt eine ZIP-Datei: `sicherung.json` (Touren, Tagebuch,
+Reiseziele, Gipfelbuch) und je Foto eine Bilddatei unter `fotos/`, die sich auch am PC öffnen lässt. Die App schreibt die
+Datei in Stücken zu 3 MB und gibt sie dann über das Teilen-Menü weiter (Drive, Mail …), so wird auch eine Sicherung mit
+vielen Fotos nicht zu groß für den Speicher. „📥 Sicherung laden“ nimmt die ZIP-Datei und ältere Sicherungen (ein JSON mit
+den Fotos als Text) und ergänzt, was fehlt.
 
 **Ladeanzeige:** Dauert eine Anfrage an einen Dienst (Route, Suche, Orte, Wetter, Wanderwege) länger als einen Moment,
 erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum Gipfel hinauf- und wieder hinuntergeht.

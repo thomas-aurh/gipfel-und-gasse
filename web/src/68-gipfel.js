@@ -99,7 +99,7 @@ $('gbSuchen').onclick = async () => {
 // ---------- Sicherung: Gipfel und Besuche, die noch fehlen, kommen dazu ----------
 function gipfelbuchEinlesen(text) {
   let roh;
-  try { roh = JSON.parse(text).gipfelbuch; } catch (e) { return 0; }
+  try { roh = (typeof text === 'string' ? JSON.parse(text) : text).gipfelbuch; } catch (e) { return 0; }
   const aus = R.gipfelbuchPruefen(roh), buch = gipfelbuchLesen();
   let dazu = 0;
   for (const [id, g] of Object.entries(aus.gipfel)) {

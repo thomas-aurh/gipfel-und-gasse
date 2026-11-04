@@ -296,6 +296,8 @@ public class NaviPlugin extends Plugin {
     @PluginMethod
     public void teilen(PluginCall call) {
         String name = call.getString("name", "tour.gpx").replaceAll("[^\\w.\\- äöüÄÖÜß]", "_");
+        // entwurf: die Datei liegt schon (in Stücken über dateiStueck geschrieben, z. B. die Sicherung als ZIP)
+        boolean entwurf = Boolean.TRUE.equals(call.getBoolean("entwurf", false));
         String text = call.getString("text", "");
         String mime = call.getString("mime", "application/gpx+xml");
         // daten (Base64): Bild oder andere Binärdatei, z. B. ein Foto aus dem Tagebuch; text ist dann der Begleittext
@@ -306,18 +308,41 @@ public class NaviPlugin extends Plugin {
             File ordner = new File(new File(getContext().getCacheDir(), "teilen"), String.valueOf(System.nanoTime()));
             if (!ordner.exists() && !ordner.mkdirs()) throw new Exception("Ordner nicht anlegbar");
             File f = new File(ordner, name);
-            byte[] inhalt = daten != null ? android.util.Base64.decode(daten, android.util.Base64.DEFAULT) : text.getBytes(StandardCharsets.UTF_8);
-            try (FileOutputStream out = new FileOutputStream(f)) { out.write(inhalt); }
+            if (entwurf) {
+                File quelle = new File(new File(new File(getContext().getCacheDir(), "teilen"), "entwurf"), name);
+                if (!quelle.exists() || !quelle.renameTo(f)) throw new Exception("Datei fehlt");
+            } else {
+                byte[] inhalt = daten != null ? android.util.Base64.decode(daten, android.util.Base64.DEFAULT) : text.getBytes(StandardCharsets.UTF_8);
+                try (FileOutputStream out = new FileOutputStream(f)) { out.write(inhalt); }
+            }
             Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
             Intent senden = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
                 .putExtra(Intent.EXTRA_SUBJECT, name).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            if (daten != null && !text.isEmpty()) senden.putExtra(Intent.EXTRA_TEXT, text);
+            if ((daten != null || entwurf) && !text.isEmpty()) senden.putExtra(Intent.EXTRA_TEXT, text);
             Intent wahl = Intent.createChooser(senden, "Weitergeben an …");
             wahl.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(wahl);
             call.resolve();
         } catch (Exception e) {
             call.reject("Teilen ging nicht: " + e.getMessage());
+        }
+    }
+
+    /** Stück einer großen Datei (Base64) anhängen; erstes = true beginnt sie neu. Danach teilen mit entwurf = true. */
+    @PluginMethod
+    public void dateiStueck(PluginCall call) {
+        String name = call.getString("name", "datei").replaceAll("[^\\w.\\- äöüÄÖÜß]", "_");
+        String daten = call.getString("daten", "");
+        boolean erstes = Boolean.TRUE.equals(call.getBoolean("erstes", false));
+        try {
+            File ordner = new File(new File(getContext().getCacheDir(), "teilen"), "entwurf");
+            if (!ordner.exists() && !ordner.mkdirs()) throw new Exception("Ordner nicht anlegbar");
+            try (FileOutputStream out = new FileOutputStream(new File(ordner, name), !erstes)) {
+                out.write(android.util.Base64.decode(daten, android.util.Base64.DEFAULT));
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Datei nicht geschrieben: " + e.getMessage());
         }
     }
 

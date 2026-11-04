@@ -223,9 +223,26 @@ function fotosZeigen() {
 }
 // Tourseite: Fotos aus dem Tagebuch vom Tag einer gegangenen Tour
 function tourFotosZeigen(t) {
-  const liste = t && t.art === 'aufzeichnung' ? R.fotoListe(tagebuchLesen(), tourenLesen()).filter(x => x.tour && x.tour.id === t.id) : [];
+  ebeneFotos.clearLayers();
+  const tb = tagebuchLesen();
+  const liste = t && t.art === 'aufzeichnung' ? R.fotoListe(tb, tourenLesen()).filter(x => x.tour && x.tour.id === t.id) : [];
   $('tourFotosBox').hidden = !liste.length;
-  if (liste.length) { $('tourFotosTitel').textContent = 'Fotos von diesem Tag (' + liste.length + ')'; fotoRaster($('tourFotos'), liste); }
+  if (!liste.length) return;
+  // auf der Karte: Ort aus dem Foto, sonst Zeitpunkt auf der Spur, sonst Ort des Eintrags (R.fotoOrt)
+  const eintraege = new Map(tb.eintraege.map(e => [e.id, e]));
+  let aufKarte = 0;
+  liste.forEach((x, i) => {
+    const e = eintraege.get(x.eintrag);
+    const o = R.fotoOrt(e && e.fotoInfo && e.fotoInfo[x.foto], e, t.spur);
+    if (!o) return;
+    aufKarte++;
+    const icon = L.divIcon({ className: '', html: '<div class="foto-mk"><img alt=""></div>', iconSize: [40, 40], iconAnchor: [20, 20] });
+    const m = L.marker([o.lat, o.lon], { icon, title: 'Foto ' + (i + 1), zIndexOffset: 500 }).addTo(ebeneFotos);
+    m.on('click', () => galerieZeigen(liste, i, null));
+    galerieUrl(x.foto).then(u => { const img = m.getElement() && m.getElement().querySelector('img'); if (u && img) img.src = u; });
+  });
+  $('tourFotosTitel').textContent = 'Fotos von diesem Tag (' + liste.length + ')' + (aufKarte ? ', ' + (aufKarte === liste.length ? 'alle' : aufKarte) + ' auf der Karte' : '');
+  fotoRaster($('tourFotos'), liste);
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') bildZu(); });
 
@@ -458,10 +475,13 @@ $('tbFotoKamera').onchange = $('tbFotoDatei').onchange = ev => {
   const meins = TB.entwurf;
   const arbeit = (async () => {
     for (const f of dateien) {
-      let blob;
+      let blob, info = null;
       try { blob = await fotoVerkleinern(f); } catch (err) { melde(err.message, 5); continue; }
+      // Aufnahmeort und -zeit aus dem Original (EXIF); das verkleinerte Bild hat sie nicht mehr. Android gibt den Ort
+      // nur heraus, wenn die Kamera ihn speichert und die Auswahl ihn nicht entfernt
+      try { info = R.exifLesen(new Uint8Array(await f.slice(0, 256 * 1024).arrayBuffer())); } catch (err) { info = null; }
       if (TB.entwurf !== meins) return;   // Formular inzwischen verlassen: Ergebnis verwerfen
-      TB.neu.push({ id: 'f' + tbId(), blob });
+      TB.neu.push({ id: 'f' + tbId(), blob, info, kamera: ev.target.id === 'tbFotoKamera', zeit: Date.now() });
     }
     if (TB.entwurf === meins) fotosNeuZeigen(alteFotos());
   })();
@@ -503,6 +523,12 @@ async function eintragSpeichern() {
   }
   e.text = text;
   e.fotos = (e.fotos || []).filter(f => !TB.weg.includes(f)).concat(TB.neu.map(n => n.id));
+  // Ort und Zeit je Foto (für die Tourkarte); mit der Kamera ohne EXIF zählt der Zeitpunkt des Hinzufügens
+  const info = Object.assign({}, e.fotoInfo);
+  for (const f of TB.weg) delete info[f];
+  for (const n of TB.neu) info[n.id] = n.info || (n.kamera ? { zeit: n.zeit } : null);
+  for (const k of Object.keys(info)) if (!info[k]) delete info[k];
+  if (Object.keys(info).length) e.fotoInfo = info; else delete e.fotoInfo;
   if (!tagebuchSchreiben(d)) return;
   for (const f of TB.weg) await FOTOS.weg(f).catch(() => {});
   TB.neu = []; TB.weg = []; TB.eintrag = null; TB.entwurf++;
@@ -525,7 +551,7 @@ async function eintragLoeschen(id, knopf) {
   reiseZeigen(TB.reise);
 }
 
-// ---------- Sicherung: Tagebuch mit Fotos (als Daten-Adressen) ----------
+// ---------- Sicherung: Tagebuch mit Fotos (Blobs; in der ZIP als eigene Dateien) ----------
 async function tagebuchFuerSicherung() {
   const d = tagebuchLesen();
   const fotos = {};
@@ -535,7 +561,7 @@ async function tagebuchFuerSicherung() {
       try {
         const b = await FOTOS.holen(f);
         if (!b) { fehlen++; continue; }
-        fotos[f] = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => nein(r.error); r.readAsDataURL(b); });
+        fotos[f] = b;
       } catch (err) { fehlen++; }
     }
   }
@@ -550,7 +576,12 @@ async function tagebuchEinlesen(text) {
   if (!rDazu.length && !eDazu.length) return 0;
   // Fotos zuerst; scheitert eines, bleibt das Tagebuch unverändert und das Laden lässt sich wiederholen
   try {
-    for (const e of eDazu) for (const f of e.fotos) await FOTOS.ablegen(f, await (await fetch(neu.fotos[f])).blob());
+    for (const e of eDazu) {
+      for (const f of e.fotos) {
+        const x = neu.fotos[f];
+        await FOTOS.ablegen(f, typeof x === 'string' ? await (await fetch(x)).blob() : new Blob([x], { type: R.bildArt(x) }));
+      }
+    }
   } catch (err) { throw new Error('Fotos nicht gespeichert (' + (err.message || err) + '), Tagebuch nicht übernommen'); }
   d.reisen = d.reisen.concat(rDazu);
   d.eintraege = d.eintraege.concat(eDazu);

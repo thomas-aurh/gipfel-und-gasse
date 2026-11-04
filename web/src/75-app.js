@@ -13,7 +13,7 @@ if (NATIV) {
   $('unterwegsHinweis').innerHTML = 'Läuft auch bei <b>gesperrtem Bildschirm</b>, mit Ansagen. Abseits der Route plant die App ab deinem Standort ' +
     'neu zum nächsten Ziel. Beenden auch über die Mitteilung „Navigation läuft“.';
   $('tourenHinweis').innerHTML = 'Touren liegen in der App auf dem Handy; wer die App deinstalliert, löscht sie mit. ' +
-    '„Sicherung speichern“ gibt alle Touren samt Planung als eine Datei weiter (z. B. an Drive oder per Mail); „Sicherung laden“ holt sie zurück.';
+    '„Sicherung speichern“ gibt alle Touren samt Planung, Tagebuch und Fotos als eine ZIP-Datei weiter (z. B. an Drive oder per Mail); „Sicherung laden“ holt sie zurück.';
 
   // Stopps mit Namen und Besichtigungszeit: an welchem Meter der Route sie liegen
   function stoppsFuerApp() {
@@ -215,6 +215,15 @@ if (NATIV) {
   };
   dateiAusgeben = function (datei, text, mime) {
     Navi.teilen({ name: datei, text, mime }).catch(err => melde(err.message || String(err), 6));
+  };
+  // große Datei (Sicherung als ZIP): in Stücken zu 3 MB an die App, dann über das Teilen-Menü; Fehler gehen an den Aufrufer
+  blobAusgeben = async function (datei, blob, mime) {
+    const STUECK = 3 * 1024 * 1024;
+    for (let i = 0; i === 0 || i < blob.size; i += STUECK) {
+      const daten = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => nein(r.error); r.readAsDataURL(blob.slice(i, i + STUECK)); });
+      await Navi.dateiStueck({ name: datei, daten, erstes: i === 0 });
+    }
+    await Navi.teilen({ name: datei, mime, entwurf: true });
   };
   fotoTeilen = async function (blob, name, text) {
     const daten = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => nein(r.error); r.readAsDataURL(blob); });

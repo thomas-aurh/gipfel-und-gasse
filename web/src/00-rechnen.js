@@ -805,15 +805,15 @@ var R = (function () {
   // Feld für Feld neu aufgebaut (nur endliche Zahlen, Texte mit Längengrenze, bekannte Werte); was nicht passt,
   // fällt weg. Liefert die gültigen Touren oder wirft mit Grund.
   function sicherungLesen(text) {
-    let d;
-    try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); }
+    let d = text;
+    if (typeof text === 'string') { try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); } }
     if (!d || d.app !== 'gipfel-und-gasse' || !Array.isArray(d.touren)) throw new Error('keine Sicherung von Gipfel & Gasse');
     return d.touren.map(tourPruefen).filter(Boolean);
   }
 
   // Tagebuch derselben Sicherung (fehlt es, ist es leer)
   function sicherungTagebuch(text) {
-    const d = JSON.parse(text);
+    const d = typeof text === 'string' ? JSON.parse(text) : text;
     return tagebuchPruefen(d && d.tagebuch, d && d.fotos);
   }
 
@@ -922,6 +922,151 @@ var R = (function () {
     }
     return out;
   }
+  // ---------- ZIP (Sicherung mit Fotos als eigene Dateien) ----------
+  // Nur „gespeichert“ (Methode 0): JPEGs werden durch Packen nicht kleiner, und so braucht es keine Bibliothek.
+  let CRC_TAB = null;
+  function crc32(b) {
+    if (!CRC_TAB) {
+      CRC_TAB = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; CRC_TAB[n] = c >>> 0; }
+    }
+    let c = 0xffffffff;
+    for (let i = 0; i < b.length; i++) c = CRC_TAB[(c ^ b[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  // dateien: [{ name, daten: Uint8Array }] → Teile (Uint8Array) zum Zusammensetzen, z. B. new Blob(teile)
+  function zipTeile(dateien, zeit) {
+    const z = new Date(zeit || Date.now());
+    const dosZeit = (z.getHours() << 11) | (z.getMinutes() << 5) | (z.getSeconds() >> 1);
+    const dosTag = ((Math.max(1980, z.getFullYear()) - 1980) << 9) | ((z.getMonth() + 1) << 5) | z.getDate();
+    const enc = new TextEncoder();
+    const teile = [], zentral = [];
+    let pos = 0;
+    for (const d of dateien) {
+      const name = enc.encode(d.name), crc = crc32(d.daten), n = d.daten.length;
+      if (n >= 0xffffffff || pos >= 0xffffffff) throw new Error('Sicherung zu groß für ZIP (über 4 GB)');
+      const kopf = new Uint8Array(30 + name.length), v = new DataView(kopf.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(8, 0, true);
+      v.setUint16(10, dosZeit, true); v.setUint16(12, dosTag, true); v.setUint32(14, crc, true); v.setUint32(18, n, true); v.setUint32(22, n, true);
+      v.setUint16(26, name.length, true); v.setUint16(28, 0, true); kopf.set(name, 30);
+      const zk = new Uint8Array(46 + name.length), w = new DataView(zk.buffer);
+      w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x0800, true); w.setUint16(10, 0, true);
+      w.setUint16(12, dosZeit, true); w.setUint16(14, dosTag, true); w.setUint32(16, crc, true); w.setUint32(20, n, true); w.setUint32(24, n, true);
+      w.setUint16(28, name.length, true); w.setUint32(42, pos, true); zk.set(name, 46);
+      teile.push(kopf, d.daten); zentral.push(zk);
+      pos += kopf.length + n;
+    }
+    const zGroesse = zentral.reduce((s, x) => s + x.length, 0);
+    const ende = new Uint8Array(22), e = new DataView(ende.buffer);
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, dateien.length, true); e.setUint16(10, dateien.length, true);
+    e.setUint32(12, zGroesse, true); e.setUint32(16, pos, true);
+    return teile.concat(zentral, [ende]);
+  }
+  // ZIP lesen über das zentrale Verzeichnis: [{ name, daten }] (daten null, wenn gepackt oder kaputt; Grund in fehler)
+  function zipLesen(b) {
+    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let e = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 22 - 65535); i--) if (v.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error('keine ZIP-Datei');
+    const anzahl = v.getUint16(e + 10, true);
+    let p = v.getUint32(e + 16, true);
+    const dec = new TextDecoder();
+    const out = [];
+    for (let k = 0; k < anzahl; k++) {
+      if (p + 46 > b.length || v.getUint32(p, true) !== 0x02014b50) throw new Error('ZIP-Verzeichnis kaputt');
+      const methode = v.getUint16(p + 10, true), crc = v.getUint32(p + 16, true), groesse = v.getUint32(p + 20, true);
+      const nl = v.getUint16(p + 28, true), xl = v.getUint16(p + 30, true), kl = v.getUint16(p + 32, true), lage = v.getUint32(p + 42, true);
+      const name = dec.decode(b.subarray(p + 46, p + 46 + nl));
+      p += 46 + nl + xl + kl;
+      const x = { name, daten: null, fehler: '' };
+      if (lage + 30 > b.length || v.getUint32(lage, true) !== 0x04034b50) x.fehler = 'Eintrag kaputt';
+      else if (methode !== 0) x.fehler = 'gepackt (nur ungepackte ZIP-Dateien von Gipfel & Gasse)';
+      else {
+        const start = lage + 30 + v.getUint16(lage + 26, true) + v.getUint16(lage + 28, true);
+        const d = b.subarray(start, start + groesse);
+        if (d.length !== groesse || crc32(d) !== crc) x.fehler = 'Prüfsumme falsch'; else x.daten = d;
+      }
+      out.push(x);
+    }
+    return out;
+  }
+  // Art eines Bildes an den ersten Bytes (nicht an Name oder Angabe der Datei)
+  function bildArt(b) {
+    if (b && b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+    if (b && b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+    if (b && b.length > 12 && String.fromCharCode(b[0], b[1], b[2], b[3], b[8], b[9], b[10], b[11]) === 'RIFFWEBP') return 'image/webp';
+    return null;
+  }
+
+  // ---------- Ort und Zeit eines Fotos (EXIF im Original der Kamera) ----------
+  // { lat, lon } aus dem GPS-Teil und zeit (ms) aus DateTimeOriginal (Ortszeit des Geräts, mit Versatz, wenn angegeben)
+  function exifLesen(b) {
+    if (!b || b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
+    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let p = 2, t = -1;
+    while (p + 4 <= b.length && b[p] === 0xff) {
+      const m = b[p + 1], l = v.getUint16(p + 2);
+      if (m === 0xda || m === 0xd9) break;
+      if (m === 0xe1 && p + 10 < b.length && v.getUint32(p + 4) === 0x45786966) { t = p + 10; break; }
+      p += 2 + l;
+    }
+    if (t < 0 || t + 8 > b.length) return null;
+    const le = v.getUint16(t) === 0x4949;
+    const u16 = o => v.getUint16(t + o, le), u32 = o => v.getUint32(t + o, le);
+    const ok = o => o >= 0 && t + o + 12 <= b.length;
+    const ifd = o => {
+      const m = new Map();
+      if (!ok(o)) return m;
+      const n = u16(o);
+      for (let i = 0; i < n; i++) { const e = o + 2 + i * 12; if (!ok(e)) break; m.set(u16(e), { typ: u16(e + 2), n: u32(e + 4), wert: e + 8 }); }
+      return m;
+    };
+    const ascii = x => { if (!x || x.typ !== 2) return ''; const o = x.n > 4 ? u32(x.wert) : x.wert; let s = ''; for (let i = 0; i < x.n - 1 && t + o + i < b.length; i++) s += String.fromCharCode(b[t + o + i]); return s; };
+    const grad = x => { if (!x || x.typ !== 5 || x.n !== 3) return null; const o = u32(x.wert); if (!ok(o + 12)) return null; const r = i => (u32(o + i * 8 + 4) ? u32(o + i * 8) / u32(o + i * 8 + 4) : NaN); return r(0) + r(1) / 60 + r(2) / 3600; };
+    const out = {};
+    const null0 = ifd(u32(4));
+    const ex = null0.get(0x8769), gps = null0.get(0x8825);
+    if (ex) {
+      const e = ifd(u32(ex.wert));
+      const s = ascii(e.get(0x9003)), vs = ascii(e.get(0x9011));
+      const m = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(s);
+      if (m && m[1] !== '0000') {
+        const z = /^([+-])(\d\d):(\d\d)$/.exec(vs);
+        out.zeit = z ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) - (z[1] === '-' ? -1 : 1) * (z[2] * 60 + +z[3]) * 60000
+          : new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+      }
+    }
+    if (gps) {
+      const g = ifd(u32(gps.wert));
+      const lat = grad(g.get(2)), lon = grad(g.get(4));
+      const lr = ascii(g.get(1)), lo = ascii(g.get(3));
+      if (lat != null && lon != null && isFinite(lat) && isFinite(lon) && (lat || lon) && lat <= 90 && lon <= 180) {
+        out.lat = lr === 'S' ? -lat : lat; out.lon = lo === 'W' ? -lon : lon;
+      }
+    }
+    return out.zeit != null || out.lat != null ? out : null;
+  }
+  // Stelle eines Fotos an einer gegangenen Tour (spur gepackt: [lat, lon, ele, t, lücke]):
+  // 1. Ort aus dem Foto (EXIF), wenn höchstens 1 km neben der Spur; 2. Zeitpunkt (Foto, sonst Eintrag) auf der Spur, wenn
+  // er in die Tour fällt (± 15 min); 3. Ort des Eintrags, wenn höchstens 300 m neben der Spur. Sonst null.
+  function fotoOrt(info, eintrag, spur) {
+    if (!Array.isArray(spur) || !spur.length) return null;
+    const pts = spur.map(x => ({ lat: x[0], lon: x[1], luecke: !!x[4] }));
+    if (info && info.lat != null && abstandZurLinie(pts, info.lat, info.lon) <= 1000) return { lat: info.lat, lon: info.lon, wie: 'gps' };
+    const zt = spur.filter(x => x[3]);
+    const zeit = info && info.zeit != null ? info.zeit : eintrag && eintrag.zeit;
+    if (zt.length > 1 && zeit != null && zeit >= zt[0][3] - 9e5 && zeit <= zt[zt.length - 1][3] + 9e5) {
+      let i = 0;
+      while (i < zt.length - 1 && zt[i + 1][3] < zeit) i++;
+      const a = zt[i], b = zt[Math.min(i + 1, zt.length - 1)];
+      const f = b[3] > a[3] ? Math.max(0, Math.min(1, (zeit - a[3]) / (b[3] - a[3]))) : 0;
+      return { lat: a[0] + (b[0] - a[0]) * f, lon: a[1] + (b[1] - a[1]) * f, wie: 'zeit' };
+    }
+    const o = eintrag && eintrag.ort;
+    if (o && abstandZurLinie(pts, o.lat, o.lon) <= 300) return { lat: o.lat, lon: o.lon, wie: 'eintrag' };
+    return null;
+  }
+
   // Reise, die heute läuft (für „Eintrag schreiben“ ohne Umweg); bei mehreren die zuletzt begonnene
   function reiseHeute(reisen, heute) {
     return reisen.filter(r => r.von <= heute && r.bis >= heute).sort((a, b) => (a.von < b.von ? 1 : -1))[0] || null;
@@ -978,7 +1123,8 @@ var R = (function () {
       if (o && o.id && o.name && o.von && o.bis && o.von <= o.bis) out.reisen.push(o);
     }
     const reiseIds = new Set(out.reisen.map(r => r.id));
-    const fotoOk = x => typeof x === 'string' && x.length < 8e6 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(x);
+    const fotoOk = x => (typeof x === 'string' && x.length < 8e6 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(x)) ||
+      (x instanceof Uint8Array && x.length < 6e6 && !!bildArt(x));
     for (const e of Array.isArray(tb.eintraege) ? tb.eintraege : []) {
       if (!e || !id(e.id) || !reiseIds.has(e.reise) || zahl(e.zeit) == null) continue;
       const o = { id: e.id, reise: e.reise, zeit: e.zeit, text: text(e.text, 20000) || '', fotos: [] };
@@ -989,6 +1135,17 @@ var R = (function () {
       if (e.wetter && zahl(e.wetter.temp) != null && Number.isInteger(e.wetter.code)) o.wetter = { temp: e.wetter.temp, code: e.wetter.code };
       for (const f of Array.isArray(e.fotos) ? e.fotos : []) {
         if (id(f) && fotos && fotoOk(fotos[f])) { o.fotos.push(f); out.fotos[f] = fotos[f]; }
+      }
+      // Ort und Zeitpunkt der Aufnahme je Foto (aus dem Original), nur für Fotos des Eintrags
+      if (e.fotoInfo && typeof e.fotoInfo === 'object') {
+        for (const f of o.fotos) {
+          const x = e.fotoInfo[f];
+          if (!x || typeof x !== 'object') continue;
+          const i = {};
+          if (zahl(x.lat) != null && zahl(x.lon) != null && Math.abs(x.lat) <= 90 && Math.abs(x.lon) <= 180) { i.lat = x.lat; i.lon = x.lon; }
+          if (zahl(x.zeit) != null) i.zeit = x.zeit;
+          if (Object.keys(i).length) (o.fotoInfo = o.fotoInfo || {})[f] = i;
+        }
       }
       out.eintraege.push(o);
     }
@@ -1982,7 +2139,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
