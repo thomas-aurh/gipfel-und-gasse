@@ -97,10 +97,11 @@
           <button data-modus="stadt">🏛️ Stadt</button>
         </div>
         <div id="aktionen">
-          <button class="knopf haupt" id="bSpeichern">💾 Speichern</button>
-          <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)">↶ Rückgängig</button>
-          <button class="knopf" id="bNeu">✕ Neu</button>
-          <button class="knopf" id="bMehr" aria-expanded="false" title="Weitere Funktionen">⋯ Mehr</button>
+          <button class="knopf haupt" id="bPlanLos" title="Losgehen: der Route folgen">▶ Los</button>
+          <button class="knopf" id="bSpeichern">💾 Speichern</button>
+          <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">↶<span class="txt"> Rückgängig</span></button>
+          <button class="knopf" id="bNeu" title="Neue Tour" aria-label="Neu">✕<span class="txt"> Neu</span></button>
+          <button class="knopf" id="bMehr" aria-expanded="false" title="Weitere Funktionen" aria-label="Mehr">⋯<span class="txt"> Mehr</span></button>
           <button class="knopf neben" id="bRund" title="Zurück zum Start (Rundtour)">⟲ Rundtour</button>
           <button class="knopf neben" id="bRunde" title="Runde mit Wunschlänge vorschlagen" aria-expanded="false">⭕ Runde mit Länge</button>
           <button class="knopf neben" id="bUmkehren">⇄ Umkehren</button>
@@ -127,6 +128,15 @@
             <button class="einstieg" id="eLetzte" hidden><span>🕘</span><b>Letzte Tour</b><small id="eLetzteName"></small></button>
           </div>
         </div>
+        <div id="status"></div>
+        <!-- Planen in drei Reitern (erst mit Route): Route (Punkte, Art, Etappen), Überblick (Zahlen, Profil, Wege),
+             Vorbereiten (Name, Tag und Startzeit, Wetter, Packliste, Familie, Anreise) -->
+        <div id="planReiter" class="umschalter plan-reiter" role="tablist" aria-label="Planen" hidden>
+          <button role="tab" data-plan="route" class="an" aria-selected="true">📍 Route</button>
+          <button role="tab" data-plan="ueberblick" aria-selected="false">📊 Überblick</button>
+          <button role="tab" data-plan="vorbereiten" aria-selected="false">🎒 Vorbereiten<i id="planWarnPunkt" class="warn-punkt" hidden aria-label="Hinweis"></i></button>
+        </div>
+        <div class="planteil" data-planteil="route">
         <!-- Art und Tempo: am Telefon eine Zeile, die aufklappt; am PC immer offen -->
         <div class="klapp" id="einstellBox">
           <button class="klapp-kopf" id="bEinstell" aria-expanded="false" aria-controls="einstellInhalt"><span id="einstellText">🥾 Wandern · Normal</span><i aria-hidden="true">▾</i></button>
@@ -155,10 +165,16 @@
           </div>
           </div>
         </div>
-        <div id="status"></div>
         <p id="planHinweis" class="tipp" hidden>💡 Route antippen fügt einen Zwischenpunkt ein, Punkte lassen sich ziehen.</p>
+          <div id="ergebnisRoute" hidden>
+            <div id="stopps"></div>
+            <div id="etappen" hidden></div>
+          </div>
+        </div>
+        <div id="ergebnis" hidden>
+          <div class="planteil" data-planteil="ueberblick" hidden>
         <!-- Ergebnis zuerst: Kennzahlen und Höhenprofil -->
-        <div id="ergebnisKopf" hidden>
+        <div id="ergebnisKopf">
           <div class="zahlen">
             <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
             <div class="zahl"><b id="zZeit">–</b><span id="zZeitText">Gehzeit</span></div>
@@ -169,8 +185,14 @@
           </div>
           <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
         </div>
+            <div id="kinderwagen" class="urteil"></div>
+            <h3>Wegtypen</h3><div id="wege" class="balken"></div>
+            <h3>Untergrund</h3><div id="boden" class="balken"></div>
+            <p class="klein">Antippen zeigt die Stellen auf der Karte.</p>
+          </div>
+          <div class="planteil" data-planteil="vorbereiten" hidden>
         <!-- Name und Zeitplan: am Telefon eingeklappt, die Zeile zeigt, was eingetragen ist -->
-        <div class="klapp" id="planDetails">
+        <div class="klapp offen" id="planDetails">
           <button class="klapp-kopf" id="bPlanDetails" aria-expanded="false" aria-controls="planDetailsInhalt"><span id="planDetailsText">🗓 Name, Tag und Startzeit</span><i aria-hidden="true">▾</i></button>
           <div class="klapp-inhalt" id="planDetailsInhalt">
           <div class="zeile" id="planZeit">
@@ -184,18 +206,12 @@
           <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
           </div>
         </div>
-        <div id="ergebnis" hidden>
-          <div id="zeitplan" class="klein"></div>
-          <div id="etappen" hidden></div>
-          <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
-          <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
-          <div class="pack-box"><button class="knopf" data-pack="planen" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
-          <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
-          <div id="stopps"></div>
-          <div id="kinderwagen" class="urteil"></div>
-          <h3>Wegtypen</h3><div id="wege" class="balken"></div>
-          <h3>Untergrund</h3><div id="boden" class="balken"></div>
-          <p class="klein">Antippen zeigt die Stellen auf der Karte.</p>
+            <div id="zeitplan" class="klein"></div>
+            <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
+            <div class="pack-box"><button class="knopf" data-pack="planen" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
+            <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
+            <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
+          </div>
         </div>
       </section>
 

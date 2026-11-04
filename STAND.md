@@ -5,6 +5,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Umbau für mehr Übersicht (04.11.), Schritt 1 von 3 gebaut (Planen in Reitern), auf dem Pixel nicht geprüft.**
+  Schritt 2: Mehrtagestour mit Schalter „1 Tag | Mehrere Tage“, Vorschlag der Aufteilung (gleich lange Tage, Hütte in der
+  Nähe), Punktliste nach Tagen gegliedert mit „Tag hier beenden“, Farbe je Tag auf der Karte, Tag-Chips im Blatt und
+  unterwegs. Schritt 3: Begriffe (Start, Stopp, Ziel, Übernachtung), Warnung ohne Startzeit neutral, Kartennachweis
+  kompakt (Attribution Guidelines der OSMF prüfen), Meldungen über dem Blatt mit Rückgängig, Unterwegs vor dem Start als
+  Tourkarte mit großem „▶ Los“. Offen auch: Berg/Stadt-Umschalter und Punktliste mit Ziehen statt ▲▼.
+
 - **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
   wird aus IndexedDB gelesen), Verknüpfung nur über den Tag (ohne Aufzeichnung an dem Tag kein „Zur Tour“).
   „📤 Teilen“ von Thomas am 04.11. auf dem Pixel geprüft (Bau 197).
@@ -218,6 +225,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Planen in Reitern)** Schritt 1 des Umbaus für mehr Übersicht (Thomas: „alles intuitiver“): Planen in drei
+  Reitern Route · Überblick · Vorbereiten statt einer langen Liste; „▶ Los“ in der Aktionsleiste; am Telefon Rückgängig,
+  Neu und Mehr als Zeichen, damit die Leiste in eine Zeile passt; Warnpunkt am Reiter Vorbereiten. Klicktest 362.
 - **04.11. (Abend, Packliste und Mehrtagestour)** „🎒 Packliste“ im Planen und auf der Tourseite (R.packliste,
   R.packWetter): je Tourart, Gehzeit, Höhenmetern, Höhe, Tagen und geladenem Tourwetter, mit Kind; Abhaken je Tour,
   eigene Dinge für alle. Mehrtagestour: eigene Startzeit ab Tag 2 (gespeichert in `zeit.tage`), gilt für Etappen, Stopps,

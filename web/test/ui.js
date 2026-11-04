@@ -163,6 +163,8 @@ async function zuSeite(seite, ziel) {
   }
   await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
 }
+// Planen hat Reiter (Route · Überblick · Vorbereiten): erst den passenden wählen, wenn eine Route da ist
+async function planReiter(seite, t) { if (await seite.isVisible('#planReiter')) await seite.click('#planReiter [data-plan=' + t + ']'); }
 function pruef(name, bed, info) {
   if (bed) { ok++; console.log('✓ ' + name); }
   else { fehler++; console.error('✗ ' + name + (info !== undefined ? ' → ' + JSON.stringify(info) : '')); }
@@ -188,7 +190,7 @@ function pruef(name, bed, info) {
   await page.click('#eRunde');
   pruef('Einstieg „Runde mit Länge“ öffnet die Wunschlänge', await page.isVisible('#rundFeld') && (await page.getAttribute('#bRunde', 'aria-expanded')) === 'true');
   await page.click('#bRunde');
-  pruef('Am PC: Art, Tempo und Zeitplan offen, ohne Klappzeile', await page.isVisible('#profilwahl') && await page.isVisible('#startZeit') && await page.isHidden('#bEinstell') && await page.isHidden('#bPlanDetails'));
+  pruef('Am PC: Art und Tempo offen, ohne Klappzeile; ohne Route keine Reiter', await page.isVisible('#profilwahl') && await page.isHidden('#bEinstell') && await page.isHidden('#planReiter'));
   pruef('Am PC: Zoom-Knöpfe da', await page.isVisible('#bPlus') && await page.isVisible('#bMinus'));
   // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
   await page.click('#bMenue');
@@ -226,7 +228,7 @@ function pruef(name, bed, info) {
   await page.waitForTimeout(300);
   pruef('Startmarke da', (await page.$$('.wp.start')).length === 1);
   await page.mouse.click(kb.x + kb.width * 0.62, kb.y + kb.height * 0.35);
-  await page.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   const laenge = await page.textContent('#zLaenge');
   pruef('Länge berechnet', /km|m$/.test(laenge) && laenge !== '–', laenge);
   pruef('Schwierigkeit T2 aus sac_scale', (await page.textContent('#zSchwer')) === 'T2');
@@ -236,16 +238,25 @@ function pruef(name, bed, info) {
   pruef('Kopfzeile mit Zahlen', (await page.textContent('#kopfZahlen')).includes('km'));
   await page.screenshot({ path: path.join(OUT, '1-route.png') });
 
+  // Planen in Reitern: Route zuerst (Punkte), Überblick mit Zahlen und Profil, Vorbereiten mit Zeitplan
+  pruef('Planen: Reiter Route · Überblick · Vorbereiten, Route offen', await page.isVisible('#planReiter') && (await page.getAttribute('#planReiter [data-plan=route]', 'aria-selected')) === 'true' &&
+    await page.isVisible('#profilwahl') && await page.isHidden('#profil') && await page.isHidden('#bTourWetter'));
+  await planReiter(page, 'vorbereiten');
+  pruef('Planen: Vorbereiten mit Tag, Startzeit, Wetter und Packliste', await page.isVisible('#startZeit') && await page.isVisible('#bTourWetter') && await page.isVisible('#ergebnis [data-pack]') && await page.isHidden('#profilwahl'));
+  await planReiter(page, 'ueberblick');
+  pruef('Planen: Überblick mit Zahlen, Profil und Wegtypen', await page.isVisible('#zLaenge') && await page.isVisible('#profil') && await page.isVisible('#wege'));
+  pruef('Planen: „▶ Los“ in der Aktionsleiste', await page.isVisible('#bPlanLos') && !(await page.isDisabled('#bPlanLos')));
   // Profil zeigen (ins Bild scrollen: es liegt im Blatt unter Zeitplan und Kennzahlen)
-  await page.$eval('#profil', e => e.scrollIntoView({ block: 'center' }));
+  await planReiter(page, 'ueberblick'); await page.$eval('#profil', e => e.scrollIntoView({ block: 'center' }));
   await page.waitForTimeout(150);
   const pb = await (await page.$('#profil')).boundingBox();
   await page.mouse.move(pb.x + pb.width * 0.5, pb.y + pb.height * 0.5);
   pruef('Profil zeigt Stelle', (await page.textContent('#profilinfo')).includes('Höhe'));
   // Hervorheben
-  await page.click('#wege .eintrag >> nth=0');
+  await planReiter(page, 'ueberblick'); await page.click('#wege .eintrag >> nth=0');
   pruef('Hervorhebung auf der Karte', await page.evaluate(() => document.querySelectorAll('.leaflet-overlay-pane path').length) >= 4);
   await page.screenshot({ path: path.join(OUT, '2-hervorheben.png') });
+  await planReiter(page, 'route');
 
   // dritter Punkt, dann rückgängig
   await page.mouse.click(kb.x + kb.width * 0.75, kb.y + kb.height * 0.6);
@@ -284,7 +295,7 @@ function pruef(name, bed, info) {
   await page.keyboard.press('Control+z');
   // Rundtour
   while ((await page.$$('.wp')).length < 2) { await page.mouse.click(kb.x + kb.width * (0.4 + Math.random() * 0.2), kb.y + kb.height * 0.45); await page.waitForTimeout(200); }
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await page.click('#bRund');
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3);
   pruef('Rundtour: drei Punkte, letzter am Start', await page.evaluate(() => document.querySelector('.wp.ziel') !== null));
@@ -299,7 +310,7 @@ function pruef(name, bed, info) {
   pruef('Rundtour: Ziel wandert mit dem Start', Math.abs(st[1] - zi[1]) < 40 && Math.abs(st[2] - zi[2]) < 40, lagen);
 
   // Name, speichern
-  await page.fill('#tourname', 'Testrunde am See');
+  await planReiter(page, 'vorbereiten'); await page.fill('#tourname', 'Testrunde am See');
   await page.click('#bSpeichern');
   await zuSeite(page, 'touren');
   pruef('Tour in der Liste', (await page.textContent('#tourliste')).includes('Testrunde am See'));
@@ -315,27 +326,27 @@ function pruef(name, bed, info) {
   // Neu laden: Entwurf kommt wieder, ohne neue Routenanfragen
   const vorLaden = zaehler.brouter;
   await page.reload();
-  await page.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   pruef('Nach Neuladen wieder da', (await page.inputValue('#tourname')) === 'Testrunde am See' && (await page.$$('.wp')).length === 3);
   pruef('Neuladen ohne neue Anfragen', zaehler.brouter === vorLaden, zaehler.brouter - vorLaden);
 
   // Tempo „mit Kind“ macht die Zeit länger
   const z1 = await page.textContent('#zZeit');
-  await page.selectOption('#tempowahl', '0.7');
+  await planReiter(page, 'route'); await page.selectOption('#tempowahl', '0.7');
   const z2 = await page.textContent('#zZeit');
   pruef('Tempo mit Kind', z1 !== z2, [z1, z2]);
   // Laufen: Lauftempo statt „Zügig … Mit Kind“, Zeit aus Leistungs-km, Kilometer-Ansage einmal von selbst an
-  await page.selectOption('#profilwahl', 'laufen');
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await planReiter(page, 'route'); await page.selectOption('#profilwahl', 'laufen');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await page.waitForTimeout(300);
   pruef('Laufen: Lauftempo statt Gehtempo', await page.isVisible('#pacewahl') && await page.isHidden('#tempowahl'));
   const lauf6 = await page.evaluate(() => [document.querySelector('#zZeit').textContent, document.querySelector('#zZeitText').textContent, document.querySelector('#zLaenge').textContent, document.querySelector('#zAuf').textContent]);
   pruef('Laufen: Laufzeit beim gewählten Tempo', lauf6[1] === 'Laufzeit bei 6:00 min/km', lauf6);
-  await page.selectOption('#pacewahl', '5');
+  await planReiter(page, 'route'); await page.selectOption('#pacewahl', '5');
   const lauf5 = await page.textContent('#zZeit');
   pruef('Laufen: schneller ist kürzer', lauf5 !== lauf6[0] && (await page.textContent('#zZeitText')).includes('5:00'), [lauf6[0], lauf5]);
   pruef('Laufen: Kilometer-Ansage von selbst an', await page.isChecked('#kmAnsage'));
-  await page.selectOption('#profilwahl', 'wandern');
+  await planReiter(page, 'route'); await page.selectOption('#profilwahl', 'wandern');
   await page.waitForTimeout(300);
   pruef('Wandern: wieder Gehtempo', await page.isVisible('#tempowahl') && await page.isHidden('#pacewahl') && (await page.textContent('#zZeitText')).includes('Gehzeit'));
   // Zeitplan gegen den Sonnenuntergang (ohne Netz gerechnet)
@@ -356,6 +367,7 @@ function pruef(name, bed, info) {
   pruef('Zeitplan: Ankunft = Start + Gehzeit + Pause, Warnung passt zur Reserve', zp.startsWith('Start 08:00 → Ankunft etwa') && Math.abs(ah * 60 + am - ankunftMin) <= 5 && zp.includes('(mit 45 min Pause)') &&
     (grenzfall || (zp.includes('Knapp') === knappSoll && (await page.getAttribute('#zeitplan', 'class')).includes('warnung') === knappSoll)), [zp, soll, knappSoll]);
 
+  await planReiter(page, 'vorbereiten');
   pruef('Anreise zum Start: Bus und Bahn und Auto', await page.isVisible('#anreise') && await page.evaluate(() => {
     const o = document.querySelector('#anreiseOepnv').href, a = document.querySelector('#anreiseAuto').href;
     return /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=-?\d+\.\d{5},-?\d+\.\d{5}&travelmode=transit$/.test(o) && a.endsWith('travelmode=driving') && o.split('&')[1] === a.split('&')[1]; }));
@@ -504,7 +516,7 @@ function pruef(name, bed, info) {
   pruef('Parkplätze: „hin“ öffnet Google Maps mit dem Auto', /travelmode=driving/.test(await page.getAttribute('#tParkListe li >> nth=0 >> a', 'href')));
   await page.unroute(/overpass-api\.de/, parkRoute);
   await page.click('#tBearbeiten');
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   pruef('Tourseite: „Bearbeiten“ führt zum Planen', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
   // „▶ Los“ auf der Tourseite: Unterwegs mit laufender Navigation; woanders zeigt ein Balken, dass sie läuft
   await zuSeite(page, 'touren');
@@ -520,11 +532,11 @@ function pruef(name, bed, info) {
   await zuSeite(page, 'planen');
   pruef('Balken: nach dem Beenden weg', await page.isHidden('#laeuftBalken'));
   await page.click('#bNeu');
-  await page.selectOption('#profilwahl', 'linie');
+  await planReiter(page, 'route'); await page.selectOption('#profilwahl', 'linie');
   await page.mouse.click(kb.x + kb.width * 0.3, kb.y + kb.height * 0.3);
   await page.waitForTimeout(250);
   await page.mouse.click(kb.x + kb.width * 0.7, kb.y + kb.height * 0.7);
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await page.waitForFunction(() => document.querySelector('#zHoch').textContent !== '–');
   pruef('Gerade Linie mit Höhen', zaehler.hoehe > 0 && (await page.textContent('#zHoch')).includes('m'));
   pruef('Gerade Linie gestrichelt', await page.evaluate(() => [...document.querySelectorAll('.leaflet-overlay-pane path')].some(p => p.getAttribute('stroke-dasharray'))));
@@ -582,15 +594,15 @@ function pruef(name, bed, info) {
   // Teilen-Link öffnen (die geplante Tour, nicht die importierte Spur)
   await page.click('#tourliste li:has-text("🥾") >> nth=0');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
-  await page.waitForSelector('#ergebnis:not([hidden])');
-  await page.selectOption('#profilwahl', 'wandern');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
+  await planReiter(page, 'route'); await page.selectOption('#profilwahl', 'wandern');
   await page.waitForTimeout(500);
   await page.click('#bTeilen');
   const link = await page.evaluate(() => navigator.clipboard.readText());
   pruef('Link kopiert', /#tour-wandern-/.test(link), link);
   const p2 = await ctx.newPage();
   await p2.goto(link);
-  await p2.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  await p2.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   pruef('Link öffnet die Tour', (await p2.$$('.wp')).length === 3 && !(await p2.url()).includes('#'));
   await p2.close();
 
@@ -599,11 +611,11 @@ function pruef(name, bed, info) {
   await page.mouse.click(kb.x + kb.width * 0.35, kb.y + kb.height * 0.5);
   await page.waitForTimeout(250);
   await page.mouse.click(kb.x + kb.width * 0.5, kb.y + kb.height * 0.55);
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await page.waitForTimeout(200);
   const vorEnt = zaehler.brouter;
   await page.reload();
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   pruef('Entwurf ohne neue Anfragen geladen', zaehler.brouter === vorEnt && (await page.$$('.wp')).length === 2, zaehler.brouter - vorEnt);
   await page.evaluate(() => { location.hash = '#tour-wandern-47.70000_11.30000~47.71000_11.31000~47.72000_11.30000'; });
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3);
@@ -624,52 +636,52 @@ function pruef(name, bed, info) {
   await page.waitForFunction(() => document.querySelectorAll('.wp').length === 3 && !document.getElementById('ergebnis').hidden, null, { timeout: 8000 });
   await page.click('[data-reiter=planen]');
   // Wetter für die Tour: Start und Ziel zur Stunde, in der man dort ist; Böen über 60 km/h als Warnung; neuer Tag leert die Anzeige
-  await page.click('#bTourWetter');
+  await planReiter(page, 'vorbereiten'); await page.click('#bTourWetter');
   await page.waitForFunction(() => document.getElementById('tourWetter').textContent.includes('°C'), null, { timeout: 8000 }).catch(() => {});
   const tw = await page.textContent('#tourWetter');
   pruef('Tourwetter: Start und Ziel mit Temperatur, Wind und Böen', tw.includes('Start') && tw.includes('Ziel') && tw.includes('7 °C') && tw.includes('Böen 70'), tw);
   pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab der nächsten vollen Stunde gerechnet'), tw);
   // Packliste: aus Tourart und dem geladenen Wetter (Böen 70 km/h ⇒ Windjacke); Abhaken bleibt, eigenes Ding für alle Touren
-  await page.click('#ergebnis [data-pack]');
+  await planReiter(page, 'vorbereiten'); await page.click('#ergebnis [data-pack]');
   const packText = () => page.textContent('#ergebnis .pack');
   pruef('Packliste: Grundausstattung und Windjacke nach dem Wetter', (await packText()).includes('Regenjacke') && (await packText()).includes('Windjacke') &&
     (await packText()).includes('Böen bis 70') && !(await packText()).includes('Wetter für die Tour“ laden'), await packText());
-  await page.check('#ergebnis .pack input[data-id=regenjacke]');
+  await planReiter(page, 'vorbereiten'); await page.check('#ergebnis .pack input[data-id=regenjacke]');
   pruef('Packliste: Abhaken zählt', /^1 von \d+ eingepackt/.test(await page.textContent('#ergebnis .pack-stand')) && await page.isChecked('#ergebnis .pack input[data-id=regenjacke]'), await page.textContent('#ergebnis .pack-stand'));
   await page.fill('#ergebnis .pack-eigen input', 'Fernglas');
   await page.click('#ergebnis .pack-eigen button[type=submit]');
   pruef('Packliste: eigenes Ding unter „Eigenes“', (await packText()).includes('Eigenes') && (await packText()).includes('Fernglas') &&
     (await page.evaluate(() => localStorage.getItem('gug.packEigene'))) === '["Fernglas"]');
-  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
   pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
   pruef('Packliste: ohne passende Vorhersage der Hinweis aufs Wetter, Haken bleibt', (await packText()).includes('Wetter für die Tour“ laden') && !(await packText()).includes('Windjacke') &&
     await page.isChecked('#ergebnis .pack input[data-id=regenjacke]'), await packText());
   // Familien-Check: Länge und Aufstieg gegen die Grenze (Standard bis 8 km und 400 Hm), Spielplatz oder Einkehr auf halber Strecke
-  await page.click('#bFamilie');
+  await planReiter(page, 'vorbereiten'); await page.click('#bFamilie');
   await page.waitForFunction(() => /halber Strecke/.test(document.getElementById('familie').textContent) && !/suche/.test(document.getElementById('familie').textContent), null, { timeout: 8000 }).catch(() => {});
   const fam = await page.textContent('#familie');
   pruef('Familien-Check: Urteil zur Grenze und Spielplatz auf halber Strecke', /^(✅|⚠️) .* (passt zu|mehr als) „bis 8 km und 400 Hm“/.test(fam) && fam.includes('🛝 Spielplatz bei'), fam);
   const tempoVorher = await page.inputValue('#tempowahl');
-  await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
+  await planReiter(page, 'route'); await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
   pruef('Familien-Check: neue Auswertung leert ihn', (await page.textContent('#familie')) === '');
-  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
   await page.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Hier übernachten')).click());
-  await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
+  await planReiter(page, 'route'); await page.waitForSelector('#etappen:not([hidden])', { timeout: 5000 });
   const etText = await page.textContent('#etappen');
   pruef('Etappen: zwei Tage mit Strecke und Höhenmetern', etText.includes('Tag 1') && etText.includes('Tag 2') && etText.includes('🛏') && /↑ \d+ m/.test(etText), etText);
   pruef('Etappen: Zeitplan nennt die Etappen', (await page.textContent('#zeitplan')).includes('2 Etappen'), await page.textContent('#zeitplan'));
   pruef('Packliste: mit Übernachtung Hüttenschlafsack und Wäsche für 1 Nacht', (await page.textContent('#ergebnis .pack')).includes('Hüttenschlafsack') && (await page.textContent('#ergebnis .pack')).includes('Wechselwäsche für 1 Nacht'));
-  await page.click('#ergebnis [data-pack]');
+  await planReiter(page, 'vorbereiten'); await page.click('#ergebnis [data-pack]');
   pruef('Packliste: zuklappen', await page.isHidden('#ergebnis .pack'));
-  await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
-  await page.fill('#startZeit', '09:00'); await page.dispatchEvent('#startZeit', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startZeit', '09:00'); await page.dispatchEvent('#startZeit', 'change');
   const etPlan = await page.textContent('#etappen');
   pruef('Etappen: mit Startzeit Ankunft und Sonnenuntergang je Tag, zweiter Tag am Folgetag', etPlan.includes('Fr., 10.7.') && etPlan.includes('Sa., 11.7.') && (etPlan.match(/Ankunft etwa/g) || []).length === 2, etPlan);
   // eigene Startzeit an Tag 2 (Frühstück auf der Hütte): Zeitplan und Ankunft von Tag 2 rechnen ab 7:30
-  await page.fill('#etappen input[data-tag="1"]', '07:30'); await page.dispatchEvent('#etappen input[data-tag="1"]', 'change');
+  await planReiter(page, 'route'); await page.fill('#etappen input[data-tag="1"]', '07:30'); await page.dispatchEvent('#etappen input[data-tag="1"]', 'change');
   const etPlan2 = await page.textContent('#etappen');
   pruef('Etappen: eigene Startzeit an Tag 2', /Start 0?9:00, Ankunft/.test(etPlan2) && /Start 0?7:30, Ankunft/.test(etPlan2) && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30', etPlan2);
   await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
@@ -690,13 +702,13 @@ function pruef(name, bed, info) {
   await page.click('#bNavi');
   await page.selectOption('#naviEtappe', '0');
   await page.click('[data-reiter=planen]');
-  await page.fill('#tourname', 'Hüttentour');
+  await planReiter(page, 'vorbereiten'); await page.fill('#tourname', 'Hüttentour');
   await page.click('#bSpeichern');
   await page.click('#bNeu');
   await zuSeite(page, 'touren');
   await page.click('#tourliste li:has-text("Hüttentour") .was');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
-  await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
+  await planReiter(page, 'route'); await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
   pruef('Etappen: gespeicherte Tour behält die Übernachtung und die Startzeit an Tag 2', (await page.textContent('#etappen')).includes('Tag 2') && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30');
   await page.click('#bEtappenReise');
   pruef('Etappen: als Reise ins Tagebuch (zwei Tage)', (await page.textContent('#seitenTitel')) === 'Reisetagebuch' && (await page.textContent('#tbTitel')).includes('Hüttentour'), await page.textContent('#tbTitel'));
@@ -715,10 +727,10 @@ function pruef(name, bed, info) {
   pruef('Etappen: Übernachtung am Ziel wird gestrichen', await page.isHidden('#etappen') && (await page.textContent('#meldung')).includes('Übernachtung lag jetzt am Ziel') &&
     !(await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' '))).includes('🛏'), [await page.isHidden('#etappen'), await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | ')), (await page.textContent('#etappen')).slice(0, 80)]);
   await page.click('#bNeu');
-  await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
-  await page.fill('#startZeit', ''); await page.dispatchEvent('#startZeit', 'change');
+  // ohne Route liegt der Zeitplan im verborgenen Reiter „Vorbereiten“: direkt leeren
+  await page.evaluate(() => { for (const id of ['startTag', 'startZeit']) { const el = document.getElementById(id); el.value = ''; el.dispatchEvent(new Event('change')); } });
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.77000_11.40000'; });
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await zuSeite(page, 'unterwegs');
   await page.click('#bNavi');
   await page.waitForFunction(() => document.querySelector('#uRest').textContent !== '–', null, { timeout: 8000 });
@@ -1085,7 +1097,7 @@ function pruef(name, bed, info) {
   await zuSeite(page, 'entdecken');
   await page.selectOption('#rundAnzahl', '6');
   await page.click('#bRundgang');
-  await page.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   await page.waitForTimeout(300);
   const nWp = (await page.$$('.wp')).length;
   pruef('Rundgang vorgeschlagen', nWp >= 5, nWp);
@@ -1094,34 +1106,35 @@ function pruef(name, bed, info) {
   pruef('Stopps mit Besichtigungszeit', (await page.$$('#stopps select')).length >= 4 && (await page.textContent('#zZeitText')).includes('Besichtigung'), await page.textContent('#zZeitText'));
   pruef('Namen an den Punkten', (await page.$$('.wp-name')).length >= 4);
   const zA = await page.textContent('#zZeit');
-  await page.selectOption('#stopps select >> nth=1', '180');
+  await planReiter(page, 'route'); await page.selectOption('#stopps select >> nth=1', '180');
   pruef('Besichtigungszeit ändert die Gesamtzeit', (await page.textContent('#zZeit')) !== zA, [zA, await page.textContent('#zZeit')]);
   pruef('Reihenfolge-Knopf sichtbar', await page.isVisible('#bOrdnen'));
   await page.screenshot({ path: path.join(OUT, '9-stadt-rundgang.png') });
   // speichern und wieder öffnen: Namen und Minuten bleiben
-  await page.fill('#tourname', 'Altstadt-Runde');
+  await planReiter(page, 'vorbereiten'); await page.fill('#tourname', 'Altstadt-Runde');
   await page.click('#bSpeichern');
   await page.click('#bNeu');
   await zuSeite(page, 'touren');
   pruef('Stadttour mit Symbol', (await page.textContent('#tourliste')).includes('🏛️'));
   await page.click('#tourliste li >> nth=0');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
-  await page.waitForSelector('#ergebnis:not([hidden])');
+  await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   pruef('Tempo der Tour wiederhergestellt', (await page.inputValue('#tempowahl')) === '0.7');
   pruef('Gespeicherte Stopps mit Namen und Zeiten', (await page.$$('.wp-name')).length >= 4 && (await page.inputValue('#stopps select >> nth=1')) === '180');
   // Öffnungszeiten der Stopps (aus OSM, mit der Tour gespeichert): mit Startzeit die Ankunft und „geöffnet?“
   pruef('Stopps: ohne Startzeit der Hinweis im Zeitplan', (await page.textContent('#zeitplan')).includes('Mit Startzeit prüft die App'), await page.textContent('#zeitplan'));
-  await page.fill('#startZeit', '10:00');
-  await page.dispatchEvent('#startZeit', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startZeit', '10:00');
+  await planReiter(page, 'vorbereiten'); await page.dispatchEvent('#startZeit', 'change');
   const stoppText = await page.textContent('#stopps');
   pruef('Stopps: Ankunft und geöffnet bei Ankunft', /an 1\d:\d\d Uhr/.test(stoppText) && stoppText.includes('durchgehend geöffnet'), stoppText);
   pruef('Stopps: Quelle, Alter mit Warnung, Webseite und Google Maps', stoppText.includes('laut OpenStreetMap, Stand 03/2022 ⚠️ über 2 Jahre alt') &&
     (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h === 'https://museum.example/') &&
     (await page.$$eval('#stopps a', l => l.map(a => a.href))).some(h => h.startsWith('https://www.google.com/maps/search/Stadtmuseum/@')), stoppText);
   pruef('Stopps: Hinweis zur Verlässlichkeit', stoppText.includes('nicht immer aktuell'));
+  await planReiter(page, 'route');
   await (await page.$('#stopps')).screenshot({ path: path.join(OUT, '9c-stopps-oeffnung.png') });
-  await page.fill('#startZeit', '');
-  await page.dispatchEvent('#startZeit', 'change');
+  await planReiter(page, 'vorbereiten'); await page.fill('#startZeit', '');
+  await planReiter(page, 'vorbereiten'); await page.dispatchEvent('#startZeit', 'change');
   // Führung: beim Losgehen die Kurzinfos der Stopps mit Wikipedia-Artikel laden (Stopps aus der Stadt-Liste bringen ihn mit)
   await zuSeite(page, 'unterwegs');
   await page.check('#fuehrung');
@@ -1210,7 +1223,7 @@ function pruef(name, bed, info) {
   const appFehler = [];
   pa2.on('pageerror', e => appFehler.push(e.message));
   await pa2.goto(url + '#tour-wandern-47.75350_11.37470~47.77000_11.40000');
-  await pa2.waitForSelector('#ergebnis:not([hidden])');
+  await pa2.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   pruef('App: Hinweis für gesperrten Bildschirm', (await pa2.textContent('#unterwegsHinweis')).includes('gesperrtem Bildschirm'));
   await zuSeite(pa2, 'unterwegs');
   await pa2.click('#bNavi');
@@ -1328,25 +1341,19 @@ function pruef(name, bed, info) {
   await pa2.click('[data-reiter=planen]');
   // Telefon: Kennzahlen und Profil zuerst; Art und Tempo sowie Name und Zeitplan je eine Zeile zum Aufklappen
   pruef('Telefon: Art und Tempo als eine Zeile', await pa2.isHidden('#profilwahl') && /^🥾 Wandern · /.test(await pa2.textContent('#einstellText')), await pa2.textContent('#einstellText'));
-  await pa2.click('#bEinstell');
+  await planReiter(pa2, 'route'); await pa2.click('#bEinstell');
   pruef('Telefon: Zeile klappt Art und Tempo auf', await pa2.isVisible('#profilwahl') && (await pa2.getAttribute('#bEinstell', 'aria-expanded')) === 'true');
-  await pa2.click('#bEinstell');
+  await planReiter(pa2, 'route'); await pa2.click('#bEinstell');
   pruef('Telefon: Zeile zu, Art und Tempo wieder weg', await pa2.isHidden('#profilwahl'));
-  pruef('Telefon: Kennzahlen und Profil vor Name und Zeitplan', await pa2.evaluate(() => {
+  // Telefon: drei Reiter statt einer langen Liste; Zeitplan und Name im Reiter „Vorbereiten“ ohne Klappzeile
+  pruef('Telefon: Reiter Route, Überblick, Vorbereiten', await pa2.isVisible('#planReiter') && (await pa2.$$('#planReiter [data-plan]')).length === 3);
+  await planReiter(pa2, 'ueberblick');
+  pruef('Telefon: Überblick mit Kennzahlen vor dem Profil, ohne Zeitplan', await pa2.evaluate(() => {
     const y = id => document.getElementById(id).getBoundingClientRect().top;
-    return y('ergebnisKopf') < y('planDetails') && y('profilbox') < y('planDetails') && y('planDetails') < y('zeitplan'); }));
-  pruef('Telefon: Name und Zeitplan eingeklappt', await pa2.isHidden('#startZeit') && await pa2.isHidden('#tourname'));
-  await pa2.click('#bPlanDetails');
-  const nameVorher = await pa2.inputValue('#tourname');
-  await pa2.fill('#tourname', 'Probe Klappzeile');
-  await pa2.fill('#startZeit', '09:30'); await pa2.dispatchEvent('#startZeit', 'change');
-  await pa2.click('#bPlanDetails');
-  pruef('Telefon: Zeile zeigt Name und Startzeit', (await pa2.textContent('#planDetailsText')) === '🗓 Probe Klappzeile · ab 09:30', await pa2.textContent('#planDetailsText'));
-  await pa2.click('#bPlanDetails');
-  await pa2.fill('#tourname', nameVorher);
-  await pa2.fill('#startZeit', ''); await pa2.dispatchEvent('#startZeit', 'change');
-  await pa2.click('#bPlanDetails');
-  pruef('Telefon: Zeile wieder wie vorher', (await pa2.textContent('#planDetailsText')) === '🗓 ' + (nameVorher || 'Name, Tag und Startzeit'), await pa2.textContent('#planDetailsText'));
+    return y('ergebnisKopf') < y('profilbox'); }) && await pa2.isVisible('#profil') && await pa2.isHidden('#startZeit'));
+  await planReiter(pa2, 'vorbereiten');
+  pruef('Telefon: Vorbereiten zeigt Name und Zeitplan gleich, ohne Klappzeile', await pa2.isVisible('#startZeit') && await pa2.isVisible('#tourname') && await pa2.isHidden('#bPlanDetails'));
+  await planReiter(pa2, 'route');
   // Karte am Touchscreen: Zoom mit zwei Fingern, Fadenkreuz nur beim Planen
   pruef('Telefon: keine Zoom-Knöpfe', await pa2.isHidden('#bPlus') && await pa2.isHidden('#bMinus'));
   pruef('Telefon: Fadenkreuz beim Planen da', await pa2.isVisible('#bKreuz'));
@@ -1555,24 +1562,24 @@ function pruef(name, bed, info) {
   await po.screenshot({ path: path.join(OUT, '11-offline-relief.png') });
   // gerade Linie über den Berg: Höhen aus dem Paket (Gipfel 1800 m)
   await po.click('[data-reiter=planen]');
-  await po.selectOption('#profilwahl', 'linie');
+  await planReiter(po, 'route'); await po.selectOption('#profilwahl', 'linie');
   const kb2 = await (await po.$('#karte')).boundingBox();
   await po.mouse.click(kb2.x + kb2.width * 0.3, kb2.y + kb2.height * 0.5);
   await po.waitForTimeout(300);
   await po.mouse.click(kb2.x + kb2.width * 0.7, kb2.y + kb2.height * 0.5);
-  await po.waitForSelector('#ergebnis:not([hidden])');
+  await po.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await po.waitForFunction(() => document.querySelector('#zHoch').textContent !== '–', null, { timeout: 8000 });
   const hoch = parseInt(await po.textContent('#zHoch'), 10);
   pruef('Offline: Höhen der geraden Linie aus dem Paket', hoch > 1700 && hoch < 1810, hoch);
   await po.screenshot({ path: path.join(OUT, '12-offline-linie.png') });
   // Route offline: BRouter in der App, brouter.de wird nicht gefragt; Abbiegehinweise gehen an den Navigationsdienst
   await po.click('#bNeu');
-  await po.selectOption('#profilwahl', 'wandern');
+  await planReiter(po, 'route'); await po.selectOption('#profilwahl', 'wandern');
   const vorOnline = zaehler.brouter;
   await po.mouse.click(kb2.x + kb2.width * 0.35, kb2.y + kb2.height * 0.45);
   await po.waitForTimeout(300);
   await po.mouse.click(kb2.x + kb2.width * 0.65, kb2.y + kb2.height * 0.55);
-  await po.waitForSelector('#ergebnis:not([hidden])');
+  await po.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await po.waitForTimeout(300);
   const routing = await po.evaluate(() => window.__routing);
   pruef('Offline-Routing: Engine in der App gefragt, nicht brouter.de', routing.length === 1 && routing[0].profil === 'hiking-mountain' && zaehler.brouter === vorOnline, [routing.length, zaehler.brouter - vorOnline]);
@@ -1629,7 +1636,7 @@ function pruef(name, bed, info) {
   const telFehler = [];
   pt.on('pageerror', e => telFehler.push(e.message));
   await pt.goto(url + '#tour-wandern-47.75350_11.37470~47.77000_11.40000~47.75350_11.37470');
-  await pt.waitForSelector('#ergebnis:not([hidden])');
+  await pt.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await pt.waitForTimeout(500);
   await pt.screenshot({ path: path.join(OUT, '5-telefon.png') });
   await pt.tap('#griff');
@@ -1677,7 +1684,7 @@ function pruef(name, bed, info) {
   // Wisch im Inhalt (Touch): steht er oben, klappt das Blatt eine Stufe zu; ist er gescrollt, scrollt er nur
   const wisch = (dy, scroll) => pt.evaluate(([dy, scroll]) => new Promise(fertig => {
     const el = document.querySelector('#panel .inhalt'); el.scrollTop = scroll;
-    const ziel = document.querySelector('#zeitplan') || el, r = el.getBoundingClientRect(), x = r.left + 100, y0 = r.top + 60;
+    const ziel = document.querySelector('#ergebnisKopf') || el, r = el.getBoundingClientRect(), x = r.left + 100, y0 = r.top + 60;
     const t = y => new Touch({ identifier: 1, target: ziel, clientX: x, clientY: y });
     const send = (typ, y) => ziel.dispatchEvent(new TouchEvent(typ, { bubbles: true, cancelable: true, touches: typ === 'touchend' ? [] : [t(y)], changedTouches: [t(y)] }));
     send('touchstart', y0);
@@ -1685,6 +1692,7 @@ function pruef(name, bed, info) {
     const schritt = () => { i++; send('touchmove', y0 + dy * i / 6); if (i < 6) setTimeout(schritt, 16); else { send('touchend', y0 + dy); setTimeout(fertig, 400); } };
     setTimeout(schritt, 16);
   }), [dy, scroll]);
+  await planReiter(pt, 'ueberblick');   // der längste Reiter: Inhalt lässt sich scrollen
   await wisch(260, 40);
   pruef('Blatt: Wisch im gescrollten Inhalt klappt nicht zu', await stufe() === 'gross', await stufe());
   await wisch(260, 0);
@@ -1757,9 +1765,9 @@ function pruef(name, bed, info) {
   await pt.tap('#karte', { position: { x: kk.width * 0.35, y: kk.height * 0.45 } }); await pt.waitForTimeout(250);
   pruef('Telefon: Start auf der reinen Karte wird gemeldet', (await pt.textContent('#meldung')).includes('Start gesetzt'));
   await pt.tap('#karte', { position: { x: kk.width * 0.6, y: kk.height * 0.3 } });
-  await pt.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
+  await pt.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(() => !document.body.classList.contains('ohneBlatt') &&
-    document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#zLaenge'));
+    document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#planReiter') && (await pt.textContent('#kopfZahlen')).includes('km'));
   // Tourseite am Telefon: speichern, in der Liste antippen
   await klick('#bSpeichern'); await zuSeite(pt, 'touren');
   await pt.tap('#tourliste li >> nth=0'); await pt.waitForTimeout(400);
@@ -1815,15 +1823,15 @@ function pruef(name, bed, info) {
   // Stopps umsortieren: ▲▼ an Zwischenpunkten und Ziel, nicht am Start; Rückgängig holt die alte Reihenfolge
   await pf.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76000_11.38000~47.77000_11.40000~47.78000_11.41000'; });
   await zuSeite(pf, 'planen');
-  await pf.waitForSelector('#ergebnis:not([hidden])');
+  await pf.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   const treihe = () => pf.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat));
   const tvorher = await treihe();
   pruef('Stopps: Liste auch am Berg ab drei Punkten, mit ▲▼', (await pf.$$('#stopps .stopp')).length === 4 && (await pf.$$('#stopps .stopp:nth-child(1) .schieben')).length === 0 &&
     (await pf.$$('#stopps .stopp:nth-child(2) .schieben')).length === 2 && await pf.isDisabled('#stopps .stopp:nth-child(2) .schieben >> nth=0') && await pf.isDisabled('#stopps .stopp:nth-child(4) .schieben >> nth=1'));
-  await pf.click('#stopps .stopp:nth-child(2) .schieben >> nth=1');
+  await planReiter(pf, 'route'); await pf.click('#stopps .stopp:nth-child(2) .schieben >> nth=1');
   await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[1].lat !== v, tvorher[1], { timeout: 8000 });
   pruef('Stopps: ▼ tauscht mit dem nächsten', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[1], tvorher[3]]), await treihe());
-  await pf.click('#stopps .stopp:nth-child(4) .schieben >> nth=0');
+  await planReiter(pf, 'route'); await pf.click('#stopps .stopp:nth-child(4) .schieben >> nth=0');
   await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[3].lat !== v, tvorher[3], { timeout: 8000 });
   pruef('Stopps: ▲ holt das Ziel nach vorn', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[3], tvorher[1]]), await treihe());
   await pf.click('#bZurueck'); await pf.click('#bZurueck');
