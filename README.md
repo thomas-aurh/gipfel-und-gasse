@@ -22,8 +22,10 @@ am PC „Sicherung speichern“ (Menü › Sicherung), die Datei aufs Handy schi
 
 Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben erhalten.
 
-**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit den übrigen
-Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
+**Bedienung:** Unten die fünf Hauptbereiche Karte, Entdecken (Orte und Wetter), Planen, Touren und Ich (Reisetagebuch,
+Reiseziele, Gipfelbuch, gegangene Touren mit Statistik), links oben das Menü ☰ mit Unterwegs, Offline-Karten, Notfall,
+Sicherung und Info. Eine Tour in der Liste antippen öffnet ihre Seite mit „▶ Los“ (folgen mit Ansagen), „✏️ Bearbeiten“,
+Link, GPX und Drucken; läuft Folgen oder Aufzeichnen, zeigt ein Balken über der Leiste das an (Antippen öffnet Unterwegs). Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
 im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* zeigt oben Strecke, Zeit, Höhenmeter und das Höhenprofil; Art und Tempo („🥾 Wandern · Normal“) sowie Name, Tag
 und Startzeit sind am Telefon je eine Zeile zum Aufklappen. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
 und die zuletzt gespeicherte Tour an. Am Touchscreen wird mit zwei Fingern gezoomt; das Fadenkreuz ⌖ steht nur beim Planen.
@@ -41,6 +43,11 @@ gestrichelter Rahmen mit Namen, wie weit jedes installierte Paket reicht; außer
 **Zeitplan:** In *Planen* Tag, Startzeit und Pausen eintragen: die App nennt die Ankunft und den Sonnenuntergang am Ziel
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
+
+**Stopps und Tourliste:** Ab drei Punkten steht unter *Planen* die Liste der Punkte; ▲ und ▼ schieben einen Stopp oder das
+Ziel eine Stelle weiter (der Start bleibt, „↶ Rückgängig“ holt die alte Reihenfolge). Ab drei Touren lassen sich die Listen unter
+*Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
+Rad, Stadt, GPX).
 
 **Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder

@@ -379,3 +379,20 @@ async function gewitterPruefen() {
   }
 }
 setInterval(gewitterPruefen, 30 * 60000);
+
+// Balken über der Leiste, solange Folgen oder Aufzeichnen läuft (Browser und App: der Zustand steht an den Knöpfen)
+function balkenZeigen() {
+  const navi = /beenden/.test($('bNavi').textContent), aufz = /beenden/.test($('bAufz').textContent);
+  const an = (navi || aufz) && seite !== 'unterwegs';
+  $('laeuftBalken').hidden = !an;
+  document.body.classList.toggle('mitBalken', an);
+  if (!an) return;
+  const rest = $('uRest').textContent, weg = $('aStrecke').textContent;
+  $('laeuftBalken').textContent = (navi ? '🧭 Navigation läuft' + (rest && rest !== '–' ? ' · noch ' + rest : '') : '') + (navi && aufz ? ' · ' : '') +
+    (aufz ? '⏺ Aufzeichnung' + (weg && weg !== '–' ? ' · ' + weg : '') : '') + ' ›';
+}
+$('laeuftBalken').onclick = () => reiter('unterwegs');
+if (window.MutationObserver) {
+  const beobachter = new MutationObserver(() => balkenZeigen());
+  ['bNavi', 'bAufz', 'uRest', 'aStrecke'].forEach(id => beobachter.observe($(id), { childList: true, characterData: true, subtree: true }));
+}

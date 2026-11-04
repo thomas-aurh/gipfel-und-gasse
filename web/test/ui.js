@@ -151,11 +151,13 @@ let ok = 0, fehler = 0;
 // Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
 // Karte, Planen, Unterwegs und Touren stehen in der Leiste (Gegangen über den Umschalter unter Touren), der Rest im Menü
 async function zuSeite(seite, ziel) {
-  if (['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(ziel)) {
+  // Leiste: Karte, Entdecken, Planen, Touren (mit Gegangen), Ich (Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
+  if (['karte', 'entdecken', 'planen', 'touren', 'gegangen', 'ich'].includes(ziel)) {
     await seite.click('#leiste [data-reiter=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
     if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
     return;
   }
+  if (['tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) { await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + ziel + ']'); return; }
   await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
 }
 function pruef(name, bed, info) {
@@ -189,7 +191,7 @@ function pruef(name, bed, info) {
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
   pruef('Menü ohne Dopplung zur Leiste', await page.evaluate(() => { const m = [...document.querySelectorAll('#menue [data-ziel]')].map(b => b.dataset.ziel);
-    return m.length > 0 && !m.some(z => ['karte', 'planen', 'unterwegs', 'touren', 'gegangen'].includes(z)); }));
+    return m.length > 0 && !m.some(z => ['karte', 'entdecken', 'planen', 'touren', 'gegangen', 'ich', 'tagebuch', 'ziele', 'gipfelbuch'].includes(z)); }));
   await page.keyboard.press('Escape');
   pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
   // Darstellung: automatisch → hell → dunkel, gespeichert; Farben aus den Variablen
@@ -473,8 +475,26 @@ function pruef(name, bed, info) {
   await page.click('#bNeu');
   pruef('Einstieg „Letzte Tour“ nennt die gespeicherte Tour', await page.isVisible('#eLetzte') && (await page.textContent('#eLetzteName')).includes('Testrunde am See'));
   await page.click('#eLetzte');
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an') && document.querySelectorAll('#tourZahlen .zahl').length === 6);
+  pruef('Einstieg „Letzte Tour“ öffnet die Tourseite', (await page.textContent('#tourName')) === 'Testrunde am See' && (await page.textContent('#seitenTitel')) === 'Tour' &&
+    (await page.textContent('#tourZahlen')).includes(await page.textContent('#zLaenge')) && await page.isEnabled('#tLos') &&
+    (await page.getAttribute('#leiste [data-reiter=touren]', 'class')).includes('an'));
+  await page.click('#tBearbeiten');
   await page.waitForSelector('#ergebnis:not([hidden])');
-  pruef('Einstieg „Letzte Tour“ öffnet sie', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
+  pruef('Tourseite: „Bearbeiten“ führt zum Planen', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
+  // „▶ Los“ auf der Tourseite: Unterwegs mit laufender Navigation; woanders zeigt ein Balken, dass sie läuft
+  await zuSeite(page, 'touren');
+  await page.click('#tourliste li:has-text("Testrunde am See") .was');
+  await page.click('#tLos');
+  await page.waitForFunction(() => /beenden/.test(document.querySelector('#bNavi').textContent), null, { timeout: 8000 });
+  pruef('Tourseite: „▶ Los“ startet das Folgen unter Unterwegs', await page.evaluate(() => document.querySelector('section[data-reiter=unterwegs]').classList.contains('an')) && await page.isHidden('#laeuftBalken'));
+  await zuSeite(page, 'planen');
+  pruef('Balken: Navigation läuft, außerhalb von Unterwegs sichtbar', await page.isVisible('#laeuftBalken') && (await page.textContent('#laeuftBalken')).includes('Navigation läuft'), await page.textContent('#laeuftBalken'));
+  await page.click('#laeuftBalken');
+  pruef('Balken: Antippen öffnet Unterwegs', await page.evaluate(() => document.querySelector('section[data-reiter=unterwegs]').classList.contains('an')) && await page.isHidden('#laeuftBalken'));
+  await page.click('#bNavi');
+  await zuSeite(page, 'planen');
+  pruef('Balken: nach dem Beenden weg', await page.isHidden('#laeuftBalken'));
   await page.click('#bNeu');
   await page.selectOption('#profilwahl', 'linie');
   await page.mouse.click(kb.x + kb.width * 0.3, kb.y + kb.height * 0.3);
@@ -506,6 +526,7 @@ function pruef(name, bed, info) {
 
   // Teilen-Link öffnen (die geplante Tour, nicht die importierte Spur)
   await page.click('#tourliste li:has-text("🥾") >> nth=0');
+  await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
   await page.waitForSelector('#ergebnis:not([hidden])');
   await page.selectOption('#profilwahl', 'wandern');
   await page.waitForTimeout(500);
@@ -574,6 +595,7 @@ function pruef(name, bed, info) {
   await page.click('#bNeu');
   await page.click('[data-reiter=touren]');
   await page.click('#tourliste li:has-text("Hüttentour") .was');
+  await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
   pruef('Etappen: gespeicherte Tour behält die Übernachtung', (await page.textContent('#etappen')).includes('Tag 2'));
   await page.click('#bEtappenReise');
@@ -597,7 +619,7 @@ function pruef(name, bed, info) {
   await page.fill('#startZeit', ''); await page.dispatchEvent('#startZeit', 'change');
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.77000_11.40000'; });
   await page.waitForSelector('#ergebnis:not([hidden])');
-  await page.click('[data-reiter=unterwegs]');
+  await zuSeite(page, 'unterwegs');
   await page.click('#bNavi');
   await page.waitForFunction(() => document.querySelector('#uRest').textContent !== '–', null, { timeout: 8000 });
   const rest1 = await page.textContent('#uRest');
@@ -620,7 +642,7 @@ function pruef(name, bed, info) {
   const ablage = await page.evaluate(() => navigator.clipboard.readText());
   pruef('Notfall: Standort-Text mit Koordinaten und Kartenlink', ablage.startsWith('Mein Standort: 47.76') && ablage.includes('openstreetmap.org/?mlat='), ablage);
   pruef('Notfall: 112 als Telefon-Link', (await page.getAttribute('#bNotruf', 'href')) === 'tel:112');
-  await page.click('[data-reiter=unterwegs]');
+  await zuSeite(page, 'unterwegs');
   await page.screenshot({ path: path.join(OUT, '4-unterwegs.png') });
   await page.click('#bAufzSpeichern');
   await page.waitForTimeout(300);
@@ -916,6 +938,7 @@ function pruef(name, bed, info) {
   await page.click('[data-reiter=touren]');
   pruef('Stadttour mit Symbol', (await page.textContent('#tourliste')).includes('🏛️'));
   await page.click('#tourliste li >> nth=0');
+  await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
   await page.waitForSelector('#ergebnis:not([hidden])');
   pruef('Tempo der Tour wiederhergestellt', (await page.inputValue('#tempowahl')) === '0.7');
   pruef('Gespeicherte Stopps mit Namen und Zeiten', (await page.$$('.wp-name')).length >= 4 && (await page.inputValue('#stopps select >> nth=1')) === '180');
@@ -933,7 +956,7 @@ function pruef(name, bed, info) {
   await page.fill('#startZeit', '');
   await page.dispatchEvent('#startZeit', 'change');
   // Führung: beim Losgehen die Kurzinfos der Stopps mit Wikipedia-Artikel laden (Stopps aus der Stadt-Liste bringen ihn mit)
-  await page.click('[data-reiter=unterwegs]');
+  await zuSeite(page, 'unterwegs');
   await page.check('#fuehrung');
   await page.click('#bNavi');
   await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Führung:'), null, { timeout: 12000 }).catch(() => {});
@@ -1021,7 +1044,7 @@ function pruef(name, bed, info) {
   await pa2.goto(url + '#tour-wandern-47.75350_11.37470~47.77000_11.40000');
   await pa2.waitForSelector('#ergebnis:not([hidden])');
   pruef('App: Hinweis für gesperrten Bildschirm', (await pa2.textContent('#unterwegsHinweis')).includes('gesperrtem Bildschirm'));
-  await pa2.click('[data-reiter=unterwegs]');
+  await zuSeite(pa2, 'unterwegs');
   await pa2.click('#bNavi');
   await pa2.waitForTimeout(200);
   const a1 = await pa2.evaluate(() => window.__navi.aufrufe);
@@ -1034,6 +1057,9 @@ function pruef(name, bed, info) {
   pruef('App: ohne Gewitter keine Warnung', await pa2.isHidden('#uWetter'));
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), gewitter: 'Gewitter möglich gegen 15 Uhr', rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   pruef('App: Gewitterwarnung des Dienstes sichtbar', (await pa2.textContent('#uWetter')).includes('Gewitter möglich gegen 15 Uhr') && await pa2.isVisible('#uWetter'));
+  await zuSeite(pa2, 'planen');
+  pruef('App: Balken zeigt die laufende Navigation mit Rest', await pa2.isVisible('#laeuftBalken') && (await pa2.textContent('#laeuftBalken')).includes('noch 2,3 km'), await pa2.textContent('#laeuftBalken'));
+  await zuSeite(pa2, 'unterwegs');
   pruef('App: Meldung des Dienstes angezeigt', (await pa2.textContent('#uRest')) === '2,3 km' && (await pa2.textContent('#uAuf')) === '120 m' && !(await pa2.isHidden('#abseits')));
   // Pfeil am Standortpunkt: ohne Kompass die Bewegungsrichtung des Dienstes, mit Kompass dessen Richtung (hat Vorrang)
   const pfeil = () => pa2.evaluate(() => { const p = document.querySelector('.ich .ich-pfeil'); return p ? (p.hidden ? 'aus' : p.style.transform) : 'fehlt'; });
@@ -1051,7 +1077,7 @@ function pruef(name, bed, info) {
     window.dispatchEvent(new DeviceOrientationEvent(art, { alpha: 270, beta: 0, gamma: 0, absolute: true }));
   });
   await pa2.waitForTimeout(100);
-  { await pa2.click('[data-reiter=karte]'); await pa2.waitForTimeout(400); const b = await (await pa2.$('.ich')).boundingBox(); await pa2.screenshot({ path: path.join(OUT, '9-pfeil.png'), clip: { x: b.x - 40, y: b.y - 40, width: b.width + 80, height: b.height + 80 } }); await pa2.click('[data-reiter=unterwegs]'); }
+  { await pa2.click('[data-reiter=karte]'); await pa2.waitForTimeout(400); const b = await (await pa2.$('.ich')).boundingBox(); await pa2.screenshot({ path: path.join(OUT, '9-pfeil.png'), clip: { x: b.x - 40, y: b.y - 40, width: b.width + 80, height: b.height + 80 } }); await zuSeite(pa2, 'unterwegs'); }
   pruef('App: Pfeil zeigt die Kompassrichtung (Osten)', (await pfeil()) === 'rotate(90deg)', await pfeil());
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.7602, lon: 11.385, gen: 6, t: Date.now(), richtung: 180, rest: { meter: 2300, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   await pa2.waitForTimeout(100);
@@ -1226,13 +1252,16 @@ function pruef(name, bed, info) {
   pruef('App unter Android 10: kein Galerie-Schalter, kein Versuch, Foto trotzdem im Eintrag', await p9.isHidden('#tbGalerieAuch') &&
     !(await p9.evaluate(() => window.__galerie)) && (await p9.$$('#tbFotosNeu figure')).length === 1);
   await alt9.close();
-  // Zurück-Taste: erst Kartenwahl schließen, dann zum Reiter Planen, danach darf die App in den Hintergrund
+  // Zurück-Taste: erst Kartenwahl schließen, dann aus dem Tagebuch zu „Ich“, dann zum Planen, danach darf die App in den Hintergrund
+  await zuSeite(pa2, 'tagebuch');
   await pa2.click('#bLagen');
   const zr1 = await pa2.evaluate(() => window.gugZurueck());
   const zr2 = await pa2.evaluate(() => window.gugZurueck());
+  const zrIch = await pa2.evaluate(() => document.querySelector('section[data-reiter=ich]').classList.contains('an'));
   const zr3 = await pa2.evaluate(() => window.gugZurueck());
-  pruef('App: Zurück-Taste schließt erst Kartenwahl, dann Reiter, dann App', zr1 === true && zr2 === true && zr3 === false &&
-    await pa2.isHidden('#lagenwahl') && (await pa2.getAttribute('[data-reiter=planen]', 'class')).includes('an'), [zr1, zr2, zr3]);
+  const zr4 = await pa2.evaluate(() => window.gugZurueck());
+  pruef('App: Zurück-Taste schließt erst Kartenwahl, dann Tagebuch › Ich › Planen, dann App', zr1 === true && zr2 === true && zrIch && zr3 === true && zr4 === false &&
+    await pa2.isHidden('#lagenwahl') && (await pa2.getAttribute('[data-reiter=planen]', 'class')).includes('an'), [zr1, zr2, zrIch, zr3, zr4]);
   await pa2.click('[data-reiter=planen]');
   await pa2.click('#bDrucken');
   await pa2.waitForFunction(() => window.__navi.aufrufe.some(x => x[0] === 'drucken'), null, { timeout: 8000 });
@@ -1370,7 +1399,7 @@ function pruef(name, bed, info) {
   const routing = await po.evaluate(() => window.__routing);
   pruef('Offline-Routing: Engine in der App gefragt, nicht brouter.de', routing.length === 1 && routing[0].profil === 'hiking-mountain' && zaehler.brouter === vorOnline, [routing.length, zaehler.brouter - vorOnline]);
   pruef('Offline-Routing: Wegtypen aus den Routendaten', (await po.textContent('#wege')).includes('Pfad'));
-  await po.click('[data-reiter=unterwegs]');
+  await zuSeite(po, 'unterwegs');
   await po.click('#bNavi');
   await po.waitForTimeout(300);
   const naviStart = await po.evaluate(() => window.__naviStart);
@@ -1533,6 +1562,13 @@ function pruef(name, bed, info) {
   await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
   await pt.waitForTimeout(800);
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
+  // Ich: Sammlungen als Kacheln; Tagebuch gehört in der Leiste zu „Ich“
+  await zuSeite(pt, 'ich');
+  pruef('Ich: Tagebuch, Reiseziele, Gipfelbuch, Gegangen, Unterwegs', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'tagebuch,ziele,gipfelbuch,gegangen,unterwegs');
+  await pt.tap('.ich-liste [data-ziel=tagebuch]'); await pt.waitForTimeout(200);
+  pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
+    document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
+  pruef('Leiste: Karte, Entdecken, Planen, Touren, Ich', await pt.evaluate(() => [...document.querySelectorAll('#leiste button')].map(b => b.dataset.reiter).join()) === 'karte,entdecken,planen,touren,ich');
   // leere Planung am Telefon: Einstiege im halb offenen Blatt; „Stadtrundgang“ schaltet die Stadt ein und führt zu Entdecken
   await pt.reload(); await pt.waitForTimeout(500);
   pruef('Telefon: Start ohne Route mit der reinen Karte', await pt.evaluate(() => document.body.classList.contains('ohneBlatt') &&
@@ -1546,12 +1582,73 @@ function pruef(name, bed, info) {
   await pt.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
   pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(() => !document.body.classList.contains('ohneBlatt') &&
     document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#zLaenge'));
+  // Tourseite am Telefon: speichern, in der Liste antippen
+  await klick('#bSpeichern'); await zuSeite(pt, 'touren');
+  await pt.tap('#tourliste li >> nth=0'); await pt.waitForTimeout(400);
+  pruef('Telefon: Tour antippen öffnet die Tourseite mit „▶ Los“', await pt.isVisible('#tLos') && (await pt.$$('#tourZahlen .zahl')).length === 6);
+  await pt.screenshot({ path: path.join(OUT, '7c-telefon-tour.png') });
+  await zuSeite(pt, 'ich'); await pt.waitForTimeout(200);
+  await pt.screenshot({ path: path.join(OUT, '7d-telefon-ich.png') });
+  await zuSeite(pt, 'planen');
   await klick('#bNeu'); await pt.waitForTimeout(300);
   pruef('Telefon: Planen ohne Route zeigt die Einstiege', await pt.isVisible('#eRunde') && await pt.isVisible('#eStadt'));
+  await klick('#eAufz'); await pt.waitForTimeout(200);
+  pruef('Einstieg „Aufzeichnen“ führt zu Unterwegs', await pt.evaluate(() => document.querySelector('section[data-reiter=unterwegs]').classList.contains('an')) && await pt.isVisible('#bAufz'));
+  await zuSeite(pt, 'planen');
   await pt.tap('#eStadt'); await pt.waitForTimeout(300);
   pruef('Einstieg „Stadtrundgang“: Stadt an, Entdecken mit Rundgang', await pt.evaluate(() => document.querySelector('.modus [data-modus=stadt]').classList.contains('an') &&
     document.querySelector('section[data-reiter=entdecken]').classList.contains('an')) && await pt.isVisible('#bRundgang'));
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
+
+  // ---------- Tourlisten suchen, sortieren, nach Art filtern; Stopps umsortieren ----------
+  const fc = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+  await dienste(fc);
+  const testTour = (id, name, profil, km, hm, tage) => ({ id, name, datum: new Date(Date.now() - tage * 864e5).toISOString(), profil, tempo: 1, art: 'plan',
+    modus: profil === 'stadt' ? 'stadt' : 'berg', wps: [[47.75, 11.37], [47.76, 11.38]], stuecke: null, spur: [[47.75, 11.37, 600], [47.76, 11.38, 650]], kurz: { laenge: km * 1000, auf: hm, ab: hm, zeit: 1 } });
+  await fc.addInitScript(l => { if (!localStorage.getItem('gug.touren')) localStorage.setItem('gug.touren', l); }, JSON.stringify([
+    testTour('t1', 'Herzogstand', 'wandern', 9, 900, 1), testTour('t2', 'Abendlauf am See', 'laufen', 6, 40, 3), testTour('t3', 'Altstadt Verona', 'stadt', 4, 30, 2), testTour('t4', 'Zur Tutzinger Hütte', 'wandern', 14, 1100, 5)]));
+  const pf = await fc.newPage();
+  const pfFehler = [];
+  pf.on('pageerror', e => pfFehler.push(e.message));
+  await pf.goto(url);
+  await zuSeite(pf, 'touren');
+  const tnamen = () => pf.$$eval('#tourliste li .oeffnen', l => l.map(x => x.childNodes[0].textContent));
+  pruef('Tourliste: Suche und Sortierung ab drei Touren', await pf.isVisible('[data-liste=tourliste] .tf-suche') && (await tnamen()).length === 4);
+  pruef('Tourliste: neueste zuerst', (await tnamen())[0] === 'Herzogstand', await tnamen());
+  await pf.fill('[data-liste=tourliste] .tf-suche', 'hütte');
+  pruef('Tourliste: Suche nach Name (ohne Groß und klein)', JSON.stringify(await tnamen()) === '["Zur Tutzinger Hütte"]', await tnamen());
+  await pf.fill('[data-liste=tourliste] .tf-suche', 'gibtsnicht');
+  pruef('Tourliste: nichts gefunden sagt es', (await pf.textContent('#tourliste')).includes('Keine Tour passt'));
+  await pf.fill('[data-liste=tourliste] .tf-suche', '');
+  await pf.selectOption('[data-liste=tourliste] .tf-sort', 'lang');
+  pruef('Tourliste: längste zuerst', JSON.stringify(await tnamen()) === '["Zur Tutzinger Hütte","Herzogstand","Abendlauf am See","Altstadt Verona"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-sort', 'hm');
+  pruef('Tourliste: meiste Höhenmeter zuerst', (await tnamen())[0] === 'Zur Tutzinger Hütte' && (await tnamen())[3] === 'Altstadt Verona', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', 'laufen');
+  pruef('Tourliste: nur Laufen', JSON.stringify(await tnamen()) === '["Abendlauf am See"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', 'stadt');
+  pruef('Tourliste: nur Stadt', JSON.stringify(await tnamen()) === '["Altstadt Verona"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', '');
+  pruef('Gegangene: ohne Touren keine Suchleiste', await pf.evaluate(() => document.querySelector('[data-liste=gangliste]').hidden));
+  // Stopps umsortieren: ▲▼ an Zwischenpunkten und Ziel, nicht am Start; Rückgängig holt die alte Reihenfolge
+  await pf.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76000_11.38000~47.77000_11.40000~47.78000_11.41000'; });
+  await zuSeite(pf, 'planen');
+  await pf.waitForSelector('#ergebnis:not([hidden])');
+  const treihe = () => pf.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat));
+  const tvorher = await treihe();
+  pruef('Stopps: Liste auch am Berg ab drei Punkten, mit ▲▼', (await pf.$$('#stopps .stopp')).length === 4 && (await pf.$$('#stopps .stopp:nth-child(1) .schieben')).length === 0 &&
+    (await pf.$$('#stopps .stopp:nth-child(2) .schieben')).length === 2 && await pf.isDisabled('#stopps .stopp:nth-child(2) .schieben >> nth=0') && await pf.isDisabled('#stopps .stopp:nth-child(4) .schieben >> nth=1'));
+  await pf.click('#stopps .stopp:nth-child(2) .schieben >> nth=1');
+  await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[1].lat !== v, tvorher[1], { timeout: 8000 });
+  pruef('Stopps: ▼ tauscht mit dem nächsten', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[1], tvorher[3]]), await treihe());
+  await pf.click('#stopps .stopp:nth-child(4) .schieben >> nth=0');
+  await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[3].lat !== v, tvorher[3], { timeout: 8000 });
+  pruef('Stopps: ▲ holt das Ziel nach vorn', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[3], tvorher[1]]), await treihe());
+  await pf.click('#bZurueck'); await pf.click('#bZurueck');
+  await pf.waitForFunction(v => JSON.stringify(JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat)) === v, JSON.stringify(tvorher), { timeout: 8000 }).catch(() => {});
+  pruef('Stopps: Rückgängig holt die alte Reihenfolge', JSON.stringify(await treihe()) === JSON.stringify(tvorher), await treihe());
+  pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
+  await fc.close();
 
   await browser.close();
   srv.close();

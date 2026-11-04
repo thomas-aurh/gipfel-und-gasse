@@ -67,7 +67,35 @@ function letzteTourZeigen() {
   $('eLetzte').dataset.id = t.id;
   $('eLetzteName').textContent = t.name + (t.kurz && t.kurz.laenge ? ' · ' + R.kmText(t.kurz.laenge) : '');
 }
-$('eLetzte').onclick = () => tourOeffnen($('eLetzte').dataset.id);
+$('eLetzte').onclick = () => tourAnsehen($('eLetzte').dataset.id);
+$('eAufz').onclick = () => reiter('unterwegs');
+
+// Tourseite: die Tour liegt geöffnet auf der Karte; hier Kennzahlen und die nächsten Schritte (Los, Bearbeiten, Teilen)
+function tourAnsehen(id) {
+  tourOeffnen(id);
+  if (S.tourId === id) reiter('tour');
+}
+function tourSeiteZeigen() {
+  const t = tourenLesen().find(x => x.id === S.tourId);
+  $('tourName').textContent = S.name || (t && t.name) || 'Tour';
+  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + ' · gespeichert am ' + new Date(t.datum).toLocaleDateString('de-DE') : '';
+  const zahl = (id, text) => '<div class="zahl"><b>' + R.esc($(id).textContent) + '</b><span>' + R.esc(text) + '</span></div>';
+  $('tourZahlen').innerHTML = S.ergebnis ? zahl('zLaenge', 'Strecke') + zahl('zZeit', $('zZeitText').textContent) + zahl('zAuf', 'Aufstieg') +
+    zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') : '';
+  $('tLos').disabled = !S.ergebnis || !!S.rechnet;
+  $('tLos').textContent = /beenden/.test($('bNavi').textContent) ? '🧭 Zur Navigation' : '▶ Los';
+  $('tTeilen').hidden = $('bTeilen').hidden; $('tTeilen').disabled = $('bTeilen').disabled;
+  $('tGpx').disabled = $('bGpx').disabled; $('tDrucken').disabled = $('bDrucken').disabled;
+}
+$('tLos').onclick = () => {
+  const laeuft = /beenden/.test($('bNavi').textContent);
+  reiter('unterwegs');
+  if (!laeuft) $('bNavi').click();
+};
+$('tBearbeiten').onclick = () => reiter('planen');
+$('tTeilen').onclick = () => $('bTeilen').click();
+$('tGpx').onclick = () => $('bGpx').click();
+$('tDrucken').onclick = () => $('bDrucken').click();
 
 function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
@@ -151,7 +179,7 @@ function tourenPunkte(liste) {
         R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Öffnen';
-      k.onclick = () => { karte.closePopup(); tourOeffnen(t.id); };
+      k.onclick = () => { karte.closePopup(); tourAnsehen(t.id); };
       box.appendChild(k);
       return box;
     });
@@ -179,9 +207,40 @@ function tourenZeigen() {
   zeitraeumeZeigen(gegangen);
 }
 
+// Suchen, Sortieren und (bei geplanten) Art: die Leiste über der Liste erscheint ab drei Touren
+function tourArt(t) {
+  if (t.art === 'spur') return 'spur';
+  if (t.profil === 'laufen') return 'laufen';
+  if (t.profil === 'rad') return 'rad';
+  if (t.modus === 'stadt' || t.profil === 'stadt') return 'stadt';
+  return 'wandern';
+}
+function tourenFiltern(liste, f) {
+  const suche = (f.querySelector('.tf-suche').value || '').trim().toLowerCase();
+  const art = f.querySelector('.tf-art') ? f.querySelector('.tf-art').value : '';
+  const sort = f.querySelector('.tf-sort').value;
+  const kurz = (t, k) => +((t.kurz || {})[k]) || 0;
+  const wann = t => Date.parse(t.datum) || 0;
+  const aus = liste.filter(t => (!suche || String(t.name || '').toLowerCase().includes(suche)) && (!art || tourArt(t) === art));
+  const vergleich = { neu: (a, b) => wann(b) - wann(a), alt: (a, b) => wann(a) - wann(b), name: (a, b) => String(a.name).localeCompare(String(b.name), 'de'),
+    lang: (a, b) => kurz(b, 'laenge') - kurz(a, 'laenge'), kurz: (a, b) => kurz(a, 'laenge') - kurz(b, 'laenge'), hm: (a, b) => kurz(b, 'auf') - kurz(a, 'auf') }[sort];
+  return vergleich ? aus.slice().sort(vergleich) : aus;
+}
+document.querySelectorAll('.tourfilter').forEach(f => {
+  f.querySelectorAll('input, select').forEach(e => e.addEventListener(e.tagName === 'INPUT' ? 'input' : 'change', () => tourenZeigen()));
+});
+
 function listeZeigen(ul, liste, leer) {
   ul.innerHTML = '';
   if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc(leer) + '</span></li>'; return; }
+  const f = document.querySelector('.tourfilter[data-liste="' + ul.id + '"]');
+  if (f) {
+    f.hidden = liste.length < 3;
+    if (!f.hidden) {
+      liste = tourenFiltern(liste, f);
+      if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">Keine Tour passt zur Suche.</span></li>'; return; }
+    }
+  }
   for (const t of liste) {
     const li = document.createElement('li');
     li.dataset.tour = t.id;
@@ -190,7 +249,7 @@ function listeZeigen(ul, liste, leer) {
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
       R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
-    li.onclick = () => tourOeffnen(t.id);
+    li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
     bG.onclick = ev => { ev.stopPropagation(); gpxHerunter(t.name, spurEntpacken(t.spur), t.wps ? t.wps.map((w, i) => ({ lat: w[0], lon: w[1], name: w[2] || (i === 0 ? 'Start' : 'Punkt ' + (i + 1)) })) : []); };
     bL.onclick = ev => { ev.stopPropagation(); tourLoeschen(t.id); };

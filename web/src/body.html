@@ -12,11 +12,8 @@
   <div id="menueHg" hidden></div>
   <nav id="menue" hidden aria-label="Menü">
     <div class="menue-kopf">Gipfel &amp; Gasse</div>
-    <!-- Karte, Planen, Unterwegs und Touren (geplant und gegangen) stehen in der Leiste; hier nur, was dort fehlt -->
-    <button data-ziel="entdecken">🔭 Entdecken: Orte und Wetter</button>
-    <button data-ziel="tagebuch">📔 Reisetagebuch</button>
-    <button data-ziel="ziele">⭐ Reiseziele</button>
-    <button data-ziel="gipfelbuch">⛰️ Gipfelbuch</button>
+    <!-- Karte, Entdecken, Planen, Touren und Ich (Tagebuch, Reiseziele, Gipfelbuch) stehen in der Leiste; hier nur, was dort fehlt -->
+    <button data-ziel="unterwegs">🧭 Unterwegs: Route folgen, aufzeichnen</button>
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -61,6 +58,8 @@
     <button class="knopf nur-app" id="bPakete" hidden>🗺️ Kartenpakete laden und verwalten</button>
   </div>
 
+  <!-- läuft Folgen oder Aufzeichnen, steht das über der Leiste; Antippen öffnet Unterwegs -->
+  <button id="laeuftBalken" hidden></button>
   <div id="abseits" hidden>Du bist abseits der Route</div>
   <div id="infoHinweis" hidden>ℹ️ Info: Antippen zeigt, was dort ist <button type="button" id="bInfoAus">✏️ Planen</button></div>
 
@@ -76,9 +75,10 @@
       </div>
       <nav class="reiter" id="leiste" aria-label="Hauptbereiche">
         <button data-reiter="karte"><span>🗺️</span>Karte</button>
+        <button data-reiter="entdecken"><span>🔭</span>Entdecken</button>
         <button data-reiter="planen" class="an"><span>✏️</span>Planen</button>
-        <button data-reiter="unterwegs"><span>🧭</span>Unterwegs</button>
         <button data-reiter="touren"><span>🥾</span>Touren</button>
+        <button data-reiter="ich"><span>🙂</span>Ich</button>
       </nav>
     </header>
 
@@ -116,6 +116,7 @@
           <div class="einstieg-liste">
             <button class="einstieg" id="eRunde"><span>⭕</span><b>Runde mit Länge</b><small>ab Standort oder Kartenmitte</small></button>
             <button class="einstieg" id="eStadt"><span>🏛️</span><b>Stadtrundgang</b><small>Sehenswertes im Bild</small></button>
+            <button class="einstieg" id="eAufz"><span>⏺</span><b>Aufzeichnen</b><small>ohne Plan losgehen</small></button>
             <button class="einstieg" id="eLetzte" hidden><span>🕘</span><b>Letzte Tour</b><small id="eLetzteName"></small></button>
           </div>
         </div>
@@ -277,7 +278,34 @@
           <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
         </div>
+        <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select></div>
         <ul id="tourliste" class="liste"></ul>
+      </section>
+
+      <!-- Eine Tour: Kennzahlen und was man damit tut (aus der Liste oder „Letzte Tour“) -->
+      <section data-reiter="tour">
+        <h2 id="tourName" class="tour-name"></h2>
+        <div id="tourArt" class="klein"></div>
+        <div id="tourZahlen" class="zahlen"></div>
+        <div class="knopfreihe tour-knoepfe">
+          <button class="knopf haupt" id="tLos">▶ Los</button>
+          <button class="knopf" id="tBearbeiten">✏️ Bearbeiten</button>
+          <button class="knopf" id="tTeilen">🔗 Link</button>
+          <button class="knopf" id="tGpx">⬇ GPX</button>
+          <button class="knopf" id="tDrucken">🖨 Drucken</button>
+        </div>
+        <p class="klein">„▶ Los“ folgt der Tour mit Ansagen; „✏️ Bearbeiten“ zeigt Höhenprofil, Wege, Zeitplan und Wetter.</p>
+      </section>
+
+      <!-- Ich: eigene Sammlungen -->
+      <section data-reiter="ich">
+        <div class="einstieg-liste ich-liste">
+          <button class="einstieg" data-ziel="tagebuch"><span>📔</span><b>Reisetagebuch</b><small>Reisen, Einträge, Fotos</small></button>
+          <button class="einstieg" data-ziel="ziele"><span>⭐</span><b>Reiseziele</b><small>Listen mit Orten</small></button>
+          <button class="einstieg" data-ziel="gipfelbuch"><span>⛰️</span><b>Gipfelbuch</b><small>erreichte Gipfel</small></button>
+          <button class="einstieg" data-ziel="gegangen"><span>📊</span><b>Gegangen</b><small>Touren und Statistik</small></button>
+          <button class="einstieg" data-ziel="unterwegs"><span>🧭</span><b>Unterwegs</b><small>folgen und aufzeichnen</small></button>
+        </div>
       </section>
 
       <!-- Gegangene Touren -->
@@ -286,6 +314,7 @@
         <div id="gangStatistik" class="zahlen"></div>
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
+        <div class="tourfilter" data-liste="gangliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Gegangene Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select></div>
         <ul id="gangliste" class="liste"></ul>
       </section>
 

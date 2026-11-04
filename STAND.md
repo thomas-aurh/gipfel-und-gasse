@@ -6,8 +6,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 ## Offen
 
 - **Planen neu (04.11.):** von Thomas auf dem Pixel gesehen (Bau 165): Einstiege mit „Letzte Tour“ und die Zeile Art und
-  Tempo. Noch nicht geprüft: Klappzeilen mit Route, Start mit der reinen Karte (seit #59), Zoom nur mit zwei Fingern.
-  Offen für Stufe 2: Leiste und Tourseite (siehe Entscheidungen).
+  Tempo. Noch nicht geprüft: Klappzeilen mit Route, Start mit der reinen Karte (seit #59), Zoom nur mit zwei Fingern,
+  neue Leiste, Tourseite und Balken (#60), Stopps mit ▲▼, Suche in den Tourlisten.
 - **Android-App (Stufen 1–5) gebaut, auf dem Pixel nicht geprüft.** Bis zur Korrektur in #5 lief die Anbindung an
   Android auf dem Handy gar nicht (Capacitor-Kern fehlte, Routen nur als gerade Linie). Von Thomas am 01.11. auf dem
   Pixel geprüft (Verona, neue APK): Route über Wege (online) und Standort auf der Karte. Offen bleibt der Rest unten. Geprüft in GitHub Actions: Bau, Java-Tests,
@@ -45,7 +45,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
-- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Tourliste sortieren und filtern.
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
@@ -128,6 +127,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (`KEYSTORE_PASSWORT`), der Schlüssel verlässt GitHub nie unverschlüsselt. Verworfen: den Ersatzschlüssel verschlüsselt
   aus dem Cache holen (ginge ohne Neuinstallation, die Schutzautomatik der Sitzung hat das Herausgeben gestoppt) und
   einen Schlüssel in der Sitzung erzeugen (er ginge durch den Chat).
+- **Leiste Karte · Entdecken · Planen · Touren · Ich** (04.11., Thomas' Wahl): Unterwegs nicht mehr in der Leiste, sondern
+  über „▶ Los“ auf der Tourseite, den Balken bei laufender Navigation, das Menü und „Ich“; Karte bleibt, weil die App am
+  Telefon mit der reinen Karte startet. Berg/Stadt bleibt getrennt von „Art“. Löst die Leiste vom 02.11. ab.
 - **Navigation: Menü links oben plus Leiste unten** (02.11., Thomas' Wahl nach Vorbild gängiger Tourenplaner): jede
   Funktion eine eigene Seite, die vier häufigsten mit einem Tipp erreichbar; geplante und gegangene Touren getrennt.
   Verworfen: nur Menü (ein Tipp mehr für Planen und Unterwegs), Reiter im Blatt (wirkte überladen).
@@ -194,6 +196,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot) (#58).
   Start am Telefon ohne Route mit der reinen Karte statt mit halb offenem Blatt (Thomas' Wunsch nach dem Test): Start
   antippen meldet sich, mit dem Ziel geht es zum Planen; die Einstiege stehen unter *Planen* (Klicktest 290) (#59).
+  Stopps mit ▲▼ umsortieren (Liste auch am Berg ab drei Punkten; Start fest, bei Rundtour auch der Schluss) und
+  Tourlisten ab drei Touren durchsuchen, sortieren und (geplante) nach Art filtern; offen seit 01.11. (Klicktest 304).
+  Übersicht Stufe 2: Leiste Karte · Entdecken · Planen · Touren · Ich, Seite „Ich“ mit den Sammlungen, Tourseite mit
+  „▶ Los“, Bearbeiten, Link, GPX, Drucken; Balken über der Leiste bei laufender Navigation oder Aufzeichnung; Unterwegs im
+  Menü; Einstieg „⏺ Aufzeichnen“; Zurück-Taste von Tour zur Liste und von Tagebuch, Reisezielen, Gipfelbuch zu „Ich“
+  (Klicktest 315) (#60).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
