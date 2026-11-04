@@ -291,7 +291,8 @@ function zlImportKnopf() {
   $('zlImportOk').disabled = !n;
   $('zlImportOk').textContent = n ? n + ' übernehmen' : 'Übernehmen';
 }
-$('zlImportAbbrechen').onclick = () => { ZL.import = null; zieleZeigen(); };
+// Abbrechen leert die Vorschau: sonst steht beim nächsten Import kurz die alte Liste da
+$('zlImportAbbrechen').onclick = () => { ZL.import = null; $('zlImportListe').innerHTML = ''; $('zlImportStatus').textContent = ''; zieleZeigen(); };
 $('zlImportOk').onclick = () => {
   const imp = ZL.import, d = zieleMitListe();
   let liste = $('zlImportZiel').value;

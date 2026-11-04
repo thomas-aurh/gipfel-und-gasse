@@ -33,9 +33,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
-- **Klicktest läuft nicht in GitHub Actions:** am 03.11. war `main` darum unbemerkt rot (Info-Fenster nach #50, behoben
-  in #51). Grün in Actions heißt nur Prüfung, Einheitstests und APK; vor jedem Merge mit Oberflächenänderung lokal
-  `node web/test/ui.js`. Den Klicktest in `app.yml` aufzunehmen ist nicht gebaut (braucht Chromium und die Testkarten).
 - **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
 - **Web mit den echten Diensten am PC geprüft (03.11., Browser über 127.0.0.1):** Karte, Routing über BRouter (mit
   Wegtypen, Untergrund und SAC-Stufe), Suche über Photon, Höhen. Overpass beantwortete das Info-Antippen an dem Abend
@@ -61,10 +58,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
 - **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
-- **Klicktest „Reiseziele, Datei laden“ zeitabhängig:** fiel am 03.11. in 2 von rund 15 Läufen mit denselben 5 Prüfungen aus
-  (Ortssuche des eingelesenen Texts noch nicht fertig), sonst grün. Nachgemessen am 03.11. abends: 2 von 10 Läufen, beide Male
-  kam die zweite Ortssuche nie bei der Photon-Nachbildung an (10 statt 11 Anfragen), die Suchschleife in `zlImport`
-  (`web/src/67-ziele.js`) bleibt also vor dem Netz stehen oder steigt aus. Ursache nicht gefunden.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
@@ -188,6 +181,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
+  Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
+  behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
+  blieb; jetzt wartet er auf den Status genau dieses Imports, und Abbrechen leert die Vorschau (Gegenprobe rot,
+  danach 6 von 6 grün). Die Vermutung vom 03.11. (GPS aus #53) war falsch (#55).
 
 - **03.11. (abends)** `KartenServer` bedient `/_karten_/…` nur noch für die eigene App-Adresse (Schema und Host der
   Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen

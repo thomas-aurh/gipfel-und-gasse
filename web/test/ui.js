@@ -761,17 +761,20 @@ function pruef(name, bed, info) {
   await page.click('#zlEinfuegen');
   await page.fill('#zlText', 'Testgipfel West\nKloster Test; Testg; mit Biergarten\n');
   await page.click('#zlTextLos');
-  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 15000 }).catch(() => {});
+  // auf den Status genau dieses Imports warten (Art und Anzahl), nicht nur auf Häkchen
+  await page.waitForFunction(() => document.querySelector('#zlImportStatus').textContent.startsWith('Eingefügt: 2 Ziele, 2 mit Ort'), null, { timeout: 15000 }).catch(() => {});
   pruef('Liste einfügen: jede Zeile ein Ziel, Orte gesucht, zum Abhaken', (await page.textContent('#zlImportTitel')) === 'Eingefügte Ziele' &&
     (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportListe')).includes('Kloster Test') &&
     (await page.textContent('#zlImportZiel')).includes('Neue Liste „Eingefügt'), await page.textContent('#zlImportStatus'));
   await page.click('#zlImportAbbrechen');
+  pruef('Liste einfügen: Abbrechen leert die Vorschau', (await page.$$('#zlImportListe li')).length === 0 && (await page.textContent('#zlImportStatus')) === '');
   pruef('Liste einfügen: Abbrechen übernimmt nichts', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.length)) === 1 && await page.isVisible('#zlUebersicht'));
   // Datei laden: Text (Orte werden gesucht) und GPX (mit Koordinaten)
   const txtPfad = path.join(OUT, 'Sommerziele.txt');
   fs.writeFileSync(txtPfad, '# Ideen\nTestgipfel Süd\nStadtplatz https://beispiel.de\n');
   await page.setInputFiles('#zlDatei', txtPfad);
-  await page.waitForFunction(() => document.querySelectorAll('#zlImportListe input:checked').length === 2, null, { timeout: 15000 }).catch(() => {});
+  // nicht auf „2 Häkchen“ warten: die abgebrochene Liste von eben hatte auch zwei (Wackler bis 04.11.)
+  await page.waitForFunction(() => document.querySelector('#zlImportStatus').textContent.startsWith('Text: 2 Ziele, 2 mit Ort'), null, { timeout: 15000 }).catch(() => {});
   pruef('Datei laden: Text, beide Orte gesucht und gefunden', (await page.$$('#zlImportListe input:checked')).length === 2 && (await page.textContent('#zlImportStatus')).includes('2 mit Ort'),
     await page.textContent('#zlImportStatus'));
   await page.click('#zlImportOk');
