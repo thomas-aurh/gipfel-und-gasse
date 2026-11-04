@@ -167,6 +167,15 @@
         </div>
         <p id="planHinweis" class="tipp" hidden>💡 Route antippen fügt einen Zwischenpunkt ein, Punkte lassen sich ziehen.</p>
           <div id="ergebnisRoute" hidden>
+            <!-- Mehrtagestour: sichtbarer Schalter; „Mehrere Tage“ teilt die Tour nach Gehzeit, die Zahl der Tage darunter -->
+            <div id="tageBox">
+              <div class="umschalter tage-schalter" role="group" aria-label="Dauer der Tour">
+                <button data-tage="1" class="an">☀️ 1 Tag</button>
+                <button data-tage="mehr">🛏 Mehrere Tage</button>
+              </div>
+              <div id="tageZahl" class="chips" hidden></div>
+              <p id="tageHinweis" class="klein" hidden>Die App teilt die Tour nach Gehzeit in gleich lange Tage. 🛏 an einem Punkt der Liste beendet den Tag dort; Punkte lassen sich auf der Karte ziehen.</p>
+            </div>
             <div id="stopps"></div>
             <div id="etappen" hidden></div>
           </div>
@@ -289,7 +298,7 @@
         <div id="uAnkunft" class="klein"></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
         <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
-        <label class="klein" id="naviEtappeFeld" hidden>Folgen<select id="naviEtappe"></select></label>
+        <div id="naviEtappeFeld" hidden><div class="klein">Welcher Tag?</div><div id="naviTage" class="navi-tage" role="group" aria-label="Tag folgen"></div><select id="naviEtappe" hidden aria-hidden="true"></select></div>
         <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">

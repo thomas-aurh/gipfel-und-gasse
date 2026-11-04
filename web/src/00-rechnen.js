@@ -502,6 +502,38 @@ var R = (function () {
     return aus;
   }
 
+  // Tour in „tage“ etwa gleich lange Tage teilen (nach Gehzeit, nicht nach Strecke): je Grenze ein vorhandener
+  // Zwischenpunkt, wenn er höchstens 15 % eines Tages daneben liegt, sonst ein neuer Punkt auf der Route.
+  // → { nacht: [Index vorhandener Punkte], neu: [{ lat, lon, vor }] } (vor = Index, vor dem der neue Punkt steht)
+  function tagesAufteilung(pts, stueckEnde, wps, tage, tempo, art) {
+    const n = wps.length, laenge = pts.length ? pts[pts.length - 1].d : 0;
+    const aus = { nacht: [], neu: [] };
+    if (tage < 2 || n < 2 || !stueckEnde || stueckEnde.length !== n - 1 || laenge <= 0) return aus;
+    const zeit = d => zeitZwischen(pts, 0, d, tempo, art);
+    const ganz = zeit(laenge), tag = ganz / tage;
+    const belegt = new Set();
+    for (let k = 1; k < tage; k++) {
+      const ziel = tag * k;
+      // Meter, an dem die Gehzeit das Ziel erreicht (Gehzeit wächst mit der Strecke)
+      let lo = 0, hi = laenge;
+      for (let s = 0; s < 40; s++) { const m = (lo + hi) / 2; if (zeit(m) < ziel) lo = m; else hi = m; }
+      const d = (lo + hi) / 2;
+      let best = -1, bestAbw = Infinity;
+      for (let i = 1; i < n - 1; i++) {
+        if (belegt.has(i)) continue;
+        const abw = Math.abs(zeit(stueckEnde[i - 1]) - ziel);
+        if (abw < bestAbw) { bestAbw = abw; best = i; }
+      }
+      if (best > 0 && bestAbw <= 0.15 * tag) { belegt.add(best); aus.nacht.push(best); continue; }
+      let p = pts[0];
+      for (const q of pts) if (Math.abs(q.d - d) < Math.abs(p.d - d)) p = q;
+      let vor = 1;
+      while (vor < n - 1 && stueckEnde[vor - 1] <= d) vor++;
+      aus.neu.push({ lat: p.lat, lon: p.lon, vor, d });
+    }
+    return aus;
+  }
+
   // Ausschnitt einer Etappe aus der Auswertung der ganzen Tour, als eigene Route ab Meter 0 (zum Folgen eines Tages):
   // Punkte, Teilstück-Enden der Wegpunkte von s.von bis s.bis und Abbiegehinweise dieses Stücks
   function etappeAusschnitt(e, s) {
@@ -2259,7 +2291,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, tagesAufteilung, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

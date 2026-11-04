@@ -5,10 +5,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Umbau für mehr Übersicht (04.11.), Schritt 1 von 3 gebaut (Planen in Reitern), auf dem Pixel nicht geprüft.**
-  Schritt 2: Mehrtagestour mit Schalter „1 Tag | Mehrere Tage“, Vorschlag der Aufteilung (gleich lange Tage, Hütte in der
-  Nähe), Punktliste nach Tagen gegliedert mit „Tag hier beenden“, Farbe je Tag auf der Karte, Tag-Chips im Blatt und
-  unterwegs. Schritt 3: Begriffe (Start, Stopp, Ziel, Übernachtung), Warnung ohne Startzeit neutral, Kartennachweis
+- **Umbau für mehr Übersicht (04.11.):** Schritt 1 (Planen in Reitern, Bau 203) auf dem Pixel installiert; Schritt 2
+  (Mehrtagestour mit Schalter, Teilung nach Gehzeit, Liste nach Tagen, Farbe je Tag, Tag-Knöpfe unterwegs) gebaut, nur im
+  Klicktest geprüft. Offen aus Schritt 2: Übernachtung an einer Hütte in der Nähe vorschlagen (OSM alpine_hut, Gasthof),
+  Tag-Chips im Blatt (nur diesen Tag zeigen). Die von der App gesetzten Punkte merkt sie sich nur bis zum Speichern als
+  „automatisch“ (danach gelten sie als eigene Punkte und bleiben bei „1 Tag“). Schritt 3: Begriffe (Start, Stopp, Ziel, Übernachtung), Warnung ohne Startzeit neutral, Kartennachweis
   kompakt (Attribution Guidelines der OSMF prüfen), Meldungen über dem Blatt mit Rückgängig, Unterwegs vor dem Start als
   Tourkarte mit großem „▶ Los“. Offen auch: Berg/Stadt-Umschalter und Punktliste mit Ziehen statt ▲▼.
 
@@ -225,6 +226,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Mehrtagestour intuitiv)** Schritt 2 des Umbaus: Schalter „1 Tag | Mehrere Tage“ im Reiter Route,
+  Teilung in 2 bis 5 gleich lange Tage nach Gehzeit (R.tagesAufteilung: vorhandener Punkt bis 15 % daneben, sonst neuer
+  Punkt auf der Route), Punktliste nach Tagen mit 🛏 je Punkt, Route und Etappen je Tag in eigener Farbe, unterwegs
+  große Knöpfe je Tag statt Auswahlfeld. Thomas: „das mit dem Punkt antippen hat funktioniert“, aber zu versteckt.
+  Einheitstests 293, Klicktest 369.
 - **04.11. (Abend, Planen in Reitern)** Schritt 1 des Umbaus für mehr Übersicht (Thomas: „alles intuitiver“): Planen in drei
   Reitern Route · Überblick · Vorbereiten statt einer langen Liste; „▶ Los“ in der Aktionsleiste; am Telefon Rückgängig,
   Neu und Mehr als Zeichen, damit die Leiste in eine Zeile passt; Warnpunkt am Reiter Vorbereiten. Klicktest 362.
