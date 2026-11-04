@@ -26,8 +26,11 @@ Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben e
 und Gegangen samt Statistik, Reisetagebuch, Reiseziele, Gipfelbuch), links oben das Menü ☰ mit Offline-Karten, Notfall,
 Sicherung und Info. Eine Tour in der Liste antippen öffnet ihre Seite mit „▶ Los“ (folgen mit Ansagen), „✏️ Bearbeiten“,
 Link, GPX und Drucken; läuft Folgen oder Aufzeichnen, zeigt ein Balken über der Leiste das an (Antippen öffnet Unterwegs). Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
-im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* zeigt oben Strecke, Zeit, Höhenmeter und das Höhenprofil; Art und Tempo („🥾 Wandern · Normal“) sowie Name, Tag
-und Startzeit sind am Telefon je eine Zeile zum Aufklappen. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
+im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* hat oben die Aktionsleiste („▶ Los“ folgt der Route sofort, 💾 Speichern, ↶ Rückgängig, ✕ Neu,
+⋯ Mehr) und, sobald eine Route steht, drei Reiter: **📍 Route** (Art und Tempo als Zeile zum Aufklappen, Punkte und
+Stopps, Etappen), **📊 Überblick** (Kennzahlen, Höhenprofil, Kinderwagen, Wegtypen, Untergrund) und **🎒 Vorbereiten**
+(Tag, Startzeit, Pausen und Name, Zeitplan, Wetter für die Tour, Packliste, Familien-Check, Anreise). Ein Punkt am Reiter
+„Vorbereiten“ zeigt eine Warnung des Zeitplans an. Strecke, Zeit und Aufstieg stehen immer im Kopf des Blatts. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
 und die zuletzt gespeicherte Tour an. Am Touchscreen wird mit zwei Fingern gezoomt; das Fadenkreuz ⌖ steht nur beim Planen.
 
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region

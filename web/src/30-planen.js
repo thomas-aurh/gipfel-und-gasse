@@ -288,12 +288,41 @@ function hervorheben(test, farbe) {
 const FARBE_WEG = { 'Pfad': '#8b5a2b', 'Forst- und Feldweg': '#c49a5a', 'Fußweg': '#5c9d6a', 'Nebenstraße': '#9aa3ad', 'Straße': '#5f6b78', 'Radweg': '#3d7fc4', 'Treppe': '#b03a2e', 'Fähre': '#2c7fb8', 'Sonstiges': '#a0a0a0', 'Unbekannt': '#cfcfcf' };
 const FARBE_BODEN = { 'Befestigt': '#6d7884', 'Schotter': '#c9a66b', 'Naturboden': '#8b5a2b', 'Fels': '#7b7b7b', 'Unbekannt': '#cfcfcf' };
 
+// ---------- Planen in Reitern: Route · Überblick · Vorbereiten (ohne Route nur der Teil „Route“ mit den Einstiegen) ----------
+let planTeil = 'route';
+function planReiterZeigen() {
+  const mitRoute = !!S.ergebnis;
+  const teil = mitRoute ? planTeil : 'route';
+  $('planReiter').hidden = !mitRoute;
+  document.querySelectorAll('#planReiter [data-plan]').forEach(b => {
+    const an = b.dataset.plan === teil;
+    b.classList.toggle('an', an); b.setAttribute('aria-selected', String(an));
+  });
+  document.querySelectorAll('section[data-reiter=planen] .planteil').forEach(d => { d.hidden = d.dataset.planteil !== teil; });
+  // Punkt am Reiter „Vorbereiten“: der Zeitplan warnt (knapp vor Sonnenuntergang, Stopp geschlossen)
+  $('planWarnPunkt').hidden = !mitRoute || teil === 'vorbereiten' || !$('zeitplan').classList.contains('warnung');
+}
+function planTeilWaehlen(t) {
+  planTeil = t;
+  planReiterZeigen();
+  $('panel').querySelector('.inhalt').scrollTop = 0;
+  if (t === 'ueberblick' && typeof profilZeichnen === 'function' && S.ergebnis) profilZeichnen();   // Leinwand war verborgen
+}
+document.querySelectorAll('#planReiter [data-plan]').forEach(b => { b.onclick = () => planTeilWaehlen(b.dataset.plan); });
+$('bPlanLos').onclick = () => {
+  if (!S.ergebnis) return;
+  const laeuft = /beenden/.test($('bNavi').textContent);
+  reiter('unterwegs');
+  if (!laeuft) $('bNavi').click();
+};
+
 function zeigen() {
   const e = S.ergebnis;
   $('einstiege').hidden = S.wps.length > 0 || !!S.fest;
   if (!$('einstiege').hidden) letzteTourZeigen();
   if (!e) profilWeg();   // ohne Route keine Marke vom Höhenprofil
-  $('ergebnisKopf').hidden = !e;
+  $('ergebnisRoute').hidden = !e;
+  planReiterZeigen();
   einstellTextSetzen(); planDetailsTextSetzen();
   if (seite === 'tour') tourSeiteZeigen();   // Kennzahlen einer eben geöffneten Tour kommen nach dem Rechnen
   // Tipp zu Zwischenpunkten nur, bis man es einmal gemacht hat (drei Punkte)
@@ -306,6 +335,7 @@ function zeigen() {
   $('bNeu').disabled = !S.wps.length && !S.fest;
   $('bOrdnen').hidden = S.wps.length < 4 || !!S.fest;
   $('bDrucken').disabled = !e || !!S.rechnet;
+  $('bPlanLos').disabled = !e || !!S.rechnet;
   ['bSpeichern', 'bGpx', 'bTeilen'].forEach(id => { $(id).disabled = !e || !!S.rechnet; });
   $('bTeilen').disabled = !e || !!S.fest || !!S.rechnet;
   // Kopfzeile: Kennzahlen, sonst der nächste Schritt (am Telefon ist anfangs nur der Kopf zu sehen)
@@ -376,6 +406,7 @@ function zeitplanZeigen() {
   else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
   if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
   if (typeof packlisteNeu === 'function') packlisteNeu();   // offene Packliste folgt Zeitplan und Route
+  planReiterZeigen();
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
@@ -732,7 +763,8 @@ $('bMehr').onclick = () => {
   const offen = !$('aktionen').classList.contains('offen');
   $('aktionen').classList.toggle('offen', offen);
   $('bMehr').setAttribute('aria-expanded', String(offen));
-  $('bMehr').textContent = offen ? '▴ Weniger' : '⋯ Mehr';
+  $('bMehr').innerHTML = offen ? '▴<span class="txt"> Weniger</span>' : '⋯<span class="txt"> Mehr</span>';
+  $('bMehr').setAttribute('aria-label', offen ? 'Weniger' : 'Mehr');
 };
 $('tempowahl').onchange = e => { S.tempo = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('tempo', S.tempo); if (S.stuecke.length) auswertenUndZeigen(); };
 $('tourname').oninput = e => { S.name = e.target.value; entwurfSichern(); planDetailsTextSetzen(); };
