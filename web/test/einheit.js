@@ -621,5 +621,28 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
     [R.parkText(pl[0]), R.parkText(pl[1])]);
 }
 
+// GPX: Art, Herkunft, Symbole der Wegpunkte, Dauer (Datei im Stil von komoot, Autor-Link mit eigenem <type>)
+{
+  const x = '<?xml version="1.0"?><gpx version="1.1" creator="https://www.beispiel-touren.de" xmlns="http://www.topografix.com/GPX/1/1">' +
+    '<metadata><name>Probe &amp; Gipfel</name><author><link href="https://www.beispiel-touren.de"><text>x</text><type>text/html</type></link></author></metadata>' +
+    '<wpt lat="47.60" lon="11.30"><name>Probehütte</name><sym>Fishing Hot Spot Facility</sym></wpt>' +
+    '<wpt lat="47.61" lon="11.31"><name>Probegipfel</name><sym>Summit</sym></wpt>' +
+    '<wpt lat="47.62" lon="11.32"><name>Blick von der Probe-Alm</name><sym>Flag, Blue</sym></wpt>' +
+    '<trk><name>Probe &amp; Gipfel</name><type>hike</type><trkseg>' +
+    '<trkpt lat="47.60" lon="11.30"><ele>800</ele><time>2019-08-27T07:00:00Z</time></trkpt>' +
+    '<trkpt lat="47.61" lon="11.31"><ele>1200</ele><time>2019-08-27T09:30:00Z</time></trkpt></trkseg></trk></gpx>';
+  const g = R.gpxLesen(x);
+  pruef('GPX: Art aus trk (nicht vom Autor-Link), Herkunft als Host', g.typ === 'hike' && g.quelle === 'beispiel-touren.de' && g.name === 'Probe & Gipfel', [g.typ, g.quelle, g.name]);
+  pruef('GPX: Symbole der Wegpunkte', g.wpt.map(w => R.gpxPunktArt(w.sym, w.name)).join() === 'einkehr,gipfel,punkt', g.wpt.map(w => R.gpxPunktArt(w.sym, w.name)));
+  pruef('GPX: Dauer laut Zeitstempeln', nahe(R.gpxDauer(g.pts), 2.5, 1e-9) && R.gpxDauer([{ t: 5 }, { t: 1 }]) === null && R.gpxDauer([{}, {}]) === null, R.gpxDauer(g.pts));
+  pruef('GPX: Art → Profil', R.gpxProfil('hike') === 'wandern' && R.gpxProfil('running') === 'laufen' && R.gpxProfil('cycling') === 'rad' && R.gpxProfil('mtb') === 'rad' && R.gpxProfil('9') === null && R.gpxProfil(null) === null);
+  pruef('GPX: Herkunft ohne Adresse', R.gpxQuelle('Garmin Connect') === 'Garmin Connect' && R.gpxQuelle('') === null);
+  // Sicherung: Wegpunkte, Herkunft und Dauer kommen mit, Unsinn nicht
+  const tour = { id: 'tx', name: 'P', datum: '2026-11-04T10:00:00Z', spur: [[47.6, 11.3, 800], [47.61, 11.31, 900]], kurz: { laenge: 1, auf: 1, ab: 0, zeit: 1 }, art: 'spur',
+    punkte: [[47.6, 11.3, 'Hütte', 'einkehr'], [99, 11, 'kaputt', 'gipfel'], [47.61, 11.31, 'X', 'quatsch']], quelle: 'beispiel-touren.de', dateiDauer: 2.5 };
+  const zur = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [tour] }))[0];
+  pruef('Sicherung: Wegpunkte, Herkunft, Dauer der Datei', zur.punkte.length === 2 && zur.punkte[1][3] === 'punkt' && zur.quelle === 'beispiel-touren.de' && zur.dateiDauer === 2.5, zur);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -51,6 +51,9 @@ Rad, Stadt, GPX).
 
 **GPX laden:** Menü ☰ › „📂 GPX-Dateien laden“ (oder unter Ich › Touren „📂 GPX laden“), auch mehrere Dateien auf einmal:
 jede kommt gleich als Tour unter „Geplant“, bei einer Datei geht ihre Tourseite auf. Fehlen Höhen, ergänzt die App sie.
+Aus der Datei übernimmt die App außerdem die Wegpunkte (z. B. Highlights aus komoot: Hütten 🏠, Gipfel ⛰️, sonst 📍; auf der
+Karte und auf der Tourseite mit ihrer Lage an der Strecke), die Art (`<type>` hike, running, cycling … → Wandern, Laufen, Rad),
+die Herkunft („aus komoot.de“) und, wenn die Punkte Zeitstempel tragen, die „Dauer laut Datei“ neben der eigenen Gehzeit.
 
 **Anreise und Parkplatz:** Auf der Tourseite unter „Anreise zum Start“: „🚆 Bus und Bahn“ und „🚗 Auto“ öffnen Google Maps mit
 dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz

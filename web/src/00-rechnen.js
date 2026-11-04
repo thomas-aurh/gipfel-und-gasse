@@ -558,7 +558,10 @@ var R = (function () {
         if (isNaN(lat) || isNaN(lon)) continue;
         const inner = m[2] || '';
         const e = /<ele>\s*([-\d.]+)\s*<\/ele>/.exec(inner), n = /<name>([\s\S]*?)<\/name>/.exec(inner), t = /<time>([^<]+)<\/time>/.exec(inner);
-        out.push({ lat, lon, ele: e ? parseFloat(e[1]) : null, name: n ? unesc(n[1].trim()) : null, t: t ? Date.parse(t[1]) : null });
+        const sym = /<sym>([\s\S]*?)<\/sym>/.exec(inner);
+        const p = { lat, lon, ele: e ? parseFloat(e[1]) : null, name: n ? unesc(n[1].trim()) : null, t: t ? Date.parse(t[1]) : null };
+        if (sym) p.sym = unesc(sym[1].trim());
+        out.push(p);
       }
       return out;
     };
@@ -576,7 +579,41 @@ var R = (function () {
     const ohnePunkte = text.replace(/<author\b[\s\S]*?<\/author>|<(wpt|trkpt|rtept)\b[^>]*?(?:\/>|>[\s\S]*?<\/\1>)/g, '');
     const kopf = /<(?:metadata|trk|rte)\b[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(ohnePunkte);
     if (!pts.length && !wpt.length) throw new Error('In der Datei steht keine Spur und keine Route.');
-    return { name: kopf ? unesc(kopf[1].trim()) : null, pts, wpt };
+    // Art der Tour (<type> in trk oder rte, nicht der des Autor-Links) und Herkunft (creator, bei Adressen nur der Host)
+    const typ = /<(?:trk|rte)\b[^>]*>(?:(?!<\/(?:trk|rte)>)[\s\S])*?<type>([\s\S]*?)<\/type>/.exec(ohnePunkte);
+    const creator = attr((/<gpx\b([^>]*)>/.exec(text) || [])[1] || '', 'creator');
+    return { name: kopf ? unesc(kopf[1].trim()) : null, pts, wpt, typ: typ ? unesc(typ[1].trim()).toLowerCase() : null, quelle: gpxQuelle(creator) };
+  }
+  // Herkunft der Datei: „https://www.komoot.de“ → „komoot.de“, sonst der Name des Programms (gekürzt)
+  function gpxQuelle(creator) {
+    if (!creator) return null;
+    const c = unesc(creator).trim();
+    const m = /^https?:\/\/(?:www\.)?([^\/\s]+)/i.exec(c);
+    return (m ? m[1] : c).slice(0, 60) || null;
+  }
+  // Art der Tour aus <type>: Wandern, Laufen oder Rad (Strava, komoot, Garmin schreiben englische Wörter oder Zahlen)
+  function gpxProfil(typ) {
+    if (!typ) return null;
+    if (/run|jog|lauf/.test(typ)) return 'laufen';
+    if (/bik|cycl|ride|rad|mtb|gravel/.test(typ)) return 'rad';
+    if (/hik|walk|trek|wander|mountain|berg|alpin/.test(typ)) return 'wandern';
+    return null;
+  }
+  // Wegpunkt einer Datei: Gipfel, Einkehr (Hütte, Gasthaus, Alm) oder sonstiger Punkt; aus Symbol und Name
+  function gpxPunktArt(sym, name) {
+    // das Symbol zählt zuerst; der Name nur, wenn er keinen Ausblick beschreibt („Blick … von der Heimgarten-Alm“)
+    const sy = sym || '', n = /blick|aussicht|panorama/i.test(name || '') ? '' : (name || '');
+    if (/summit|peak/i.test(sy) || /gipfel/i.test(name || '')) return 'gipfel';
+    if (/restaurant|facility|lodging|bar\b/i.test(sy) || /h[üu]tte|gasthaus|gasthof|\balm\b|wirtschaft|caf[eé]|biergarten/i.test(n)) return 'einkehr';
+    if (/parking/i.test(sy) || /parkplatz/i.test(n)) return 'parken';
+    return 'punkt';
+  }
+  // Dauer laut Zeitstempeln der Spur in Stunden; nur, wenn die Zeit vorwärts läuft und plausibel ist (unter 14 Tagen)
+  function gpxDauer(pts) {
+    const t = pts.filter(p => p.t).map(p => p.t);
+    if (t.length < 2) return null;
+    const h = (t[t.length - 1] - t[0]) / 3.6e6;
+    return h > 0 && h < 336 ? h : null;
   }
 
   // ---------- Teilen-Link ----------
@@ -836,6 +873,14 @@ var R = (function () {
     if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
     if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
     if (zahl(t.pace) != null && t.pace >= 2 && t.pace <= 20) out.pace = t.pace;
+    // aus einer GPX-Datei: Wegpunkte [lat, lon, Name, Art], Herkunft, Dauer laut Zeitstempeln
+    if (Array.isArray(t.punkte)) {
+      const pk = t.punkte.filter(p => Array.isArray(p) && ort(p[0], p[1])).slice(0, 200)
+        .map(p => [p[0], p[1], text(p[2], 120) || '', ['gipfel', 'einkehr', 'parken', 'punkt'].includes(p[3]) ? p[3] : 'punkt']);
+      if (pk.length) out.punkte = pk;
+    }
+    if (text(t.quelle, 60)) out.quelle = text(t.quelle, 60);
+    if (zahl(t.dateiDauer) != null && t.dateiDauer > 0 && t.dateiDauer < 336) out.dateiDauer = t.dateiDauer;
     if (t.zeit && typeof t.zeit === 'object') {
       const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
         pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };
@@ -1827,7 +1872,7 @@ var R = (function () {
 
   return {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
-    kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
+    kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,

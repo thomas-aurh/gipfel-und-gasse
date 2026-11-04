@@ -554,6 +554,27 @@ function pruef(name, bed, info) {
   await page.setInputFiles('#gpxDatei', fehlerDatei);
   await page.waitForTimeout(200);
   pruef('Kaputtes GPX meldet Fehler', (await page.textContent('#meldung')).includes('Nicht lesbar'));
+  // GPX mit Wegpunkten, Art und Herkunft (Aufbau wie bei komoot): Lauf, Wegpunkte auf der Tourseite, Dauer laut Datei
+  const gpxC = path.join(OUT, 'mit-wegpunkten.gpx');
+  fs.writeFileSync(gpxC, '<?xml version="1.0"?><gpx version="1.1" creator="https://www.beispiel-touren.de" xmlns="http://www.topografix.com/GPX/1/1">' +
+    '<metadata><name>Seerunde mit Hütte</name><author><link href="https://www.beispiel-touren.de"><text>x</text><type>text/html</type></link></author></metadata>' +
+    '<wpt lat="47.7600" lon="11.3850"><name>Seehütte</name><sym>Fishing Hot Spot Facility</sym></wpt>' +
+    '<wpt lat="47.7700" lon="11.4000"><name>Seeblick-Gipfel</name><sym>Summit</sym></wpt>' +
+    '<trk><name>Seerunde mit Hütte</name><type>running</type><trkseg>' +
+    '<trkpt lat="47.7535" lon="11.3747"><ele>600</ele><time>2019-08-27T07:00:00Z</time></trkpt>' +
+    '<trkpt lat="47.7600" lon="11.3850"><ele>650</ele><time>2019-08-27T07:20:00Z</time></trkpt>' +
+    '<trkpt lat="47.7700" lon="11.4000"><ele>700</ele><time>2019-08-27T07:45:00Z</time></trkpt></trkseg></trk></gpx>');
+  await page.setInputFiles('#gpxDatei', gpxC);
+  await page.waitForFunction(() => document.querySelector('#tourName').textContent === 'Seerunde mit Hütte' && document.querySelectorAll('#tourPunkte li').length === 2, null, { timeout: 8000 }).catch(() => {});
+  const wp = await page.$$eval('#tourPunkte li', l => l.map(x => x.textContent));
+  pruef('GPX: Wegpunkte aus der Datei auf der Tourseite, nach Lage an der Strecke', wp.length === 2 && wp[0].startsWith('🏠Seehütte') && wp[1].startsWith('⛰️Seeblick-Gipfel') && /bei [\d,]+ km/.test(wp[0]), wp);
+  pruef('GPX: Herkunft, Art Laufen und Dauer laut Datei', (await page.textContent('#tourArt')).includes('aus beispiel-touren.de') &&
+    (await page.textContent('#tourZahlen')).includes('Dauer laut Datei') && (await page.textContent('#tourZahlen')).includes('45 min') &&
+    await page.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'Seerunde mit Hütte').profil === 'laufen'), await page.textContent('#tourZahlen'));
+  pruef('GPX: Wegpunkte auf der Karte', await page.evaluate(() => [...document.querySelectorAll('.ort-mk')].filter(m => /🏠|⛰️/.test(m.textContent)).length >= 2));
+  await page.click('#tBearbeiten'); await page.click('#bNeu');
+  pruef('GPX: „Neu“ nimmt die Wegpunkte der Datei von der Karte', await page.evaluate(() => ![...document.querySelectorAll('.ort-mk')].some(m => m.textContent === '🏠')));
+  await zuSeite(page, 'touren');
 
   // Teilen-Link öffnen (die geplante Tour, nicht die importierte Spur)
   await page.click('#tourliste li:has-text("🥾") >> nth=0');
