@@ -30,8 +30,39 @@ jobs:
       - name: Web-App prüfen (Syntax, Einheitstests)
         run: sh web/pruefen.sh
 
-  apk:
+  # Klicktest: bedient die Oberfläche in Chromium (Dienste nachgebildet, Testkarten aus web/test/testkarten.py).
+  # Pflicht seit dem 03.11.: ohne ihn war main unbemerkt rot (Info-Fenster nach #50).
+  klicktest:
     needs: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium-headless-shell
+          pip install mapbox-vector-tile==2.2.0 pmtiles==3.8.1 pillow==12.3.0
+      - name: Web-App bauen
+        run: sh web/pruefen.sh
+      - name: Klicktest
+        run: node web/test/ui.js
+      - name: Bildschirmfotos bei Fehler
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klicktest-bilder
+          path: web/test/out/*.png
+          retention-days: 7
+
+  apk:
+    needs: [pruefen, klicktest]
     runs-on: ubuntu-latest
     permissions:
       contents: write   # für die Download-Seite (Release) nach dem Merge
