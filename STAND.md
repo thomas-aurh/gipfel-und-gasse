@@ -60,10 +60,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
-- **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
-  und Salzburg“ steht in `karten/regionen.json`; die App zeigt ihn in Liste und Rahmen, sobald `pakete.json` neu gebaut
-  ist (von Hand: Actions › Kartenpakete › Run workflow, sonst am 3.12.). Die ID `oberbayern` bleibt, nichts muss neu
-  geladen werden. Rahmen auf dem Pixel nicht geprüft.
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
@@ -187,6 +183,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
   blieb; jetzt wartet er auf den Status genau dieses Imports, und Abbrechen leert die Vorschau (Gegenprobe rot,
   danach 6 von 6 grün). Die Vermutung vom 03.11. (GPS aus #53) war falsch (#55).
+  Lauf „Kartenpakete“ von Hand: `pakete.json` trägt den neuen Namen „Oberbayern mit München, Innsbruck und Salzburg“
+  (gemessen 04.11.); Rahmen der Pakete von Thomas am 04.11. auf dem Pixel bestätigt (Bau 161). Auf kleinen Zoomstufen
+  reicht die Offline-Karte über den Rahmen hinaus (ganze Kacheln), außerhalb der Kacheln bleibt sie dunkel.
 
 - **03.11. (abends)** `KartenServer` bedient `/_karten_/…` nur noch für die eigene App-Adresse (Schema und Host der
   Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen
