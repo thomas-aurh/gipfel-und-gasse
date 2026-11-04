@@ -672,9 +672,11 @@ function pruef(name, bed, info) {
   await page.click('#tageBox [data-tage=mehr]');
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
-  pruef('Tage: „Mehrere Tage“ teilt in 2 Tage, Liste nach Tagen, Chips für die Zahl', (await page.textContent('#etappen')).includes('Tag 2') &&
-    (await page.$$eval('#stopps .stopp-tag', l => l.map(x => x.textContent))).join() === 'Tag 1,Tag 2' && (await page.getAttribute('#tageZahl [data-zahl="2"]', 'class')).includes('an') &&
-    await page.isVisible('#stopps .nacht-knopf'), [await page.$$eval('#stopps .stopp-tag', l => l.map(x => x.textContent)), wpsVor]);
+  // je Tag eine Karte mit Datum, Strecke, Zeit und den Punkten dieses Tages (Übernachtung als letzter Punkt von Tag 1)
+  const tagKarten = () => page.$$eval('#etappen .etappe', l => l.map(e => [e.querySelector('b').textContent, e.querySelectorAll('.etappe-punkte .stopp').length]));
+  pruef('Tage: „Mehrere Tage“ teilt in 2 Tage, Punkte in der Karte ihres Tages, Chips für die Zahl', JSON.stringify(await tagKarten()) === '[["Tag 1",2],["Tag 2",1]]' &&
+    (await page.$$('#stopps .stopp')).length === 0 && (await page.getAttribute('#tageZahl [data-zahl="2"]', 'class')).includes('an') &&
+    await page.isVisible('#etappen .nacht-knopf'), [await tagKarten(), wpsVor]);
   pruef('Tage: Route je Tag in eigener Farbe', await page.evaluate(() => { const f = new Set([...document.querySelectorAll('.leaflet-overlay-pane path.leaflet-interactive')].map(p => p.getAttribute('stroke'))); return f.has('#e5532d') && f.has('#1f6fd1'); }));
   await page.click('#tageZahl [data-zahl="3"]');
   await page.waitForFunction(() => (document.getElementById('etappen').textContent.match(/Tag 3/) || []).length > 0, null, { timeout: 8000 }).catch(() => {});

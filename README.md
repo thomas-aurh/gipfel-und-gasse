@@ -98,8 +98,9 @@ und lässt bei Bedarf den letzten Ort weg.
 
 **Mehrtagestour:** Im Reiter *Route* der Schalter **„☀️ 1 Tag | 🛏 Mehrere Tage“**. „Mehrere Tage“ teilt die Tour nach
 Gehzeit in gleich lange Tage (darunter 2 · 3 · 4 · 5 Tage): liegt ein vorhandener Punkt höchstens 15 % eines Tages neben der
-Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt auf die Route (ziehen verschiebt ihn). Die Punktliste
-ist dann nach Tagen gegliedert, 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. „1 Tag“
+Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt auf die Route (ziehen verschiebt ihn). Je Tag steht dann
+eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start (ab Tag 2 eigene Startzeit) und darunter den Punkten dieses Tages; ein
+Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. „1 Tag“
 nimmt Übernachtungen und gesetzte Punkte zurück. Weiter geht auch: Zwischenziel antippen › „🛏 Hier übernachten“. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel.
 Ab Tag 2 lässt sich eine eigene Startzeit eintragen (leer: wie Tag 1); sie gilt auch für Stopps, Tourwetter und Druck und

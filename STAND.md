@@ -226,6 +226,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Tage gebündelt)** Thomas am Pixel (Bau 205): „Hier sollten die Infos zu den Tagen gebündelt sein.“ Jetzt
+  je Tag eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start und den Punkten dieses Tages (Übernachtung als letzter
+  Punkt); „länger als das Tageslicht“ statt eines spätesten Starts mitten in der Nacht (auch bei einer Tagestour, mit
+  Hinweis auf „Mehrere Tage“); Reiterleiste klebt nicht mehr über der Aktionsleiste. Klicktest 369.
+
 - **04.11. (Abend, Mehrtagestour intuitiv)** Schritt 2 des Umbaus: Schalter „1 Tag | Mehrere Tage“ im Reiter Route,
   Teilung in 2 bis 5 gleich lange Tage nach Gehzeit (R.tagesAufteilung: vorhandener Punkt bis 15 % daneben, sonst neuer
   Punkt auf der Route), Punktliste nach Tagen mit 🛏 je Punkt, Route und Etappen je Tag in eigener Farbe, unterwegs
