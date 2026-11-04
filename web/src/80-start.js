@@ -193,3 +193,5 @@ if (!ausLink()) {
   } else zeigen();
 }
 tourenZeigen();
+// Telefon ohne Route: Start mit der reinen Karte (Thomas, 04.11.); Planen mit den Einstiegen ist einen Tipp entfernt
+if (window.innerWidth <= 760 && !S.wps.length && !S.fest) reiter('karte');

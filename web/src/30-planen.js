@@ -182,6 +182,7 @@ async function neuBerechnen() {
     S.stuecke = []; S.ergebnis = null;
     zeichenRoute(); zeigen();
     $('status').textContent = S.wps.length === 1 ? 'Start gesetzt. Jetzt das Ziel antippen.' : '';
+    if (seite === 'karte' && S.wps.length === 1) melde('Start gesetzt. Jetzt das Ziel antippen.', 4);   // ohne Blatt sähe man den Status nicht
     entwurfSichern();
     return;
   }
@@ -216,6 +217,8 @@ async function neuBerechnen() {
   auswertenUndZeigen();
   // erste Route am Telefon: Blatt halb öffnen, sonst sieht man nur den Kopf und keine Funktionen
   if (window.innerWidth <= 760 && $('panel').classList.contains('klein') && S.wps.length === 2) blatt('mittel');
+  // auf der reinen Karte geplant (Start der App am Telefon): mit der ersten Route zum Planen, sonst sähe man das Ergebnis nicht
+  if (seite === 'karte' && S.wps.length === 2) reiter('planen');
   $('status').innerHTML = fehler.length
     ? '<div class="fehler">Kein Weg gefunden, dort gerade Linie (gestrichelt). ' + R.esc(fehler.join(' · ')) + '</div>'
     : '';
