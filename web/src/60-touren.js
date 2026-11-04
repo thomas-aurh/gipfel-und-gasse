@@ -93,6 +93,7 @@ function tourSeiteZeigen() {
     zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') +
     (t && t.dateiDauer ? '<div class="zahl"><b>' + R.esc(R.zeitText(t.dateiDauer, true)) + '</b><span>Dauer laut Datei</span></div>' : '') : '';
   dateiPunkteZeigen(t);
+  tourFotosZeigen(t);
   $('tLos').disabled = !S.ergebnis || !!S.rechnet;
   $('tLos').textContent = /beenden/.test($('bNavi').textContent) ? '🧭 Zur Navigation' : '▶ Los';
   $('tTeilen').hidden = $('bTeilen').hidden; $('tTeilen').disabled = $('bTeilen').disabled;

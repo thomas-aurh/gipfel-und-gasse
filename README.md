@@ -59,11 +59,18 @@ die Herkunft („aus komoot.de“) und, wenn die Punkte Zeitstempel tragen, die 
 dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz
 aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mit Google Maps dorthin.
 
+**Fotos:** Ich › *Fotos* zeigt alle Bilder aus dem Reisetagebuch als Raster, neueste zuerst. Antippen zeigt ein Foto groß;
+wischen oder ‹ › blättert. Unten stehen Reise und Zeitpunkt, „📔 Zur Reise“ springt zum Eintrag, „🥾 …“ öffnet die gegangene
+Tour desselben Tages. „📤 Teilen“ (oben links) gibt das Foto weiter, in der App über das Teilen-Menü von Android
+(WhatsApp, Signal, Mail …), im Browser über dessen Teilen-Funktion oder als Download. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages. Die Fotos liegen im
+Speicher der App (IndexedDB, auf 1600 px verkleinert, Originale der Kamera auf Wunsch in der Galerie unter Bilder › Gipfel
+und Gasse) und kommen mit in die Sicherung.
+
 **Ladeanzeige:** Dauert eine Anfrage an einen Dienst (Route, Suche, Orte, Wetter, Wanderwege) länger als einen Moment,
 erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum Gipfel hinauf- und wieder hinuntergeht.
 
 **Wanderwege in der Nähe:** In *Entdecken* „Wanderwege suchen“ (2, 5 oder 10 km um die Kartenmitte): markierte Wanderwege
-aus OpenStreetMap mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
+aus OpenStreetMap (über Waymarked Trails, sonst Overpass) mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
 der Karte, „＋ Tour“ legt ihn mit Höhen unter „Geplant“ ab („aus OpenStreetMap“). Es sind beschilderte Wege, keine
 ausgesuchten Touren mit Beschreibung; Stücke, die in OSM nicht zusammenhängen, bleiben getrennte Abschnitte. Braucht Netz.
 

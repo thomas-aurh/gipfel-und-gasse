@@ -154,6 +154,16 @@ html.heft #tbHeft{display:block;color:#1c2620;background:#fff;padding:0 2mm;font
 @media print{@page{margin:12mm}}
 #tbBild{position:fixed;inset:0;z-index:3000;background:#000e;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
 #tbBild img{max-width:100%;max-height:100%;object-fit:contain}
+.bild-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:64px;border:0;border-radius:12px;background:#fff3;color:#fff;font-size:34px;line-height:1}
+.bild-nav.links{left:8px}.bild-nav.rechts{right:8px}
+#tbBildInfo{position:absolute;left:0;right:0;bottom:0;padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,#000c);color:#fff;font:14px/1.35 system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;cursor:default}
+#tbBildInfo .links{display:flex;gap:8px}
+#tbBildInfo button{border:0;border-radius:18px;padding:8px 12px;background:#fff;color:#1f3d2a;font:600 14px system-ui,sans-serif}
+.foto-raster{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:6px 0}
+.foto-raster.klein{grid-template-columns:repeat(4,1fr)}
+.foto-raster button{border:0;padding:0;aspect-ratio:1;background:var(--spur);overflow:hidden;border-radius:4px}
+.foto-raster img{width:100%;height:100%;object-fit:cover;display:block}
+#tbBildTeilen{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff3;color:#fff;font:600 15px system-ui,sans-serif}
 #tbBildZu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff3;color:#fff;font-size:20px}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
 #lagenwahl label{display:flex;gap:8px;align-items:center;padding:5px 0}

@@ -390,10 +390,20 @@ $('bWege').onclick = async () => {
   $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
   $('bWege').disabled = true;
   try {
-    const json = await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius), 35);
+    // zuerst Waymarked Trails (eigene Datenbank, schnell), sonst Overpass
+    let wege, quelle = 'Waymarked Trails';
+    try {
+      const w = await holen(DIENST.wanderwege + '/list/by_area?bbox=' + R.bbox3857(c.lat, c.lng, radius).join(',') + '&limit=60', null, 20);
+      wege = R.wegeAusWmt(w, { lat: c.lat, lon: c.lng });
+    } catch (e) {
+      if (nr !== wegeLauf) return;
+      quelle = 'Overpass';
+      $('wegeStatus').textContent = 'Waymarked Trails nicht erreichbar (' + e.message + '), frage Overpass …';
+      wege = R.wegeLesen(await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius), 35), { lat: c.lat, lon: c.lng });
+    }
     if (nr !== wegeLauf) return;
-    const wege = R.wegeLesen(json, { lat: c.lat, lon: c.lng }).slice(0, 30);
-    $('wegeStatus').textContent = wege.length ? wege.length + ' markierte Wege (OpenStreetMap). Antippen zeigt den Verlauf.' : 'Keine markierten Wanderwege in OpenStreetMap gefunden.';
+    wege = wege.slice(0, 30);
+    $('wegeStatus').textContent = wege.length ? wege.length + ' markierte Wege (OpenStreetMap, über ' + quelle + '). Antippen zeigt den Verlauf.' : 'Keine markierten Wanderwege in OpenStreetMap gefunden.';
     for (const w of wege) {
       const li = document.createElement('li');
       li.dataset.weg = w.id;

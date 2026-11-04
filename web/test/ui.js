@@ -57,6 +57,8 @@ function server() {
 }
 
 async function dienste(ctx) {
+  // Waymarked Trails nicht nachgebildet: antwortet wie überlastet, dann fragt die App Overpass (eigene Prüfung unten)
+  await ctx.route(/hiking\.waymarkedtrails\.org\/api/, r => r.fulfill({ status: 503, contentType: 'text/html', body: '<html>busy</html>' }));
   await ctx.route(/tile\.opentopomap\.org|tile\.openstreetmap\.org|tile\.waymarkedtrails\.org/, r => r.fulfill({ status: 200, contentType: 'image/png', body: KACHEL }));
   await ctx.route(/brouter\.de\/brouter/, r => {
     const u = r.request().url();
@@ -153,7 +155,7 @@ let ok = 0, fehler = 0;
 async function zuSeite(seite, ziel) {
   // Leiste: Karte, Entdecken, Planen, Unterwegs, Ich (Touren mit Geplant/Gegangen, Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
   if (['karte', 'entdecken', 'planen', 'unterwegs', 'ich'].includes(ziel)) { await seite.click('#leiste [data-reiter=' + ziel + ']'); return; }
-  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) {
+  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch', 'fotos'].includes(ziel)) {
     await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
     if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
     return;
@@ -794,6 +796,36 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Ich › Fotos: alle Bilder, groß mit Reise und Tour des Tages; Querverweise zur Reise und zur Tour
+  await zuSeite(page, 'fotos');
+  await page.waitForFunction(() => document.querySelectorAll('#fotoRaster img[src]').length >= 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: Raster unter „Ich“', (await page.$$('#fotoRaster button')).length === 1 && (await page.textContent('#fotoStatus')).includes('1 Foto') &&
+    (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
+  await page.click('#fotoRaster button >> nth=0');
+  await page.waitForFunction(() => /Testurlaub/.test(document.getElementById('tbBildText').textContent), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: groß mit Reise, Datum und Tour des Tages', await page.isVisible('#tbBild') && (await page.textContent('#tbBildText')).startsWith('1/1 · Testurlaub · ') &&
+    await page.isVisible('#tbBildReise') && await page.isVisible('#tbBildTour') && await page.isHidden('#tbBildVor') && await page.isHidden('#tbBildNach'),
+    [await page.textContent('#tbBildText'), await page.isVisible('#tbBildTour')]);
+  // Teilen: Browser mit Teilen-Funktion bekommt das Foto als Datei, mit Reise im Begleittext
+  await page.evaluate(() => { window.__geteilt = null; Object.defineProperty(navigator, 'canShare', { configurable: true, value: d => !!(d && d.files) }); Object.defineProperty(navigator, 'share', { configurable: true, value: async d => { window.__geteilt = { n: d.files.length, name: d.files[0].name, typ: d.files[0].type, groesse: d.files[0].size, text: d.text }; } }); });
+  await page.click('#tbBildTeilen');
+  await page.waitForFunction(() => !!window.__geteilt, null, { timeout: 5000 }).catch(() => {});
+  const geteilt = await page.evaluate(() => window.__geteilt || document.getElementById('meldung').textContent);
+  pruef('Fotos: Teilen gibt das Foto als Datei weiter', !!geteilt && geteilt.n === 1 && /^gipfel-und-gasse-\d{4}-\d\d-\d\d-1\.jpg$/.test(geteilt.name) && geteilt.groesse > 100 &&
+    geteilt.text.startsWith('Testurlaub') && await page.isVisible('#tbBild'), geteilt);
+  await page.click('#tbBildReise');
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') && !!document.querySelector('.tb-eintrag.hervor'), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: „Zur Reise“ springt zum Eintrag', await page.isHidden('#tbBild') && (await page.textContent('#tbTitel')).includes('Testurlaub') && (await page.$$('.tb-eintrag.hervor')).length === 1);
+  await zuSeite(page, 'fotos');
+  await page.click('#fotoRaster button >> nth=0');
+  await page.waitForSelector('#tbBildTour:not([hidden])', { timeout: 5000 }).catch(() => {});
+  await page.click('#tbBildTour');
+  await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an'), null, { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: „Zur Tour“ öffnet die gegangene Tour, dort die Fotos des Tages', await page.isHidden('#tbBild') && await page.isVisible('#tourFotosBox') && (await page.$$('#tourFotos button')).length === 1);
+  await zuSeite(page, 'tagebuch');
+  if (await page.isVisible('#tbZurueck')) await page.click('#tbZurueck');
+  await page.click('#tbReisen li:has-text("Testurlaub") .was').catch(() => {});
+  await page.waitForSelector('.tb-eintrag', { timeout: 5000 }).catch(() => {});
   // Eintrag als Punkt auf der Karte; „Öffnen“ springt zum Eintrag
   pruef('Tagebuch: Eintrag als Punkt auf der Karte', (await page.$$('.tb-mk')).length === 1);
   await page.click('[data-reiter=karte]');
@@ -1094,7 +1126,7 @@ function pruef(name, bed, info) {
         starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
-        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
+        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: (o.text || '').length, gpx: (o.text || '').startsWith('<?xml'), daten: o.daten ? o.daten.length : 0, mime: o.mime }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
@@ -1307,6 +1339,14 @@ function pruef(name, bed, info) {
   pruef('App: Kamerafoto als Original in die Galerie, Galeriefoto nicht', galerie.length === 1 && galerie[0][1].laenge > 1000 &&
     /^Gipfel-und-Gasse_\d{8}_\d{6}\.jpg$/.test(galerie[0][1].name) && galerie[0][1].mime === 'image/jpeg', galerie);
   pruef('App: beide Fotos im Eintrag', (await pa2.$$('#tbFotosNeu figure')).length === 2);
+  // Foto teilen in der App: als Bilddatei über das Teilen-Menü von Android
+  const vorFoto = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;
+  await pa2.click('#tbFotosNeu figure .gross >> nth=0');
+  await pa2.click('#tbBildTeilen');
+  await pa2.waitForFunction(n => window.__navi.aufrufe.filter(x => x[0] === 'teilen').length > n, vorFoto, { timeout: 5000 }).catch(() => {});
+  const fotoT = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').slice(vorFoto);
+  pruef('App: Foto teilen als Bild über das Teilen-Menü', fotoT.length === 1 && fotoT[0][1].daten > 1000 && /^image\//.test(fotoT[0][1].mime) && fotoT[0][1].name.endsWith('.jpg'), fotoT);
+  await pa2.click('#tbBildZu');
   await pa2.click('#tbEintragAbbrechen');
   // Android 9: kein Schalter, kein Versuch (die Galerie geht erst ab Android 10)
   const alt9 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(9) });
@@ -1635,7 +1675,7 @@ function pruef(name, bed, info) {
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   // Ich: Sammlungen als Kacheln; Tagebuch gehört in der Leiste zu „Ich“
   await zuSeite(pt, 'ich');
-  pruef('Ich: Touren (geplant und gegangen), Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,tagebuch,ziele,gipfelbuch');
+  pruef('Ich: Touren (geplant und gegangen), Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,tagebuch,ziele,gipfelbuch,fotos');
   await pt.tap('.ich-liste [data-ziel=tagebuch]'); await pt.waitForTimeout(200);
   pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
     document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
@@ -1749,6 +1789,7 @@ function pruef(name, bed, info) {
   pruef('Ladeanzeige: nach der Antwort wieder weg', await pf.isHidden('#ladeZeichen'));
   const wege = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
   pruef('Wanderwege: Liste mit Länge, Rundweg, Fernweg zuletzt', wege.length === 2 && /Seerundweg.*3 km · Rundweg · örtlich/.test(wege[0]) && wege[1].includes('Maximiliansweg'), wege);
+  pruef('Wanderwege: Waymarked Trails überlastet, dann Overpass', (await pf.textContent('#wegeStatus')).includes('über Overpass'), await pf.textContent('#wegeStatus'));
   await pf.click('#wegeListe li >> nth=0');
   await pf.waitForFunction(() => /Seerundweg“: /.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
   pruef('Wanderwege: Antippen zeigt den Verlauf mit Länge', /„Seerundweg“: [\d,]+ (m|km)\./.test(await pf.textContent('#wegeStatus')), await pf.textContent('#wegeStatus'));
@@ -1757,6 +1798,26 @@ function pruef(name, bed, info) {
   pruef('Wanderwege: „＋ Tour“ speichert unter „Geplant“ mit Herkunft', (await pf.textContent('#tourArt')).includes('aus OpenStreetMap') &&
     await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).some(t => t.name === 'Seerundweg' && t.art === 'spur' && t.spur.length === 3 && t.spur.every(p => p[2] != null))), await pf.textContent('#tourArt'));
   await pf.unroute(/overpass-api\.de/, wegeRoute);
+  // erste Quelle Waymarked Trails (Liste nach Ausschnitt in Web-Mercator-Metern), Verlauf weiter über Overpass
+  let wmtUrl = '';
+  const wmtRoute = r => { wmtUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ results: [{ type: 'relation', id: 905, name: 'Maximiliansweg', group: 'NAT' }, { type: 'relation', id: 906, name: 'Rund um den Rabenkopf', group: 'LOC', ref: 'R4' }] }) }); };
+  await pf.route(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
+  await zuSeite(pf, 'entdecken');
+  await pf.click('#bWege');
+  await pf.waitForFunction(() => /über Waymarked Trails/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  const wegeW = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
+  pruef('Wanderwege: zuerst Waymarked Trails, örtliche vor Fernwegen', wegeW.length === 2 && wegeW[0].includes('Rund um den Rabenkopf') && wegeW[0].includes('Nr. R4') && wegeW[1].includes('Fernwanderweg') &&
+    /\/list\/by_area\?bbox=\d+,\d+,\d+,\d+&limit=60/.test(wmtUrl), [wegeW, wmtUrl]);
+  await pf.unroute(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
+  // überlasteter Dienst: kurze Meldung statt der Fehlerseite des Servers
+  const vollRoute = r => r.fulfill({ status: 504, contentType: 'text/html', body: '# 502 Gateway Timeout This Overpass API server is currently at capacity. All query workers are busy.' });
+  await pf.route(/overpass-api\.de|overpass\.private\.coffee/, vollRoute);
+  await pf.click('#bWege');
+  await pf.waitForFunction(() => /nicht abrufbar/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Wanderwege: Überlast verständlich gemeldet', /Dienst gerade überlastet \(alle Server belegt\), bitte in ein paar Minuten noch einmal/.test(await pf.textContent('#wegeStatus')) &&
+    !(await pf.textContent('#wegeStatus')).includes('workers'), await pf.textContent('#wegeStatus'));
+  await pf.unroute(/overpass-api\.de|overpass\.private\.coffee/, vollRoute);
   pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
   await fc.close();
 

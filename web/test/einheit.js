@@ -670,5 +670,28 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
 
 pruef('Wanderwege: Abfrage über die Wege im Umkreis (schnell), ohne Mittelpunkt', /way\["highway"\]\(around:5000,47\.60000,11\.30000\);rel\(bw\)\["route"~"\^\(hiking\|foot\)\$"\];out tags 80;/.test(R.wegeAbfrage(47.6, 11.3, 5000)), R.wegeAbfrage(47.6, 11.3, 5000));
 
+// Dienstfehler, Web-Mercator-Rechteck, Antwort von Waymarked Trails
+pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout ... at capacity') === 'Dienst gerade überlastet (alle Server belegt), bitte in ein paar Minuten noch einmal' &&
+  R.dienstFehler(429, '') === 'zu viele Anfragen, bitte kurz warten' && R.dienstFehler(404, '<html>x</html>') === 'Fehler 404' && R.dienstFehler(400, 'position not mapped') === 'position not mapped');
+{
+  const b = R.bbox3857(0, 0, 1000);
+  pruef('Web-Mercator: 1 km um 0/0', Math.abs(b[0] + 1000) < 2 && Math.abs(b[2] - 1000) < 2 && Math.abs(b[1] + 1000) < 2, b);
+  const bb = R.bbox3857(47.6, 11.3, 5000);
+  pruef('Web-Mercator: Walchensee in Metern', bb[0] > 1250000 && bb[0] < 1260000 && bb[1] > 6030000 && bb[3] < 6050000, bb);
+  const w = R.wegeAusWmt({ results: [{ type: 'relation', id: 1, name: 'Fern', group: 'NAT' }, { type: 'relation', id: 2, ref: '7', group: 'LOC' }, { type: 'way', id: 3, name: 'x' }, { id: 'kaputt', name: 'y' }] });
+  pruef('Waymarked Trails: Relationen, Nummer als Name, Fernweg zuletzt', w.map(x => x.name + '/' + x.netz).join() === 'Weg 7/örtlich,Fern/Fernwanderweg', w);
+}
+
+// Fotos: neueste zuerst, mit Reise und der zeitlich nächsten gegangenen Tour desselben Tages
+{
+  const t0 = Date.parse('2026-08-01T10:00:00Z');
+  const tb = { reisen: [{ id: 'r1', name: 'Sommer' }], eintraege: [
+    { id: 'e1', reise: 'r1', zeit: t0, fotos: ['f1', 'f2'] }, { id: 'e2', reise: 'r1', zeit: t0 + 864e5, fotos: ['f3'] }, { id: 'e3', reise: 'r1', zeit: t0, fotos: [] }] };
+  const touren = [{ id: 'ta', art: 'aufzeichnung', datum: '2026-08-01T07:00:00Z', spur: [[47, 11, 0, t0 - 3 * 3.6e6]] },
+    { id: 'tb', art: 'aufzeichnung', datum: '2026-08-01T07:00:00Z', spur: [[47, 11, 0, t0 + 0.5 * 3.6e6]] }, { id: 'tp', art: 'plan', datum: '2026-08-01T09:00:00Z', spur: [[47, 11, 0]] }];
+  const l = R.fotoListe(tb, touren);
+  pruef('Fotos: Liste neueste zuerst, mit Reise und Tour des Tages', l.map(x => x.foto).join() === 'f3,f1,f2' && l[0].tour === null && l[1].tour.id === 'tb' && l[1].reise.name === 'Sommer', l.map(x => [x.foto, x.tour && x.tour.id]));
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);
