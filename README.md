@@ -42,6 +42,11 @@ gestrichelter Rahmen mit Namen, wie weit jedes installierte Paket reicht; außer
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
 
+**Stopps und Tourliste:** Ab drei Punkten steht unter *Planen* die Liste der Punkte; ▲ und ▼ schieben einen Stopp oder das
+Ziel eine Stelle weiter (der Start bleibt, „↶ Rückgängig“ holt die alte Reihenfolge). Ab drei Touren lassen sich die Listen unter
+*Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
+Rad, Stadt, GPX).
+
 **Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder
 Tag beginnt zur selben Startzeit). „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.

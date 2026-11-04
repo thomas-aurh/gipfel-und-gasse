@@ -277,6 +277,7 @@
           <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
         </div>
+        <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select></div>
         <ul id="tourliste" class="liste"></ul>
       </section>
 
@@ -286,6 +287,7 @@
         <div id="gangStatistik" class="zahlen"></div>
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
+        <div class="tourfilter" data-liste="gangliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Gegangene Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select></div>
         <ul id="gangliste" class="liste"></ul>
       </section>
 

@@ -535,8 +535,11 @@ const MINUTEN = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180];
 function stoppsZeigen() {
   const box = $('stopps');
   box.innerHTML = '';
-  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.some(w => w.name || w.nacht))) return;
+  // Liste in der Stadt, mit benannten Stopps oder ab einem Zwischenpunkt (dann lässt sich umsortieren)
+  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.length >= 3 || S.wps.some(w => w.name || w.nacht))) return;
   const n = S.wps.length, ankunft = stoppAnkunft();
+  // verschiebbar ist alles außer dem Start und, bei einer Rundtour, dem Schluss (der Start bleibt, „⇄ Umkehren“ dreht die Tour)
+  const rundTour = n > 2 && R.abstand(S.wps[n - 1], S.wps[0]) < 30, letzter = rundTour ? n - 2 : n - 1;
   S.wps.forEach((w, i) => {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
@@ -554,6 +557,15 @@ function stoppsZeigen() {
       sel.onchange = () => { S.wps[i] = Object.assign({}, S.wps[i], { min: +sel.value }); entwurfSichern(); zeigen(); };
       d.appendChild(sel);
     }
+    if (i >= 1 && i <= letzter && letzter >= 2) {
+      for (const [zeichen, d2, titel] of [['▲', -1, 'Nach oben'], ['▼', 1, 'Nach unten']]) {
+        const b = document.createElement('button');
+        b.className = 'schieben'; b.textContent = zeichen; b.title = titel; b.setAttribute('aria-label', titel);
+        b.disabled = i + d2 < 1 || i + d2 > letzter;
+        b.onclick = () => stoppVerschieben(i, d2);
+        d.appendChild(b);
+      }
+    }
     const x = document.createElement('button');
     x.title = 'Entfernen'; x.textContent = '✕';
     x.onclick = () => wegpunktWeg(i);
@@ -567,6 +579,17 @@ function stoppsZeigen() {
       'In einer Stichprobe stimmten 11 von 19 mit Google überein, keine Quelle war durchweg richtig: vor dem Besuch über Webseite oder Google Maps nachsehen.';
     box.appendChild(hinweis);
   }
+}
+
+// Stopp eine Stelle nach oben oder unten; Rückgängig holt die alte Reihenfolge
+function stoppVerschieben(i, d) {
+  const j = i + d;
+  if (j < 1 || j >= S.wps.length) return;
+  merken();
+  const w = S.wps.slice();
+  [w[i], w[j]] = [w[j], w[i]];
+  S.wps = w;
+  neuBerechnen();
 }
 
 // Reihenfolge der Stopps verkürzen; Start bleibt, eine Rundtour bleibt eine Rundtour

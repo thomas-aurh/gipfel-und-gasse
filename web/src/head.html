@@ -279,6 +279,13 @@ h3{font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);font-we
 .modus button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--grau)}
 .modus button.an{background:var(--karte);color:var(--gruen);box-shadow:0 1px 4px #0002}
 #stopps .stopp{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid var(--linie);font-size:14px}
+/* Tourlisten: Suchen, Sortieren, Art */
+.tourfilter{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.tourfilter .tf-suche{flex:1 1 100%;margin:0}
+.tourfilter select{flex:1;min-width:120px;padding:8px 10px;border:1px solid var(--linie);border-radius:11px;background:var(--feld);color:var(--text);font-size:14px}
+.tourfilter[hidden]{display:none}
+#stopps .schieben{min-width:34px;min-height:34px;padding:0}
+#stopps .schieben:disabled{opacity:.3}
 #stopps .nr{width:22px;height:22px;border-radius:50%;background:var(--route);color:#fff;font:700 11px/22px sans-serif;text-align:center;flex:none}
 #stopps .nr.s{background:#2e8b47}
 #stopps .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

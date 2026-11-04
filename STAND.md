@@ -45,7 +45,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
-- **Aus der Durchsicht vom 01.11., noch nicht gebaut:** Stopps von Hand umsortieren; Tourliste sortieren und filtern.
 - **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
   (Tab im Hintergrund verworfen ⇒ Spur weg); Sicherung baut alle Fotos in einen einzigen Text (bei sehr vielen Fotos zu
   groß, jetzt mit Meldung statt still); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
@@ -194,6 +193,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot) (#58).
   Start am Telefon ohne Route mit der reinen Karte statt mit halb offenem Blatt (Thomas' Wunsch nach dem Test): Start
   antippen meldet sich, mit dem Ziel geht es zum Planen; die Einstiege stehen unter *Planen* (Klicktest 290) (#59).
+  Stopps mit ▲▼ umsortieren (Liste auch am Berg ab drei Punkten; Start fest, bei Rundtour auch der Schluss) und
+  Tourlisten ab drei Touren durchsuchen, sortieren und (geplante) nach Art filtern; offen seit 01.11. (Klicktest 304).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen

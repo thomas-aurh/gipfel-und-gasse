@@ -179,9 +179,40 @@ function tourenZeigen() {
   zeitraeumeZeigen(gegangen);
 }
 
+// Suchen, Sortieren und (bei geplanten) Art: die Leiste über der Liste erscheint ab drei Touren
+function tourArt(t) {
+  if (t.art === 'spur') return 'spur';
+  if (t.profil === 'laufen') return 'laufen';
+  if (t.profil === 'rad') return 'rad';
+  if (t.modus === 'stadt' || t.profil === 'stadt') return 'stadt';
+  return 'wandern';
+}
+function tourenFiltern(liste, f) {
+  const suche = (f.querySelector('.tf-suche').value || '').trim().toLowerCase();
+  const art = f.querySelector('.tf-art') ? f.querySelector('.tf-art').value : '';
+  const sort = f.querySelector('.tf-sort').value;
+  const kurz = (t, k) => +((t.kurz || {})[k]) || 0;
+  const wann = t => Date.parse(t.datum) || 0;
+  const aus = liste.filter(t => (!suche || String(t.name || '').toLowerCase().includes(suche)) && (!art || tourArt(t) === art));
+  const vergleich = { neu: (a, b) => wann(b) - wann(a), alt: (a, b) => wann(a) - wann(b), name: (a, b) => String(a.name).localeCompare(String(b.name), 'de'),
+    lang: (a, b) => kurz(b, 'laenge') - kurz(a, 'laenge'), kurz: (a, b) => kurz(a, 'laenge') - kurz(b, 'laenge'), hm: (a, b) => kurz(b, 'auf') - kurz(a, 'auf') }[sort];
+  return vergleich ? aus.slice().sort(vergleich) : aus;
+}
+document.querySelectorAll('.tourfilter').forEach(f => {
+  f.querySelectorAll('input, select').forEach(e => e.addEventListener(e.tagName === 'INPUT' ? 'input' : 'change', () => tourenZeigen()));
+});
+
 function listeZeigen(ul, liste, leer) {
   ul.innerHTML = '';
   if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">' + R.esc(leer) + '</span></li>'; return; }
+  const f = document.querySelector('.tourfilter[data-liste="' + ul.id + '"]');
+  if (f) {
+    f.hidden = liste.length < 3;
+    if (!f.hidden) {
+      liste = tourenFiltern(liste, f);
+      if (!liste.length) { ul.innerHTML = '<li style="cursor:default"><span class="was klein">Keine Tour passt zur Suche.</span></li>'; return; }
+    }
+  }
   for (const t of liste) {
     const li = document.createElement('li');
     li.dataset.tour = t.id;

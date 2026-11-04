@@ -1553,6 +1553,56 @@ function pruef(name, bed, info) {
     document.querySelector('section[data-reiter=entdecken]').classList.contains('an')) && await pt.isVisible('#bRundgang'));
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
+  // ---------- Tourlisten suchen, sortieren, nach Art filtern; Stopps umsortieren ----------
+  const fc = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+  await dienste(fc);
+  const testTour = (id, name, profil, km, hm, tage) => ({ id, name, datum: new Date(Date.now() - tage * 864e5).toISOString(), profil, tempo: 1, art: 'plan',
+    modus: profil === 'stadt' ? 'stadt' : 'berg', wps: [[47.75, 11.37], [47.76, 11.38]], stuecke: null, spur: [[47.75, 11.37, 600], [47.76, 11.38, 650]], kurz: { laenge: km * 1000, auf: hm, ab: hm, zeit: 1 } });
+  await fc.addInitScript(l => { if (!localStorage.getItem('gug.touren')) localStorage.setItem('gug.touren', l); }, JSON.stringify([
+    testTour('t1', 'Herzogstand', 'wandern', 9, 900, 1), testTour('t2', 'Abendlauf am See', 'laufen', 6, 40, 3), testTour('t3', 'Altstadt Verona', 'stadt', 4, 30, 2), testTour('t4', 'Zur Tutzinger Hütte', 'wandern', 14, 1100, 5)]));
+  const pf = await fc.newPage();
+  const pfFehler = [];
+  pf.on('pageerror', e => pfFehler.push(e.message));
+  await pf.goto(url);
+  await zuSeite(pf, 'touren');
+  const tnamen = () => pf.$$eval('#tourliste li .oeffnen', l => l.map(x => x.childNodes[0].textContent));
+  pruef('Tourliste: Suche und Sortierung ab drei Touren', await pf.isVisible('[data-liste=tourliste] .tf-suche') && (await tnamen()).length === 4);
+  pruef('Tourliste: neueste zuerst', (await tnamen())[0] === 'Herzogstand', await tnamen());
+  await pf.fill('[data-liste=tourliste] .tf-suche', 'hütte');
+  pruef('Tourliste: Suche nach Name (ohne Groß und klein)', JSON.stringify(await tnamen()) === '["Zur Tutzinger Hütte"]', await tnamen());
+  await pf.fill('[data-liste=tourliste] .tf-suche', 'gibtsnicht');
+  pruef('Tourliste: nichts gefunden sagt es', (await pf.textContent('#tourliste')).includes('Keine Tour passt'));
+  await pf.fill('[data-liste=tourliste] .tf-suche', '');
+  await pf.selectOption('[data-liste=tourliste] .tf-sort', 'lang');
+  pruef('Tourliste: längste zuerst', JSON.stringify(await tnamen()) === '["Zur Tutzinger Hütte","Herzogstand","Abendlauf am See","Altstadt Verona"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-sort', 'hm');
+  pruef('Tourliste: meiste Höhenmeter zuerst', (await tnamen())[0] === 'Zur Tutzinger Hütte' && (await tnamen())[3] === 'Altstadt Verona', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', 'laufen');
+  pruef('Tourliste: nur Laufen', JSON.stringify(await tnamen()) === '["Abendlauf am See"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', 'stadt');
+  pruef('Tourliste: nur Stadt', JSON.stringify(await tnamen()) === '["Altstadt Verona"]', await tnamen());
+  await pf.selectOption('[data-liste=tourliste] .tf-art', '');
+  pruef('Gegangene: ohne Touren keine Suchleiste', await pf.evaluate(() => document.querySelector('[data-liste=gangliste]').hidden));
+  // Stopps umsortieren: ▲▼ an Zwischenpunkten und Ziel, nicht am Start; Rückgängig holt die alte Reihenfolge
+  await pf.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76000_11.38000~47.77000_11.40000~47.78000_11.41000'; });
+  await zuSeite(pf, 'planen');
+  await pf.waitForSelector('#ergebnis:not([hidden])');
+  const treihe = () => pf.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat));
+  const tvorher = await treihe();
+  pruef('Stopps: Liste auch am Berg ab drei Punkten, mit ▲▼', (await pf.$$('#stopps .stopp')).length === 4 && (await pf.$$('#stopps .stopp:nth-child(1) .schieben')).length === 0 &&
+    (await pf.$$('#stopps .stopp:nth-child(2) .schieben')).length === 2 && await pf.isDisabled('#stopps .stopp:nth-child(2) .schieben >> nth=0') && await pf.isDisabled('#stopps .stopp:nth-child(4) .schieben >> nth=1'));
+  await pf.click('#stopps .stopp:nth-child(2) .schieben >> nth=1');
+  await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[1].lat !== v, tvorher[1], { timeout: 8000 });
+  pruef('Stopps: ▼ tauscht mit dem nächsten', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[1], tvorher[3]]), await treihe());
+  await pf.click('#stopps .stopp:nth-child(4) .schieben >> nth=0');
+  await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[3].lat !== v, tvorher[3], { timeout: 8000 });
+  pruef('Stopps: ▲ holt das Ziel nach vorn', JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[3], tvorher[1]]), await treihe());
+  await pf.click('#bZurueck'); await pf.click('#bZurueck');
+  await pf.waitForFunction(v => JSON.stringify(JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat)) === v, JSON.stringify(tvorher), { timeout: 8000 }).catch(() => {});
+  pruef('Stopps: Rückgängig holt die alte Reihenfolge', JSON.stringify(await treihe()) === JSON.stringify(tvorher), await treihe());
+  pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
+  await fc.close();
+
   await browser.close();
   srv.close();
   console.log('Klicktest: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen · Anfragen ' + JSON.stringify(zaehler));
