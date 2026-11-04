@@ -46,11 +46,18 @@ function tourSpeichern() {
   melde('Gespeichert: ' + name);
 }
 // Spur (z. B. Aufzeichnung) direkt ablegen, ohne die offene Planung zu ersetzen
-function spurAlsTour(name, pts, art) {
-  const e = R.auswerten([{ pts, abschnitte: [] }], S.tempo, 'fuss');
+// extra (aus GPX-Dateien): profil, punkte [[lat, lon, Name, Art]], quelle, dateiDauer
+function spurAlsTour(name, pts, art, extra) {
+  extra = extra || {};
+  const profil = PROFILE[extra.profil] ? extra.profil : 'wandern', pArt = PROFILE[profil].art;
+  const e = R.auswerten([{ pts, abschnitte: [] }], pArt === 'lauf' ? S.pace : S.tempo, pArt);
   const liste = tourenLesen();
-  liste.unshift({ id: 't' + Date.now().toString(36), name, datum: new Date().toISOString(), profil: 'wandern', tempo: S.tempo, wps: null,
-    spur: spurPacken(e.pts), stuecke: null, art, kurz: { laenge: e.laenge, auf: e.auf, ab: e.ab, zeit: e.zeit } });
+  const tour = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name, datum: new Date().toISOString(), profil, tempo: S.tempo, pace: S.pace, wps: null,
+    spur: spurPacken(e.pts), stuecke: null, art, kurz: { laenge: e.laenge, auf: e.auf, ab: e.ab, zeit: e.zeit } };
+  if (extra.punkte && extra.punkte.length) tour.punkte = extra.punkte;
+  if (extra.quelle) tour.quelle = extra.quelle;
+  if (extra.dateiDauer) tour.dateiDauer = extra.dateiDauer;
+  liste.unshift(tour);
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
   melde('Gespeichert: ' + name);
@@ -79,16 +86,46 @@ function tourAnsehen(id) {
 function tourSeiteZeigen() {
   const t = tourenLesen().find(x => x.id === S.tourId);
   $('tourName').textContent = S.name || (t && t.name) || 'Tour';
-  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + ' · gespeichert am ' + new Date(t.datum).toLocaleDateString('de-DE') : '';
+  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + (t.quelle ? ' aus ' + t.quelle : '') +
+    ' · gespeichert am ' + new Date(t.datum).toLocaleDateString('de-DE') : '';
   const zahl = (id, text) => '<div class="zahl"><b>' + R.esc($(id).textContent) + '</b><span>' + R.esc(text) + '</span></div>';
   $('tourZahlen').innerHTML = S.ergebnis ? zahl('zLaenge', 'Strecke') + zahl('zZeit', $('zZeitText').textContent) + zahl('zAuf', 'Aufstieg') +
-    zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') : '';
+    zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') +
+    (t && t.dateiDauer ? '<div class="zahl"><b>' + R.esc(R.zeitText(t.dateiDauer, true)) + '</b><span>Dauer laut Datei</span></div>' : '') : '';
+  dateiPunkteZeigen(t);
   $('tLos').disabled = !S.ergebnis || !!S.rechnet;
   $('tLos').textContent = /beenden/.test($('bNavi').textContent) ? '🧭 Zur Navigation' : '▶ Los';
   $('tTeilen').hidden = $('bTeilen').hidden; $('tTeilen').disabled = $('bTeilen').disabled;
   $('tGpx').disabled = $('bGpx').disabled; $('tDrucken').disabled = $('bDrucken').disabled;
   tourAnreiseZeigen();
 }
+// Wegpunkte aus der GPX-Datei (z. B. Highlights aus komoot): auf der Karte und als Liste mit Lage an der Strecke
+const PUNKT_ZEICHEN = { gipfel: '⛰️', einkehr: '🏠', parken: '🅿️', punkt: '📍' };
+function dateiPunkteZeigen(t) {
+  const ul = $('tourPunkte');
+  ebeneDateiPunkte.clearLayers();
+  ul.innerHTML = '';
+  const pk = (t && t.punkte) || [];
+  $('tourPunkteBox').hidden = !pk.length;
+  if (!pk.length) return;
+  const pts = S.ergebnis && S.ergebnis.pts;
+  const liste = pk.map(p => {
+    const lage = pts && pts.length > 1 ? R.aufStrecke(pts, { lat: p[0], lon: p[1] }) : null;
+    return { lat: p[0], lon: p[1], name: p[2] || 'Wegpunkt', art: p[3], d: lage ? lage.d : null, abw: lage ? lage.abw : null };
+  }).sort((a, b) => (a.d == null ? 1e9 : a.d) - (b.d == null ? 1e9 : b.d));
+  $('tourPunkteTitel').textContent = 'Wegpunkte aus der Datei (' + liste.length + ')';
+  for (const p of liste) {
+    const z = PUNKT_ZEICHEN[p.art] || '📍';
+    const wo = p.d != null ? 'bei ' + R.kmText(p.d) + (p.abw > 100 ? ' · ' + R.kmText(p.abw) + ' abseits' : '') : '';
+    const m = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: '', html: '<div class="ort-mk">' + z + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) })
+      .bindPopup('<b>' + z + ' ' + R.esc(p.name) + '</b>' + (wo ? '<br><span class="klein">' + R.esc(wo) + '</span>' : '')).addTo(ebeneDateiPunkte);
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="zeichen">' + z + '</span><span class="was">' + R.esc(p.name) + (wo ? '<small>' + R.esc(wo) + '</small>' : '') + '</span>';
+    li.onclick = () => { karte.setView([p.lat, p.lon], Math.max(karte.getZoom(), 15)); m.openPopup(); };
+    ul.appendChild(li);
+  }
+}
+
 // Anreise zum Start (Google Maps) und Parkplätze in der Nähe (OpenStreetMap, Kartenpaket oder Overpass)
 function tourAnreiseZeigen() {
   const p = S.ergebnis && S.ergebnis.pts[0];
@@ -138,6 +175,9 @@ $('tDrucken').onclick = () => $('bDrucken').click();
 function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;
+  ebeneDateiPunkte.clearLayers();
+  // Wegpunkte einer GPX-Tour bleiben auch im Planen auf der Karte, solange die Tour offen ist
+  if (t.punkte) setTimeout(() => { if (S.tourId === t.id) dateiPunkteZeigen(t); }, 0);
   const pts = spurEntpacken(t.spur);
   lauf++;   // eine noch laufende Berechnung darf die geöffnete Tour nicht überschreiben
   S.rechnet = false;   // sie setzt das selbst nicht mehr zurück
@@ -395,7 +435,9 @@ $('gpxDatei').onchange = async e => {
       if (pts.length < 2) throw new Error('weniger als zwei Punkte');
       pts = pts.map(p => { const q = { lat: p.lat, lon: p.lon, ele: p.ele }; if (p.t) q.t = p.t; if (p.luecke) q.luecke = true; return q; });
       if (pts.some(p => p.ele == null)) { melde('Höhen fehlen in ' + f.name + ', werden ergänzt …'); await hoehenFuellen(pts); }
-      const id = spurAlsTour(g.name || f.name.replace(/\.gpx$/i, ''), pts, 'spur');
+      const punkte = (g.pts.length ? g.wpt : []).slice(0, 200).map(w => [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', R.gpxPunktArt(w.sym, w.name)]);
+      const id = spurAlsTour(g.name || f.name.replace(/\.gpx$/i, ''), pts, 'spur',
+        { profil: R.gpxProfil(g.typ), punkte, quelle: g.quelle, dateiDauer: R.gpxDauer(pts) });
       if (!id) throw new Error('Speicher voll');
       neu.push(id);
     } catch (err) {

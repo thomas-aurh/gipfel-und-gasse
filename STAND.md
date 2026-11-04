@@ -198,6 +198,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, später)** GPX-Import übernimmt Wegpunkte (Symbol und Name → Hütte, Gipfel, Parkplatz, Punkt; „Blick …“
+  bleibt Punkt), Art aus `<type>`, Herkunft aus `creator` und Dauer aus den Zeitstempeln; Tourseite und Karte zeigen sie,
+  die Sicherung nimmt sie mit. Anlass: Datei aus komoot (8 Highlights, Art „hike“, Zeitstempel) ging bis auf die Spur
+  verloren. Einheitstests 256, Klicktest 331.
 - **04.11. (Abend)** GPX laden über Menü › Werkzeuge und unter Touren, mehrere Dateien auf einmal, jede gleich unter
   „Geplant“ gespeichert (Thomas' Wunsch; vorher nur geöffnet, Speichern von Hand). Tourseite mit Anreise zum Start
   (Google Maps, Bus und Bahn oder Auto) und Parkplätzen bis 1 km um den Start (OpenStreetMap, ohne private; Abstand,
