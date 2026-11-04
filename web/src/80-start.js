@@ -1,5 +1,5 @@
 // Start: Seiten (Menü links oben, Leiste unten), Blatt unten (Telefon), Entwurf und Teilen-Link wiederherstellen
-const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren',
+const SEITEN = { karte: 'Karte', planen: 'Tour planen', unterwegs: 'Unterwegs', entdecken: 'Entdecken', touren: 'Geplante Touren', tour: 'Tour', ich: 'Ich',
   gegangen: 'Gegangene Touren', tagebuch: 'Reisetagebuch', ziele: 'Reiseziele', gipfelbuch: 'Gipfelbuch', offline: 'Offline-Karten', notfall: 'Notfall', daten: 'Sicherung', info: 'Info' };
 let seite = 'planen';
 function reiter(name) {
@@ -9,10 +9,11 @@ function reiter(name) {
   // Fadenkreuz gehört zum Planen (Karte und Planen); auf anderen Seiten ist der Knopf weg und das Kreuz aus
   document.body.dataset.seite = name;
   if (name !== 'planen' && name !== 'karte' && kreuzAn) kreuz(false);
-  // in der Leiste stehen nur die vier Hauptbereiche; Geplant und Gegangen gehören zu „Touren“
-  const leiste = name === 'gegangen' ? 'touren' : name;
+  // in der Leiste stehen die fünf Hauptbereiche; Geplant, Gegangen und eine Tour gehören zu „Touren“, die Sammlungen zu „Ich“
+  const leiste = { gegangen: 'touren', tour: 'touren', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich' }[name] || name;
   document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
   document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === name));
+  balkenZeigen();
   const vorher = document.body.classList.contains('ohneBlatt');
   document.body.classList.toggle('ohneBlatt', name === 'karte');
   if (vorher !== (name === 'karte')) setTimeout(() => karte.invalidateSize(), 230);
@@ -20,7 +21,8 @@ function reiter(name) {
   document.querySelectorAll('.inhalt>section').forEach(s => s.classList.toggle('an', s.dataset.reiter === name));
   $('seitenTitel').textContent = SEITEN[name];
   if (name === 'karte') return;
-  $('kopfZahlen').hidden = name !== 'planen' && name !== 'unterwegs';
+  $('kopfZahlen').hidden = name !== 'planen' && name !== 'unterwegs' && name !== 'tour';
+  if (name === 'tour') tourSeiteZeigen();
   $('panel').querySelector('.inhalt').scrollTop = 0;
   if (name === 'entdecken') wetterLaden();
   if (name === 'touren' || name === 'gegangen') tourenZeigen();
@@ -31,7 +33,7 @@ function reiter(name) {
   if ($('panel').classList.contains('klein')) blatt('mittel');
 }
 document.querySelectorAll('nav.reiter button').forEach(b => b.addEventListener('click', () => reiter(b.dataset.reiter)));
-document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.addEventListener('click', () => reiter(b.dataset.ziel)));
+document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel], .ich-liste [data-ziel]').forEach(b => b.addEventListener('click', () => reiter(b.dataset.ziel)));
 
 // Menü links oben
 function menue(auf) {

@@ -294,6 +294,7 @@ function zeigen() {
   if (!e) profilWeg();   // ohne Route keine Marke vom Höhenprofil
   $('ergebnisKopf').hidden = !e;
   einstellTextSetzen(); planDetailsTextSetzen();
+  if (seite === 'tour') tourSeiteZeigen();   // Kennzahlen einer eben geöffneten Tour kommen nach dem Rechnen
   // Tipp zu Zwischenpunkten nur, bis man es einmal gemacht hat (drei Punkte)
   if (S.wps.length >= 3 && !SPEICHER.lesen('tippGesehen', false)) SPEICHER.schreiben('tippGesehen', true);
   $('planHinweis').hidden = S.wps.length < 2 || !!S.fest || SPEICHER.lesen('tippGesehen', false);

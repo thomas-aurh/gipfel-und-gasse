@@ -279,6 +279,10 @@ h3{font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);font-we
 .modus button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--grau)}
 .modus button.an{background:var(--karte);color:var(--gruen);box-shadow:0 1px 4px #0002}
 #stopps .stopp{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid var(--linie);font-size:14px}
+/* Balken bei laufender Navigation oder Aufzeichnung; Tourseite; Ich */
+#laeuftBalken{position:absolute;left:calc(var(--panel) + 12px);bottom:24px;z-index:1500;border:0;border-radius:12px;padding:10px 14px;background:var(--haupt);color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:var(--schatten);max-width:calc(100vw - var(--panel) - 24px);text-align:left}
+.tour-name{margin:4px 0 2px;font-size:20px}
+.tour-knoepfe .knopf.haupt{flex:1 1 100%;min-height:48px;font-size:16px}
 /* Tourlisten: Suchen, Sortieren, Art */
 .tourfilter{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .tourfilter .tf-suche{flex:1 1 100%;margin:0}
@@ -368,6 +372,9 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   .leaflet-bottom.leaflet-right,.leaflet-bottom.leaflet-left{bottom:var(--blatt,46vh)}
   .leaflet-bottom.leaflet-left .leaflet-control-attribution{max-width:calc(100vw - 74px)}
   /* Aktionsleiste am Telefon: Speichern, Rückgängig, Neu und „Mehr“; „Mehr“ klappt die übrigen Funktionen darunter auf */
+  #laeuftBalken{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));border-radius:0;max-width:none;z-index:3000;padding:9px 14px}
+  body.mitBalken #panel{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  nav.reiter#leiste button{font-size:11px}
   #aktionen .neben{display:none}
   #aktionen.offen .neben{display:inline-flex}
   #aktionen .knopf{padding:8px 9px}

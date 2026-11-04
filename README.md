@@ -22,8 +22,10 @@ am PC „Sicherung speichern“ (Menü › Sicherung), die Datei aufs Handy schi
 
 Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben erhalten.
 
-**Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit den übrigen
-Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
+**Bedienung:** Unten die fünf Hauptbereiche Karte, Entdecken (Orte und Wetter), Planen, Touren und Ich (Reisetagebuch,
+Reiseziele, Gipfelbuch, gegangene Touren mit Statistik), links oben das Menü ☰ mit Unterwegs, Offline-Karten, Notfall,
+Sicherung und Info. Eine Tour in der Liste antippen öffnet ihre Seite mit „▶ Los“ (folgen mit Ansagen), „✏️ Bearbeiten“,
+Link, GPX und Drucken; läuft Folgen oder Aufzeichnen, zeigt ein Balken über der Leiste das an (Antippen öffnet Unterwegs). Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
 im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* zeigt oben Strecke, Zeit, Höhenmeter und das Höhenprofil; Art und Tempo („🥾 Wandern · Normal“) sowie Name, Tag
 und Startzeit sind am Telefon je eine Zeile zum Aufklappen. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
 und die zuletzt gespeicherte Tour an. Am Touchscreen wird mit zwei Fingern gezoomt; das Fadenkreuz ⌖ steht nur beim Planen.

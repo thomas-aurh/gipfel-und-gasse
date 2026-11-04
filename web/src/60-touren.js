@@ -67,7 +67,35 @@ function letzteTourZeigen() {
   $('eLetzte').dataset.id = t.id;
   $('eLetzteName').textContent = t.name + (t.kurz && t.kurz.laenge ? ' · ' + R.kmText(t.kurz.laenge) : '');
 }
-$('eLetzte').onclick = () => tourOeffnen($('eLetzte').dataset.id);
+$('eLetzte').onclick = () => tourAnsehen($('eLetzte').dataset.id);
+$('eAufz').onclick = () => reiter('unterwegs');
+
+// Tourseite: die Tour liegt geöffnet auf der Karte; hier Kennzahlen und die nächsten Schritte (Los, Bearbeiten, Teilen)
+function tourAnsehen(id) {
+  tourOeffnen(id);
+  if (S.tourId === id) reiter('tour');
+}
+function tourSeiteZeigen() {
+  const t = tourenLesen().find(x => x.id === S.tourId);
+  $('tourName').textContent = S.name || (t && t.name) || 'Tour';
+  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + ' · gespeichert am ' + new Date(t.datum).toLocaleDateString('de-DE') : '';
+  const zahl = (id, text) => '<div class="zahl"><b>' + R.esc($(id).textContent) + '</b><span>' + R.esc(text) + '</span></div>';
+  $('tourZahlen').innerHTML = S.ergebnis ? zahl('zLaenge', 'Strecke') + zahl('zZeit', $('zZeitText').textContent) + zahl('zAuf', 'Aufstieg') +
+    zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') : '';
+  $('tLos').disabled = !S.ergebnis || !!S.rechnet;
+  $('tLos').textContent = /beenden/.test($('bNavi').textContent) ? '🧭 Zur Navigation' : '▶ Los';
+  $('tTeilen').hidden = $('bTeilen').hidden; $('tTeilen').disabled = $('bTeilen').disabled;
+  $('tGpx').disabled = $('bGpx').disabled; $('tDrucken').disabled = $('bDrucken').disabled;
+}
+$('tLos').onclick = () => {
+  const laeuft = /beenden/.test($('bNavi').textContent);
+  reiter('unterwegs');
+  if (!laeuft) $('bNavi').click();
+};
+$('tBearbeiten').onclick = () => reiter('planen');
+$('tTeilen').onclick = () => $('bTeilen').click();
+$('tGpx').onclick = () => $('bGpx').click();
+$('tDrucken').onclick = () => $('bDrucken').click();
 
 function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
@@ -151,7 +179,7 @@ function tourenPunkte(liste) {
         R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</span><br>';
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Öffnen';
-      k.onclick = () => { karte.closePopup(); tourOeffnen(t.id); };
+      k.onclick = () => { karte.closePopup(); tourAnsehen(t.id); };
       box.appendChild(k);
       return box;
     });
@@ -221,7 +249,7 @@ function listeZeigen(ul, liste, leer) {
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
       R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
-    li.onclick = () => tourOeffnen(t.id);
+    li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
     bG.onclick = ev => { ev.stopPropagation(); gpxHerunter(t.name, spurEntpacken(t.spur), t.wps ? t.wps.map((w, i) => ({ lat: w[0], lon: w[1], name: w[2] || (i === 0 ? 'Start' : 'Punkt ' + (i + 1)) })) : []); };
     bL.onclick = ev => { ev.stopPropagation(); tourLoeschen(t.id); };
