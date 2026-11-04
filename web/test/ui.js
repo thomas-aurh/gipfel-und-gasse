@@ -1722,6 +1722,32 @@ function pruef(name, bed, info) {
   await pf.click('#bZurueck'); await pf.click('#bZurueck');
   await pf.waitForFunction(v => JSON.stringify(JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat)) === v, JSON.stringify(tvorher), { timeout: 8000 }).catch(() => {});
   pruef('Stopps: Rückgängig holt die alte Reihenfolge', JSON.stringify(await treihe()) === JSON.stringify(tvorher), await treihe());
+  // Wanderwege in der Nähe: markierte Routen (Overpass hier nachgebildet), Verlauf zeigen, als Tour übernehmen
+  const wegeRoute = r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    const json = b => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(b) });
+    if (/"route"~/.test(q)) return json({ elements: [
+      { type: 'relation', id: 901, center: { lat: 47.756, lon: 11.378 }, tags: { route: 'hiking', name: 'Seerundweg', network: 'lwn', roundtrip: 'yes', distance: '3' } },
+      { type: 'relation', id: 902, center: { lat: 47.80, lon: 11.40 }, tags: { route: 'hiking', name: 'Maximiliansweg', network: 'nwn' } }] });
+    if (/relation\(901\)/.test(q)) return json({ elements: [{ type: 'relation', id: 901, members: [
+      { type: 'way', role: '', geometry: [{ lat: 47.7535, lon: 11.3747 }, { lat: 47.7560, lon: 11.3790 }] },
+      { type: 'way', role: '', geometry: [{ lat: 47.7590, lon: 11.3820 }, { lat: 47.7560, lon: 11.3790 }] }] }] });
+    return r.fallback();
+  };
+  await pf.route(/overpass-api\.de/, wegeRoute);
+  await zuSeite(pf, 'entdecken');
+  await pf.click('#bWege');
+  await pf.waitForSelector('#wegeListe li', { timeout: 8000 }).catch(() => {});
+  const wege = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
+  pruef('Wanderwege: Liste mit Länge, Rundweg, Fernweg zuletzt', wege.length === 2 && /Seerundweg.*3 km · Rundweg · örtlich/.test(wege[0]) && wege[1].includes('Maximiliansweg'), wege);
+  await pf.click('#wegeListe li >> nth=0');
+  await pf.waitForFunction(() => /Seerundweg“: /.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Wanderwege: Antippen zeigt den Verlauf mit Länge', /„Seerundweg“: [\d,]+ (m|km)\./.test(await pf.textContent('#wegeStatus')), await pf.textContent('#wegeStatus'));
+  await pf.click('#wegeListe li >> nth=0 >> button');
+  await pf.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an') && document.getElementById('tourName').textContent === 'Seerundweg', null, { timeout: 8000 }).catch(() => {});
+  pruef('Wanderwege: „＋ Tour“ speichert unter „Geplant“ mit Herkunft', (await pf.textContent('#tourArt')).includes('aus OpenStreetMap') &&
+    await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).some(t => t.name === 'Seerundweg' && t.art === 'spur' && t.spur.length === 3 && t.spur.every(p => p[2] != null))), await pf.textContent('#tourArt'));
+  await pf.unroute(/overpass-api\.de/, wegeRoute);
   pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
   await fc.close();
 

@@ -5,6 +5,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Wanderwege in der Nähe (04.11.) nur nachgebildet geprüft:** echte Overpass-Antworten (Menge, Antwortzeit bei 10 km),
+  wie gut sich echte Relationen zu einem Verlauf fügen; ohne Netz nicht verfügbar (nicht im Kartenpaket).
 - **GPX laden, Anreise und Parkplätze:** von Thomas am 04.11. auf dem Pixel geprüft (Bau 186): GPX-Import mit Wegpunkten
   (Datei aus komoot) und Parkplätze am Start. Nicht geprüft: mehrere Dateien auf einmal im WebView der App, die Links
   zu Google Maps für Anreise und „🚗 hin“.
@@ -92,6 +94,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Tourvorschläge aus offenen Daten** (04.11.): markierte Wanderwege aus OpenStreetMap statt kuratierter Touren, weil es
+  keine offene Datenbank mit Tourvorschlägen gibt. Verworfen: Outdooractive/alpenvereinaktiv (Lizenz, Schlüssel läge offen
+  in der App, jede Ansicht zu zählen), komoot (keine offene Schnittstelle, nur GPX-Export), Freizeitwege Bayern (nur
+  wenige Fernwege als GPX).
 - **Übersicht in Stufen** (04.11., Thomas' Wahl): erst Planen, Karte und Einstiege umbauen (wenig Umbruch), danach
   vielleicht Leiste Entdecken · Planen · Touren · Ich und eine eigene Seite je Tour mit „▶ Los“ statt der Seite
   Unterwegs, wenn die erste Stufe auf dem Pixel gefällt. Berg/Stadt bleibt vorerst getrennt von „Art“ (02.11.).
@@ -199,6 +205,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Wanderwege)** „🥾 Wanderwege in der Nähe“ in *Entdecken*: markierte Routen aus OSM (`route=hiking|foot`)
+  über Overpass, Verlauf aus den Wegstücken der Relation (Alternativen weg, Lücken als Abschnitte), „＋ Tour“ speichert
+  unter „Geplant“. Quellen geprüft: OSM offen (ODbL); Freizeitwege Bayern CC BY 4.0, aber nur wenige Fernwege als GPX;
+  Outdooractive nur mit gekaufter Lizenz und Zähl-Pflicht, verworfen. Einheitstests 260, Klicktest 334.
 - **04.11. (Abend, später)** GPX-Import übernimmt Wegpunkte (Symbol und Name → Hütte, Gipfel, Parkplatz, Punkt; „Blick …“
   bleibt Punkt), Art aus `<type>`, Herkunft aus `creator` und Dauer aus den Zeitstempeln; Tourseite und Karte zeigen sie,
   die Sicherung nimmt sie mit. Anlass: Datei aus komoot (8 Highlights, Art „hike“, Zeitstempel) ging bis auf die Spur

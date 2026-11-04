@@ -380,3 +380,62 @@ $('bFamilie').onclick = async () => {
     if (nr === familieLauf) box.textContent = kopf + ' · Spielplatz und Einkehr nicht abrufbar: ' + err.message;
   }
 };
+
+// ---------- Wanderwege in der Nähe: markierte Routen aus OpenStreetMap (Overpass), anzeigen und als Tour übernehmen ----------
+const ebeneWeg = L.layerGroup().addTo(karte);
+let wegeLauf = 0;
+$('bWege').onclick = async () => {
+  const c = karte.getCenter(), nr = ++wegeLauf, radius = +$('wegeUmkreis').value;
+  $('wegeStatus').textContent = 'Suche markierte Wanderwege bis ' + R.kmText(radius) + ' um die Kartenmitte …';
+  $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
+  $('bWege').disabled = true;
+  try {
+    const json = await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius), 35);
+    if (nr !== wegeLauf) return;
+    const wege = R.wegeLesen(json, { lat: c.lat, lon: c.lng }).slice(0, 30);
+    $('wegeStatus').textContent = wege.length ? wege.length + ' markierte Wege (OpenStreetMap). Antippen zeigt den Verlauf.' : 'Keine markierten Wanderwege in OpenStreetMap gefunden.';
+    for (const w of wege) {
+      const li = document.createElement('li');
+      li.dataset.weg = w.id;
+      li.innerHTML = '<span class="zeichen">🥾</span><span class="was">' + R.esc(w.name) + '<small>' + R.esc(R.wegText(w)) + '</small></span>' +
+        '<button class="knopf" title="Als Tour unter „Geplant“ speichern">＋ Tour</button>';
+      li.onclick = () => wegZeigen(w, false);
+      li.querySelector('button').onclick = ev => { ev.stopPropagation(); wegZeigen(w, true); };
+      $('wegeListe').appendChild(li);
+    }
+  } catch (err) {
+    if (nr === wegeLauf) $('wegeStatus').textContent = 'Wanderwege nicht abrufbar: ' + err.message;
+  } finally { $('bWege').disabled = false; }
+};
+const wegeCache = new Map();
+async function wegZeigen(w, uebernehmen) {
+  const nr = ++wegeLauf;
+  $('wegeStatus').textContent = 'Lade Verlauf von „' + w.name + '“ …';
+  try {
+    let pts = wegeCache.get(w.id);
+    if (!pts) {
+      pts = R.wegVerlauf(await overpassHolen('[out:json][timeout:25];relation(' + w.id + ');out geom;', 35));
+      if (pts.length > 1) wegeCache.set(w.id, pts);
+    }
+    if (nr !== wegeLauf) return;
+    if (pts.length < 2) { $('wegeStatus').textContent = '„' + w.name + '“ hat in OpenStreetMap keinen Verlauf.'; return; }
+    ebeneWeg.clearLayers();
+    const teile = [[]];
+    pts.forEach(p => { if (p.luecke) teile.push([]); teile[teile.length - 1].push([p.lat, p.lon]); });
+    L.polyline(teile, { color: '#7b3fb0', weight: 5, opacity: 0.85 }).addTo(ebeneWeg);
+    einpassen(L.latLngBounds(pts.map(p => [p.lat, p.lon])));
+    const laenge = pts.reduce((m, p, i) => m + (i && !p.luecke ? R.abstand(pts[i - 1], p) : 0), 0);
+    $('wegeStatus').textContent = '„' + w.name + '“: ' + R.kmText(laenge) + (teile.length > 1 ? ' in ' + teile.length + ' Stücken (in OSM nicht durchgehend)' : '') + '.';
+    if (!uebernehmen) return;
+    const spur = pts.map(p => Object.assign({ lat: p.lat, lon: p.lon, ele: null }, p.luecke ? { luecke: true } : {}));
+    melde('Höhen für „' + w.name + '“ werden ergänzt …');
+    await hoehenFuellen(spur);
+    const id = spurAlsTour(w.name, spur, 'spur', { profil: 'wandern', quelle: 'OpenStreetMap' });
+    if (!id) return;
+    ebeneWeg.clearLayers();
+    tourAnsehen(id);
+    melde('„' + w.name + '“ unter „Geplant“ gespeichert.', 5);
+  } catch (err) {
+    if (nr === wegeLauf) $('wegeStatus').textContent = 'Verlauf nicht abrufbar: ' + err.message;
+  }
+}
