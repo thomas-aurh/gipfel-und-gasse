@@ -24,7 +24,9 @@ Updates genauso: neue APK von derselben Seite installieren, die Touren bleiben e
 
 **Bedienung:** Unten die vier Hauptbereiche (Karte, Planen, Unterwegs, Touren), links oben das Menü ☰ mit den übrigen
 Seiten: Entdecken (Orte und Wetter), Reisetagebuch, Offline-Karten, Notfall, Sicherung, Info. Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
-im Inhalt nach unten wischen, wenn er ganz oben steht.
+im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* zeigt oben Strecke, Zeit, Höhenmeter und das Höhenprofil; Art und Tempo („🥾 Wandern · Normal“) sowie Name, Tag
+und Startzeit sind am Telefon je eine Zeile zum Aufklappen. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
+und die zuletzt gespeicherte Tour an. Am Touchscreen wird mit zwei Fingern gezoomt; das Fadenkreuz ⌖ steht nur beim Planen.
 
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
 herunterladen (Oberbayern mit München, Innsbruck und Salzburg; Allgäu und Bodensee; die Größe steht

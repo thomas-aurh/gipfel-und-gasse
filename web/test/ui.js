@@ -178,6 +178,13 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#karte .leaflet-tile-loaded', { timeout: 10000 });
   pruef('Seite lädt ohne Fehler', konsole.length === 0, konsole);
   pruef('Hinweis ohne Route sichtbar', await page.isVisible('#leerHinweis'));
+  // Einstiege ohne Route: Runde und Stadtrundgang; „Letzte Tour“ erst, wenn eine geplante Tour gespeichert ist
+  pruef('Einstiege ohne Route', await page.isVisible('#eRunde') && await page.isVisible('#eStadt') && await page.isHidden('#eLetzte'));
+  await page.click('#eRunde');
+  pruef('Einstieg „Runde mit Länge“ öffnet die Wunschlänge', await page.isVisible('#rundFeld') && (await page.getAttribute('#bRunde', 'aria-expanded')) === 'true');
+  await page.click('#bRunde');
+  pruef('Am PC: Art, Tempo und Zeitplan offen, ohne Klappzeile', await page.isVisible('#profilwahl') && await page.isVisible('#startZeit') && await page.isHidden('#bEinstell') && await page.isHidden('#bPlanDetails'));
+  pruef('Am PC: Zoom-Knöpfe da', await page.isVisible('#bPlus') && await page.isVisible('#bMinus'));
   // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
@@ -463,6 +470,11 @@ function pruef(name, bed, info) {
 
   // Gerade Linie: Höhen von Open-Meteo
   await page.click('[data-reiter=planen]');
+  await page.click('#bNeu');
+  pruef('Einstieg „Letzte Tour“ nennt die gespeicherte Tour', await page.isVisible('#eLetzte') && (await page.textContent('#eLetzteName')).includes('Testrunde am See'));
+  await page.click('#eLetzte');
+  await page.waitForSelector('#ergebnis:not([hidden])');
+  pruef('Einstieg „Letzte Tour“ öffnet sie', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
   await page.click('#bNeu');
   await page.selectOption('#profilwahl', 'linie');
   await page.mouse.click(kb.x + kb.width * 0.3, kb.y + kb.height * 0.3);
@@ -1120,6 +1132,34 @@ function pruef(name, bed, info) {
   await zuSeite(pa2, 'gegangen');
   pruef('App: Aufzeichnung bei den gegangenen Touren', (await pa2.textContent('#gangliste')).includes('Aufzeichnung'));
   await pa2.click('[data-reiter=planen]');
+  // Telefon: Kennzahlen und Profil zuerst; Art und Tempo sowie Name und Zeitplan je eine Zeile zum Aufklappen
+  pruef('Telefon: Art und Tempo als eine Zeile', await pa2.isHidden('#profilwahl') && /^🥾 Wandern · /.test(await pa2.textContent('#einstellText')), await pa2.textContent('#einstellText'));
+  await pa2.click('#bEinstell');
+  pruef('Telefon: Zeile klappt Art und Tempo auf', await pa2.isVisible('#profilwahl') && (await pa2.getAttribute('#bEinstell', 'aria-expanded')) === 'true');
+  await pa2.click('#bEinstell');
+  pruef('Telefon: Zeile zu, Art und Tempo wieder weg', await pa2.isHidden('#profilwahl'));
+  pruef('Telefon: Kennzahlen und Profil vor Name und Zeitplan', await pa2.evaluate(() => {
+    const y = id => document.getElementById(id).getBoundingClientRect().top;
+    return y('ergebnisKopf') < y('planDetails') && y('profilbox') < y('planDetails') && y('planDetails') < y('zeitplan'); }));
+  pruef('Telefon: Name und Zeitplan eingeklappt', await pa2.isHidden('#startZeit') && await pa2.isHidden('#tourname'));
+  await pa2.click('#bPlanDetails');
+  const nameVorher = await pa2.inputValue('#tourname');
+  await pa2.fill('#tourname', 'Probe Klappzeile');
+  await pa2.fill('#startZeit', '09:30'); await pa2.dispatchEvent('#startZeit', 'change');
+  await pa2.click('#bPlanDetails');
+  pruef('Telefon: Zeile zeigt Name und Startzeit', (await pa2.textContent('#planDetailsText')) === '🗓 Probe Klappzeile · ab 09:30', await pa2.textContent('#planDetailsText'));
+  await pa2.click('#bPlanDetails');
+  await pa2.fill('#tourname', nameVorher);
+  await pa2.fill('#startZeit', ''); await pa2.dispatchEvent('#startZeit', 'change');
+  await pa2.click('#bPlanDetails');
+  pruef('Telefon: Zeile wieder wie vorher', (await pa2.textContent('#planDetailsText')) === '🗓 ' + (nameVorher || 'Name, Tag und Startzeit'), await pa2.textContent('#planDetailsText'));
+  // Karte am Touchscreen: Zoom mit zwei Fingern, Fadenkreuz nur beim Planen
+  pruef('Telefon: keine Zoom-Knöpfe', await pa2.isHidden('#bPlus') && await pa2.isHidden('#bMinus'));
+  pruef('Telefon: Fadenkreuz beim Planen da', await pa2.isVisible('#bKreuz'));
+  await pa2.click('#bKreuz');
+  await pa2.click('[data-reiter=touren]');
+  pruef('Telefon: Fadenkreuz außerhalb des Planens weg und aus', await pa2.isHidden('#bKreuz') && await pa2.isHidden('#kreuz') && (await pa2.getAttribute('#bKreuz', 'aria-pressed')) === 'false');
+  await pa2.click('[data-reiter=planen]');
   // Telefon: weitere Funktionen hinter „Mehr“, aufgeklappt sichtbar
   pruef('Telefon: GPX, Drucken & Co. erst hinter „Mehr“', await pa2.isHidden('#bGpx') && await pa2.isVisible('#bMehr') && await pa2.isVisible('#bSpeichern'));
   await pa2.click('#bMehr');
@@ -1485,6 +1525,13 @@ function pruef(name, bed, info) {
   await pt.waitForFunction(() => !document.querySelector('#bRundeLos').disabled, null, { timeout: 15000 });
   await pt.waitForTimeout(800);
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
+  // leere Planung am Telefon: Einstiege im halb offenen Blatt; „Stadtrundgang“ schaltet die Stadt ein und führt zu Entdecken
+  await pt.reload(); await pt.waitForTimeout(500);
+  pruef('Telefon: Start ohne Route mit halbem Blatt und Einstiegen', await pt.evaluate(() => !document.querySelector('#panel').classList.contains('klein')) && await pt.isVisible('#eRunde') && await pt.isVisible('#eStadt'));
+  await pt.screenshot({ path: path.join(OUT, '7b-telefon-start.png') });
+  await pt.tap('#eStadt'); await pt.waitForTimeout(300);
+  pruef('Einstieg „Stadtrundgang“: Stadt an, Entdecken mit Rundgang', await pt.evaluate(() => document.querySelector('.modus [data-modus=stadt]').classList.contains('an') &&
+    document.querySelector('section[data-reiter=entdecken]').classList.contains('an')) && await pt.isVisible('#bRundgang'));
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   await browser.close();

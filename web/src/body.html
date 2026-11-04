@@ -110,41 +110,47 @@
           <button class="knopf haupt" id="bRundeLos">Vorschlagen</button>
           <button class="knopf" id="bRundeAnders" disabled title="Gleiche Länge, andere Richtung">↻ Andere Richtung</button>
         </div>
-        <div id="leerHinweis" class="tipp">👆 Tippe auf die Karte, um den Start zu setzen.</div>
-        <div class="zeile">
-          <label>Art<select id="profilwahl">
-            <option value="wandern">Wandern</option>
-            <option value="stadt">Stadtspaziergang</option>
-            <option value="laufen">Laufen</option>
-            <option value="rad">Fahrrad</option>
-            <option value="kurz">Kürzester Weg</option>
-            <option value="linie">Gerade Linie</option>
-          </select></label>
-          <label id="pacewahlFeld" hidden>Lauftempo<select id="pacewahl">
-            <option value="4">4:00 min/km</option><option value="4.5">4:30 min/km</option><option value="5">5:00 min/km</option>
-            <option value="5.5">5:30 min/km</option><option value="6" selected>6:00 min/km</option><option value="6.5">6:30 min/km</option>
-            <option value="7">7:00 min/km</option><option value="7.5">7:30 min/km</option><option value="8">8:00 min/km</option>
-            <option value="9">9:00 min/km</option>
-          </select></label>
-          <label id="tempowahlFeld">Tempo<select id="tempowahl">
-            <option value="1.2">Zügig</option>
-            <option value="1" selected>Normal</option>
-            <option value="0.85">Gemütlich</option>
-            <option value="0.7">Mit Kind</option>
-          </select></label>
+        <!-- ohne Route: Einstiege statt leerer Karte -->
+        <div id="einstiege">
+          <div id="leerHinweis" class="tipp">👆 Tippe auf die Karte, um den Start zu setzen.</div>
+          <div class="einstieg-liste">
+            <button class="einstieg" id="eRunde"><span>⭕</span><b>Runde mit Länge</b><small>ab Standort oder Kartenmitte</small></button>
+            <button class="einstieg" id="eStadt"><span>🏛️</span><b>Stadtrundgang</b><small>Sehenswertes im Bild</small></button>
+            <button class="einstieg" id="eLetzte" hidden><span>🕘</span><b>Letzte Tour</b><small id="eLetzteName"></small></button>
+          </div>
         </div>
-        <div class="zeile" id="planZeit">
-          <label>Tag<input type="date" id="startTag"></label>
-          <label>Start um<input type="time" id="startZeit" step="300"></label>
-          <label>Pausen<select id="pausewahl">
-            <option value="0">keine</option><option value="15">15 min</option><option value="30">30 min</option>
-            <option value="45">45 min</option><option value="60">1 h</option><option value="90">1:30 h</option><option value="120">2 h</option>
-          </select></label>
+        <!-- Art und Tempo: am Telefon eine Zeile, die aufklappt; am PC immer offen -->
+        <div class="klapp" id="einstellBox">
+          <button class="klapp-kopf" id="bEinstell" aria-expanded="false" aria-controls="einstellInhalt"><span id="einstellText">🥾 Wandern · Normal</span><i aria-hidden="true">▾</i></button>
+          <div class="klapp-inhalt" id="einstellInhalt">
+          <div class="zeile">
+            <label>Art<select id="profilwahl">
+              <option value="wandern">Wandern</option>
+              <option value="stadt">Stadtspaziergang</option>
+              <option value="laufen">Laufen</option>
+              <option value="rad">Fahrrad</option>
+              <option value="kurz">Kürzester Weg</option>
+              <option value="linie">Gerade Linie</option>
+            </select></label>
+            <label id="pacewahlFeld" hidden>Lauftempo<select id="pacewahl">
+              <option value="4">4:00 min/km</option><option value="4.5">4:30 min/km</option><option value="5">5:00 min/km</option>
+              <option value="5.5">5:30 min/km</option><option value="6" selected>6:00 min/km</option><option value="6.5">6:30 min/km</option>
+              <option value="7">7:00 min/km</option><option value="7.5">7:30 min/km</option><option value="8">8:00 min/km</option>
+              <option value="9">9:00 min/km</option>
+            </select></label>
+            <label id="tempowahlFeld">Tempo<select id="tempowahl">
+              <option value="1.2">Zügig</option>
+              <option value="1" selected>Normal</option>
+              <option value="0.85">Gemütlich</option>
+              <option value="0.7">Mit Kind</option>
+            </select></label>
+          </div>
+          </div>
         </div>
-        <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="status"></div>
         <p id="planHinweis" class="tipp" hidden>💡 Route antippen fügt einen Zwischenpunkt ein, Punkte lassen sich ziehen.</p>
-        <div id="ergebnis" hidden>
+        <!-- Ergebnis zuerst: Kennzahlen und Höhenprofil -->
+        <div id="ergebnisKopf" hidden>
           <div class="zahlen">
             <div class="zahl"><b id="zLaenge">–</b><span>Strecke</span></div>
             <div class="zahl"><b id="zZeit">–</b><span id="zZeitText">Gehzeit</span></div>
@@ -153,12 +159,29 @@
             <div class="zahl"><b id="zAb">–</b><span>Abstieg</span></div>
             <div class="zahl"><b id="zHoch">–</b><span>Höchster Punkt</span></div>
           </div>
+          <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
+        </div>
+        <!-- Name und Zeitplan: am Telefon eingeklappt, die Zeile zeigt, was eingetragen ist -->
+        <div class="klapp" id="planDetails">
+          <button class="klapp-kopf" id="bPlanDetails" aria-expanded="false" aria-controls="planDetailsInhalt"><span id="planDetailsText">🗓 Name, Tag und Startzeit</span><i aria-hidden="true">▾</i></button>
+          <div class="klapp-inhalt" id="planDetailsInhalt">
+          <div class="zeile" id="planZeit">
+            <label>Tag<input type="date" id="startTag"></label>
+            <label>Start um<input type="time" id="startZeit" step="300"></label>
+            <label>Pausen<select id="pausewahl">
+              <option value="0">keine</option><option value="15">15 min</option><option value="30">30 min</option>
+              <option value="45">45 min</option><option value="60">1 h</option><option value="90">1:30 h</option><option value="120">2 h</option>
+            </select></label>
+          </div>
+          <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
+          </div>
+        </div>
+        <div id="ergebnis" hidden>
           <div id="zeitplan" class="klein"></div>
           <div id="etappen" hidden></div>
           <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
           <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           <div id="stopps"></div>
-          <div id="profilbox"><canvas id="profil"></canvas><div id="profilinfo">Über das Profil fahren zeigt die Stelle auf der Karte.</div></div>
           <div id="kinderwagen" class="urteil"></div>
           <h3>Wegtypen</h3><div id="wege" class="balken"></div>
           <h3>Untergrund</h3><div id="boden" class="balken"></div>
