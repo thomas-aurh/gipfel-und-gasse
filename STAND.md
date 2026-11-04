@@ -5,8 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Wanderwege in der Nähe (04.11.) nur nachgebildet geprüft:** echte Overpass-Antworten (Menge, Antwortzeit bei 10 km),
-  wie gut sich echte Relationen zu einem Verlauf fügen; ohne Netz nicht verfügbar (nicht im Kartenpaket).
+- **Wanderwege in der Nähe:** auf dem Pixel (Bau 190) bei 5 km am Walchensee Zeitüberschreitung; Abfrage seitdem schneller
+  gebaut, aber nicht gegen den echten Overpass gemessen (aus der Cloud gesperrt). Offen: Antwortzeit bei 5 und 10 km in den
+  Bergen, wie gut sich echte Relationen zu einem Verlauf fügen; ohne Netz nicht verfügbar (nicht im Kartenpaket).
 - **GPX laden, Anreise und Parkplätze:** von Thomas am 04.11. auf dem Pixel geprüft (Bau 186): GPX-Import mit Wegpunkten
   (Datei aus komoot) und Parkplätze am Start. Nicht geprüft: mehrere Dateien auf einmal im WebView der App, die Links
   zu Google Maps für Anreise und „🚗 hin“.
@@ -205,6 +206,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (Abend, Ladeanzeige)** Befund von Thomas auf dem Pixel (Bau 190): „Wanderwege suchen“ bei 5 km am Walchensee
+  endete mit Zeitüberschreitung, ohne dass man sah, dass etwas lädt. Abfrage jetzt über die Wege im Umkreis und deren
+  Routen (`way(around) → rel(bw)`, ohne Mittelpunkt) statt Routen direkt im Umkreis; bei Zeitüberschreitung der Hinweis
+  auf einen kleineren Umkreis. Ladeanzeige für alle Dienste (ab 0,4 s): Logo mit Wanderer auf dem Weg zum Gipfel
+  (SVG-Animation, ruhig bei „weniger Bewegung“), nicht im Druck-Logo. Klicktest 338, Einheitstests 261.
 - **04.11. (Abend, Wanderwege)** „🥾 Wanderwege in der Nähe“ in *Entdecken*: markierte Routen aus OSM (`route=hiking|foot`)
   über Overpass, Verlauf aus den Wegstücken der Relation (Alternativen weg, Lücken als Abschnitte), „＋ Tour“ speichert
   unter „Geplant“. Quellen geprüft: OSM offen (ODbL); Freizeitwege Bayern CC BY 4.0, aber nur wenige Fernwege als GPX;

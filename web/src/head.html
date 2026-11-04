@@ -279,6 +279,18 @@ h3{font-size:15px;text-transform:none;letter-spacing:0;color:var(--text);font-we
 .modus button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--grau)}
 .modus button.an{background:var(--karte);color:var(--gruen);box-shadow:0 1px 4px #0002}
 #stopps .stopp{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid var(--linie);font-size:14px}
+/* Ladeanzeige: Logo mit Wanderer, der den Weg hinauf und hinunter geht */
+.wanderer{display:none}
+#ladeZeichen .wanderer{display:inline}
+#ladeZeichen{position:absolute;left:50%;top:calc(66px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:2500;display:flex;align-items:center;gap:10px;
+  background:var(--karte);color:var(--text);border-radius:30px;padding:6px 16px 6px 6px;box-shadow:var(--schatten);font:600 14px/1.2 system-ui,sans-serif;pointer-events:none}
+#ladeZeichen .lade-logo{display:inline-flex;width:54px;height:54px}
+#ladeZeichen .lade-logo svg{width:100%;height:100%}
+#ladeZeichen .bein1{animation:schritt .5s ease-in-out infinite alternate}
+#ladeZeichen .bein2{animation:schritt .5s ease-in-out infinite alternate-reverse}
+@keyframes schritt{from{transform:rotate(-18deg)}to{transform:rotate(18deg)}}
+#ladeZeichen .bein1,#ladeZeichen .bein2{transform-box:view-box;transform-origin:0 -3.4px}
+@media (prefers-reduced-motion:reduce){#ladeZeichen animateMotion{display:none}#ladeZeichen .bein1,#ladeZeichen .bein2{animation:none}}
 /* Balken bei laufender Navigation oder Aufzeichnung; Tourseite; Ich */
 #laeuftBalken{position:absolute;left:calc(var(--panel) + 12px);bottom:24px;z-index:1500;border:0;border-radius:12px;padding:10px 14px;background:var(--haupt);color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:var(--schatten);max-width:calc(100vw - var(--panel) - 24px);text-align:left}
 .tour-name{margin:4px 0 2px;font-size:20px}

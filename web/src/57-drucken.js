@@ -15,7 +15,9 @@ $('bDrucken').onclick = async () => {
   if (e.tief != null) teile.push('↑ ' + e.auf + ' m', '↓ ' + e.ab + ' m', 'höchster Punkt ' + e.hoch + ' m');
   if (e.sac) teile.push(e.sac.text);
   const stopps = S.wps.filter(w => w.name).map(w => w.name + (w.min ? ' (' + w.min + ' min)' : ''));
-  const logo = $('logo').querySelector('svg');
+  // ohne den Wanderer der Ladeanzeige: als Bild gilt das CSS der Seite nicht, er wäre sonst mitten im Logo zu sehen
+  const logo = $('logo').querySelector('svg') && $('logo').querySelector('svg').cloneNode(true);
+  if (logo) logo.querySelectorAll('.wanderer').forEach(w => w.remove());
   const logoBild = logo ? '<img class="druck-logo" alt="" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(logo)) + '">' : '';
   $('druckkopf').innerHTML = logoBild + '<h1>' + R.esc((S.name || '').trim() || 'Tour') + '</h1><div>' + R.esc(teile.join(' · ')) + '</div>' +
     (stopps.length ? '<div class="stopps">Stopps: ' + R.esc(stopps.join(' → ')) + '</div>' : '');

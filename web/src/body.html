@@ -58,6 +58,8 @@
     <button class="knopf nur-app" id="bPakete" hidden>🗺️ Kartenpakete laden und verwalten</button>
   </div>
 
+  <!-- Ladeanzeige: erscheint, wenn eine Anfrage an einen Dienst länger als 0,4 s dauert -->
+  <div id="ladeZeichen" hidden role="status" aria-live="polite"><span class="lade-logo" aria-hidden="true"></span><span id="ladeText">Lädt …</span></div>
   <!-- läuft Folgen oder Aufzeichnen, steht das über der Leiste; Antippen öffnet Unterwegs -->
   <button id="laeuftBalken" hidden></button>
   <div id="abseits" hidden>Du bist abseits der Route</div>

@@ -404,7 +404,7 @@ $('bWege').onclick = async () => {
       $('wegeListe').appendChild(li);
     }
   } catch (err) {
-    if (nr === wegeLauf) $('wegeStatus').textContent = 'Wanderwege nicht abrufbar: ' + err.message;
+    if (nr === wegeLauf) $('wegeStatus').textContent = 'Wanderwege nicht abrufbar: ' + err.message + (/Zeit/.test(err.message) && radius > 2000 ? '. Mit kleinerem Umkreis noch einmal versuchen.' : '');
   } finally { $('bWege').disabled = false; }
 };
 const wegeCache = new Map();

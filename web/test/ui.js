@@ -1723,9 +1723,11 @@ function pruef(name, bed, info) {
   await pf.waitForFunction(v => JSON.stringify(JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat)) === v, JSON.stringify(tvorher), { timeout: 8000 }).catch(() => {});
   pruef('Stopps: Rückgängig holt die alte Reihenfolge', JSON.stringify(await treihe()) === JSON.stringify(tvorher), await treihe());
   // Wanderwege in der Nähe: markierte Routen (Overpass hier nachgebildet), Verlauf zeigen, als Tour übernehmen
-  const wegeRoute = r => {
+  const wegeRoute = async r => {
     const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
     const json = b => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(b) });
+    // langsam wie Overpass in den Bergen, damit die Ladeanzeige erscheint
+    if (/"route"~/.test(q)) await new Promise(x => setTimeout(x, 1200));
     if (/"route"~/.test(q)) return json({ elements: [
       { type: 'relation', id: 901, center: { lat: 47.756, lon: 11.378 }, tags: { route: 'hiking', name: 'Seerundweg', network: 'lwn', roundtrip: 'yes', distance: '3' } },
       { type: 'relation', id: 902, center: { lat: 47.80, lon: 11.40 }, tags: { route: 'hiking', name: 'Maximiliansweg', network: 'nwn' } }] });
@@ -1736,8 +1738,15 @@ function pruef(name, bed, info) {
   };
   await pf.route(/overpass-api\.de/, wegeRoute);
   await zuSeite(pf, 'entdecken');
+  pruef('Ladeanzeige: ohne Anfrage unsichtbar', await pf.isHidden('#ladeZeichen'));
   await pf.click('#bWege');
+  await pf.waitForTimeout(700);
+  pruef('Ladeanzeige: bei langer Anfrage das Logo mit Wanderer', await pf.isVisible('#ladeZeichen') && await pf.isVisible('#ladeZeichen .wanderer') &&
+    await pf.evaluate(() => !document.querySelector('#ladeZeichen [id="gugRund"]') && !!document.querySelector('#ladeZeichen #gugRundL')));
+  await pf.screenshot({ path: path.join(OUT, '12-ladeanzeige.png'), clip: { x: 300, y: 40, width: 700, height: 140 } });
+  pruef('Ladeanzeige: im Logo oben kein Wanderer', await pf.isHidden('#logo .wanderer'));
   await pf.waitForSelector('#wegeListe li', { timeout: 8000 }).catch(() => {});
+  pruef('Ladeanzeige: nach der Antwort wieder weg', await pf.isHidden('#ladeZeichen'));
   const wege = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
   pruef('Wanderwege: Liste mit Länge, Rundweg, Fernweg zuletzt', wege.length === 2 && /Seerundweg.*3 km · Rundweg · örtlich/.test(wege[0]) && wege[1].includes('Maximiliansweg'), wege);
   await pf.click('#wegeListe li >> nth=0');
