@@ -502,6 +502,20 @@ var R = (function () {
     return aus;
   }
 
+  // Ausschnitt einer Etappe aus der Auswertung der ganzen Tour, als eigene Route ab Meter 0 (zum Folgen eines Tages):
+  // Punkte, Teilstück-Enden der Wegpunkte von s.von bis s.bis und Abbiegehinweise dieses Stücks
+  function etappeAusschnitt(e, s) {
+    const a = s.vonD, b = s.bisD;
+    const pts = e.pts.filter(p => p.d >= a - 0.01 && p.d <= b + 0.01).map((p, i) => {
+      const q = Object.assign({}, p, { d: Math.max(0, p.d - a) });
+      if (i === 0) delete q.luecke;
+      return q;
+    });
+    return { pts, laenge: Math.max(0, b - a), zeit: s.zeit, auf: s.auf, ab: s.ab, hoch: s.hoch,
+      stueckEnde: (e.stueckEnde || []).slice(s.von, s.bis).map(d => d - a),
+      hinweise: (e.hinweise || []).filter(h => h.d >= a && h.d <= b).map(h => Object.assign({}, h, { d: h.d - a })) };
+  }
+
   // Text der Führung am Stopp: Name, dann die Kurzinfo, höchstens etwa 1200 Zeichen und am Satzende gekürzt
   // (eine Minute Vorlesen; die Sprachausgabe von Android nimmt ohnehin nur rund 4000 Zeichen auf einmal)
   function fuehrungText(name, text) {
@@ -884,7 +898,12 @@ var R = (function () {
     if (t.zeit && typeof t.zeit === 'object') {
       const z = { tag: /^\d{4}-\d{2}-\d{2}$/.test(t.zeit.tag) ? t.zeit.tag : '', start: /^\d{2}:\d{2}$/.test(t.zeit.start) ? t.zeit.start : '',
         pause: Number.isInteger(t.zeit.pause) && t.zeit.pause >= 0 && t.zeit.pause <= 600 ? t.zeit.pause : 0 };
-      if (z.tag || z.start || z.pause) out.zeit = z;
+      // Startzeit je Tag einer Mehrtagestour (Index = Tag − 1; leer: wie Tag 1)
+      if (Array.isArray(t.zeit.tage) && t.zeit.tage.length <= 60) {
+        const tage = t.zeit.tage.map(x => (typeof x === 'string' && /^\d{2}:\d{2}$/.test(x) ? x : ''));
+        if (tage.some(Boolean)) z.tage = tage;
+      }
+      if (z.tag || z.start || z.pause || z.tage) out.zeit = z;
     }
     return out;
   }
@@ -922,6 +941,105 @@ var R = (function () {
     }
     return out;
   }
+  // ---------- Packliste je Tourart, Länge, Höhe, Tage und Wetter ----------
+  // o: { profil (wandern, stadt, laufen, rad, …), stunden (längster Tag, mit Pausen), auf, ab, hoch (m), tage, kind,
+  // dunkel (Ankunft knapp vor Sonnenuntergang), wetter: { min, max (°C), regen (% höchstens), wind, gewitter } oder null }
+  // → { gruppen: [{ name, dinge: [{ id, was, warum }] }], hinweise: [Text] }. Die ids bleiben gleich (Abhaken merkt sich).
+  function packliste(o) {
+    const g = new Map(), hinweise = [];
+    const dazu = (gruppe, id, was, warum) => { if (!g.has(gruppe)) g.set(gruppe, []); if (!g.get(gruppe).some(x => x.id === id)) g.get(gruppe).push({ id, was, warum: warum || '' }); };
+    const h = Math.max(0, +o.stunden || 0), w = o.wetter || null, tage = Math.max(1, +o.tage || 1);
+    const hoch = o.hoch == null ? 0 : +o.hoch, auf = +o.auf || 0, ab = +o.ab || 0;
+    const art = o.profil === 'stadt' ? 'stadt' : o.profil === 'laufen' ? 'lauf' : o.profil === 'rad' ? 'rad' : 'berg';
+    const berg = art === 'berg', heiss = w && w.max != null && w.max >= 25, kalt = (w && w.min != null && w.min <= 5) || (berg && hoch >= 2000);
+    // Wasser: etwa ½ l je Stunde, bei Hitze mehr; gerundet auf ½ l
+    const liter = Math.max(art === 'stadt' ? 0.5 : 1, Math.round(h * (heiss ? 0.75 : 0.5) * 2) / 2);
+    const lit = String(liter).replace('.', ',') + ' l';
+    if (art === 'berg') {
+      dazu('Grundausstattung', 'rucksack', 'Rucksack');
+      dazu('Grundausstattung', 'schuhe', 'Wanderschuhe mit Profil', auf >= 300 || hoch >= 1000 ? 'Bergweg' : '');
+      dazu('Grundausstattung', 'wasser', 'Wasser: ' + lit, heiss ? 'warm, mehr trinken' : 'etwa ½ l je Stunde');
+      dazu('Grundausstattung', 'brotzeit', h >= 4 ? 'Brotzeit und Riegel' : 'Snack', '');
+      dazu('Grundausstattung', 'regenjacke', 'Regenjacke', 'am Berg immer');
+      dazu('Grundausstattung', 'erstehilfe', 'Erste-Hilfe-Set mit Pflaster und Blasenpflaster');
+      dazu('Grundausstattung', 'handy', 'Handy geladen, Offline-Karte geladen');
+      dazu('Grundausstattung', 'geld', 'Geld, Ausweis, Krankenkassenkarte');
+      if (hoch >= 1500 || h >= 5) dazu('Grundausstattung', 'rettung', 'Rettungsdecke', 'alpin oder lang');
+      if (auf >= 600 || h >= 5) dazu('Kleidung', 'shirt', 'Wechselshirt', 'Aufstieg ' + Math.round(auf) + ' m');
+      if (ab >= 700) dazu('Grundausstattung', 'stoecke', 'Wanderstöcke', 'Abstieg ' + Math.round(ab) + ' m');
+      if (hoch >= 1500 && w && w.min != null && w.min <= 0) dazu('Grundausstattung', 'groedel', 'Grödel', 'Frost, Schnee oder Eis möglich');
+    } else if (art === 'stadt') {
+      dazu('Grundausstattung', 'schuhe', 'Bequeme Schuhe');
+      dazu('Grundausstattung', 'wasser', 'Trinkflasche: ' + lit);
+      dazu('Grundausstattung', 'geld', 'Geld, Karte, Ausweis');
+      dazu('Grundausstattung', 'ticket', 'Fahrkarte für Bus und Bahn');
+      dazu('Grundausstattung', 'handy', 'Handy geladen');
+      dazu('Grundausstattung', 'tasche', 'Kleine Tasche oder Rucksack');
+    } else if (art === 'lauf') {
+      dazu('Grundausstattung', 'schuhe', 'Laufschuhe');
+      dazu('Grundausstattung', 'handy', 'Handy (Notruf, Aufzeichnung)');
+      if (h >= 1) dazu('Grundausstattung', 'wasser', 'Getränk: ' + String(Math.max(0.5, Math.round(h * 0.5 * 2) / 2)).replace('.', ',') + ' l', 'über eine Stunde');
+      if (h >= 1.5) dazu('Grundausstattung', 'gel', 'Gel oder Riegel', 'lange Runde');
+      dazu('Grundausstattung', 'reflektor', 'Reflektoren', 'gesehen werden');
+    } else {
+      dazu('Grundausstattung', 'helm', 'Helm');
+      dazu('Grundausstattung', 'wasser', 'Trinkflasche: ' + lit);
+      dazu('Grundausstattung', 'flick', 'Flickzeug, Ersatzschlauch, Pumpe');
+      dazu('Grundausstattung', 'schloss', 'Schloss');
+      dazu('Grundausstattung', 'licht', 'Licht vorn und hinten');
+      dazu('Grundausstattung', 'regenjacke', 'Regenjacke');
+      dazu('Grundausstattung', 'handy', 'Handy geladen');
+    }
+    if (h >= 4 && art !== 'lauf') dazu('Grundausstattung', 'powerbank', 'Powerbank und Kabel', 'lange Tour');
+    if (o.dunkel || h >= 7) dazu('Grundausstattung', 'lampe', 'Stirnlampe', o.dunkel ? 'Ankunft knapp vor Sonnenuntergang' : 'langer Tag');
+    // Sonne: angesagt (oder ohne Vorhersage in der Höhe), Hitze
+    const sonne = w ? (w.sonne || heiss) : (berg && hoch >= 1500);
+    if (sonne || hoch >= 1500) {
+      dazu('Sonne', 'creme', 'Sonnencreme', hoch >= 1500 ? 'in der Höhe stärker' : 'Sonne angesagt');
+      dazu('Sonne', 'brille', 'Sonnenbrille');
+      dazu('Sonne', 'kappe', 'Kappe oder Sonnenhut');
+    }
+    if (kalt) {
+      dazu('Kleidung', 'muetze', 'Mütze und Handschuhe', w && w.min != null && w.min <= 5 ? 'bis ' + Math.round(w.min) + ' °C' : 'über 2000 m');
+      dazu('Kleidung', 'warm', 'Warme Jacke (Fleece oder Daune)');
+    }
+    if (w && w.regen != null && w.regen >= 40) {
+      if (art === 'stadt') dazu('Regen', 'schirm', 'Regenschirm', 'Regen ' + Math.round(w.regen) + ' %');
+      else dazu('Regen', 'hose', 'Regenhose', 'Regen ' + Math.round(w.regen) + ' %');
+      if (art !== 'lauf') dazu('Regen', 'huelle', 'Regenhülle für den Rucksack');
+      dazu('Regen', 'tuete', 'Plastiktüte fürs Handy und trockene Socken');
+    }
+    if (w && w.wind != null && w.wind >= 40) dazu('Kleidung', 'wind', 'Windjacke', 'Böen bis ' + Math.round(w.wind) + ' km/h');
+    if (w && w.gewitter) hinweise.push('Gewitter angesagt: früh starten, Grate und Gipfel am Nachmittag meiden, Umkehrzeit festlegen.');
+    if (!w) hinweise.push('„🌦 Wetter für die Tour“ laden ergänzt Regen, Kälte und Sonne.');
+    if (tage > 1) {
+      dazu('Übernachtung', 'schlafsack', 'Hüttenschlafsack', 'auf Hütten Pflicht');
+      dazu('Übernachtung', 'wasch', 'Zahnbürste, Zahnpasta, kleines Handtuch');
+      dazu('Übernachtung', 'waesche', 'Wechselwäsche für ' + (tage - 1) + (tage === 2 ? ' Nacht' : ' Nächte'));
+      dazu('Übernachtung', 'ohren', 'Ohrstöpsel');
+      dazu('Übernachtung', 'lader', 'Ladegerät');
+      dazu('Übernachtung', 'bar', 'Bargeld für die Hütte', 'oft keine Kartenzahlung');
+      dazu('Übernachtung', 'reservierung', 'Reservierung und Mitgliedsausweis (Alpenverein)');
+    }
+    if (o.kind) {
+      dazu('Mit Kind', 'snacks', 'Extra Brotzeit und etwas Süßes', 'Motivation');
+      dazu('Mit Kind', 'wechsel', 'Wechselkleidung');
+      dazu('Mit Kind', 'tuecher', 'Feuchttücher');
+      if (sonne || hoch >= 1500) dazu('Mit Kind', 'hut', 'Sonnenhut fürs Kind');
+    }
+    const reihe = ['Grundausstattung', 'Kleidung', 'Sonne', 'Regen', 'Übernachtung', 'Mit Kind'];
+    return { gruppen: reihe.filter(n => g.has(n)).map(n => ({ name: n, dinge: g.get(n) })), hinweise };
+  }
+  // Vorhersage für die Tour (Antworten von Open-Meteo je Punkt und Stunde) für die Packliste zusammenfassen
+  function packWetter(stunden) {
+    const l = (stunden || []).filter(Boolean);
+    if (!l.length) return null;
+    const zahlen = k => l.map(x => x[k]).filter(v => v != null && isFinite(v));
+    const t = zahlen('temp'), r = zahlen('regen'), b = zahlen('boe').concat(zahlen('wind')), c = zahlen('code');
+    return { min: t.length ? Math.min(...t) : null, max: t.length ? Math.max(...t) : null, regen: r.length ? Math.max(...r) : null,
+      wind: b.length ? Math.max(...b) : null, gewitter: c.some(x => x >= 95), sonne: c.some(x => x <= 2) };
+  }
+
   // ---------- ZIP (Sicherung mit Fotos als eigene Dateien) ----------
   // Nur „gespeichert“ (Methode 0): JPEGs werden durch Packen nicht kleiner, und so braucht es keine Bibliothek.
   let CRC_TAB = null;
@@ -2139,9 +2257,9 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

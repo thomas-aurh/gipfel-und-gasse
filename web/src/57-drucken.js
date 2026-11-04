@@ -19,8 +19,20 @@ $('bDrucken').onclick = async () => {
   const logo = $('logo').querySelector('svg') && $('logo').querySelector('svg').cloneNode(true);
   if (logo) logo.querySelectorAll('.wanderer').forEach(w => w.remove());
   const logoBild = logo ? '<img class="druck-logo" alt="" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(logo)) + '">' : '';
+  // Mehrtagestour: je Tag eine Zeile mit Strecke, Höhenmetern, Gehzeit und Start (eigene Startzeit je Tag)
+  const et = etappenAktuell();
+  const tag0 = $('startTag').value ? new Date($('startTag').value + 'T12:00') : null;
+  const etZeilen = et ? et.map((s, k) => {
+    let besicht = 0;
+    if (!S.fest) for (let i = k === 0 ? 0 : s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;
+    const datum = tag0 ? new Date(tag0.getFullYear(), tag0.getMonth(), tag0.getDate() + k, 12).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' }) + ' · ' : '';
+    const ziel = S.wps[s.bis].name || (k === et.length - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1));
+    return '<li><b>Tag ' + (k + 1) + '</b> · ' + R.esc(datum + 'bis ' + ziel + (k < et.length - 1 ? ' 🛏' : '') + ' · ' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
+      R.zeitText(s.zeit + besicht / 60) + (tagStart(k) ? ' · Start ' + tagStart(k) : '')) + '</li>';
+  }) : [];
   $('druckkopf').innerHTML = logoBild + '<h1>' + R.esc((S.name || '').trim() || 'Tour') + '</h1><div>' + R.esc(teile.join(' · ')) + '</div>' +
-    (stopps.length ? '<div class="stopps">Stopps: ' + R.esc(stopps.join(' → ')) + '</div>' : '');
+    (stopps.length ? '<div class="stopps">Stopps: ' + R.esc(stopps.join(' → ')) + '</div>' : '') +
+    (etZeilen.length ? '<ol class="druck-etappen">' + etZeilen.join('') + '</ol>' : '');
   const c = $('profil');
   const bild = !$('profilbox').hidden && c.width ? '<img alt="Höhenprofil" src="' + c.toDataURL('image/png') + '">' : '';
   const quelle = karte.attributionControl.getContainer().textContent.replace(/\s+/g, ' ').trim();

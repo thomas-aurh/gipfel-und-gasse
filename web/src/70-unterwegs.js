@@ -181,8 +181,49 @@ $('bNavi').onclick = () => {
   if (U.pos) naviNeu();
 };
 
+// ---------- Mehrtagestour: einem Tag folgen ----------
+// Auswahl „Tag 1 … Tag n“ oder die ganze Tour; vorgewählt ist der Tag, der nach dem geplanten Starttag heute ist,
+// sonst Tag 1. Die Navigation (Browser und Dienst der App) bekommt dann nur diese Etappe als Route.
+let naviEtappenFuer = '';
+function naviEtappenFeld() {
+  const et = etappenAktuell(), feld = $('naviEtappeFeld'), sel = $('naviEtappe');
+  if (!et) { feld.hidden = true; sel.innerHTML = ''; naviEtappenFuer = ''; return; }
+  const kennung = et.map(s => s.von + '-' + s.bis + '-' + Math.round(s.meter)).join(',') + '|' + $('startTag').value;
+  if (kennung === naviEtappenFuer) return;
+  const vorher = sel.value, warDa = !!sel.options.length;
+  naviEtappenFuer = kennung;
+  sel.innerHTML = '';
+  et.forEach((s, k) => {
+    const o = document.createElement('option');
+    o.value = String(k);
+    o.textContent = 'Tag ' + (k + 1) + ': bis ' + (S.wps[s.bis].name || (k === et.length - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1))) + ' (' + R.kmText(s.meter) + ')';
+    sel.appendChild(o);
+  });
+  const ganz = document.createElement('option');
+  ganz.value = ''; ganz.textContent = 'ganze Tour (' + et.length + ' Tage)';
+  sel.appendChild(ganz);
+  let wahl = '0';
+  if ($('startTag').value) {
+    const tage = Math.round((new Date(R.tagIso(Date.now()) + 'T12:00') - new Date($('startTag').value + 'T12:00')) / 864e5);
+    if (tage >= 0 && tage < et.length) wahl = String(tage);
+  }
+  sel.value = warDa && [...sel.options].some(o => o.value === vorher) ? vorher : wahl;
+  feld.hidden = false;
+}
+// was die Navigation verfolgt: { e (Auswertung), wps (Wegpunkte dazu), tag (0, 1 … oder null für die ganze Tour) }
+function naviPlan() {
+  const v = $('naviEtappe').value;
+  const et = !$('naviEtappeFeld').hidden && v !== '' ? etappenAktuell() : null;
+  const s = et && et[+v];
+  if (!s || !S.ergebnis) return { e: S.ergebnis, wps: S.wps, tag: null };
+  return { e: R.etappeAusschnitt(S.ergebnis, s), wps: S.wps.slice(s.von, s.bis + 1), tag: +v };
+}
+$('naviEtappe').onchange = () => { U.fortschritt = null; U.vorgelesen = new Set(); if (U.navi && U.pos) naviNeu(); naviEtappeGewechselt(); };
+// die App schickt dem Dienst dann die neue Route (75-app.js)
+let naviEtappeGewechselt = () => {};
+
 function naviNeu() {
-  const e = S.ergebnis;
+  const plan = naviPlan(), e = plan.e;
   if (!e || !U.pos) return;
   const lage = R.aufStrecke(e.pts, U.pos, U.fortschritt);
   if (lage.abw < 80) U.fortschritt = lage.d;
@@ -190,14 +231,14 @@ function naviNeu() {
   $('uRest').textContent = R.kmText(rest.meter);
   // noch offene Stopps: deren Teilstück endet hinter der aktuellen Stelle
   const offenAb = (e.stueckEnde || []).findIndex(d => d > lage.d + 20);
-  const besicht = S.fest || offenAb < 0 ? 0 : besichtigung(offenAb + 1);
+  const besicht = S.fest || offenAb < 0 ? 0 : plan.tag == null ? besichtigung(offenAb + 1) : plan.wps.slice(offenAb + 1).reduce((s, w) => s + (+w.min || 0), 0);
   rest.zeit += besicht / 60;
   $('uZeit').textContent = R.zeitText(rest.zeit);
   $('uAuf').textContent = rest.auf + ' m';
   const an = new Date(Date.now() + rest.zeit * 3600e3);
   // noch nicht auf der Route (z. B. Anfahrt): der Rest gilt erst ab dem Start, darum den Weg dorthin nennen
   const weit = U.fortschritt == null && lage.abw >= 300;
-  $('uAnkunft').textContent = 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' +
+  $('uAnkunft').textContent = (plan.tag != null ? 'Tag ' + (plan.tag + 1) + ': ' : '') + 'Ankunft ohne Pausen gegen ' + an.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr · ' +
     (weit ? 'noch nicht auf der Route, zum Start ' + R.kmText(R.abstand(U.pos, e.pts[0])) : Math.round(lage.abw) + ' m neben der Route') + sonnenHinweis(an, U.pos.lat, U.pos.lon);
   const naechster = (e.hinweise || []).find(h => h.d > lage.d + 5);
   if (naechster && naechster.d - lage.d < 1000) $('uAnkunft').textContent += ' · gleich: in ' + R.kmText(naechster.d - lage.d) + ' ' + R.hinweisText(naechster.cmd, naechster.exit);
@@ -213,11 +254,11 @@ function naviNeu() {
     }
   } else { U.abseitsSeit = 0; U.gewarnt = false; $('abseits').hidden = true; }
   // Führung: am Stopp (30 m) einmal die Kurzinfo vorlesen
-  if (FUEHRUNG.size && lage.abw < 40 && e.stueckEnde && !S.fest) S.wps.forEach((w, i) => {
+  if (FUEHRUNG.size && lage.abw < 40 && e.stueckEnde && !S.fest) plan.wps.forEach((w, i) => {
     const k = fuehrungSchluessel(w), text = i > 0 && FUEHRUNG.get(k), d = e.stueckEnde[i - 1];
     if (text && d != null && !U.vorgelesen.has(k) && Math.abs(d - lage.d) <= 30) { U.vorgelesen.add(k); sagenBrowser(text); }
   });
-  if (rest.meter < 30 && lage.abw < 40 && lage.d > e.laenge / 2 && Date.now() - U.naviStart > 60000) { melde('Ziel erreicht. Schön war’s!', 6); $('bNavi').click(); }
+  if (rest.meter < 30 && lage.abw < 40 && lage.d > e.laenge / 2 && Date.now() - U.naviStart > 60000) { melde(plan.tag != null && plan.tag < etappenAktuell().length - 1 ? 'Etappe ' + (plan.tag + 1) + ' geschafft. Gute Nacht!' : 'Ziel erreicht. Schön war’s!', 6); $('bNavi').click(); }
 }
 
 // ---------- Führung: Kurzinfo aus Wikipedia an den Stopps ----------

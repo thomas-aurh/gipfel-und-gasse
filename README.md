@@ -94,8 +94,18 @@ wählen: Die App nimmt die bekanntesten Orte, so viele in die Zeit passen (Weg s
 und lässt bei Bedarf den letzten Ort weg.
 
 **Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
-Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder
-Tag beginnt zur selben Startzeit). „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.
+Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel.
+Ab Tag 2 lässt sich eine eigene Startzeit eintragen (leer: wie Tag 1); sie gilt auch für Stopps, Tourwetter und Druck und
+bleibt mit der Tour gespeichert. Unter *Unterwegs* wählt „Folgen“ einen Tag (vorgewählt der Tag, der nach dem geplanten
+Starttag heute ist, sonst Tag 1) oder die ganze Tour: die Navigation, auch der Dienst der App mit Ansagen und Umplanen,
+bekommt dann nur diese Etappe und meldet am Abend „Etappe geschafft“. Der Druck listet die Etappen je Tag.
+„📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.
+
+**Packliste:** „🎒 Packliste“ unter *Planen* und auf der Tourseite stellt zusammen, was mit muss: Grundausstattung je
+Wandern, Stadt, Laufen und Rad; Wasser nach Gehzeit (etwa ½ l je Stunde, mehr bei Hitze); Wechselshirt, Stöcke und
+Stirnlampe nach Aufstieg, Abstieg und Länge; Sonnenschutz in der Höhe; Kleidung nach dem geladenen Tourwetter (Kälte, Regen,
+Wind, Hinweis bei Gewitter); Hüttensachen bei Etappen; Zusätze beim Tempo „Mit Kind“. Abhaken merkt sich die App je Tour,
+eigene Dinge („Fernglas“) stehen bei allen Touren unter „Eigenes“.
 
 **Wetter für die Tour:** In *Planen* „🌦 Wetter für die Tour“: Vorhersage für Start, höchsten Punkt und Ziel (bei Etappen je
 Tag), jeweils für die Stunde, in der man laut Zeitplan dort ist, umgerechnet auf die Höhe des Punkts. Warnt bei Gewitter,

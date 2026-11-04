@@ -760,5 +760,38 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Sicherung: Ort und Zeit je Foto geprüft', JSON.stringify(e.fotoInfo) === '{"f1":{"lat":47,"lon":11,"zeit":5}}', e.fotoInfo);
 }
 
+// Packliste: je Tourart, Länge, Höhe, Tage und Wetter
+{
+  const ids = l => l.gruppen.flatMap(g => g.dinge.map(x => x.id));
+  const was = (l, id) => (l.gruppen.flatMap(g => g.dinge).find(x => x.id === id) || {}).was;
+  const kurz = R.packliste({ profil: 'wandern', stunden: 2, auf: 200, ab: 200, hoch: 800, tage: 1, wetter: null });
+  pruef('Packliste: kurze Wanderung ohne Wetter', ids(kurz).includes('regenjacke') && !ids(kurz).includes('lampe') && !ids(kurz).includes('schlafsack') && was(kurz, 'wasser') === 'Wasser: 1 l' && kurz.hinweise.length === 1, ids(kurz));
+  const alpin = R.packliste({ profil: 'wandern', stunden: 8, auf: 1400, ab: 1400, hoch: 2600, tage: 3, kind: false, dunkel: false,
+    wetter: { min: -2, max: 27, regen: 60, wind: 50, gewitter: true, sonne: true } });
+  const a = ids(alpin);
+  pruef('Packliste: lange Hochtour mit Hütten, Kälte, Regen, Sonne, Gewitter',
+    ['lampe', 'stoecke', 'shirt', 'rettung', 'groedel', 'muetze', 'creme', 'hose', 'wind', 'schlafsack', 'bar', 'powerbank'].every(x => a.includes(x)) &&
+    was(alpin, 'wasser') === 'Wasser: 6 l' && was(alpin, 'waesche') === 'Wechselwäsche für 2 Nächte' && /Gewitter/.test(alpin.hinweise.join()), [a, alpin.hinweise]);
+  const stadt = R.packliste({ profil: 'stadt', stunden: 3, hoch: 520, wetter: { min: 12, max: 18, regen: 70, wind: 10, gewitter: false, sonne: false } });
+  pruef('Packliste: Stadt mit Regen: Schirm statt Regenhose, Fahrkarte', ids(stadt).includes('schirm') && !ids(stadt).includes('hose') && ids(stadt).includes('ticket') && !ids(stadt).includes('regenjacke'), ids(stadt));
+  const kind = R.packliste({ profil: 'wandern', stunden: 3, hoch: 1600, kind: true });
+  pruef('Packliste: mit Kind und in der Höhe Sonnenhut fürs Kind', ids(kind).includes('snacks') && ids(kind).includes('hut') && ids(kind).includes('creme'));
+  const rad = R.packliste({ profil: 'rad', stunden: 2 });
+  pruef('Packliste: Rad mit Helm und Flickzeug, ohne Wanderschuhe', ids(rad).includes('helm') && ids(rad).includes('flick') && !ids(rad).includes('schuhe'));
+  const w = R.packWetter([{ temp: 5, regen: 10, code: 1, wind: 20, boe: 45 }, null, { temp: 12, regen: 55, code: 95, wind: 10, boe: null }]);
+  pruef('Packliste: Wetter der Tour zusammengefasst', w.min === 5 && w.max === 12 && w.regen === 55 && w.wind === 45 && w.gewitter && w.sonne && R.packWetter([null]) === null, w);
+}
+
+// Mehrtagestour: Ausschnitt einer Etappe als eigene Route, Startzeit je Tag in der gespeicherten Tour
+{
+  const pts = [0, 1000, 2000, 3000, 4000].map((d, i) => ({ lat: 47 + i * 0.009, lon: 11, ele: 500 + i * 100, d }));
+  const e = { pts, stueckEnde: [2000, 4000], hinweise: [{ d: 500, cmd: 'TL' }, { d: 2500, cmd: 'TR' }] };
+  const a = R.etappeAusschnitt(e, { von: 1, bis: 2, vonD: 2000, bisD: 4000, zeit: 1, auf: 200, ab: 0, hoch: 900 });
+  pruef('Etappe: Ausschnitt ab Meter 0 mit eigenen Hinweisen und Stopps', a.pts.length === 3 && a.pts[0].d === 0 && a.pts[2].d === 2000 && a.laenge === 2000 &&
+    a.stueckEnde.join() === '2000' && a.hinweise.length === 1 && a.hinweise[0].d === 500 && a.hinweise[0].cmd === 'TR' && pts[2].d === 2000, a);
+  const t = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 't1', name: 'H', spur: [[47, 11, 0], [47.01, 11, 0]], kurz: { laenge: 1 }, zeit: { tag: '2026-07-10', start: '09:00', pause: 0, tage: ['', '07:30', 'x'] } }] }))[0];
+  pruef('Etappe: Startzeit je Tag bleibt, Unsinn fällt weg', t && JSON.stringify(t.zeit.tage) === '["","07:30",""]', t && t.zeit);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

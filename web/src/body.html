@@ -189,6 +189,7 @@
           <div id="etappen" hidden></div>
           <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
           <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
+          <div class="pack-box"><button class="knopf" data-pack="planen" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
           <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           <div id="stopps"></div>
           <div id="kinderwagen" class="urteil"></div>
@@ -272,6 +273,7 @@
         <div id="uAnkunft" class="klein"></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
         <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
+        <label class="klein" id="naviEtappeFeld" hidden>Folgen<select id="naviEtappe"></select></label>
         <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
@@ -313,6 +315,7 @@
           <button class="knopf" id="tDrucken">🖨 Drucken</button>
         </div>
         <p class="klein">„▶ Los“ folgt der Tour mit Ansagen; „✏️ Bearbeiten“ zeigt Höhenprofil, Wege, Zeitplan und Wetter.</p>
+        <div class="pack-box"><button class="knopf" data-pack="tour" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
         <div id="tourFotosBox" hidden>
           <h3 id="tourFotosTitel">Fotos von diesem Tag</h3>
           <div id="tourFotos" class="foto-raster klein"></div>

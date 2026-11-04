@@ -369,11 +369,13 @@ function zeitplanZeigen() {
     text = et.length + ' Etappen, ' + R.kmText(e.laenge) + ' in ' + R.zeitText(e.zeit + besichtigung() / 60) + ' Gehzeit: Zeitplan je Tag unter „Etappen“.' +
       (etKnapp ? ' ⚠️ An mindestens einem Tag wird es vor Sonnenuntergang knapp.' : '');
   } else { $('etappen').hidden = true; $('etappen').innerHTML = ''; }
+  if (typeof naviEtappenFeld === 'function') naviEtappenFeld();
   // Stopps mit Öffnungszeiten: geschlossen oder knapp bei Ankunft?
   const probleme = start ? besuchProbleme() : 0;
   if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
   else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
   if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
+  if (typeof packlisteNeu === 'function') packlisteNeu();   // offene Packliste folgt Zeitplan und Route
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
@@ -383,9 +385,16 @@ function zeitplanZeigen() {
 // Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
 function zeitplanLesen() {
   const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
-  return z.tag || z.start || z.pause ? z : null;
+  const tage = (S.tagesStart || []).slice();
+  while (tage.length && !tage[tage.length - 1]) tage.pop();
+  if (tage.length) z.tage = tage;
+  return z.tag || z.start || z.pause || z.tage ? z : null;
 }
+// Startzeit an Tag k+1 einer Mehrtagestour ('HH:MM'): eigene, sonst die von Tag 1; '' ohne Startzeit
+function tagStart(k) { return (k > 0 && S.tagesStart && S.tagesStart[k]) || $('startZeit').value || ''; }
+const minutenAus = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 function zeitplanSetzen(z) {
+  S.tagesStart = z && Array.isArray(z.tage) ? z.tage.slice() : [];
   $('startTag').value = (z && z.tag) || '';
   $('startZeit').value = (z && z.start) || '';
   $('pausewahl').value = String((z && z.pause) || 0);
@@ -418,7 +427,7 @@ function stoppAnkunft() {
   // während einer Neuberechnung gehört das alte Ergebnis noch zu den alten Wegpunkten: dann keine Ankunft
   if (!e || !start || S.fest || !e.stueckEnde || S.rechnet || e.stueckEnde.length !== S.wps.length - 1) return S.wps.map(() => null);
   const pause = (+$('pausewahl').value || 0) / 60;
-  // Mehrtagestour: jede Etappe beginnt am nächsten Tag zur selben Startzeit; Pausen gelten je Tag
+  // Mehrtagestour: jede Etappe beginnt am nächsten Tag (eigene Startzeit oder die von Tag 1); Pausen gelten je Tag
   const et = etappenAktuell() || [{ von: 0, bis: S.wps.length - 1, vonD: 0, zeit: e.zeit }];
   let besicht = 0, k = 0;
   return S.wps.map((w, i) => {
@@ -426,7 +435,9 @@ function stoppAnkunft() {
     if (i > 0) {
       // Weg seit dem Morgen dieses Tages, für sich gerechnet (wie die Etappe selbst)
       const t = R.zeitZwischen(e.pts, et[k].vonD, e.stueckEnde[i - 1], tempoAktuell(), artAktuell());
-      h = k * 24 + t + besicht / 60 + (et[k].zeit ? pause * t / et[k].zeit : 0);
+      // an Tag k+1 ab dessen eigener Startzeit (gegen die von Tag 1 verschoben)
+      const versatz = k && tagStart(k) ? (minutenAus(tagStart(k)) - minutenAus($('startZeit').value)) / 60 : 0;
+      h = k * 24 + versatz + t + besicht / 60 + (et[k].zeit ? pause * t / et[k].zeit : 0);
     }
     besicht += +w.min || 0;
     const an = new Date(start.getTime() + h * 3600e3);
@@ -472,18 +483,37 @@ function etappenZeigen(et, tag, startZeit, pause) {
     for (let i = k === 0 ? 0 : s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;   // Tag 1 mit der Besichtigung am Start
     const zeit = s.zeit + besicht / 60;
     const unter = s.ziel ? R.sonnenuntergang(d, s.ziel.lat, s.ziel.lon) : null;
-    const start = startZeit ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), startZeit[0], startZeit[1]) : null;
+    const sz = k && S.tagesStart && S.tagesStart[k] ? S.tagesStart[k].split(':').map(Number) : startZeit;
+    const start = sz ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), sz[0], sz[1]) : null;
     const z = R.zeitplan(start, zeit, pause, unter);
     if (z.knapp) knapp = true;
     const ziel = S.wps[s.bis].name || (k === et.length - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1));
     let plan = '';
-    if (start && unter) plan = 'Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr · Sonnenuntergang ' + R.uhr(unter) + (z.knapp ? ' · ⚠️ knapp, spätestens ' + R.uhr(z.spaetestens) + ' Uhr los' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve');
+    if (start && unter) plan = 'Start ' + R.uhr(start) + ', Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr · Sonnenuntergang ' + R.uhr(unter) + (z.knapp ? ' · ⚠️ knapp, spätestens ' + R.uhr(z.spaetestens) + ' Uhr los' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve');
     else if (unter) plan = 'spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (Sonnenuntergang ' + R.uhr(unter) + ')';
     const div = document.createElement('div');
     div.className = 'etappe' + (z.knapp ? ' knapp' : '');
     div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
       ' · bis ' + R.esc(ziel) + (k < et.length - 1 ? ' 🛏' : '') + '<br><span class="klein">' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
       R.zeitText(zeit) + (s.hoch != null ? ' · höchster Punkt ' + s.hoch + ' m' : '') + (plan ? '<br>' + R.esc(plan) : '') + '</span>';
+    // ab Tag 2 eine eigene Startzeit (z. B. Frühstück auf der Hütte erst um 7); leer = wie Tag 1
+    if (k > 0) {
+      const lab = document.createElement('label');
+      lab.className = 'klein etappe-start';
+      lab.textContent = 'Start an Tag ' + (k + 1) + ' ';
+      const inp = document.createElement('input');
+      inp.type = 'time'; inp.step = 300; inp.value = (S.tagesStart && S.tagesStart[k]) || ''; inp.dataset.tag = k;
+      inp.title = 'leer: wie an Tag 1' + ($('startZeit').value ? ' (' + $('startZeit').value + ')' : '');
+      inp.onchange = () => {
+        S.tagesStart = (S.tagesStart || []).slice();
+        while (S.tagesStart.length <= k) S.tagesStart.push('');
+        S.tagesStart[k] = /^\d{2}:\d{2}$/.test(inp.value) ? inp.value : '';
+        entwurfSichern(); zeitplanZeigen();
+        if (typeof stoppsZeigen === 'function') stoppsZeigen();
+      };
+      lab.appendChild(inp);
+      div.appendChild(lab);
+    }
     box.appendChild(div);
   });
   const b = document.createElement('button');
