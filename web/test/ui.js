@@ -5,6 +5,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const RR = require('../src/00-rechnen.js');
 
 const DIST = path.join(__dirname, '..', 'dist', 'Gipfel-und-Gasse.html');
 const OUT = path.join(__dirname, 'out');
@@ -822,6 +823,12 @@ function pruef(name, bed, info) {
   await page.click('#tbBildTour');
   await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an'), null, { timeout: 5000 }).catch(() => {});
   pruef('Fotos: „Zur Tour“ öffnet die gegangene Tour, dort die Fotos des Tages', await page.isHidden('#tbBild') && await page.isVisible('#tourFotosBox') && (await page.$$('#tourFotos button')).length === 1);
+  await page.waitForSelector('.foto-mk img[src]', { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: auf der Karte der Tour als Bild', (await page.$$('.foto-mk')).length === 1 && (await page.textContent('#tourFotosTitel')).includes('auf der Karte'), await page.textContent('#tourFotosTitel'));
+  await page.click('.foto-mk');
+  await page.waitForSelector('#tbBild:not([hidden])', { timeout: 5000 }).catch(() => {});
+  pruef('Fotos: Antippen auf der Karte zeigt das Foto groß', await page.isVisible('#tbBild') && (await page.textContent('#tbBildText')).startsWith('1/1'));
+  await page.click('#tbBildZu');
   await zuSeite(page, 'tagebuch');
   if (await page.isVisible('#tbZurueck')) await page.click('#tbZurueck');
   await page.click('#tbReisen li:has-text("Testurlaub") .was').catch(() => {});
@@ -940,17 +947,22 @@ function pruef(name, bed, info) {
   await zuSeite(page, 'daten');
   const alleTouren = () => page.$$eval('#tourliste li[data-tour], #gangliste li[data-tour]', l => l.length);
   const [sich] = await Promise.all([page.waitForEvent('download'), page.click('#bSichern')]);
-  const sichPfad = path.join(OUT, 'sicherung.json');
+  const sichPfad = path.join(OUT, 'sicherung.zip');
   await sich.saveAs(sichPfad);
-  const sichDaten = JSON.parse(fs.readFileSync(sichPfad, 'utf8'));
+  // ZIP: sicherung.json und je Foto eine Bilddatei unter fotos/
+  const sichZip = RR.zipLesen(new Uint8Array(fs.readFileSync(sichPfad)));
+  const sichDaten = JSON.parse(Buffer.from(sichZip.find(x => x.name === 'sicherung.json').daten).toString('utf8'));
+  sichDaten.fotos = {};
+  for (const [id, n] of Object.entries(sichDaten.fotoDateien || {})) { const x = sichZip.find(z => z.name === n); if (x && x.daten) sichDaten.fotos[id] = x.daten; }
   await zuSeite(page, 'touren');
   const tourenVorher = await alleTouren();
   await zuSeite(page, 'daten');
   const fotoIds = Object.keys(sichDaten.fotos || {});
-  pruef('Sicherung: Tagebuch samt Foto dabei', sichDaten.tagebuch && sichDaten.tagebuch.eintraege.length === 1 && fotoIds.length === 1 && sichDaten.fotos[fotoIds[0]].startsWith('data:image/jpeg;base64,'),
-    sichDaten.tagebuch);
+  pruef('Sicherung: Tagebuch samt Foto als eigene JPEG-Datei', sichDaten.tagebuch && sichDaten.tagebuch.eintraege.length === 1 && fotoIds.length === 1 &&
+    RR.bildArt(sichDaten.fotos[fotoIds[0]]) === 'image/jpeg' && /^fotos\/f[\w-]+\.jpg$/.test(sichDaten.fotoDateien[fotoIds[0]]) && sichZip.length === 2 && !sichZip.some(x => x.fehler),
+    [sichDaten.tagebuch, sichZip.map(x => x.name + ' ' + x.fehler)]);
   pruef('Sicherung: Reiseziele dabei', sichDaten.reiseziele && sichDaten.reiseziele.ziele.length === 4 && sichDaten.reiseziele.listen.length === 2);
-  pruef('Sicherung: eine Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.json') && sichDaten.app === 'gipfel-und-gasse' &&
+  pruef('Sicherung: eine ZIP-Datei mit allen Touren und Wegpunkten', sich.suggestedFilename().endsWith('.zip') && sichDaten.app === 'gipfel-und-gasse' && sichDaten.version === 2 &&
     sichDaten.touren.length === tourenVorher && sichDaten.touren.some(t => t.wps && t.wps.length >= 2), [sich.suggestedFilename(), sichDaten.touren.length, tourenVorher]);
   await page.evaluate(() => { const l = JSON.parse(localStorage.getItem('gug.touren')); l.shift(); localStorage.setItem('gug.touren', JSON.stringify(l)); });
   // Tagebuch samt Fotospeicher weg (wie nach einer Neuinstallation)
@@ -967,6 +979,21 @@ function pruef(name, bed, info) {
   pruef('Tagebuch: zurück in der zuletzt offenen Reise', await page.isVisible('#tbReise') && (await page.textContent('#tbTitel')) === 'Testurlaub');
   await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag .tb-fotos img').length === 1, null, { timeout: 5000 }).catch(() => {});
   pruef('Sicherung laden: Tagebuch mit Foto zurück', (await page.textContent('#tbEintraege')).includes('Baden') && (await page.$$('.tb-eintrag .tb-fotos img')).length === 1);
+  // ältere Sicherung (ein JSON, Fotos als Daten-Adressen) lässt sich weiter laden
+  const altPfad = path.join(OUT, 'sicherung-alt.json');
+  const altSich = Object.assign({}, sichDaten, { version: 1, fotos: {} });
+  delete altSich.fotoDateien;
+  for (const id of fotoIds) altSich.fotos[id] = 'data:image/jpeg;base64,' + Buffer.from(sichDaten.fotos[id]).toString('base64');
+  fs.writeFileSync(altPfad, JSON.stringify(altSich));
+  await page.evaluate(() => new Promise(ok => { localStorage.removeItem('gug.tagebuch'); const r = indexedDB.open('gug-tagebuch'); r.onsuccess = () => { const t = r.result.transaction('fotos', 'readwrite'); t.objectStore('fotos').clear(); t.oncomplete = ok; }; }));
+  await zuSeite(page, 'daten');
+  await page.setInputFiles('#sicherungDatei', altPfad);
+  await page.waitForFunction(() => /Tagebuch-Einträge übernommen/.test(document.getElementById('meldung').textContent), null, { timeout: 5000 }).catch(() => {});
+  await zuSeite(page, 'tagebuch');
+  if (await page.isVisible('#tbZurueck')) await page.click('#tbZurueck');
+  await page.click('#tbReisen li:has-text("Testurlaub") .was').catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('.tb-eintrag .tb-fotos img[src]').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Sicherung laden: ältere JSON-Sicherung mit Foto', (await page.$$('.tb-eintrag .tb-fotos img[src]')).length === 1, await page.textContent('#meldung'));
   // Löschen mit Rückfrage
   await page.click('.tb-eintrag button[title="Eintrag löschen"]');
   await page.click('.tb-eintrag button[title="Eintrag löschen"]');
@@ -1126,7 +1153,8 @@ function pruef(name, bed, info) {
         starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
-        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: (o.text || '').length, gpx: (o.text || '').startsWith('<?xml'), daten: o.daten ? o.daten.length : 0, mime: o.mime }]); },
+        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: (o.text || '').length, gpx: (o.text || '').startsWith('<?xml'), daten: o.daten ? o.daten.length : 0, mime: o.mime, entwurf: !!o.entwurf }]); },
+        dateiStueck: async o => { aufrufe.push(['dateiStueck', { name: o.name, laenge: o.daten.length, erstes: !!o.erstes, pk: o.daten.startsWith('UEsDB') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
@@ -1319,9 +1347,11 @@ function pruef(name, bed, info) {
   await zuSeite(pa2, 'daten');
   const vorTeilen = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;
   await pa2.click('#bSichern');
-  await pa2.waitForTimeout(200);
+  await pa2.waitForFunction(n => window.__navi.aufrufe.filter(x => x[0] === 'teilen').length > n, vorTeilen, { timeout: 5000 }).catch(() => {});
   const teilenS = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen');
-  pruef('App: Sicherung als eine Datei über das Teilen-Menü', teilenS.length === vorTeilen + 1 && teilenS[teilenS.length - 1][1].name.endsWith('.json'), teilenS.slice(-1));
+  const stuecke = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'dateiStueck');
+  pruef('App: Sicherung als eine ZIP-Datei über das Teilen-Menü', teilenS.length === vorTeilen + 1 && teilenS[teilenS.length - 1][1].name.endsWith('.zip') && teilenS[teilenS.length - 1][1].entwurf &&
+    stuecke.length >= 1 && stuecke[0][1].erstes && stuecke[0][1].pk && stuecke.every(x => x[1].name === teilenS[teilenS.length - 1][1].name), [teilenS.slice(-1), stuecke]);
   pruef('App: Hinweis zu Touren passt zur App', (await pa2.textContent('#tourenHinweis')).includes('in der App'));
   // Tagebuch in der App: mit der Kamera aufgenommene Fotos gehen zusätzlich als Original in die Galerie, Galerie-Fotos nicht
   await zuSeite(pa2, 'tagebuch');

@@ -693,5 +693,72 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Fotos: Liste neueste zuerst, mit Reise und Tour des Tages', l.map(x => x.foto).join() === 'f3,f1,f2' && l[0].tour === null && l[1].tour.id === 'tb' && l[1].reise.name === 'Sommer', l.map(x => [x.foto, x.tour && x.tour.id]));
 }
 
+// ZIP: Prüfsumme, Schreiben und Lesen, kaputte Dateien
+{
+  const enc = new TextEncoder();
+  pruef('ZIP: CRC-32 wie üblich', R.crc32(enc.encode('123456789')) === 0xcbf43926);
+  const bild = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5]);
+  const teile = R.zipTeile([{ name: 'sicherung.json', daten: enc.encode('{"a":"ä"}') }, { name: 'fotos/f1.jpg', daten: bild }], Date.UTC(2026, 10, 4, 12));
+  const zip = new Uint8Array(Buffer.concat(teile.map(t => Buffer.from(t))));
+  const l = R.zipLesen(zip);
+  pruef('ZIP: zwei Dateien hin und zurück', l.length === 2 && l[0].name === 'sicherung.json' && new TextDecoder().decode(l[0].daten) === '{"a":"ä"}' &&
+    l[1].name === 'fotos/f1.jpg' && l[1].daten.length === 9 && R.bildArt(l[1].daten) === 'image/jpeg', l.map(x => [x.name, x.fehler]));
+  const kaputt = zip.slice(); kaputt[30 + 'sicherung.json'.length] ^= 1;
+  pruef('ZIP: falsche Prüfsumme erkannt', R.zipLesen(kaputt)[0].fehler === 'Prüfsumme falsch' && R.zipLesen(kaputt)[1].daten !== null);
+  let w = ''; try { R.zipLesen(enc.encode('kein zip')); } catch (e) { w = e.message; }
+  pruef('ZIP: keine ZIP-Datei', w === 'keine ZIP-Datei');
+  pruef('Bildart an den ersten Bytes', R.bildArt(bild) === 'image/jpeg' && R.bildArt(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, 0])) === 'image/png' && R.bildArt(enc.encode('<svg>…</svg>')) === null);
+  // mit Python zipfile (gespeichert) gebaut: liest sich ebenso
+  const py = Buffer.from('UEsDBBQAAAAAAAAAIUisKpPYAgAAAAIAAAAFAAAAYS50eHRoaVBLAQIUAxQAAAAAAAAAIUisKpPYAgAAAAIAAAAFAAAAAAAAAAAAAACAAQAAAABhLnR4dFBLBQYAAAAAAQABADMAAAAlAAAAAAA=', 'base64');
+  const lp = R.zipLesen(new Uint8Array(py));
+  pruef('ZIP: Datei aus Python zipfile', lp.length === 1 && lp[0].name === 'a.txt' && new TextDecoder().decode(lp[0].daten) === 'hi', lp);
+}
+
+// EXIF: Ort und Aufnahmezeit aus einem JPEG (kleines Muster, Big-Endian wie viele Kameras)
+{
+  const tiff = [];
+  const u16 = n => tiff.push(n >> 8 & 255, n & 255), u32 = n => tiff.push(n >>> 24 & 255, n >>> 16 & 255, n >>> 8 & 255, n & 255);
+  const eintrag = (tag, typ, n, wert) => { u16(tag); u16(typ); u32(n); u32(wert); };
+  // Kopf (8), IFD0 bei 8 mit 2 Einträgen (2+24+4=30) → Exif-IFD bei 38 (1 Eintrag: 18) → GPS-IFD bei 56 (4 Einträge: 54)
+  // → Daten bei 110: Datum (20), Breite (24), Länge (24)
+  tiff.push(0x4d, 0x4d); u16(42); u32(8);
+  u16(2); eintrag(0x8769, 4, 1, 38); eintrag(0x8825, 4, 1, 56); u32(0);
+  u16(1); eintrag(0x9003, 2, 20, 110); u32(0);
+  u16(4); eintrag(1, 2, 2, 0x4e000000); eintrag(2, 5, 3, 130); eintrag(3, 2, 2, 0x45000000); eintrag(4, 5, 3, 154); u32(0);
+  for (const c of '2026:08:01 10:30:00') tiff.push(c.charCodeAt(0)); tiff.push(0);
+  const rat = (z, n) => { u32(z); u32(n); };
+  rat(47, 1); rat(36, 1); rat(1800, 100);   // 47° 36' 18" = 47,605
+  rat(11, 1); rat(20, 1); rat(0, 1);        // 11° 20' = 11,3333
+  const app1 = [0x45, 0x78, 0x69, 0x66, 0, 0].concat(tiff);
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, (app1.length + 2) >> 8, (app1.length + 2) & 255].concat(app1, [0xff, 0xd9]));
+  const x = R.exifLesen(jpg);
+  pruef('EXIF: Ort und Aufnahmezeit', x && Math.abs(x.lat - 47.605) < 1e-6 && Math.abs(x.lon - 11.33333) < 1e-4 && x.zeit === new Date(2026, 7, 1, 10, 30).getTime(), x);
+  pruef('EXIF: ohne EXIF nichts', R.exifLesen(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xd9])) === null && R.exifLesen(new Uint8Array([1, 2, 3])) === null);
+}
+
+// Stelle eines Fotos an der Tour: Ort aus dem Foto, sonst Zeitpunkt auf der Spur, sonst Ort des Eintrags
+{
+  const t0 = Date.parse('2026-08-01T08:00:00Z');
+  const spur = [[47.60, 11.30, 800, t0], [47.61, 11.30, 900, t0 + 3.6e6], [47.62, 11.30, 1000, t0 + 7.2e6]];
+  const nah = R.fotoOrt({ lat: 47.605, lon: 11.301 }, null, spur);
+  pruef('Fotoort: Ort aus dem Foto', nah && nah.wie === 'gps' && nah.lat === 47.605);
+  const zeit = R.fotoOrt({ lat: 48.2, lon: 11.6, zeit: t0 + 1.8e6 }, null, spur);
+  pruef('Fotoort: Ort weit weg, dann Zeitpunkt auf der Spur', zeit && zeit.wie === 'zeit' && Math.abs(zeit.lat - 47.605) < 1e-9, zeit);
+  const ein = R.fotoOrt(null, { zeit: t0 + 5 * 3.6e6, ort: { lat: 47.6201, lon: 11.3003 } }, spur);
+  pruef('Fotoort: nach der Tour, Ort des Eintrags an der Spur', ein && ein.wie === 'eintrag');
+  pruef('Fotoort: Eintrag abends im Hotel: keine Stelle', R.fotoOrt(null, { zeit: t0 + 10 * 3.6e6, ort: { lat: 47.70, lon: 11.30 } }, spur) === null);
+  pruef('Fotoort: Zeit des Eintrags in der Tour', (R.fotoOrt(null, { zeit: t0 + 3.6e6 }, spur) || {}).lat === 47.61);
+}
+// Sicherung: Fotos aus der ZIP (Bytes) und Ort/Zeit je Foto bleiben, Fremdes fällt weg
+{
+  const bild = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2]);
+  const tb = R.tagebuchPruefen({ reisen: [{ id: 'r1', name: 'R', von: '2026-08-01', bis: '2026-08-02' }],
+    eintraege: [{ id: 'e1', reise: 'r1', zeit: 1, fotos: ['f1', 'f2'], fotoInfo: { f1: { lat: 47, lon: 11, zeit: 5, boese: 1 }, f2: { lat: 'x' }, f9: { zeit: 1 } } }] },
+    { f1: bild, f2: new Uint8Array([60, 115, 118, 103]) });
+  const e = tb.eintraege[0];
+  pruef('Sicherung: Foto als Bytes, Fremdes (kein Bild) fällt weg', e.fotos.join() === 'f1' && tb.fotos.f1 === bild);
+  pruef('Sicherung: Ort und Zeit je Foto geprüft', JSON.stringify(e.fotoInfo) === '{"f1":{"lat":47,"lon":11,"zeit":5}}', e.fotoInfo);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

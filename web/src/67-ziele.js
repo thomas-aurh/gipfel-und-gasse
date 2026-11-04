@@ -309,7 +309,7 @@ $('zlImportOk').onclick = () => {
 // ---------- Sicherung: Listen und Ziele, die noch fehlen (nach id), kommen dazu ----------
 function zieleEinlesen(text) {
   let roh;
-  try { roh = JSON.parse(text).reiseziele; } catch (e) { return 0; }
+  try { roh = (typeof text === 'string' ? JSON.parse(text) : text).reiseziele; } catch (e) { return 0; }
   const neu = R.zielePruefen(roh), d = zieleLesenSp();
   const lIds = new Set(d.listen.map(l => l.id)), zIds = new Set(d.ziele.map(z => z.id));
   const neueListen = neu.listen.filter(l => !lIds.has(l.id));

@@ -125,6 +125,7 @@ const ebeneHervor = L.layerGroup().addTo(karte);
 const ebenePunkte = L.layerGroup().addTo(karte);
 const ebeneOrte = L.layerGroup().addTo(karte);
 const ebeneDateiPunkte = L.layerGroup().addTo(karte);   // Wegpunkte einer geöffneten GPX-Tour (60-touren.js)
+const ebeneFotos = L.layerGroup().addTo(karte);   // Fotos einer geöffneten gegangenen Tour (65-tagebuch.js)
 const ebeneSehens = L.layerGroup().addTo(karte);
 const ebeneIch = L.layerGroup().addTo(karte);
 

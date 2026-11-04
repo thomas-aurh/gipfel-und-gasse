@@ -177,6 +177,9 @@ function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;
   ebeneDateiPunkte.clearLayers();
+  ebeneFotos.clearLayers();
+  // Fotos einer gegangenen Tour bleiben auf der Karte, solange die Tour offen ist (auch ohne die Tourseite)
+  if (t.art === 'aufzeichnung') setTimeout(() => { if (S.tourId === t.id) tourFotosZeigen(t); }, 0);
   // Wegpunkte einer GPX-Tour bleiben auch im Planen auf der Karte, solange die Tour offen ist
   if (t.punkte) setTimeout(() => { if (S.tourId === t.id) dateiPunkteZeigen(t); }, 0);
   const pts = spurEntpacken(t.spur);
@@ -345,14 +348,14 @@ function listeZeigen(ul, liste, leer) {
 function dateiname(name) { return (name || 'tour').replace(/[^\wäöüÄÖÜß -]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'tour'; }
 
 // Datei ausgeben: im Browser herunterladen; die App ersetzt das durch das Teilen-Menü (75-app.js)
-function dateiAusgeben(datei, text, mime) {
-  const blob = new Blob([text], { type: mime });
+function dateiAusgeben(datei, text, mime) { blobAusgeben(datei, new Blob([text], { type: mime }), mime); }
+let blobAusgeben = async function (datei, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = datei;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
+};
 
 function gpxHerunter(name, pts, wps) {
   dateiAusgeben(dateiname(name) + '.gpx', R.gpxSchreiben(name, pts, wps), 'application/gpx+xml');
@@ -366,12 +369,38 @@ async function sicherungSpeichern() {
   const ziele = zieleLesenSp();
   if (!liste.length && !tb.tagebuch.reisen.length && !ziele.ziele.length && !Object.keys(gipfelbuchLesen().gipfel).length) { melde('Keine Touren, kein Tagebuch, keine Reiseziele und kein Gipfelbuch gespeichert.'); return; }
   const tag = new Date().toISOString().slice(0, 10);
-  dateiAusgeben('gipfel-und-gasse-sicherung-' + tag + '.json',
-    JSON.stringify({ app: 'gipfel-und-gasse', version: 1, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotos: tb.fotos, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() }), 'application/json');
+  // ZIP statt eines einzigen Textes: Fotos als eigene Dateien (öffnen sich auch am PC), kein riesiger Text im Speicher
+  const dateien = [], fotoDateien = {};
+  for (const [id, blob] of Object.entries(tb.fotos)) {
+    const b = new Uint8Array(await blob.arrayBuffer());
+    const art = R.bildArt(b);
+    if (!art) { tb.fehlen++; continue; }
+    fotoDateien[id] = 'fotos/' + id + ({ 'image/png': '.png', 'image/webp': '.webp' }[art] || '.jpg');
+    dateien.push({ name: fotoDateien[id], daten: b });
+  }
+  const json = JSON.stringify({ app: 'gipfel-und-gasse', version: 2, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotoDateien, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() });
+  dateien.unshift({ name: 'sicherung.json', daten: new TextEncoder().encode(json) });
+  await blobAusgeben('gipfel-und-gasse-sicherung-' + tag + '.zip', new Blob(R.zipTeile(dateien), { type: 'application/zip' }), 'application/zip');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
   if (tb.fehlen) melde('Achtung: ' + tb.fehlen + (tb.fehlen === 1 ? ' Foto ließ' : ' Fotos ließen') + ' sich nicht lesen und fehlen in der Sicherung.', 8);
 }
 
+// ZIP (seit 04.11.): sicherung.json, Fotos als Dateien; ältere Sicherungen sind ein JSON mit Fotos als Daten-Adressen
+function sicherungAusZip(bytes) {
+  const eintraege = R.zipLesen(bytes);
+  const j = eintraege.find(x => x.name === 'sicherung.json');
+  if (!j) throw new Error('keine Sicherung von Gipfel & Gasse (sicherung.json fehlt in der ZIP-Datei)');
+  if (!j.daten) throw new Error('sicherung.json ' + j.fehler);
+  let d;
+  try { d = JSON.parse(new TextDecoder().decode(j.daten)); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (sicherung.json kein JSON)'); }
+  const nachName = new Map(eintraege.map(x => [x.name, x]));
+  d.fotos = {};
+  for (const [id, name] of Object.entries((d && d.fotoDateien) || {})) {
+    const x = nachName.get(name);
+    if (x && x.daten) d.fotos[id] = x.daten;
+  }
+  return d;
+}
 async function sicherungEinlesen(text) {
   const neu = R.sicherungLesen(text);
   const liste = tourenLesen(), ids = new Set(liste.map(t => t.id));
@@ -404,7 +433,11 @@ $('sicherungDatei').onchange = async e => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  try { await sicherungEinlesen(await f.text()); } catch (err) { melde('Sicherung nicht lesbar: ' + err.message, 6); }
+  try {
+    const b = new Uint8Array(await f.arrayBuffer());
+    // ZIP an den ersten Bytes erkennen (PK), nicht am Namen: Drive und Mail benennen Dateien gern um
+    await sicherungEinlesen(b[0] === 0x50 && b[1] === 0x4b ? sicherungAusZip(b) : new TextDecoder().decode(b));
+  } catch (err) { melde('Sicherung nicht lesbar: ' + err.message, 6); }
 };
 $('bTeilen').onclick = async () => {
   if (!S.wps.length) return;
