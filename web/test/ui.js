@@ -576,6 +576,14 @@ function pruef(name, bed, info) {
   pruef('Tourwetter: Warnung bei Sturmböen, ohne Startzeit ab 9 Uhr', tw.includes('Sturmböen auf der Tour') && tw.includes('ab der nächsten vollen Stunde gerechnet'), tw);
   await page.fill('#startTag', '2026-07-10'); await page.dispatchEvent('#startTag', 'change');
   pruef('Tourwetter: anderer Tag leert die alte Vorhersage', (await page.textContent('#tourWetter')) === '');
+  // Familien-Check: Länge und Aufstieg gegen die Grenze (Standard bis 8 km und 400 Hm), Spielplatz oder Einkehr auf halber Strecke
+  await page.click('#bFamilie');
+  await page.waitForFunction(() => /halber Strecke/.test(document.getElementById('familie').textContent) && !/suche/.test(document.getElementById('familie').textContent), null, { timeout: 8000 }).catch(() => {});
+  const fam = await page.textContent('#familie');
+  pruef('Familien-Check: Urteil zur Grenze und Spielplatz auf halber Strecke', /^(✅|⚠️) .* (passt zu|mehr als) „bis 8 km und 400 Hm“/.test(fam) && fam.includes('🛝 Spielplatz bei'), fam);
+  const tempoVorher = await page.inputValue('#tempowahl');
+  await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
+  pruef('Familien-Check: neue Auswertung leert ihn', (await page.textContent('#familie')) === '');
   await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
@@ -917,6 +925,17 @@ function pruef(name, bed, info) {
   await page.click('.leaflet-popup-close-button');
   await page.click('#stadtListe li >> nth=0 >> button');
   pruef('Stopp aus der Liste', (await page.$$('.wp')).length === 1 && (await page.textContent('#meldung')).includes('Start'));
+  // Rundgang nach Zeitbudget: so viele Orte, wie in die Zeit passen, nach dem Routen nachgemessen; danach zurück zum Start allein
+  await zuSeite(page, 'entdecken');
+  await page.selectOption('#rundAnzahl', 'z60');
+  await page.click('#bRundgang');
+  await page.waitForFunction(() => /Rundgang für 1:00 h/.test(document.getElementById('meldung').textContent), null, { timeout: 10000 }).catch(() => {});
+  const zMeldung = await page.textContent('#meldung'), zStopps = (await page.$$('.wp')).length - 2;
+  pruef('Rundgang in 1 Stunde: Orte passend zur Zeit, Dauer genannt', /Rundgang für 1:00 h: \d+ Orte?, etwa [\d:]+ (h|min) mit Besichtigung/.test(zMeldung) && zStopps >= 1 && zStopps < 12, [zMeldung, zStopps]);
+  for (let i = 0; i < 6 && (await page.$$('.wp')).length > 1; i++) { await page.click('#bZurueck'); await page.waitForTimeout(300); }
+  pruef('Rundgang in 1 Stunde: Rückgängig bis zum Start', (await page.$$('.wp')).length === 1);
+  await zuSeite(page, 'entdecken');
+  await page.selectOption('#rundAnzahl', '6');
   await page.click('#bRundgang');
   await page.waitForSelector('#ergebnis:not([hidden])', { timeout: 8000 });
   await page.waitForTimeout(300);
@@ -1629,6 +1648,10 @@ function pruef(name, bed, info) {
   await pf.selectOption('[data-liste=tourliste] .tf-art', 'stadt');
   pruef('Tourliste: nur Stadt', JSON.stringify(await tnamen()) === '["Altstadt Verona"]', await tnamen());
   await pf.selectOption('[data-liste=tourliste] .tf-art', '');
+  await pf.selectOption('[data-liste=tourliste] .tf-familie', '8-400');
+  pruef('Tourliste: Familie bis 8 km und 400 Hm', JSON.stringify(await tnamen()) === '["Abendlauf am See","Altstadt Verona"]', await tnamen());
+  pruef('Tourliste: Familien-Grenze gemerkt', await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.familie')) === '8-400'));
+  await pf.selectOption('[data-liste=tourliste] .tf-familie', '');
   pruef('Gegangene: ohne Touren keine Suchleiste', await pf.evaluate(() => document.querySelector('[data-liste=gangliste]').hidden));
   // Stopps umsortieren: ▲▼ an Zwischenpunkten und Ziel, nicht am Start; Rückgängig holt die alte Reihenfolge
   await pf.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.76000_11.38000~47.77000_11.40000~47.78000_11.41000'; });

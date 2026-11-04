@@ -597,5 +597,19 @@ pruef('Quelle: erstes gültiges Datum, nur das Jahr mit Warnung, Monat 13 ungül
 pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website: 'www.museum.de' }).web === 'https://www.museum.de' &&
   R.stoppInfo({ website: 'museum', 'contact:website': 'https://kontakt.example' }).web === 'https://kontakt.example');
 
+// Familie: Spielplatz oder Einkehr zwischen 30 und 70 % der Länge, höchstens 250 m neben der Route
+{
+  const o = (kat, d, abw) => ({ kat, d, abw, name: kat });
+  const da = R.familieHalbzeit([o('spiel', 2900, 20), o('huette', 4000, 100), o('spiel', 500, 10), o('huette', 3000, 400), o('wasser', 3000, 5), o('spiel', null, 0)], 6000);
+  pruef('Familie: nur Spielplatz und Einkehr auf halber Strecke, nah an der Route', da.length === 2 && da[0].d === 2900 && da[1].d === 4000, da);
+  pruef('Familie: Grenzen 5/8/12 km', R.FAMILIE['5-200'].meter === 5000 && R.FAMILIE['8-400'].hm === 400 && R.FAMILIE['12-700'].meter === 12000);
+}
+
+// Rundgang nach Zeit: 1 km Luftlinie hin und zurück (2 km × 1,3 = 2,6 km bei 4 km/h = 39 min) plus 20 min Besichtigung
+{
+  const start = { lat: 47.75, lon: 11.37 }, ort = { lat: 47.75 + 1000 / 111195, lon: 11.37, min: 20 };
+  pruef('Rundgang: Minuten aus Weg und Besichtigung', nahe(R.rundgangMinuten(start, [ort]), 59, 1), R.rundgangMinuten(start, [ort]));
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

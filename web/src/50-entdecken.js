@@ -354,3 +354,29 @@ function drinnenPopup(o, kat, lage) {
   box.appendChild(document.createElement('br')); box.appendChild(k);
   return box;
 }
+
+// ---------- Familien-Check: Länge und Aufstieg gegen die gewählte Grenze, Spielplatz oder Einkehr auf halber Strecke ----------
+let familieLauf = 0;
+$('bFamilie').onclick = async () => {
+  const e = S.ergebnis, box = $('familie');
+  if (!e || e.pts.length < 2) return;
+  const nr = ++familieLauf;
+  const g = R.FAMILIE[SPEICHER.lesen('familie', '8-400')] || R.FAMILIE['8-400'];
+  const passt = e.laenge <= g.meter && e.auf <= g.hm;
+  const kopf = (passt ? '✅ ' : '⚠️ ') + R.kmText(e.laenge) + ' und ↑ ' + Math.round(e.auf) + ' m: ' + (passt ? 'passt zu' : 'mehr als') + ' „' + g.text + '“';
+  box.textContent = kopf + ' · suche Spielplatz und Einkehr auf halber Strecke …';
+  // nur das Mittelstück abfragen (schont Overpass), die Lage aber auf der ganzen Route messen
+  const mitte = e.pts.filter(p => p.d >= e.laenge * 0.3 && p.d <= e.laenge * 0.7);
+  try {
+    const json = await orteHolen(mitte.length > 1 ? mitte : e.pts, 250);
+    if (nr !== familieLauf || S.ergebnis !== e) return;   // inzwischen neu geplant
+    const da = R.familieHalbzeit(R.orteLesen(json, e.pts), e.laenge);
+    const zeile = o => { const kat = R.ORTE.find(k => k.k === o.kat); return kat.zeichen + ' ' + R.esc(o.name) + ' bei ' + R.kmText(o.d) + (o.abw > 40 ? ' (' + Math.round(o.abw / 10) * 10 + ' m abseits)' : ''); };
+    box.innerHTML = R.esc(kopf) + '<br>' + (da.length
+      ? 'Auf halber Strecke (km ' + R.kmText(e.laenge * 0.3).replace(' km', '') + ' bis ' + R.kmText(e.laenge * 0.7) + '): ' + da.slice(0, 6).map(zeile).join(' · ')
+      : 'Kein Spielplatz und keine Einkehr auf halber Strecke gefunden (in OpenStreetMap).') +
+      '<br><span class="klein">Grenze ändern: unter Touren in der Liste „👨‍👩‍👧 bis …“ wählen.</span>';
+  } catch (err) {
+    if (nr === familieLauf) box.textContent = kopf + ' · Spielplatz und Einkehr nicht abrufbar: ' + err.message;
+  }
+};
