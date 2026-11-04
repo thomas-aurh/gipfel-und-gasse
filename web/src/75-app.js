@@ -227,9 +227,9 @@ if (NATIV) {
     if (kreuzAn) { kreuz(false); return true; }
     if ($('treffer').children.length) { sucheSchliessen(); return true; }
     if ($('panel').classList.contains('gross')) { blatt('mittel'); return true; }
-    // eine Tour zurück zur Liste, Tagebuch, Reiseziele und Gipfelbuch zurück zu „Ich“, alles andere zum Planen
+    // eine Tour zurück zur Liste, Touren, Tagebuch, Reiseziele und Gipfelbuch zurück zu „Ich“, alles andere zum Planen
     if (seite === 'tour') { reiter('touren'); return true; }
-    if (['tagebuch', 'ziele', 'gipfelbuch'].includes(seite)) { reiter('ich'); return true; }
+    if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(seite)) { reiter('ich'); return true; }
     if (seite !== 'planen' && seite !== 'karte') { reiter('planen'); return true; }
     return false;
   };

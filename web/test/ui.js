@@ -151,13 +151,9 @@ let ok = 0, fehler = 0;
 // Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
 // Karte, Planen, Unterwegs und Touren stehen in der Leiste (Gegangen über den Umschalter unter Touren), der Rest im Menü
 async function zuSeite(seite, ziel) {
-  // Leiste: Karte, Entdecken, Planen, Touren (mit Gegangen), Ich (Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
-  if (['karte', 'entdecken', 'planen', 'touren', 'gegangen', 'ich'].includes(ziel)) {
-    await seite.click('#leiste [data-reiter=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
-    if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
-    return;
-  }
-  if (['tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) { await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + ziel + ']'); return; }
+  // Leiste: Karte, Entdecken, Planen, Unterwegs, Ich (Touren, Gegangen, Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
+  if (['karte', 'entdecken', 'planen', 'unterwegs', 'ich'].includes(ziel)) { await seite.click('#leiste [data-reiter=' + ziel + ']'); return; }
+  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) { await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + ziel + ']'); return; }
   await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
 }
 function pruef(name, bed, info) {
@@ -191,7 +187,7 @@ function pruef(name, bed, info) {
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
   pruef('Menü ohne Dopplung zur Leiste', await page.evaluate(() => { const m = [...document.querySelectorAll('#menue [data-ziel]')].map(b => b.dataset.ziel);
-    return m.length > 0 && !m.some(z => ['karte', 'entdecken', 'planen', 'touren', 'gegangen', 'ich', 'tagebuch', 'ziele', 'gipfelbuch'].includes(z)); }));
+    return m.length > 0 && !m.some(z => ['karte', 'entdecken', 'planen', 'unterwegs', 'touren', 'gegangen', 'ich', 'tagebuch', 'ziele', 'gipfelbuch'].includes(z)); }));
   await page.keyboard.press('Escape');
   pruef('Menü zu: Fokus zurück am Menü-Knopf, nichts gesperrt', await page.evaluate(() => document.activeElement.id === 'bMenue' && !document.querySelector('#panel').inert));
   // Darstellung: automatisch → hell → dunkel, gespeichert; Farben aus den Variablen
@@ -298,7 +294,7 @@ function pruef(name, bed, info) {
   // Name, speichern
   await page.fill('#tourname', 'Testrunde am See');
   await page.click('#bSpeichern');
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   pruef('Tour in der Liste', (await page.textContent('#tourliste')).includes('Testrunde am See'));
 
   // GPX herunterladen und prüfen
@@ -478,7 +474,7 @@ function pruef(name, bed, info) {
   await page.waitForFunction(() => document.querySelector('section[data-reiter=tour]').classList.contains('an') && document.querySelectorAll('#tourZahlen .zahl').length === 6);
   pruef('Einstieg „Letzte Tour“ öffnet die Tourseite', (await page.textContent('#tourName')) === 'Testrunde am See' && (await page.textContent('#seitenTitel')) === 'Tour' &&
     (await page.textContent('#tourZahlen')).includes(await page.textContent('#zLaenge')) && await page.isEnabled('#tLos') &&
-    (await page.getAttribute('#leiste [data-reiter=touren]', 'class')).includes('an'));
+    (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
   await page.click('#tBearbeiten');
   await page.waitForSelector('#ergebnis:not([hidden])');
   pruef('Tourseite: „Bearbeiten“ führt zum Planen', (await page.inputValue('#tourname')) === 'Testrunde am See' && await page.isHidden('#einstiege'));
@@ -506,7 +502,7 @@ function pruef(name, bed, info) {
   pruef('Gerade Linie gestrichelt', await page.evaluate(() => [...document.querySelectorAll('.leaflet-overlay-pane path')].some(p => p.getAttribute('stroke-dasharray'))));
 
   // GPX öffnen
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   await page.setInputFiles('#gpxDatei', gpxPfad);
   await page.waitForFunction(() => document.querySelector('#tourname').value === 'Testrunde am See' && document.querySelector('[data-reiter=planen]').classList.contains('an'));
   pruef('GPX geöffnet als Spur', (await page.textContent('#status')).includes('Geöffnete Spur'));
@@ -514,12 +510,12 @@ function pruef(name, bed, info) {
   // GPX bei geöffneter Tour: Speichern legt eine neue Tour an und ersetzt die alte nicht
   const vorImport = (await page.$$('#tourliste li')).length;
   await page.click('#bSpeichern');
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   pruef('Import ersetzt keine geöffnete Tour', (await page.$$('#tourliste li')).length === vorImport + 1, [vorImport, (await page.$$('#tourliste li')).length]);
   pruef('Tour öffnen ist ein Knopf', (await page.$$('#tourliste button.oeffnen')).length >= 2);
   const fehlerDatei = path.join(OUT, 'kaputt.gpx');
   fs.writeFileSync(fehlerDatei, '<gpx></gpx>');
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   await page.setInputFiles('#gpxDatei', fehlerDatei);
   await page.waitForTimeout(200);
   pruef('Kaputtes GPX meldet Fehler', (await page.textContent('#meldung')).includes('GPX nicht lesbar'));
@@ -593,7 +589,7 @@ function pruef(name, bed, info) {
   await page.fill('#tourname', 'Hüttentour');
   await page.click('#bSpeichern');
   await page.click('#bNeu');
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   await page.click('#tourliste li:has-text("Hüttentour") .was');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
@@ -669,11 +665,11 @@ function pruef(name, bed, info) {
     return [an, document.querySelector('#gpsStatus').textContent];
   });
   pruef('GPS bleibt an, wenn es mit 📍 eingeschaltet war; 📍 schaltet aus', gpsBleibt[0] && gpsBleibt[1] === 'GPS aus.', gpsBleibt);
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
   pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Aufzeichnung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
-    (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('[data-reiter=touren]', 'class')).includes('an'));
+    (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
   // Statistik je Woche und Monat: Zeilen und 12 Säulen, aktueller Monat mit Zahl und Wert beim Antippen
   pruef('Statistik: diese Woche und dieser Monat', (await page.textContent('#gangZeitraum')).includes('Diese Woche:') && (await page.textContent('#gangZeitraum')).includes('Dieser Monat:') &&
     /1 Tour/.test(await page.textContent('#gangZeitraum')), await page.textContent('#gangZeitraum'));
@@ -851,7 +847,7 @@ function pruef(name, bed, info) {
   const sichPfad = path.join(OUT, 'sicherung.json');
   await sich.saveAs(sichPfad);
   const sichDaten = JSON.parse(fs.readFileSync(sichPfad, 'utf8'));
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   const tourenVorher = await alleTouren();
   await zuSeite(page, 'daten');
   const fotoIds = Object.keys(sichDaten.fotos || {});
@@ -935,7 +931,7 @@ function pruef(name, bed, info) {
   await page.fill('#tourname', 'Altstadt-Runde');
   await page.click('#bSpeichern');
   await page.click('#bNeu');
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   pruef('Stadttour mit Symbol', (await page.textContent('#tourliste')).includes('🏛️'));
   await page.click('#tourliste li >> nth=0');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
@@ -988,7 +984,7 @@ function pruef(name, bed, info) {
   pruef('Zurück in Berg: topografisch, Wanderwege', await page.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked && document.querySelector('#lageWander').checked && !document.querySelector('#lageSehens').checked));
 
   // Löschen mit Rückfrage
-  await page.click('[data-reiter=touren]');
+  await zuSeite(page, 'touren');
   const vorL = (await page.$$('#tourliste li')).length;
   await page.click('#tourliste li >> nth=0 >> button[title=Löschen]');
   await page.click('#tourliste li >> nth=0 >> button[title=Löschen]');
@@ -1004,7 +1000,7 @@ function pruef(name, bed, info) {
   });
   const pa = await alt.newPage();
   await pa.goto(url);
-  await pa.click('[data-reiter=touren]');
+  await zuSeite(pa, 'touren');
   pruef('Alte Touren übernommen', (await pa.textContent('#tourliste')).includes('Alte Murmel-Tour'));
   await alt.close();
 
@@ -1183,7 +1179,7 @@ function pruef(name, bed, info) {
   pruef('Telefon: keine Zoom-Knöpfe', await pa2.isHidden('#bPlus') && await pa2.isHidden('#bMinus'));
   pruef('Telefon: Fadenkreuz beim Planen da', await pa2.isVisible('#bKreuz'));
   await pa2.click('#bKreuz');
-  await pa2.click('[data-reiter=touren]');
+  await zuSeite(pa2, 'touren');
   pruef('Telefon: Fadenkreuz außerhalb des Planens weg und aus', await pa2.isHidden('#bKreuz') && await pa2.isHidden('#kreuz') && (await pa2.getAttribute('#bKreuz', 'aria-pressed')) === 'false');
   await pa2.click('[data-reiter=planen]');
   // Telefon: weitere Funktionen hinter „Mehr“, aufgeklappt sichtbar
@@ -1337,7 +1333,7 @@ function pruef(name, bed, info) {
   await po.goto(url);
   await po.waitForFunction(() => !document.querySelector('.nur-offline').hidden, null, { timeout: 8000 });
   pruef('Offline: Auswahl erscheint mit installiertem Paket', true);
-  await po.click('[data-reiter=touren]');
+  await zuSeite(po, 'touren');
   pruef('Offline: Paket in der Liste, neuere Daten gemeldet', (await po.textContent('#paketliste')).includes('auf dem Handy') && (await po.textContent('#paketliste')).includes('neuere Daten'));
   // Prüfung auf dem Gerät: Lesen in Teilen, Kopf, Kachel an der Kartenmitte
   await po.evaluate(() => document.querySelector('#bOfflinePruefen').click());
@@ -1564,11 +1560,11 @@ function pruef(name, bed, info) {
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   // Ich: Sammlungen als Kacheln; Tagebuch gehört in der Leiste zu „Ich“
   await zuSeite(pt, 'ich');
-  pruef('Ich: Tagebuch, Reiseziele, Gipfelbuch, Gegangen, Unterwegs', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'tagebuch,ziele,gipfelbuch,gegangen,unterwegs');
+  pruef('Ich: Touren, Gegangen, Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,gegangen,tagebuch,ziele,gipfelbuch');
   await pt.tap('.ich-liste [data-ziel=tagebuch]'); await pt.waitForTimeout(200);
   pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
     document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
-  pruef('Leiste: Karte, Entdecken, Planen, Touren, Ich', await pt.evaluate(() => [...document.querySelectorAll('#leiste button')].map(b => b.dataset.reiter).join()) === 'karte,entdecken,planen,touren,ich');
+  pruef('Leiste: Karte, Entdecken, Planen, Unterwegs, Ich', await pt.evaluate(() => [...document.querySelectorAll('#leiste button')].map(b => b.dataset.reiter).join()) === 'karte,entdecken,planen,unterwegs,ich');
   // leere Planung am Telefon: Einstiege im halb offenen Blatt; „Stadtrundgang“ schaltet die Stadt ein und führt zu Entdecken
   await pt.reload(); await pt.waitForTimeout(500);
   pruef('Telefon: Start ohne Route mit der reinen Karte', await pt.evaluate(() => document.body.classList.contains('ohneBlatt') &&

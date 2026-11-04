@@ -127,9 +127,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (`KEYSTORE_PASSWORT`), der Schlüssel verlässt GitHub nie unverschlüsselt. Verworfen: den Ersatzschlüssel verschlüsselt
   aus dem Cache holen (ginge ohne Neuinstallation, die Schutzautomatik der Sitzung hat das Herausgeben gestoppt) und
   einen Schlüssel in der Sitzung erzeugen (er ginge durch den Chat).
-- **Leiste Karte · Entdecken · Planen · Touren · Ich** (04.11., Thomas' Wahl): Unterwegs nicht mehr in der Leiste, sondern
-  über „▶ Los“ auf der Tourseite, den Balken bei laufender Navigation, das Menü und „Ich“; Karte bleibt, weil die App am
-  Telefon mit der reinen Karte startet. Berg/Stadt bleibt getrennt von „Art“. Löst die Leiste vom 02.11. ab.
+- **Leiste Karte · Entdecken · Planen · Unterwegs · Ich** (04.11., Thomas' Wahl): Touren gehören zu „Ich“ (Thomas nach dem
+  Test von Bau 172: „Der Touren-Punkt gehört zu Ich“), Unterwegs zurück in die Leiste; dazu „▶ Los“ auf der Tourseite und der
+  Balken bei laufender Navigation. Karte bleibt, weil die App am Telefon mit der reinen Karte startet. Berg/Stadt bleibt
+  getrennt von „Art“. Löst die Leiste vom 02.11. ab.
 - **Navigation: Menü links oben plus Leiste unten** (02.11., Thomas' Wahl nach Vorbild gängiger Tourenplaner): jede
   Funktion eine eigene Seite, die vier häufigsten mit einem Tipp erreichbar; geplante und gegangene Touren getrennt.
   Verworfen: nur Menü (ein Tipp mehr für Planen und Unterwegs), Reiter im Blatt (wirkte überladen).
@@ -201,7 +202,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Übersicht Stufe 2: Leiste Karte · Entdecken · Planen · Touren · Ich, Seite „Ich“ mit den Sammlungen, Tourseite mit
   „▶ Los“, Bearbeiten, Link, GPX, Drucken; Balken über der Leiste bei laufender Navigation oder Aufzeichnung; Unterwegs im
   Menü; Einstieg „⏺ Aufzeichnen“; Zurück-Taste von Tour zur Liste und von Tagebuch, Reisezielen, Gipfelbuch zu „Ich“
-  (Klicktest 315) (#60).
+  (Klicktest 315) (#60). Nach dem Test von Bau 172 auf dem Pixel: Touren und Unterwegs getauscht, Leiste jetzt
+  Karte · Entdecken · Planen · Unterwegs · Ich, „Ich“ mit Touren, Gegangen, Tagebuch, Reisezielen, Gipfelbuch; Zurück-Taste
+  aus den Touren zu „Ich“ (Klicktest 315).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen

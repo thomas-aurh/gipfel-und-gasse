@@ -12,8 +12,7 @@
   <div id="menueHg" hidden></div>
   <nav id="menue" hidden aria-label="Menü">
     <div class="menue-kopf">Gipfel &amp; Gasse</div>
-    <!-- Karte, Entdecken, Planen, Touren und Ich (Tagebuch, Reiseziele, Gipfelbuch) stehen in der Leiste; hier nur, was dort fehlt -->
-    <button data-ziel="unterwegs">🧭 Unterwegs: Route folgen, aufzeichnen</button>
+    <!-- Karte, Entdecken, Planen, Unterwegs und Ich (Touren, Tagebuch, Reiseziele, Gipfelbuch) stehen in der Leiste; hier nur, was dort fehlt -->
     <h4>Werkzeuge</h4>
     <button data-ziel="offline">⬇️ Offline-Karten</button>
     <button data-ziel="notfall">🆘 Notfall</button>
@@ -77,7 +76,7 @@
         <button data-reiter="karte"><span>🗺️</span>Karte</button>
         <button data-reiter="entdecken"><span>🔭</span>Entdecken</button>
         <button data-reiter="planen" class="an"><span>✏️</span>Planen</button>
-        <button data-reiter="touren"><span>🥾</span>Touren</button>
+        <button data-reiter="unterwegs"><span>🧭</span>Unterwegs</button>
         <button data-reiter="ich"><span>🙂</span>Ich</button>
       </nav>
     </header>
@@ -300,11 +299,11 @@
       <!-- Ich: eigene Sammlungen -->
       <section data-reiter="ich">
         <div class="einstieg-liste ich-liste">
+          <button class="einstieg" data-ziel="touren"><span>🥾</span><b>Touren</b><small>geplant, mit Suche</small></button>
+          <button class="einstieg" data-ziel="gegangen"><span>📊</span><b>Gegangen</b><small>Touren und Statistik</small></button>
           <button class="einstieg" data-ziel="tagebuch"><span>📔</span><b>Reisetagebuch</b><small>Reisen, Einträge, Fotos</small></button>
           <button class="einstieg" data-ziel="ziele"><span>⭐</span><b>Reiseziele</b><small>Listen mit Orten</small></button>
           <button class="einstieg" data-ziel="gipfelbuch"><span>⛰️</span><b>Gipfelbuch</b><small>erreichte Gipfel</small></button>
-          <button class="einstieg" data-ziel="gegangen"><span>📊</span><b>Gegangen</b><small>Touren und Statistik</small></button>
-          <button class="einstieg" data-ziel="unterwegs"><span>🧭</span><b>Unterwegs</b><small>folgen und aufzeichnen</small></button>
         </div>
       </section>
 
