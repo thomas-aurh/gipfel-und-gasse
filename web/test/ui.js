@@ -806,6 +806,13 @@ function pruef(name, bed, info) {
   pruef('Fotos: groß mit Reise, Datum und Tour des Tages', await page.isVisible('#tbBild') && (await page.textContent('#tbBildText')).startsWith('1/1 · Testurlaub · ') &&
     await page.isVisible('#tbBildReise') && await page.isVisible('#tbBildTour') && await page.isHidden('#tbBildVor') && await page.isHidden('#tbBildNach'),
     [await page.textContent('#tbBildText'), await page.isVisible('#tbBildTour')]);
+  // Teilen: Browser mit Teilen-Funktion bekommt das Foto als Datei, mit Reise im Begleittext
+  await page.evaluate(() => { window.__geteilt = null; Object.defineProperty(navigator, 'canShare', { configurable: true, value: d => !!(d && d.files) }); Object.defineProperty(navigator, 'share', { configurable: true, value: async d => { window.__geteilt = { n: d.files.length, name: d.files[0].name, typ: d.files[0].type, groesse: d.files[0].size, text: d.text }; } }); });
+  await page.click('#tbBildTeilen');
+  await page.waitForFunction(() => !!window.__geteilt, null, { timeout: 5000 }).catch(() => {});
+  const geteilt = await page.evaluate(() => window.__geteilt || document.getElementById('meldung').textContent);
+  pruef('Fotos: Teilen gibt das Foto als Datei weiter', !!geteilt && geteilt.n === 1 && /^gipfel-und-gasse-\d{4}-\d\d-\d\d-1\.jpg$/.test(geteilt.name) && geteilt.groesse > 100 &&
+    geteilt.text.startsWith('Testurlaub') && await page.isVisible('#tbBild'), geteilt);
   await page.click('#tbBildReise');
   await page.waitForFunction(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') && !!document.querySelector('.tb-eintrag.hervor'), null, { timeout: 5000 }).catch(() => {});
   pruef('Fotos: „Zur Reise“ springt zum Eintrag', await page.isHidden('#tbBild') && (await page.textContent('#tbTitel')).includes('Testurlaub') && (await page.$$('.tb-eintrag.hervor')).length === 1);
@@ -1119,7 +1126,7 @@ function pruef(name, bed, info) {
         starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
-        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: o.text.length, gpx: o.text.startsWith('<?xml') }]); },
+        teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: (o.text || '').length, gpx: (o.text || '').startsWith('<?xml'), daten: o.daten ? o.daten.length : 0, mime: o.mime }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
@@ -1332,6 +1339,14 @@ function pruef(name, bed, info) {
   pruef('App: Kamerafoto als Original in die Galerie, Galeriefoto nicht', galerie.length === 1 && galerie[0][1].laenge > 1000 &&
     /^Gipfel-und-Gasse_\d{8}_\d{6}\.jpg$/.test(galerie[0][1].name) && galerie[0][1].mime === 'image/jpeg', galerie);
   pruef('App: beide Fotos im Eintrag', (await pa2.$$('#tbFotosNeu figure')).length === 2);
+  // Foto teilen in der App: als Bilddatei über das Teilen-Menü von Android
+  const vorFoto = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').length;
+  await pa2.click('#tbFotosNeu figure .gross >> nth=0');
+  await pa2.click('#tbBildTeilen');
+  await pa2.waitForFunction(n => window.__navi.aufrufe.filter(x => x[0] === 'teilen').length > n, vorFoto, { timeout: 5000 }).catch(() => {});
+  const fotoT = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'teilen').slice(vorFoto);
+  pruef('App: Foto teilen als Bild über das Teilen-Menü', fotoT.length === 1 && fotoT[0][1].daten > 1000 && /^image\//.test(fotoT[0][1].mime) && fotoT[0][1].name.endsWith('.jpg'), fotoT);
+  await pa2.click('#tbBildZu');
   await pa2.click('#tbEintragAbbrechen');
   // Android 9: kein Schalter, kein Versuch (die Galerie geht erst ab Android 10)
   const alt9 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, userAgent: UA_ANDROID(9) });

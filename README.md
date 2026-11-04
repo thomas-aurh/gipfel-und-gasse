@@ -61,7 +61,8 @@ aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mi
 
 **Fotos:** Ich › *Fotos* zeigt alle Bilder aus dem Reisetagebuch als Raster, neueste zuerst. Antippen zeigt ein Foto groß;
 wischen oder ‹ › blättert. Unten stehen Reise und Zeitpunkt, „📔 Zur Reise“ springt zum Eintrag, „🥾 …“ öffnet die gegangene
-Tour desselben Tages. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages. Die Fotos liegen im
+Tour desselben Tages. „📤 Teilen“ (oben links) gibt das Foto weiter, in der App über das Teilen-Menü von Android
+(WhatsApp, Signal, Mail …), im Browser über dessen Teilen-Funktion oder als Download. Auf der Seite einer gegangenen Tour stehen umgekehrt die Fotos dieses Tages. Die Fotos liegen im
 Speicher der App (IndexedDB, auf 1600 px verkleinert, Originale der Kamera auf Wunsch in der Galerie unter Bilder › Gipfel
 und Gasse) und kommen mit in die Sicherung.
 

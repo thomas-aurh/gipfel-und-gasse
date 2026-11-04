@@ -216,6 +216,10 @@ if (NATIV) {
   dateiAusgeben = function (datei, text, mime) {
     Navi.teilen({ name: datei, text, mime }).catch(err => melde(err.message || String(err), 6));
   };
+  fotoTeilen = async function (blob, name, text) {
+    const daten = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => nein(r.error); r.readAsDataURL(blob); });
+    return Navi.teilen({ name, daten, mime: blob.type || 'image/jpeg', text }).catch(err => melde(err.message || String(err), 6));
+  };
 
   // Zurück-Taste von Android (MainActivity fragt hier nach): erst Fenster, Kartenwahl, Suche und großes Blatt schließen,
   // dann zum Reiter Planen; erst danach geht die App in den Hintergrund (Navigation läuft weiter)

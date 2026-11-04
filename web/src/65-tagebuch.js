@@ -141,6 +141,29 @@ function bildZu() {
   return true;
 }
 $('tbBild').onclick = bildZu;
+// Foto teilen: App über das Teilen-Menü von Android (75-app.js), Browser über das Teilen des Browsers, sonst herunterladen
+let fotoTeilen = async function (blob, name, text) {
+  const datei = new File([blob], name, { type: blob.type || 'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+    try { await navigator.share({ files: [datei], title: name, text }); } catch (e) { if (e.name !== 'AbortError') melde('Teilen ging nicht: ' + e.message, 6); }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  melde('Teilen kann dieser Browser nicht: Foto heruntergeladen.', 5);
+};
+$('tbBildTeilen').onclick = async ev => {
+  ev.stopPropagation();
+  const src = $('tbBild').querySelector('img').src;
+  if (!src) return;
+  const x = GALERIE.liste && GALERIE.liste[GALERIE.i];
+  const tag = R.tagIso(x ? x.zeit : Date.now());
+  const name = 'gipfel-und-gasse-' + tag + (x ? '-' + (GALERIE.i + 1) : '') + '.jpg';
+  const text = x ? [x.reise && x.reise.name, x.tour && x.tour.name, new Date(x.zeit).toLocaleDateString('de-DE')].filter(Boolean).join(' · ') : '';
+  try { await fotoTeilen(await (await fetch(src)).blob(), name, text); } catch (e) { melde('Teilen ging nicht: ' + e.message, 6); }
+};
 $('tbBildVor').onclick = ev => { ev.stopPropagation(); galerieSchritt(-1); };
 $('tbBildNach').onclick = ev => { ev.stopPropagation(); galerieSchritt(1); };
 $('tbBildInfo').onclick = ev => ev.stopPropagation();

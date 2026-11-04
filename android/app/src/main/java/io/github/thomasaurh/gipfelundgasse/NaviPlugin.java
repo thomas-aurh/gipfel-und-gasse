@@ -298,16 +298,20 @@ public class NaviPlugin extends Plugin {
         String name = call.getString("name", "tour.gpx").replaceAll("[^\\w.\\- äöüÄÖÜß]", "_");
         String text = call.getString("text", "");
         String mime = call.getString("mime", "application/gpx+xml");
+        // daten (Base64): Bild oder andere Binärdatei, z. B. ein Foto aus dem Tagebuch; text ist dann der Begleittext
+        String daten = call.getString("daten", null);
         try {
             // je Freigabe ein eigener Ordner: der Empfänger liest die Datei erst später, eine zweite Freigabe gleichen
             // Namens darf sie nicht überschreiben
             File ordner = new File(new File(getContext().getCacheDir(), "teilen"), String.valueOf(System.nanoTime()));
             if (!ordner.exists() && !ordner.mkdirs()) throw new Exception("Ordner nicht anlegbar");
             File f = new File(ordner, name);
-            try (FileOutputStream out = new FileOutputStream(f)) { out.write(text.getBytes(StandardCharsets.UTF_8)); }
+            byte[] inhalt = daten != null ? android.util.Base64.decode(daten, android.util.Base64.DEFAULT) : text.getBytes(StandardCharsets.UTF_8);
+            try (FileOutputStream out = new FileOutputStream(f)) { out.write(inhalt); }
             Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
             Intent senden = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
                 .putExtra(Intent.EXTRA_SUBJECT, name).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (daten != null && !text.isEmpty()) senden.putExtra(Intent.EXTRA_TEXT, text);
             Intent wahl = Intent.createChooser(senden, "Weitergeben an …");
             wahl.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(wahl);
