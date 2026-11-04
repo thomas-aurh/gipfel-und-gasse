@@ -5,6 +5,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Familien-Check und Rundgang nach Zeit (04.11.) nur nachgebildet geprüft:** echte Overpass-Antworten zum Mittelstück
+  der Route (Spielplatz, Einkehr), ob 250 m neben der Route das Gemeinte trifft; wie gut die Schätzung (Luftlinie × 1,3 bei
+  4 km/h) und das Nachmessen die Zeit in einer echten Altstadt treffen. Die Wiederholung im Schritt „Download-Seite
+  erneuern“ greift erst beim nächsten 502.
 - **Übersicht vom 04.11. auf dem Pixel nur angesehen** (Bau 165 bis 174: Einstiege, Start mit der Karte, Leiste, „Ich“,
   Tourliste). Nicht geprüft: „▶ Los“ auf der Tourseite mit Ansagen und der Balken bei laufender Navigation in der App,
   Klappzeilen mit Route, ▲▼ an den Stopps, Suche in den Tourlisten, Zoom nur mit zwei Fingern.
@@ -73,8 +77,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
-- **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Familien-Filter (unter X km und Y Hm, Spielplatz
-  oder Einkehr auf halber Strecke); Rundgang nach Zeitbudget („2 Stunden in Verona“); Packliste je Tourart und Wetter;
+- **Ideen, nicht gebaut:** Fotos und Notizen an Punkten der Tour; Packliste je Tourart und Wetter;
   kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket); Fotos aus dem
   Tagebuch im Gipfelbuch.
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
@@ -179,8 +182,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   `signierschluessel` + Geheimnis `KEYSTORE_PASSWORT`, beide nie löschen) und ersetzt die APK im Release `neueste`:
   https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste (Datei `Gipfel-und-Gasse.apk`, Titel nennt den
   Bau). Nach jedem Bau geprüft: Fingerabdruck `20:D3:8E:B0…59:48:B2`.
-- **Fehlerbild Download-Seite:** Bricht „Download-Seite erneuern“ mit `gh: Server Error (HTTP 502)` ab, liegt es an
-  GitHub. Erst `gh release view neueste --json assets,name` messen (APK und Baunummer), dann den Job einmal neu
+- **Fehlerbild Download-Seite:** GitHub antwortet zeitweise mit `HTTP 502` (04.11. zweimal). Seitdem wiederholt der
+  Schritt „Download-Seite erneuern“ jeden Aufruf bis zu fünfmal (Pause 5 bis 20 s), Löschen darf scheitern. Bricht er
+  trotzdem ab: erst `gh release view neueste --json assets,name` messen (APK und Baunummer), dann den Job einmal neu
   anstoßen; das Skript räumt einen halben Lauf selbst auf (`-neu`/`-alt`).
 - **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
   Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
@@ -192,6 +196,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **04.11. (später Nachmittag)** Download-Seite: GitHub-Aufrufe bis zu fünfmal wiederholt (Bau 167 und 169 waren an 502
+  gescheitert). Familien-Filter in den geplanten Touren (bis 5/8/12 km und 200/400/700 Hm) und „👨‍👩‍👧 Familien-Check“ im
+  Planen (Grenze, Spielplatz oder Einkehr auf halber Strecke, nur das Mittelstück bei Overpass). Stadtrundgang nach
+  Zeitbudget (1 bis 4 Stunden, nach dem Routen nachgemessen, zu langer Rundgang verliert den letzten Ort). Klicktest 321,
+  Einheitstests 248.
 - **04.11. (Nachmittag)** Durchsicht: Prüfung und Klicktest grün, alles Ausgelieferte auf `main`. Übersicht nach dem
   Vorbild gängiger Tourenplaner, jede Stufe von Thomas auf dem Pixel angesehen: Planen mit Kennzahlen und Höhenprofil
   zuerst, Art/Tempo und Name/Zeitplan als Klappzeilen, Einstiege ohne Route, Zoom-Knöpfe nur mit Maus (#57); Start am

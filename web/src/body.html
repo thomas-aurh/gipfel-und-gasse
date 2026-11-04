@@ -179,6 +179,7 @@
         <div id="ergebnis" hidden>
           <div id="zeitplan" class="klein"></div>
           <div id="etappen" hidden></div>
+          <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
           <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
           <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           <div id="stopps"></div>
@@ -215,8 +216,9 @@
           <h3>Sehenswürdigkeiten im Kartenausschnitt</h3>
           <div id="stadtStatus" class="klein">Bis Zoomstufe 14 heranzoomen, dann erscheinen sie auf der Karte.</div>
           <div class="zeile">
-            <label>Rundgang mit<select id="rundAnzahl">
-              <option value="4">4 Orten</option><option value="6" selected>6 Orten</option><option value="8">8 Orten</option><option value="10">10 Orten</option>
+            <label>Rundgang<select id="rundAnzahl">
+              <option value="4">mit 4 Orten</option><option value="6" selected>mit 6 Orten</option><option value="8">mit 8 Orten</option><option value="10">mit 10 Orten</option>
+              <option value="z60">⏱ in 1 Stunde</option><option value="z120">⏱ in 2 Stunden</option><option value="z180">⏱ in 3 Stunden</option><option value="z240">⏱ in 4 Stunden</option>
             </select></label>
             <button class="knopf haupt" id="bRundgang">✨ Rundgang vorschlagen</button>
           </div>
@@ -277,7 +279,7 @@
           <button class="knopf" id="bGpxOeffnen">📂 GPX öffnen</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" hidden>
         </div>
-        <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select></div>
+        <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select><select class="tf-familie" aria-label="Familie: Länge und Höhenmeter begrenzen"><option value="">Jede Länge</option><option value="5-200">👨‍👩‍👧 bis 5 km, 200 Hm</option><option value="8-400">👨‍👩‍👧 bis 8 km, 400 Hm</option><option value="12-700">👨‍👩‍👧 bis 12 km, 700 Hm</option></select></div>
         <ul id="tourliste" class="liste"></ul>
       </section>
 

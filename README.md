@@ -49,6 +49,15 @@ Ziel eine Stelle weiter (der Start bleibt, „↶ Rückgängig“ holt die alte 
 *Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
 Rad, Stadt, GPX).
 
+**Familie:** In *Planen* „👨‍👩‍👧 Familien-Check“: passt die Tour zur gewählten Grenze (bis 5 km und 200 Hm, 8 km und 400 Hm
+oder 12 km und 700 Hm; gewählt unter *Touren* in der Liste, sonst 8 km und 400 Hm), und gibt es auf halber Strecke (30 bis
+70 % der Länge, bis 250 m neben der Route) einen Spielplatz oder eine Einkehr? Die geplanten Touren lassen sich mit
+derselben Grenze filtern.
+
+**Stadtrundgang nach Zeit:** In *Entdecken* (Stadt) unter „Rundgang“ statt einer Anzahl Orte „⏱ in 1 Stunde“ bis „4 Stunden“
+wählen: Die App nimmt die bekanntesten Orte, so viele in die Zeit passen (Weg samt Besichtigung), misst nach dem Routen nach
+und lässt bei Bedarf den letzten Ort weg.
+
 **Mehrtagestour:** Ein Zwischenziel antippen › „🛏 Hier übernachten“ teilt die Tour in Etappen. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel (jeder
 Tag beginnt zur selben Startzeit). „📔 Als Reise ins Tagebuch“ legt die Reise über diese Tage an.

@@ -244,6 +244,7 @@ function tempoFelder() {
 
 function auswertenUndZeigen() {
   tempoFelder();
+  $('familie').textContent = '';   // Familien-Check gilt für die alte Route
   // Marke vom Antippen des Höhenprofils gehört zur alten Route (am Touchscreen gibt es kein „Maus weg“, das sie entfernt)
   profilWeg();
   S.ergebnis = S.stuecke.length ? R.auswerten(S.stuecke, tempoAktuell(), artAktuell()) : null;

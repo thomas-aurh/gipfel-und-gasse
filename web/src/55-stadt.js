@@ -164,7 +164,9 @@ $('bRundgang').onclick = async () => {
     if (!lagenWahl.sehens) { lagenWahl.sehens = true; lagenAnwenden(); }
     await sehensLaden();
   }
-  const anzahl = +$('rundAnzahl').value;
+  // Anzahl der Orte oder Zeitbudget („z120“ = 2 Stunden samt Besichtigung)
+  const wahlWert = $('rundAnzahl').value, budget = /^z\d+$/.test(wahlWert) ? +wahlWert.slice(1) : 0;
+  const anzahl = budget ? 12 : +wahlWert;
   const kandidaten = sehensSichtbar().filter(o => /^(sehens|museum|aussicht|park|kunst)$/.test(o.kat) && o.tags.name);
   if (kandidaten.length < 2) { melde('Zu wenige Sehenswürdigkeiten im Ausschnitt.'); return; }
   const c = karte.getCenter();
@@ -177,6 +179,8 @@ $('bRundgang').onclick = async () => {
   for (const o of kandidaten) {
     if (wahl.length >= anzahl) break;
     if (gleich(start, o) || wahl.some(w => gleich(w, o))) continue;
+    // mit Zeitbudget nur, was noch hineinpasst (Schätzung: Luftlinie mal 1,3 bei 4 km/h plus Besichtigung)
+    if (budget && R.rundgangMinuten(start, wahl.concat([o])) > budget) continue;
     wahl.push(o);
   }
   if (!wahl.length) { melde('Zu wenige Sehenswürdigkeiten im Ausschnitt.'); return; }
@@ -186,8 +190,29 @@ $('bRundgang').onclick = async () => {
   if (S.profil === 'wandern') { S.profil = 'stadt'; $('profilwahl').value = 'stadt'; }
   if (!S.name) { S.name = 'Stadtrundgang'; $('tourname').value = S.name; }
   reiter('planen');
-  melde('Rundgang mit ' + reihe.length + ' Orten vorgeschlagen. Zeiten und Reihenfolge lassen sich anpassen.', 5);
+  if (!budget) melde('Rundgang mit ' + reihe.length + ' Orten vorgeschlagen. Zeiten und Reihenfolge lassen sich anpassen.', 5);
   await neuBerechnen();
+  // Zeitbudget: nach dem Routen nachmessen (Gehzeit über die Wege plus Besichtigung); zu lang ⇒ den zuletzt gewählten,
+  // also am wenigsten bekannten Ort weglassen und neu rechnen, höchstens dreimal
+  if (budget) {
+    // inzwischen anders geplant (Punkt gesetzt, Neu, Tour geöffnet): nicht weiter kürzen
+    let meine = S.wps;
+    for (let i = 0; i < 3 && S.ergebnis && S.wps === meine; i++) {
+      const dauer = S.ergebnis.zeit * 60 + besichtigung();
+      if (dauer <= budget * 1.05 || S.wps.length <= 3) break;
+      const weg = wahl.pop();
+      const idx = S.wps.findIndex((w, k) => k > 0 && k < S.wps.length - 1 && w.name === weg.name && R.abstand(w, weg) < 5);
+      if (idx < 0) break;
+      merken();
+      S.wps = meine = S.wps.filter((w, k) => k !== idx);
+      await neuBerechnen();
+    }
+    if (S.ergebnis) {
+      const dauer = S.ergebnis.zeit * 60 + besichtigung(), stopps = S.wps.length - 2;
+      melde('Rundgang für ' + R.zeitText(budget / 60) + ': ' + stopps + (stopps === 1 ? ' Ort' : ' Orte') + ', etwa ' + R.zeitText(dauer / 60) + ' mit Besichtigung.' +
+        (dauer > budget * 1.05 ? ' Etwas länger als gewünscht: einen Stopp entfernen oder kürzer besichtigen.' : ''), 7);
+    }
+  }
   if (S.ergebnis) einpassen(L.latLngBounds(S.ergebnis.pts.map(p => [p.lat, p.lon])));
 };
 

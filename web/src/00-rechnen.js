@@ -592,6 +592,17 @@ var R = (function () {
     return { profil: m[1], wps };
   }
 
+  // ---------- Familie: Grenzen für Länge und Aufstieg (Tourliste und Familien-Check) ----------
+  const FAMILIE = {
+    '5-200': { meter: 5000, hm: 200, text: 'bis 5 km und 200 Hm' },
+    '8-400': { meter: 8000, hm: 400, text: 'bis 8 km und 400 Hm' },
+    '12-700': { meter: 12000, hm: 700, text: 'bis 12 km und 700 Hm' }
+  };
+  // Spielplatz oder Einkehr auf halber Strecke: zwischen 30 und 70 % der Länge, höchstens 250 m neben der Route
+  function familieHalbzeit(orte, laenge) {
+    return orte.filter(o => (o.kat === 'spiel' || o.kat === 'huette') && o.d != null && o.d >= laenge * 0.3 && o.d <= laenge * 0.7 && o.abw <= 250);
+  }
+
   // ---------- Orte entlang der Strecke (Overpass) ----------
   const ORTE = [
     { k: 'huette', name: 'Hütten und Einkehr', zeichen: '🏠', test: t => /^(alpine_hut|wilderness_hut)$/.test(t.tourism) || /^(restaurant|cafe|biergarten)$/.test(t.amenity) },
@@ -1664,6 +1675,12 @@ var R = (function () {
   }
   const rundgangOrdnen = (start, orte) => wegOrdnen(start, orte, true);
   const rundgangLaenge = (start, orte) => wegLaenge(start, orte, true);
+  // geschätzte Dauer eines Rundgangs in Minuten: kurze Reihenfolge, Luftlinie mal 1,3 (Umwege in der Stadt) bei 4 km/h,
+  // plus Besichtigungszeit der Orte (Feld min)
+  function rundgangMinuten(start, orte) {
+    const reihe = rundgangOrdnen(start, orte);
+    return rundgangLaenge(start, reihe) * 1.3 / 4000 * 60 + reihe.reduce((s, o) => s + (+o.min || 0), 0);
+  }
 
   // ---------- Höhendaten (Terrarium-Kacheln aus dem Offline-Paket) ----------
   // Terrarium: Höhe = R·256 + G + B/256 − 32768 Meter
@@ -1798,7 +1815,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

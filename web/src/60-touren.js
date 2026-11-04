@@ -218,16 +218,22 @@ function tourArt(t) {
 function tourenFiltern(liste, f) {
   const suche = (f.querySelector('.tf-suche').value || '').trim().toLowerCase();
   const art = f.querySelector('.tf-art') ? f.querySelector('.tf-art').value : '';
+  const fam = R.FAMILIE[f.querySelector('.tf-familie') ? f.querySelector('.tf-familie').value : ''];
   const sort = f.querySelector('.tf-sort').value;
   const kurz = (t, k) => +((t.kurz || {})[k]) || 0;
   const wann = t => Date.parse(t.datum) || 0;
-  const aus = liste.filter(t => (!suche || String(t.name || '').toLowerCase().includes(suche)) && (!art || tourArt(t) === art));
+  const aus = liste.filter(t => (!suche || String(t.name || '').toLowerCase().includes(suche)) && (!art || tourArt(t) === art) &&
+    (!fam || (kurz(t, 'laenge') <= fam.meter && kurz(t, 'auf') <= fam.hm)));
   const vergleich = { neu: (a, b) => wann(b) - wann(a), alt: (a, b) => wann(a) - wann(b), name: (a, b) => String(a.name).localeCompare(String(b.name), 'de'),
     lang: (a, b) => kurz(b, 'laenge') - kurz(a, 'laenge'), kurz: (a, b) => kurz(a, 'laenge') - kurz(b, 'laenge'), hm: (a, b) => kurz(b, 'auf') - kurz(a, 'auf') }[sort];
   return vergleich ? aus.slice().sort(vergleich) : aus;
 }
 document.querySelectorAll('.tourfilter').forEach(f => {
-  f.querySelectorAll('input, select').forEach(e => e.addEventListener(e.tagName === 'INPUT' ? 'input' : 'change', () => tourenZeigen()));
+  f.querySelectorAll('input, select').forEach(e => e.addEventListener(e.tagName === 'INPUT' ? 'input' : 'change', () => {
+    // die gewählte Familien-Grenze gilt auch für den Familien-Check im Planen
+    if (e.classList.contains('tf-familie') && e.value) SPEICHER.schreiben('familie', e.value);
+    tourenZeigen();
+  }));
 });
 
 function listeZeigen(ul, liste, leer) {
