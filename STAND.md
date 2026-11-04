@@ -58,11 +58,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
 - **Mehrtagestour (03.11.), noch nicht gebaut:** Etappen im Druck und im Reisetagebuch-Heft; Navigation kennt die Etappen
   nicht (folgt der ganzen Tour, Ansagen bis zum Ziel); eine Startzeit je Tag statt derselben für alle.
-- **Klicktest „Reiseziele, Datei laden“ war zeitabhängig, seit #53 nicht mehr gesehen:** vor #51/#53 rot in 3 von 21
-  Läufen; im eingefangenen Lauf kam die Suche bei der Photon-Nachbildung an, `suchen()` kehrte aber nie zurück (auch
-  nicht mit Zeitüberschreitung). Nach #51/#53 grün in 24 von 24 Läufen (03.11.). Vermutung: das GPS, das vor #53 nach
-  „Route folgen“ weiterlief und die Karte mitzog; Mechanismus nicht erklärt. Kommt er wieder, zeigt es der Klicktest in
-  GitHub Actions (seit #55).
 - **Routendaten doppelt auf dem Handy:** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit; jede
   Region hat ihre eigene Kopie.
 - **Neuer Paketname erst nach dem nächsten Lauf „Kartenpakete“ auf `main`** (#36): „Oberbayern mit München, Innsbruck
@@ -188,7 +183,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 ## Erledigt
 
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
-  Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang (#55).
+  Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
+  behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
+  blieb; jetzt wartet er auf den Status genau dieses Imports, und Abbrechen leert die Vorschau (Gegenprobe rot,
+  danach 6 von 6 grün). Die Vermutung vom 03.11. (GPS aus #53) war falsch (#55).
 
 - **03.11. (abends)** `KartenServer` bedient `/_karten_/…` nur noch für die eigene App-Adresse (Schema und Host der
   Capacitor-Brücke, sonst 403; Java-Test `BereichTest.nurEigeneAdresse`). Im Browser geht GPS mit dem Ende von Folgen
