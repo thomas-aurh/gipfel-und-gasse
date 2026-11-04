@@ -151,9 +151,13 @@ let ok = 0, fehler = 0;
 // Seite über das Menü links oben öffnen (wie ein Nutzer: ☰ antippen, Eintrag wählen)
 // Karte, Planen, Unterwegs und Touren stehen in der Leiste (Gegangen über den Umschalter unter Touren), der Rest im Menü
 async function zuSeite(seite, ziel) {
-  // Leiste: Karte, Entdecken, Planen, Unterwegs, Ich (Touren, Gegangen, Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
+  // Leiste: Karte, Entdecken, Planen, Unterwegs, Ich (Touren mit Geplant/Gegangen, Tagebuch, Reiseziele, Gipfelbuch); der Rest im Menü
   if (['karte', 'entdecken', 'planen', 'unterwegs', 'ich'].includes(ziel)) { await seite.click('#leiste [data-reiter=' + ziel + ']'); return; }
-  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) { await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + ziel + ']'); return; }
+  if (['touren', 'gegangen', 'tagebuch', 'ziele', 'gipfelbuch'].includes(ziel)) {
+    await seite.click('#leiste [data-reiter=ich]'); await seite.click('.ich-liste [data-ziel=' + (ziel === 'gegangen' ? 'touren' : ziel) + ']');
+    if (ziel === 'gegangen') await seite.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
+    return;
+  }
   await seite.click('#bMenue'); await seite.click('#menue [data-ziel=' + ziel + ']');
 }
 function pruef(name, bed, info) {
@@ -1560,7 +1564,7 @@ function pruef(name, bed, info) {
   pruef('Runde: „Neu“ während der Berechnung gewinnt', (await pt.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length)) === 0);
   // Ich: Sammlungen als Kacheln; Tagebuch gehört in der Leiste zu „Ich“
   await zuSeite(pt, 'ich');
-  pruef('Ich: Touren, Gegangen, Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,gegangen,tagebuch,ziele,gipfelbuch');
+  pruef('Ich: Touren (geplant und gegangen), Tagebuch, Reiseziele, Gipfelbuch', await pt.evaluate(() => [...document.querySelectorAll('.ich-liste [data-ziel]')].map(b => b.dataset.ziel).join()) === 'touren,tagebuch,ziele,gipfelbuch');
   await pt.tap('.ich-liste [data-ziel=tagebuch]'); await pt.waitForTimeout(200);
   pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
     document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
