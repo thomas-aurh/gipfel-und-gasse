@@ -5,9 +5,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Planen neu (04.11.):** von Thomas auf dem Pixel gesehen (Bau 165): Einstiege mit „Letzte Tour“ und die Zeile Art und
-  Tempo. Noch nicht geprüft: Klappzeilen mit Route, Start mit der reinen Karte (seit #59), Zoom nur mit zwei Fingern,
-  neue Leiste, Tourseite und Balken (#60), Stopps mit ▲▼, Suche in den Tourlisten.
+- **Übersicht vom 04.11. auf dem Pixel nur angesehen** (Bau 165 bis 174: Einstiege, Start mit der Karte, Leiste, „Ich“,
+  Tourliste). Nicht geprüft: „▶ Los“ auf der Tourseite mit Ansagen und der Balken bei laufender Navigation in der App,
+  Klappzeilen mit Route, ▲▼ an den Stopps, Suche in den Tourlisten, Zoom nur mit zwei Fingern.
+- **Alte Branches auf GitHub:** `claude/planen-uebersicht` (Stand von #57, versehentlich angelegt) und
+  `claude/stand-offline-bestaetigt` (überholt) lassen sich aus der Cloud nicht löschen (403); von Hand löschen.
 - **Android-App (Stufen 1–5) gebaut, auf dem Pixel nicht geprüft.** Bis zur Korrektur in #5 lief die Anbindung an
   Android auf dem Handy gar nicht (Capacitor-Kern fehlte, Routen nur als gerade Linie). Von Thomas am 01.11. auf dem
   Pixel geprüft (Verona, neue APK): Route über Wege (online) und Standort auf der Karte. Offen bleibt der Rest unten. Geprüft in GitHub Actions: Bau, Java-Tests,
@@ -177,6 +179,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   `signierschluessel` + Geheimnis `KEYSTORE_PASSWORT`, beide nie löschen) und ersetzt die APK im Release `neueste`:
   https://github.com/thomas-aurh/gipfel-und-gasse/releases/tag/neueste (Datei `Gipfel-und-Gasse.apk`, Titel nennt den
   Bau). Nach jedem Bau geprüft: Fingerabdruck `20:D3:8E:B0…59:48:B2`.
+- **Fehlerbild Download-Seite:** Bricht „Download-Seite erneuern“ mit `gh: Server Error (HTTP 502)` ab, liegt es an
+  GitHub. Erst `gh release view neueste --json assets,name` messen (APK und Baunummer), dann den Job einmal neu
+  anstoßen; das Skript räumt einen halben Lauf selbst auf (`-neu`/`-alt`).
 - **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
   Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
   dort und in der App-Liste. Die App holt die Liste von dort.
@@ -187,25 +192,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **04.11. (Nachmittag)** Durchsicht: Prüfung und Klicktest grün, alles Ausgelieferte auf `main`; Branch
-  `claude/stand-offline-bestaetigt` überholt (ältere STAND-Fassung). Planen übersichtlicher (Vorbild gängige
-  Tourenplaner): Kennzahlen und Höhenprofil zuerst, Art und Tempo sowie Name und Zeitplan am Telefon je eine
-  aufklappbare Zeile (am PC offen); ohne Route Einstiege „Runde mit Länge“, „Stadtrundgang“, „Letzte Tour“ im halb
-  offenen Blatt; Zoom-Knöpfe nur mit Maus, Fadenkreuz nur auf Karte und Planen. Klicktest 285.
-  Danach, Befund von Thomas auf dem Pixel (Bau 165): schwarzer Punkt blieb ohne Route auf der Karte. Es war die Marke vom
-  Antippen des Höhenprofils (am Touchscreen nimmt kein „Maus weg“ sie weg); jetzt geht sie mit jeder neuen Route und mit
-  „Neu“ (Klicktest 287, Gegenprobe ohne Änderung rot) (#58).
-  Start am Telefon ohne Route mit der reinen Karte statt mit halb offenem Blatt (Thomas' Wunsch nach dem Test): Start
-  antippen meldet sich, mit dem Ziel geht es zum Planen; die Einstiege stehen unter *Planen* (Klicktest 290) (#59).
-  Stopps mit ▲▼ umsortieren (Liste auch am Berg ab drei Punkten; Start fest, bei Rundtour auch der Schluss) und
-  Tourlisten ab drei Touren durchsuchen, sortieren und (geplante) nach Art filtern; offen seit 01.11. (Klicktest 304).
-  Übersicht Stufe 2: Leiste Karte · Entdecken · Planen · Touren · Ich, Seite „Ich“ mit den Sammlungen, Tourseite mit
-  „▶ Los“, Bearbeiten, Link, GPX, Drucken; Balken über der Leiste bei laufender Navigation oder Aufzeichnung; Unterwegs im
-  Menü; Einstieg „⏺ Aufzeichnen“; Zurück-Taste von Tour zur Liste und von Tagebuch, Reisezielen, Gipfelbuch zu „Ich“
-  (Klicktest 315) (#60). Nach dem Test von Bau 172 auf dem Pixel: Touren und Unterwegs getauscht, Leiste jetzt
-  Karte · Entdecken · Planen · Unterwegs · Ich, „Ich“ mit Touren, Gegangen, Tagebuch, Reisezielen, Gipfelbuch; Zurück-Taste
-  aus den Touren zu „Ich“ (Klicktest 315) (#61). Kachel „Gegangen“ unter „Ich“ wieder raus (doppelt zum Umschalter
-  Geplant/Gegangen in den Touren, Thomas nach Bau 174).
+- **04.11. (Nachmittag)** Durchsicht: Prüfung und Klicktest grün, alles Ausgelieferte auf `main`. Übersicht nach dem
+  Vorbild gängiger Tourenplaner, jede Stufe von Thomas auf dem Pixel angesehen: Planen mit Kennzahlen und Höhenprofil
+  zuerst, Art/Tempo und Name/Zeitplan als Klappzeilen, Einstiege ohne Route, Zoom-Knöpfe nur mit Maus (#57); Start am
+  Telefon mit der reinen Karte (#59); Marke vom Höhenprofil blieb ohne Route stehen, behoben (#58); Stopps mit ▲▼,
+  Tourlisten mit Suche, Sortierung und Art (#60); Leiste Karte · Entdecken · Planen · Unterwegs · Ich, „Ich“ mit Touren,
+  Tagebuch, Reisezielen, Gipfelbuch, Tourseite mit „▶ Los“, Balken bei laufender Navigation (#60, #61, #62).
+  Klicktest 315. Bau 167 und 169 brachen beim Erneuern der Download-Seite mit HTTP 502 von GitHub ab (APK gebaut,
+  Code unschuldig); Neulauf des Jobs grün.
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
