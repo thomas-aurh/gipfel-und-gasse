@@ -9,8 +9,8 @@ function reiter(name) {
   // Fadenkreuz gehört zum Planen (Karte und Planen); auf anderen Seiten ist der Knopf weg und das Kreuz aus
   document.body.dataset.seite = name;
   if (name !== 'planen' && name !== 'karte' && kreuzAn) kreuz(false);
-  // in der Leiste stehen die fünf Hauptbereiche; Geplant, Gegangen und eine Tour gehören zu „Touren“, die Sammlungen zu „Ich“
-  const leiste = { gegangen: 'touren', tour: 'touren', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich' }[name] || name;
+  // in der Leiste stehen die fünf Hauptbereiche; Touren (geplant, gegangen, eine Tour) und die Sammlungen gehören zu „Ich“
+  const leiste = { touren: 'ich', gegangen: 'ich', tour: 'ich', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich' }[name] || name;
   document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
   document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === name));
   balkenZeigen();
