@@ -204,7 +204,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Menü; Einstieg „⏺ Aufzeichnen“; Zurück-Taste von Tour zur Liste und von Tagebuch, Reisezielen, Gipfelbuch zu „Ich“
   (Klicktest 315) (#60). Nach dem Test von Bau 172 auf dem Pixel: Touren und Unterwegs getauscht, Leiste jetzt
   Karte · Entdecken · Planen · Unterwegs · Ich, „Ich“ mit Touren, Gegangen, Tagebuch, Reisezielen, Gipfelbuch; Zurück-Taste
-  aus den Touren zu „Ich“ (Klicktest 315).
+  aus den Touren zu „Ich“ (Klicktest 315) (#61). Kachel „Gegangen“ unter „Ich“ wieder raus (doppelt zum Umschalter
+  Geplant/Gegangen in den Touren, Thomas nach Bau 174).
 - **04.11.** Klicktest als Pflichtprüfung in GitHub Actions (Job `klicktest`, Chromium und Testkarten; die APK für die
   Download-Seite entsteht erst danach), bei Fehler mit Bildschirmfotos als Anhang. Wackler „Reiseziele, Datei laden“
   behoben: der Test wartete auf „2 Häkchen“ und fand die der eben abgebrochenen Einfügen-Liste, die unsichtbar stehen
