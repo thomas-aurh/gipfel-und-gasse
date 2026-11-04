@@ -1492,6 +1492,20 @@ var R = (function () {
     return 'https://www.google.com/maps/dir/?api=1&destination=' + lat.toFixed(5) + ',' + lon.toFixed(5) + '&travelmode=' + (art === 'auto' ? 'driving' : 'transit');
   }
 
+  // Parkplätze um einen Punkt: nur öffentliche (orteLesen kennt nur die), nach Abstand sortiert, mit Abstand in Metern
+  function parkplaetze(orte, p) {
+    return orte.filter(o => o.kat === 'parken').map(o => Object.assign({}, o, { weg: abstand(p, o) })).sort((a, b) => a.weg - b.weg);
+  }
+  // Kurzbeschreibung: Abstand, Gebühr, Plätze, Art (Wanderparkplatz, Parkhaus)
+  function parkText(o) {
+    const t = o.tags || {}, z = [(o.weg < 1000 ? Math.round(o.weg / 10) * 10 + ' m' : kmText(o.weg)) + ' vom Start'];
+    if (t.fee === 'yes') z.push('gebührenpflichtig'); else if (t.fee === 'no') z.push('kostenlos');
+    if (t.capacity && /^\d+$/.test(t.capacity)) z.push(t.capacity + ' Plätze');
+    if (t.parking === 'multi-storey') z.push('Parkhaus'); else if (t.parking === 'underground') z.push('Tiefgarage');
+    if (t.hiking === 'yes' || /wanderpark/i.test(t.name || '')) z.push('Wanderparkplatz');
+    return z.join(' · ');
+  }
+
   // ---------- Orte und Suche ohne Netz (Datei orte.json.gz im Kartenpaket, gebaut von karten/orte.py) ----------
   // Eintrag [lat, lon, "n123", Merkmale] → Element wie in der Antwort von Overpass (für orteLesen und stadtLesen)
   function ortElement(e) {
@@ -1815,7 +1829,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

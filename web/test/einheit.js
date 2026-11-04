@@ -611,5 +611,15 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
   pruef('Rundgang: Minuten aus Weg und Besichtigung', nahe(R.rundgangMinuten(start, [ort]), 59, 1), R.rundgangMinuten(start, [ort]));
 }
 
+// Parkplätze: nur Kategorie „parken“, nach Abstand, Beschreibung mit Gebühr, Plätzen und Art
+{
+  const p = { lat: 47.75, lon: 11.37 };
+  const pl = R.parkplaetze([{ kat: 'parken', lat: 47.754, lon: 11.37, name: 'A', tags: { fee: 'no', capacity: '40', hiking: 'yes' } },
+    { kat: 'wc', lat: 47.7501, lon: 11.37, tags: {} }, { kat: 'parken', lat: 47.751, lon: 11.37, name: 'B', tags: { fee: 'yes', parking: 'underground' } }], p);
+  pruef('Parkplätze: sortiert, ohne andere Orte', pl.length === 2 && pl[0].name === 'B' && pl[1].name === 'A', pl.map(x => x.name));
+  pruef('Parkplätze: Beschreibung', R.parkText(pl[0]) === '110 m vom Start · gebührenpflichtig · Tiefgarage' && R.parkText(pl[1]) === '440 m vom Start · kostenlos · 40 Plätze · Wanderparkplatz',
+    [R.parkText(pl[0]), R.parkText(pl[1])]);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -55,7 +55,7 @@ function spurAlsTour(name, pts, art) {
   tourenZeigen();
   melde('Gespeichert: ' + name);
   if (art === 'aufzeichnung') gipfelNachTour(liste[0]);   // Gipfelbuch (im Hintergrund, braucht Paket oder Netz)
-  return true;
+  return liste[0].id;
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }
 
@@ -72,6 +72,7 @@ $('eAufz').onclick = () => reiter('unterwegs');
 
 // Tourseite: die Tour liegt geöffnet auf der Karte; hier Kennzahlen und die nächsten Schritte (Los, Bearbeiten, Teilen)
 function tourAnsehen(id) {
+  parkLauf++; $('tParkListe').innerHTML = ''; $('tParkStatus').hidden = true;
   tourOeffnen(id);
   if (S.tourId === id) reiter('tour');
 }
@@ -86,7 +87,44 @@ function tourSeiteZeigen() {
   $('tLos').textContent = /beenden/.test($('bNavi').textContent) ? '🧭 Zur Navigation' : '▶ Los';
   $('tTeilen').hidden = $('bTeilen').hidden; $('tTeilen').disabled = $('bTeilen').disabled;
   $('tGpx').disabled = $('bGpx').disabled; $('tDrucken').disabled = $('bDrucken').disabled;
+  tourAnreiseZeigen();
 }
+// Anreise zum Start (Google Maps) und Parkplätze in der Nähe (OpenStreetMap, Kartenpaket oder Overpass)
+function tourAnreiseZeigen() {
+  const p = S.ergebnis && S.ergebnis.pts[0];
+  ['tOepnv', 'tAuto', 'tParken'].forEach(id => { $(id).hidden = !p; });
+  if (!p) return;
+  $('tOepnv').href = R.anreiseLink(p.lat, p.lon, 'oepnv');
+  $('tAuto').href = R.anreiseLink(p.lat, p.lon, 'auto');
+}
+let parkLauf = 0;
+$('tParken').onclick = async () => {
+  const p = S.ergebnis && S.ergebnis.pts[0];
+  if (!p) return;
+  const nr = ++parkLauf, st = $('tParkStatus'), ul = $('tParkListe');
+  st.hidden = false; st.textContent = 'Suche Parkplätze bis 1 km um den Start …'; ul.innerHTML = '';
+  try {
+    const json = await orteHolen([{ lat: p.lat, lon: p.lon }], 1000);
+    if (nr !== parkLauf) return;
+    const plaetze = R.parkplaetze(R.orteLesen(json, null), p).slice(0, 6);
+    st.textContent = plaetze.length ? plaetze.length + (plaetze.length === 1 ? ' Parkplatz' : ' Parkplätze') + ' bis 1 km um den Start' + (json.offline ? ' (aus dem Kartenpaket)' : '') + ':'
+      : 'Kein öffentlicher Parkplatz bis 1 km um den Start in OpenStreetMap.';
+    ebeneOrte.clearLayers();
+    for (const o of plaetze) {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="zeichen">🅿️</span><span class="was">' + R.esc(o.name) + '<small>' + R.esc(R.parkText(o)) + '</small></span>' +
+        '<a class="knopf" target="_blank" rel="noopener" href="' + R.esc(R.anreiseLink(o.lat, o.lon, 'auto')) + '">🚗 hin</a>';
+      li.querySelector('a').onclick = ev => ev.stopPropagation();
+      li.onclick = () => karte.setView([o.lat, o.lon], Math.max(karte.getZoom(), 16));
+      ul.appendChild(li);
+      L.marker([o.lat, o.lon], { icon: L.divIcon({ className: '', html: '<div class="ort-mk">🅿️</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) })
+        .bindPopup('<b>🅿️ ' + R.esc(o.name) + '</b><br><span class="klein">' + R.esc(R.parkText(o)) + '</span>').addTo(ebeneOrte);
+    }
+  } catch (err) {
+    if (nr === parkLauf) st.textContent = 'Parkplätze nicht abrufbar: ' + err.message;
+  }
+};
+
 $('tLos').onclick = () => {
   const laeuft = /beenden/.test($('bNavi').textContent);
   reiter('unterwegs');
@@ -341,26 +379,34 @@ $('bTeilen').onclick = async () => {
   }
 };
 
+// GPX laden (Touren und Menü › Werkzeuge): jede Datei kommt gleich als geplante Tour (Spur) in die Liste;
+// eine Datei öffnet danach ihre Tourseite, mehrere die Liste „Geplant“
 $('bGpxOeffnen').onclick = () => $('gpxDatei').click();
+$('bMenueGpx').onclick = () => { menue(false); $('gpxDatei').click(); };
 $('gpxDatei').onchange = async e => {
-  const f = e.target.files[0];
+  const dateien = [...e.target.files];
   e.target.value = '';
-  if (!f) return;
-  try {
-    const text = await f.text();
-    const g = R.gpxLesen(text);
-    let pts = g.pts.length ? g.pts : g.wpt;
-    if (pts.length < 2) throw new Error('Die Datei hat weniger als zwei Punkte.');
-    pts = pts.map(p => { const q = { lat: p.lat, lon: p.lon, ele: p.ele }; if (p.t) q.t = p.t; if (p.luecke) q.luecke = true; return q; });
-    if (pts.some(p => p.ele == null)) { melde('Höhen fehlen in der Datei, werden ergänzt …'); await hoehenFuellen(pts); }
-    S.tourId = null;   // importierte Datei ist eine neue Tour, sie ersetzt keine geöffnete
-    spurAnzeigen(pts, g.name || f.name.replace(/\.gpx$/i, ''), 'spur');
-    einpassen(L.latLngBounds(pts.map(p => [p.lat, p.lon])));
-    reiter('planen');
-    melde('Geöffnet: ' + (g.name || f.name) + '. Mit 💾 Speichern in „Touren“ ablegen.', 5);
-  } catch (err) {
-    melde('GPX nicht lesbar: ' + err.message, 6);
+  if (!dateien.length) return;
+  const neu = [], fehler = [];
+  for (const f of dateien) {
+    try {
+      const g = R.gpxLesen(await f.text());
+      let pts = g.pts.length ? g.pts : g.wpt;
+      if (pts.length < 2) throw new Error('weniger als zwei Punkte');
+      pts = pts.map(p => { const q = { lat: p.lat, lon: p.lon, ele: p.ele }; if (p.t) q.t = p.t; if (p.luecke) q.luecke = true; return q; });
+      if (pts.some(p => p.ele == null)) { melde('Höhen fehlen in ' + f.name + ', werden ergänzt …'); await hoehenFuellen(pts); }
+      const id = spurAlsTour(g.name || f.name.replace(/\.gpx$/i, ''), pts, 'spur');
+      if (!id) throw new Error('Speicher voll');
+      neu.push(id);
+    } catch (err) {
+      fehler.push(f.name + ': ' + err.message);
+    }
   }
+  if (neu.length === 1) tourAnsehen(neu[0]);
+  else if (neu.length) reiter('touren');
+  const text = (neu.length ? (neu.length === 1 ? '1 Tour' : neu.length + ' Touren') + ' unter „Geplant“ gespeichert.' : '') +
+    (fehler.length ? ' Nicht lesbar: ' + fehler.join('; ') : '');
+  melde(text.trim(), fehler.length ? 8 : 5);
 };
 
 // Woche und Monat im Vergleich, darunter Kilometer der letzten 12 Monate als Säulen (Wert beim Antippen, Tabelle zum Aufklappen)
