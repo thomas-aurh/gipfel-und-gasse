@@ -1552,8 +1552,10 @@ var R = (function () {
   }
 
   // ---------- Markierte Wanderwege (OSM-Routen route=hiking/foot) ----------
+  // erst die Wege im Umkreis, dann die Routen, zu denen sie gehören: viel schneller als Routen direkt im Umkreis zu suchen
+  // (das berechnet den ganzen Verlauf jeder Route, in den Bergen über das Zeitlimit von Overpass, Befund 04.11. am Walchensee)
   function wegeAbfrage(lat, lon, radius) {
-    return '[out:json][timeout:25];relation["route"~"^(hiking|foot)$"](around:' + radius + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ');out tags center 80;';
+    return '[out:json][timeout:25];way["highway"](around:' + radius + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ');rel(bw)["route"~"^(hiking|foot)$"];out tags 80;';
   }
   const WEG_NETZ = { iwn: 'international', nwn: 'Fernwanderweg', rwn: 'regional', lwn: 'örtlich' };
   // Liste: Name (sonst Nummer oder Start–Ziel), Netz, Rundweg, Länge laut OSM, Abstand der Mitte; nach Abstand sortiert

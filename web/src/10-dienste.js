@@ -19,7 +19,21 @@ const PROFILE = {
   linie: { brouter: null, art: 'fuss', name: 'Gerade Linie' }
 };
 
+// Ladeanzeige (Logo mit Wanderer): zählt laufende Anfragen; kurze Anfragen zeigen nichts, damit nichts flackert
+let ladend = 0, ladeUhr = null;
+function ladenAn() {
+  ladend++;
+  if (ladend === 1) ladeUhr = setTimeout(() => { if (ladend > 0) $('ladeZeichen').hidden = false; }, 400);
+}
+function ladenAus() {
+  ladend = Math.max(0, ladend - 1);
+  if (ladend === 0) { clearTimeout(ladeUhr); $('ladeZeichen').hidden = true; }
+}
 async function holen(url, opt, sekunden) {
+  ladenAn();
+  try { return await holenRoh(url, opt, sekunden); } finally { ladenAus(); }
+}
+async function holenRoh(url, opt, sekunden) {
   const ab = new AbortController();
   const uhr = setTimeout(() => ab.abort(), (sekunden || 25) * 1000);
   // das Zeitlimit gilt bis der Inhalt vollständig gelesen ist, nicht nur bis zu den Kopfzeilen

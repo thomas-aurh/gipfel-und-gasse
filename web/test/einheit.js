@@ -668,5 +668,7 @@ pruef('Quelle: Webseite ohne Schema und zweite gültige', R.stoppInfo({ website:
   pruef('Wanderwege: ohne Relation kein Verlauf', R.wegVerlauf({ elements: [] }).length === 0);
 }
 
+pruef('Wanderwege: Abfrage über die Wege im Umkreis (schnell), ohne Mittelpunkt', /way\["highway"\]\(around:5000,47\.60000,11\.30000\);rel\(bw\)\["route"~"\^\(hiking\|foot\)\$"\];out tags 80;/.test(R.wegeAbfrage(47.6, 11.3, 5000)), R.wegeAbfrage(47.6, 11.3, 5000));
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

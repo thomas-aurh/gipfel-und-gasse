@@ -59,6 +59,9 @@ die Herkunft („aus komoot.de“) und, wenn die Punkte Zeitstempel tragen, die 
 dem Weg zum Start; „🅿️ Parkplätze am Start“ zeigt öffentliche Parkplätze bis 1 km um den Start (aus OpenStreetMap, ohne Netz
 aus dem Kartenpaket) mit Abstand, Gebühr und Plätzen, „🚗 hin“ führt mit Google Maps dorthin.
 
+**Ladeanzeige:** Dauert eine Anfrage an einen Dienst (Route, Suche, Orte, Wetter, Wanderwege) länger als einen Moment,
+erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum Gipfel hinauf- und wieder hinuntergeht.
+
 **Wanderwege in der Nähe:** In *Entdecken* „Wanderwege suchen“ (2, 5 oder 10 km um die Kartenmitte): markierte Wanderwege
 aus OpenStreetMap mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
 der Karte, „＋ Tour“ legt ihn mit Höhen unter „Geplant“ ab („aus OpenStreetMap“). Es sind beschilderte Wege, keine
