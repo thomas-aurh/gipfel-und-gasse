@@ -217,6 +217,18 @@ async function ortePakete(stellen, radius) {
 }
 
 // Orte entlang der Strecke aus dem Paket, im Format der Overpass-Antwort; null ohne passendes Paket
+// Unterkünfte für Übernachtungen aus dem Kartenpaket (die Orte-Datei hat Berg- und Selbstversorgerhütten): { elements }
+// wie Overpass, oder null, wenn kein Paket die Punkte abdeckt
+async function unterkunftOffline(punkte, radius) {
+  const ps = await ortePakete(punkte, radius);
+  if (!ps) return null;
+  const els = [];
+  for (const p of ps) for (const e of (await orteLaden(p)).orte) {
+    const t = e[3];
+    if (t && t.name && R.UNTERKUNFT[t.tourism] && punkte.some(q => R.abstand(q, { lat: e[0], lon: e[1] }) <= radius)) els.push(R.ortElement(e));
+  }
+  return { elements: els };
+}
 async function orteOffline(pts, radius) {
   const ps = await ortePakete(pts, radius);
   if (!ps) return null;

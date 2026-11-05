@@ -134,8 +134,27 @@ async function sucheOnline(text, nahe, sekunden) {
 }
 
 // Overpass: der Hauptserver weist bei vielen Anfragen ab (429) oder ist ausgelastet (504); dann einmal der zweite Server
-async function overpassHolen(q, sekunden) {
+// frueh (Sekunden): antwortet der Hauptserver bis dahin nicht, fragt die App den zweiten parallel; die erste Antwort
+// zählt (Pixel 05.11.: die Hüttensuche lief beim ausgelasteten Hauptserver erst nach 30 s auf den Ersatz und dann ins Leere)
+async function overpassHolen(q, sekunden, frueh) {
   const anfrage = url => holen(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, sekunden);
+  if (frueh) {
+    return new Promise((ok, nein) => {
+      let offen = 0, fehler = null, fertig = false, zweiter = false, uhr = null;
+      const los = url => {
+        offen++;
+        anfrage(url).then(r => { if (fertig) return; fertig = true; clearTimeout(uhr); ok(r); }, e => {
+          offen--; fehler = fehler || e;
+          if (fertig) return;
+          if (!zweiter && navigator.onLine !== false) zweitenLos();
+          else if (!offen) { fertig = true; clearTimeout(uhr); nein(fehler); }
+        });
+      };
+      const zweitenLos = () => { if (zweiter || fertig) return; zweiter = true; los(DIENST.overpass2); };
+      uhr = setTimeout(zweitenLos, frueh * 1000);
+      los(DIENST.overpass);
+    });
+  }
   try { return await anfrage(DIENST.overpass); }
   catch (e) {
     if (navigator.onLine === false) throw e;

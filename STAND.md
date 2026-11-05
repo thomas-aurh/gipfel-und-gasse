@@ -14,13 +14,16 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Stopps ziehen:** Thomas am 05.11. auf dem Pixel (Bau 233): Ziehen geht, das Blatt scrollt dabei nicht mit. Offen:
   ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
 
-- **Bescheid geben und Notsignal (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text; die
-  Erinnerung als Mitteilung von Android (AlarmManager, ohne Erlaubnis für genaue Wecker: Android darf um Minuten
-  verschieben) nicht auf dem Pixel gesehen; Taschenlampe beim Notsignal (CameraManager.setTorchMode) nicht auf dem Gerät
-  geprüft, Ton bei stummem Handy unklar.
+- **Bescheid geben und Notsignal:** Notsignal von Thomas am 05.11. auf dem Pixel geprüft (Bau 241, „hat funktioniert“).
+  Offen: Teilen-Menü der App mit dem langen Text; die Erinnerung als Mitteilung von Android (AlarmManager, ohne
+  Erlaubnis für genaue Wecker: Android darf um Minuten verschieben) noch nicht auf dem Pixel gesehen; Ton des
+  Notsignals bei stummem Handy unklar.
 
-- **Mehrtagestour (05.11.) nur im Klicktest geprüft:** Hütte und Tageszahl mit echten Overpass-Antworten (passen 2 km und
-  Hütte vor Hotel? ohne Netz keine Suche). Tag-Chips von Thomas am 05.11. auf dem Pixel geprüft (Bau 233). Von der App gesetzte Punkte gelten nur bis zum Speichern als
+- **Mehrtagestour, Hüttensuche:** Thomas am 05.11. auf dem Pixel (Bau 241, Oberstdorf–Holzgau): Tageszahl passt (2 Tage
+  ★ je 4:20 h), die Hüttensuche lief in eine Zeitüberschreitung von Overpass, die Übernachtung blieb ohne Namen. Danach:
+  zuerst die Hütten aus dem Kartenpaket (ohne Netz, sofort), sonst Overpass mit dem zweiten Server nach 6 s parallel,
+  bei Fehler „🔍 Nochmal suchen“ in der Meldung. Am Pixel nachzuprüfen; ob die Abfrage selbst bei Overpass zu langsam ist,
+  ist aus der Cloud nicht messbar (Overpass gesperrt). Tag-Chips von Thomas am 05.11. auf dem Pixel geprüft (Bau 233). Von der App gesetzte Punkte gelten nur bis zum Speichern als
   „automatisch“ (danach als eigene Punkte, sie bleiben bei einer Tagestour).
 
 - **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
@@ -244,6 +247,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (abends: Hüttensuche)** Nach Thomas' Test (Zeitüberschreitung): Unterkünfte erst aus dem Kartenpaket
+  (unterkunftOffline), dann Overpass mit frühem zweitem Server (overpassHolen mit `frueh`), „🔍 Nochmal suchen“.
+  Klicktest 422.
 
 - **05.11. (abends: Drucken, BRouter, Emulator)** Drucken und Heft im Handy-Browser: Rückkehr erst bei afterprint oder dem
   ersten Antippen (nachDruck), nicht mehr nach 500 ms, wenn print sofort zurückkehrt. BRouter höchstens drei gleichzeitig
