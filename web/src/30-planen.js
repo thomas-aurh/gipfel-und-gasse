@@ -119,7 +119,7 @@ function zeichenWegpunkte() {
     });
     m.on('click', () => {
       const box = document.createElement('div');
-      box.innerHTML = '<b>' + (w.name ? R.esc(w.name) : i === 0 ? 'Start' : art === 'ziel' ? 'Ziel' : 'Zwischenziel ' + i) + '</b><br>';
+      box.innerHTML = '<b>' + (w.name ? R.esc(w.name) : i === 0 ? 'Start' : art === 'ziel' ? 'Ziel' : 'Stopp ' + i) + '</b><br>';
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Punkt entfernen';
       k.onclick = () => { karte.closePopup(); wegpunktWeg(i); };
@@ -348,6 +348,7 @@ function zeigen() {
   $('kopfZahlen').textContent = e ? R.kmText(e.laenge) + ' · ' + R.zeitText(e.zeit + besichtigung() / 60) + (e.tief != null ? ' · ↑ ' + e.auf + ' m' : '')
     : S.wps.length === 1 ? 'Jetzt das Ziel antippen' : 'Auf die Karte tippen: Start';
   stoppsZeigen();
+  if (typeof unterwegsKarte === 'function') unterwegsKarte();
   if (!e) { profilZeichnen(); return; }
   const art = (PROFILE[S.profil] || PROFILE.wandern).art;
   const besicht = besichtigung();
@@ -524,7 +525,7 @@ function tageTeilen(z) {
   const neuePunkte = wps.length !== S.wps.length || wps.some((w, i) => w.lat !== S.wps[i].lat || w.lon !== S.wps[i].lon);
   S.wps = wps;
   if (neuePunkte) neuBerechnen(); else { zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern(); }
-  melde(z > 1 ? 'Tour in ' + z + ' Tage geteilt (nach Gehzeit)' + (auf.neu.length ? ', ' + (auf.neu.length === 1 ? 'ein Übernachtungspunkt' : auf.neu.length + ' Übernachtungspunkte') + ' auf der Route gesetzt' : '') + '. Ziehen verschiebt sie.' : 'Wieder eine Tagestour.', 5);
+  melde(z > 1 ? z + ' Tage, gleich lang nach Gehzeit. 🛏 auf der Karte ziehen verschiebt die Übernachtung.' : 'Wieder eine Tagestour.', 4);
 }
 document.querySelectorAll('#tageBox [data-tage]').forEach(b => {
   b.onclick = () => {
@@ -689,7 +690,7 @@ function stoppsZeigen() {
     if (mehrtags) d.dataset.tag = i === 0 ? 0 : stueckTag(i - 1);
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
     d.innerHTML = '<span class="nr' + (nr === 'S' ? ' s' : '') + '">' + nr + '</span><span class="name">' +
-      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : 'Punkt ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + '</span>';
+      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : w.nacht ? 'Übernachtung' : 'Stopp ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + '</span>';
     if (!rund) {
       const sel = document.createElement('select');
       sel.title = 'Besichtigungszeit';

@@ -226,6 +226,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Schritt 3a, Prüfbericht Browser Use vom 04.11.)** Leiste am PC mit allen fünf Bereichen (vorher abgeschnitten
+  mit Rollbalken); aktiver Bereich mit `aria-current`, Seitentitel als Überschrift; Bedienflächen mindestens 44 px;
+  bei 320 px Berg/Stadt, Aktionsleiste und Reiter ohne Umbruch; Kartennachweis am Telefon einzeilig mit „Kartendaten ©
+  OpenStreetMap-Mitwirkende“ vorn, Antippen klappt ihn auf (OSMF-Attribution-Guidelines erlauben das Einklappen, die Tile
+  Usage Policy verlangt die sichtbare OSM-Nennung; Leaflet-Vorspann weg); Begriffe Start, Stopp n, Übernachtung, Ziel;
+  Unterwegs vor dem Start eine Karte der Tour über „▶ Route folgen“. Klicktest 376. Zurückgestellt: eigene Symbole statt
+  Emoji (fehlen auf Rechnern ohne Emoji-Schrift), doppelte Suchtreffer (erst an mehreren Begriffen prüfen).
+
 - **04.11. (Abend, Tage gebündelt)** Thomas am Pixel (Bau 205): „Hier sollten die Infos zu den Tagen gebündelt sein.“ Jetzt
   je Tag eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start und den Punkten dieses Tages (Übernachtung als letzter
   Punkt); „länger als das Tageslicht“ statt eines spätesten Starts mitten in der Nacht (auch bei einer Tagestour, mit

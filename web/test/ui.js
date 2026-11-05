@@ -192,6 +192,12 @@ function pruef(name, bed, info) {
   await page.click('#bRunde');
   pruef('Am PC: Art und Tempo offen, ohne Klappzeile; ohne Route keine Reiter', await page.isVisible('#profilwahl') && await page.isHidden('#bEinstell') && await page.isHidden('#planReiter'));
   pruef('Am PC: Zoom-Knöpfe da', await page.isVisible('#bPlus') && await page.isVisible('#bMinus'));
+  // Prüfbericht vom 04.11.: am PC alle fünf Bereiche in der Leiste ohne Rollbalken; aktiver Bereich für Screenreader
+  pruef('Am PC: Leiste zeigt alle fünf Bereiche ohne Rollbalken', await page.evaluate(() => { const n = document.getElementById('leiste'), r = n.getBoundingClientRect();
+    return n.scrollWidth <= n.clientWidth + 1 && [...n.querySelectorAll('button')].every(b => { const q = b.getBoundingClientRect(); return q.left >= r.left - 1 && q.right <= r.right + 1; }); }));
+  pruef('Leiste: aktiver Bereich mit aria-current, Seitentitel als Überschrift', (await page.getAttribute('#leiste [data-reiter=planen]', 'aria-current')) === 'page' &&
+    (await page.getAttribute('#seitenTitel', 'role')) === 'heading' && (await page.$$('#leiste [aria-current]')).length === 1);
+  pruef('Bedienflächen mindestens 44 px hoch', await page.evaluate(() => [...document.querySelectorAll('#aktionen .knopf, .modus button')].filter(b => b.offsetParent).every(b => b.getBoundingClientRect().height >= 43.5)));
   // Menü: Fokus im Menü, Rest nicht bedienbar, danach Fokus zurück; „Karte“ schaltet alle Seiten aus
   await page.click('#bMenue');
   pruef('Menü: Fokus im Menü, Hintergrund gesperrt', await page.evaluate(() => document.querySelector('#menue').contains(document.activeElement) && document.querySelector('#panel').inert && document.querySelector('#oben').inert));
@@ -706,6 +712,7 @@ function pruef(name, bed, info) {
   await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
   // Unterwegs: einem Tag folgen; vorgewählt Tag 1 (der geplante Tag liegt nicht heute), Tag 2 folgt nur der zweiten Etappe
   await zuSeite(page, 'unterwegs');
+  pruef('Unterwegs: vor dem Start die Tour mit Strecke, Zeit und Tagen', /km · .* h.* · 2 Tage$/.test(await page.textContent('#uTourKarte')), await page.textContent('#uTourKarte'));
   const etWahl = await page.$$eval('#naviEtappe option', l => l.map(o => o.value + '=' + o.textContent));
   pruef('Folgen: Auswahl Tag 1, Tag 2, ganze Tour', await page.isVisible('#naviEtappeFeld') && etWahl.length === 3 && etWahl[0].startsWith('0=Tag 1: bis') && etWahl[1].startsWith('1=Tag 2: bis Ziel') &&
     etWahl[2].startsWith('=ganze Tour (2 Tage)') && (await page.inputValue('#naviEtappe')) === '0', etWahl);
@@ -1777,6 +1784,15 @@ function pruef(name, bed, info) {
   pruef('Ich: Tagebuch öffnet, „Ich“ bleibt in der Leiste markiert', await pt.evaluate(() => document.querySelector('section[data-reiter=tagebuch]').classList.contains('an') &&
     document.querySelector('#leiste [data-reiter=ich]').classList.contains('an')));
   pruef('Leiste: Karte, Entdecken, Planen, Unterwegs, Ich', await pt.evaluate(() => [...document.querySelectorAll('#leiste button')].map(b => b.dataset.reiter).join()) === 'karte,entdecken,planen,unterwegs,ich');
+  pruef('Leiste: aria-current wandert mit (Ich)', (await pt.getAttribute('#leiste [data-reiter=ich]', 'aria-current')) === 'page' && (await pt.$$('#leiste [aria-current]')).length === 1);
+  // Kartennachweis am Telefon: eine Zeile, „OpenStreetMap“ sichtbar; Antippen klappt ihn auf, ohne einen Punkt zu setzen
+  const nachweis = () => pt.evaluate(() => { const a = document.querySelector('.leaflet-control-attribution'), r = a.getBoundingClientRect(); return { h: r.height, offen: a.classList.contains('offen'), text: a.textContent }; });
+  const nw1 = await nachweis();
+  pruef('Telefon: Kartennachweis einzeilig, beginnt mit den OSM-Kartendaten', nw1.h < 24 && !nw1.offen && /^Kartendaten © OpenStreetMap-Mitwirkende/.test(nw1.text), nw1);
+  const wpVor = (await pt.$$('.wp')).length;
+  await pt.tap('.leaflet-control-attribution'); await pt.waitForTimeout(200);
+  const nw2 = await nachweis();
+  pruef('Telefon: Antippen klappt den Nachweis auf, setzt keinen Punkt', nw2.offen && nw2.h > nw1.h && (await pt.$$('.wp')).length === wpVor, nw2);
   // leere Planung am Telefon: Einstiege im halb offenen Blatt; „Stadtrundgang“ schaltet die Stadt ein und führt zu Entdecken
   await pt.reload(); await pt.waitForTimeout(500);
   pruef('Telefon: Start ohne Route mit der reinen Karte', await pt.evaluate(() => document.body.classList.contains('ohneBlatt') &&

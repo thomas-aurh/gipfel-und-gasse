@@ -11,7 +11,11 @@ function reiter(name) {
   if (name !== 'planen' && name !== 'karte' && kreuzAn) kreuz(false);
   // in der Leiste stehen die fünf Hauptbereiche; Touren (geplant, gegangen, eine Tour) und die Sammlungen gehören zu „Ich“
   const leiste = { touren: 'ich', gegangen: 'ich', tour: 'ich', tagebuch: 'ich', ziele: 'ich', gipfelbuch: 'ich', fotos: 'ich' }[name] || name;
-  document.querySelectorAll('nav.reiter button').forEach(b => b.classList.toggle('an', b.dataset.reiter === leiste));
+  document.querySelectorAll('nav.reiter button').forEach(b => {
+    const an = b.dataset.reiter === leiste;
+    b.classList.toggle('an', an);
+    if (an) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
   document.querySelectorAll('#menue [data-ziel], .umschalter [data-ziel]').forEach(b => b.classList.toggle('an', b.dataset.ziel === name));
   balkenZeigen();
   const vorher = document.body.classList.contains('ohneBlatt');
