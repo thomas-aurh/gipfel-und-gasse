@@ -181,6 +181,16 @@ $('bNavi').onclick = () => {
   if (U.pos) naviNeu();
 };
 
+// ---------- vor dem Start: welche Tour folgt die Navigation (Name, Strecke, Zeit, Aufstieg) ----------
+function unterwegsKarte() {
+  const e = S.ergebnis, box = $('uTourKarte');
+  if (!e) { box.innerHTML = '<span class="klein">Noch keine Route. Unter <b style="display:inline">Planen</b> eine Route setzen oder unter Ich › Touren eine Tour öffnen.</span>'; return; }
+  const name = (S.name || '').trim() || (S.fest ? 'Geöffnete Spur' : 'Geplante Route');
+  const et = etappenAktuell();
+  box.innerHTML = '<b>🥾 ' + R.esc(name) + '</b><span class="klein">' + R.esc(R.kmText(e.laenge) + ' · ' + R.zeitText(e.zeit + (S.fest ? 0 : besichtigung() / 60)) +
+    (e.tief != null ? ' · ↑ ' + e.auf + ' m' : '') + (et ? ' · ' + et.length + ' Tage' : '')) + '</span>';
+}
+
 // ---------- Mehrtagestour: einem Tag folgen ----------
 // Auswahl „Tag 1 … Tag n“ oder die ganze Tour; vorgewählt ist der Tag, der nach dem geplanten Starttag heute ist,
 // sonst Tag 1. Die Navigation (Browser und Dienst der App) bekommt dann nur diese Etappe als Route.

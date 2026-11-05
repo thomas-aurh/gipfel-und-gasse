@@ -50,7 +50,18 @@ const blick = SPEICHER.lesen('blick', { lat: 47.70, lon: 11.37, z: 11 });
 const karte = L.map('karte', { zoomControl: false, attributionControl: true, maxZoom: 19 }).setView([blick.lat, blick.lon], blick.z);
 // am Telefon links unten über dem Blatt, damit rechts die Kartenknöpfe frei bleiben
 if (window.innerWidth <= 760) karte.attributionControl.setPosition('bottomleft');
-karte.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+// ohne Leaflet-Vorspann: „Kartendaten © OpenStreetMap-Mitwirkende“ steht vorn und bleibt am Telefon in der einen Zeile
+// sichtbar (Tile Usage Policy); Antippen klappt die vollen Angaben auf (Attribution Guidelines der OSMF erlauben das)
+karte.attributionControl.setPrefix(false);
+{
+  const nachweis = karte.attributionControl.getContainer();
+  L.DomEvent.disableClickPropagation(nachweis);
+  nachweis.addEventListener('click', ev => {
+    if (window.innerWidth > 760 || nachweis.classList.contains('offen')) return;
+    ev.preventDefault(); nachweis.classList.add('offen');
+    setTimeout(() => nachweis.classList.remove('offen'), 8000);
+  }, true);
+}
 
 // Darstellung: automatisch (wie das Gerät), hell oder dunkel; gespeichert, im Menü umschaltbar
 const THEMEN = { auto: '🌓 Darstellung: automatisch', hell: '☀️ Darstellung: hell', dunkel: '🌙 Darstellung: dunkel' };

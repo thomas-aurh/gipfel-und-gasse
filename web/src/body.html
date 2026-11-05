@@ -77,13 +77,13 @@
         <span id="logo" class="logo">
 <!--LOGO-->
         </span>
-        <span id="seitenTitel">Tour planen</span>
+        <span id="seitenTitel" role="heading" aria-level="1">Tour planen</span>
         <span id="kopfZahlen" class="klein" style="margin-left:auto;font-weight:600"></span>
       </div>
       <nav class="reiter" id="leiste" aria-label="Hauptbereiche">
         <button data-reiter="karte"><span>🗺️</span>Karte</button>
         <button data-reiter="entdecken"><span>🔭</span>Entdecken</button>
-        <button data-reiter="planen" class="an"><span>✏️</span>Planen</button>
+        <button data-reiter="planen" class="an" aria-current="page"><span>✏️</span>Planen</button>
         <button data-reiter="unterwegs"><span>🧭</span>Unterwegs</button>
         <button data-reiter="ich"><span>🙂</span>Ich</button>
       </nav>
@@ -98,7 +98,7 @@
         </div>
         <div id="aktionen">
           <button class="knopf haupt" id="bPlanLos" title="Losgehen: der Route folgen">▶ Los</button>
-          <button class="knopf" id="bSpeichern">💾 Speichern</button>
+          <button class="knopf" id="bSpeichern" aria-label="Speichern">💾<span class="txt2"> Speichern</span></button>
           <button class="knopf" id="bZurueck" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">↶<span class="txt"> Rückgängig</span></button>
           <button class="knopf" id="bNeu" title="Neue Tour" aria-label="Neu">✕<span class="txt"> Neu</span></button>
           <button class="knopf" id="bMehr" aria-expanded="false" title="Weitere Funktionen" aria-label="Mehr">⋯<span class="txt"> Mehr</span></button>
@@ -290,6 +290,11 @@
         <div class="tipp" id="unterwegsHinweis">Im Browser den Bildschirm anlassen: gesperrt hält der Browser das GPS an.</div>
         <div id="gpsStatus" class="klein" style="margin-top:8px">GPS aus.</div>
         <h3>Route folgen</h3>
+        <!-- vor dem Start: welche Tour, wie lang; dann Tag, „Los“, Führung; die Zahlen darunter füllen sich unterwegs -->
+        <div id="uTourKarte" class="u-tour"></div>
+        <div id="naviEtappeFeld" hidden><div class="klein">Welcher Tag?</div><div id="naviTage" class="navi-tage" role="group" aria-label="Tag folgen"></div><select id="naviEtappe" hidden aria-hidden="true"></select></div>
+        <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
+        <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
         <div class="zahlen unterwegs-zahlen">
           <div class="zahl"><b id="uRest">–</b><span>noch</span></div>
           <div class="zahl"><b id="uZeit">–</b><span>Restzeit</span></div>
@@ -297,9 +302,6 @@
         </div>
         <div id="uAnkunft" class="klein"></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
-        <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
-        <div id="naviEtappeFeld" hidden><div class="klein">Welcher Tag?</div><div id="naviTage" class="navi-tage" role="group" aria-label="Tag folgen"></div><select id="naviEtappe" hidden aria-hidden="true"></select></div>
-        <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button></div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
           <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>

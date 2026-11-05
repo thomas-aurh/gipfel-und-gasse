@@ -44,6 +44,7 @@ a.knopf{text-decoration:none;display:inline-flex;align-items:center}
 body[data-seite]:not([data-seite=planen]):not([data-seite=karte]) #bKreuz{display:none}
 /* Zoom am Touchscreen mit zwei Fingern: Knöpfe nur mit Maus */
 @media (pointer:coarse){#bPlus,#bMinus{display:none}}
+@media (max-width:360px){.modus button{font-size:14px;white-space:nowrap;padding:8px 4px}#aktionen .txt2{display:none}#aktionen #bSpeichern{min-width:44px;justify-content:center;font-size:17px}#aktionen{gap:4px}.plan-reiter button{font-size:13px;white-space:nowrap;padding:8px 2px}}
 
 /* Suche oben, Menü-Knopf links davon */
 #oben{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:calc(var(--panel) + 12px);right:64px;max-width:510px;z-index:1000;display:flex;gap:8px;align-items:flex-start}
@@ -195,6 +196,18 @@ html.heft #tbHeft{display:block;color:#1c2620;background:#fff;padding:0 2mm;font
 .etappe-punkte{margin:6px 0 0}
 .etappe-punkte .stopp:last-child{border-bottom:0}
 .etappe-start small{color:var(--grau)}
+/* Leiste am PC: alle fünf Bereiche nebeneinander, Zeichen über dem Wort (wie am Telefon), ohne Rollbalken */
+nav.reiter#leiste{overflow:visible;gap:0}
+nav.reiter#leiste button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;font-size:12px}
+nav.reiter#leiste button span{margin:0;font-size:18px;line-height:1.1}
+/* Bedienflächen mindestens 44 px hoch (Touch) */
+.knopf,#aktionen .knopf{min-height:44px}
+.modus button,.umschalter button{min-height:44px}
+.chips button{min-height:36px}
+/* Unterwegs vor dem Start: Karte der Tour */
+.u-tour{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:10px 12px;margin:4px 0 8px;font-size:14px}
+.u-tour b{display:block;font-size:16px}
+.u-tour .klein{color:var(--grau)}
 #tbBildTeilen{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff3;color:#fff;font:600 15px system-ui,sans-serif}
 #tbBildZu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff3;color:#fff;font-size:20px}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
@@ -427,6 +440,8 @@ body.druck #druckfuss p{margin:0;font-size:7pt;color:var(--grau)}
   /* Kartennachweis über dem Blatt (die Höhe setzt 80-start.js) */
   .leaflet-bottom.leaflet-right,.leaflet-bottom.leaflet-left{bottom:var(--blatt,46vh)}
   .leaflet-bottom.leaflet-left .leaflet-control-attribution{max-width:calc(100vw - 74px)}
+  .leaflet-control-attribution:not(.offen){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .leaflet-control-attribution:not(.offen)::after{content:" ⓘ"}
   /* Aktionsleiste am Telefon: Speichern, Rückgängig, Neu und „Mehr“; „Mehr“ klappt die übrigen Funktionen darunter auf */
   #laeuftBalken{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));border-radius:0;max-width:none;z-index:3000;padding:9px 14px}
   body.mitBalken #panel{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
