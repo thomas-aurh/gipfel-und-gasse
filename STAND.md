@@ -42,8 +42,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Übersicht vom 04.11. auf dem Pixel nur angesehen** (Bau 165 bis 174: Einstiege, Start mit der Karte, Leiste, „Ich“,
   Tourliste). Nicht geprüft: „▶ Los“ auf der Tourseite mit Ansagen und der Balken bei laufender Navigation in der App,
   Klappzeilen mit Route, ▲▼ an den Stopps, Suche in den Tourlisten, Zoom nur mit zwei Fingern.
-- **Alte Branches auf GitHub:** `claude/planen-uebersicht` (Stand von #57, versehentlich angelegt) und
-  `claude/stand-offline-bestaetigt` (überholt) lassen sich aus der Cloud nicht löschen (403); von Hand löschen.
 - **Android-App (Stufen 1–5) gebaut, auf dem Pixel nicht geprüft.** Bis zur Korrektur in #5 lief die Anbindung an
   Android auf dem Handy gar nicht (Capacitor-Kern fehlte, Routen nur als gerade Linie). Von Thomas am 01.11. auf dem
   Pixel geprüft (Verona, neue APK): Route über Wege (online) und Standort auf der Karte. Offen bleibt der Rest unten. Geprüft in GitHub Actions: Bau, Java-Tests,
