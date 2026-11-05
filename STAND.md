@@ -236,6 +236,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Tag-Chips, Etappen im Heft, Gipfelbuch-Fotos)** Chips „Alle Tage · Tag 1 · …“ über den Tageskarten (tagFokus:
+  Karte auf den Tag, andere Linien blass, nur dessen Karte offen); „Als Reise ins Tagebuch“ speichert die Etappen an der
+  Reise (`reisen[].etappen`, in R.tagebuchPruefen geprüft), das Heft zeigt sie als Tabelle und je Tag „Tag n: bis …“;
+  Gipfelbuch zeigt Tagebuch-Fotos bis 150 m vom Gipfel (R.gipfelFotos über R.fotoOrt). Einheitstests 311, Klicktest 418.
+  Damit ist die Liste 1–10 vom 05.11. abgearbeitet.
+
 - **05.11. (Hangneigung als Kartenebene)** R.hangneigung (Horn, Grad) und R.hangFarbe (30/35/40/45°); Ebene „hang“ ab
   Zoom 12, Höhen aus dem Paket oder `s3.amazonaws.com/elevation-tiles-prod/terrarium` (CORS offen, bis Stufe 13, darüber
   weich vergrößert); Legende mit Hinweis „keine Lawinenbeurteilung“ und Link zu avalanches.org. Mit echten Daten am

@@ -109,7 +109,10 @@ vor (höchstens etwa 6,5 h Gehzeit am Tag, bis 30 Tage, ★ in der Auswahl) und 
 Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt und legt ihn auf die nächste Hütte oder Unterkunft bis 2 km (OpenStreetMap über
 Overpass; Berghütte vor Gasthof, Herberge und Hotel); findet sie keine, bleibt er auf der Route (ziehen verschiebt ihn). Je Tag steht dann
 eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start (ab Tag 2 eigene Startzeit) und darunter den Punkten dieses Tages; ein
-Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. Eine andere Art (z. B. „Wandern“)
+Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe.
+Über den Tageskarten wählen Chips „Alle Tage“ oder einen Tag: dann zeigt die Karte nur diesen Tag (die anderen blass), und nur
+seine Tageskarte bleibt offen. „📔 Als Reise ins Tagebuch“ nimmt die Etappen mit; das Heft der Reise zeigt sie als Tabelle und
+bei jedem Tag „Tag n: bis …“. Eine andere Art (z. B. „Wandern“)
 nimmt Übernachtungen und gesetzte Punkte zurück (Rückgängig holt sie wieder). Weiter geht auch: Zwischenziel antippen › „🛏 Hier übernachten“. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel.
 Ab Tag 2 lässt sich eine eigene Startzeit eintragen (leer: wie Tag 1); sie gilt auch für Stopps, Tourwetter und Druck und
@@ -135,7 +138,8 @@ und GeoJSON; „📋 Liste einfügen“ nimmt dieselben Zeilen aus einer Notiz o
 
 **Gipfelbuch:** Menü ☰ › *Gipfelbuch*: Kommt eine gespeicherte Aufzeichnung bis auf 50 m an einen Gipfel aus OpenStreetMap,
 steht er hier mit Höhe, Tag und Zahl der Besuche (ohne Netz aus dem Kartenpaket). „🔍 Gegangene Touren durchsuchen“ holt das
-für ältere Touren nach. Kommt mit in die Sicherung.
+für ältere Touren nach. Fotos aus dem Reisetagebuch, die bei einem Besuch bis 150 m vom Gipfel entstanden sind (Ort aus dem
+Foto, sonst Zeitpunkt auf der Spur), stehen beim Gipfel („📷 2“, antippen zeigt groß). Kommt mit in die Sicherung.
 
 **Info auf der Karte:** Der Knopf ⓘ rechts an der Karte schaltet zwischen Planen (Antippen setzt Punkte) und Info: Dann
 zeigt Antippen, was dort ist (Name, Art, geöffnet jetzt, Eintritt, Wikipedia, Link zu Google Maps), aus dem Kartenpaket und von Overpass; im

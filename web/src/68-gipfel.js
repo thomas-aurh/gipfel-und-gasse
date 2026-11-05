@@ -47,6 +47,8 @@ async function gipfelNachTour(t) {
 
 function gipfelbuchZeigen() {
   const { liste, anzahl, besuche, hoechster } = R.gipfelbuchListe(gipfelbuchLesen());
+  // Fotos aus dem Reisetagebuch, die oben entstanden sind (bis 150 m vom Gipfel, an einem Tag mit Besuch)
+  const tb = tagebuchLesen(), fotoliste = R.fotoListe(tb, tourenLesen()), eintraege = new Map(tb.eintraege.map(e => [e.id, e]));
   $('gbZahlen').innerHTML = anzahl ? [[anzahl, anzahl === 1 ? 'Gipfel' : 'Gipfel'], [besuche, besuche === 1 ? 'Besuch' : 'Besuche'],
     [hoechster ? hoechster.ele + ' m' : '–', hoechster ? 'höchster: ' + hoechster.name : 'höchster']]
     .map(([w, t]) => '<div class="zahl"><b>' + R.esc(String(w)) + '</b><span>' + R.esc(t) + '</span></div>').join('') : '';
@@ -60,6 +62,16 @@ function gipfelbuchZeigen() {
     li.innerHTML = '<span class="zeichen">⛰️</span><button class="was" title="Auf der Karte zeigen">' + R.esc(g.name) + '<small>' +
       (g.ele != null ? g.ele + ' m · ' : '') + (mal > 1 ? mal + '× oben, zuerst ' : 'am ') + new Date(erstes.datum).toLocaleDateString('de-DE') +
       (erstes.name ? ' · ' + R.esc(erstes.name) : '') + '</small></button>';
+    const fotos = fotoliste.length ? R.gipfelFotos(g, fotoliste, eintraege, 150) : [];
+    if (fotos.length) {
+      li.classList.add('mitFotos');
+      li.querySelector('small').insertAdjacentText('beforeend', ' · 📷 ' + fotos.length);
+      const box = document.createElement('div');
+      box.className = 'foto-raster klein gb-fotos';
+      box.onclick = e => e.stopPropagation();   // Foto groß, nicht zur Karte
+      fotoRaster(box, fotos.slice(0, 8));
+      li.appendChild(box);
+    }
     li.onclick = () => {
       reiter('karte');
       karte.setView([g.lat, g.lon], Math.max(karte.getZoom(), 14));

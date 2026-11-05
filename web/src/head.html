@@ -149,6 +149,9 @@ html.heft #tbHeft{display:block;color:#1c2620;background:#fff;padding:0 2mm;font
 #tbHeft .heft-zahlen b{display:block;font-size:14pt;color:#1c2620}
 #tbHeft h2{font-size:13pt;margin:7mm 0 2mm;padding-bottom:1mm;border-bottom:1px solid #e3e8e0;break-after:avoid}
 #tbHeft .heft-eintrag{margin:0 0 5mm;break-inside:avoid}
+#tbHeft .heft-etappen{border-collapse:collapse;width:100%;margin:0 0 6mm;font-size:10pt;break-inside:avoid}
+#tbHeft .heft-etappen caption{text-align:left;font-weight:700;margin-bottom:2mm}
+#tbHeft .heft-etappen th,#tbHeft .heft-etappen td{border-bottom:1px solid #d5dbd6;padding:1.5mm 2mm;text-align:left}
 #tbHeft .heft-kopf{font-size:9.5pt;color:#68736b;margin-bottom:1mm}
 #tbHeft .heft-kopf .nr{display:inline-block;min-width:5mm;padding:0 1.5mm;margin-right:2mm;border-radius:3mm;background:#2f6b3a;color:#fff;font-weight:700;text-align:center}
 #tbHeft .heft-text{white-space:pre-wrap;overflow-wrap:anywhere}
@@ -167,6 +170,8 @@ html.heft #tbHeft{display:block;color:#1c2620;background:#fff;padding:0 2mm;font
 .foto-raster.klein{grid-template-columns:repeat(4,1fr)}
 .foto-raster button{border:0;padding:0;aspect-ratio:1;background:var(--spur);overflow:hidden;border-radius:4px}
 .foto-raster img{width:100%;height:100%;object-fit:cover;display:block}
+#gbListe li.mitFotos{flex-wrap:wrap}
+.gb-fotos{flex-basis:100%;margin:2px 0 4px 34px}
 .foto-mk{width:40px;height:40px;border-radius:8px;border:2px solid #fff;box-shadow:0 1px 4px #0006;overflow:hidden;background:#cfd8d2}
 .foto-mk img{width:100%;height:100%;object-fit:cover;display:block}
 .pack-box{margin:10px 0}
@@ -233,6 +238,10 @@ nav.reiter#leiste button span{margin:0;font-size:18px;line-height:1.1}
 .stopp.ziel-ober{box-shadow:inset 0 3px 0 var(--gruen)}
 .stopp.ziel-unter{box-shadow:inset 0 -3px 0 var(--gruen)}
 @media (pointer:coarse){.stopp .schieben{display:none}}
+.tag-chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.tag-chips .chip{border:1px solid var(--linie,#ccd3cd);background:var(--karte);color:var(--text);border-radius:999px;padding:6px 12px;min-height:36px;font:600 13px system-ui,sans-serif;border-left:4px solid var(--tagfarbe,var(--gruen))}
+.etappe[hidden]{display:none}
+.tag-chips .chip[aria-pressed=true]{background:var(--gruen);color:var(--hg);border-color:var(--gruen);border-left-color:var(--tagfarbe,var(--gruen))}
 #tbBildTeilen{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff3;color:#fff;font:600 15px system-ui,sans-serif}
 #tbBildZu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff3;color:#fff;font-size:20px}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}
