@@ -1429,7 +1429,9 @@ function pruef(name, bed, info) {
     const y = id => document.getElementById(id).getBoundingClientRect().top;
     return y('ergebnisKopf') < y('profilbox'); }) && await pa2.isVisible('#profil') && await pa2.isHidden('#startZeit'));
   await planReiter(pa2, 'vorbereiten');
-  pruef('Telefon: Vorbereiten zeigt Name und Zeitplan gleich, ohne Klappzeile', await pa2.isVisible('#startZeit') && await pa2.isVisible('#tourname') && await pa2.isHidden('#bPlanDetails'));
+  pruef('Telefon: Vorbereiten zeigt den Zeitplan gleich, ohne Klappzeile', await pa2.isVisible('#startZeit') && await pa2.isHidden('#bPlanDetails'));
+  pruef('Telefon: Name der Tour über „Los“ und „Speichern“', await pa2.isVisible('#tourname') && await pa2.evaluate(() =>
+    document.getElementById('nameZeile').getBoundingClientRect().bottom <= document.getElementById('aktionen').getBoundingClientRect().top + 1));
   await planReiter(pa2, 'route');
   // Karte am Touchscreen: Zoom mit zwei Fingern, Fadenkreuz nur beim Planen
   pruef('Telefon: keine Zoom-Knöpfe', await pa2.isHidden('#bPlus') && await pa2.isHidden('#bMinus'));

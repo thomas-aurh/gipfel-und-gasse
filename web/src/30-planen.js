@@ -342,6 +342,7 @@ function zeigen() {
   if (!$('einstiege').hidden) letzteTourZeigen();
   if (!e) profilWeg();   // ohne Route keine Marke vom Höhenprofil
   $('ergebnisRoute').hidden = !e;
+  $('nameZeile').hidden = !e;
   planReiterZeigen();
   einstellTextSetzen(); planDetailsTextSetzen();
   if (seite === 'tour') tourSeiteZeigen();   // Kennzahlen einer eben geöffneten Tour kommen nach dem Rechnen
