@@ -295,6 +295,19 @@ function hervorheben(test, farbe) {
 const FARBE_WEG = { 'Pfad': '#8b5a2b', 'Forst- und Feldweg': '#c49a5a', 'Fußweg': '#5c9d6a', 'Nebenstraße': '#9aa3ad', 'Straße': '#5f6b78', 'Radweg': '#3d7fc4', 'Treppe': '#b03a2e', 'Fähre': '#2c7fb8', 'Sonstiges': '#a0a0a0', 'Unbekannt': '#cfcfcf' };
 const FARBE_BODEN = { 'Befestigt': '#6d7884', 'Schotter': '#c9a66b', 'Naturboden': '#8b5a2b', 'Fels': '#7b7b7b', 'Unbekannt': '#cfcfcf' };
 
+// ---------- Passt die Tour zu mir? (Vorbereiten) ----------
+function tourCheckZeigen() {
+  const e = S.ergebnis, ul = $('tourCheck');
+  ul.innerHTML = '';
+  if (!e || S.fest && !e.sac && e.tief == null) { $('tourCheckBox').hidden = true; return; }
+  const et = etappenAktuell();
+  const pause = (+$('pausewahl').value || 0) / 60;
+  const stunden = (et ? Math.max(...et.map(x => x.zeit)) : e.zeit + (S.fest ? 0 : besichtigung() / 60)) + pause;
+  const l = R.tourCheck({ sac: e.sac, auf: e.auf, ab: e.ab, stunden, meter: e.laenge, hoch: e.hoch, tempo: tempoAktuell(), tage: et ? et.length : 1, art: artAktuell() });
+  $('tourCheckBox').hidden = !l.length;
+  for (const x of l) { const li = document.createElement('li'); li.className = x.art; li.textContent = x.text; ul.appendChild(li); }
+}
+
 // ---------- Planen in Reitern: Route · Überblick · Vorbereiten (ohne Route nur der Teil „Route“ mit den Einstiegen) ----------
 let planTeil = 'route';
 function planReiterZeigen() {
@@ -351,6 +364,7 @@ function zeigen() {
   stoppsZeigen();
   if (typeof unterwegsKarte === 'function') unterwegsKarte();
   if (!e) { profilZeichnen(); return; }
+  tourCheckZeigen();
   const art = (PROFILE[S.profil] || PROFILE.wandern).art;
   const besicht = besichtigung();
   $('zLaenge').textContent = R.kmText(e.laenge);
@@ -532,7 +546,7 @@ async function unterkunftSuchen() {
   const belegt = new Set(), treffer = new Map();
   for (const x of ziele) { const u = R.unterkunftWahl(json, x.w, UNTERKUNFT_RADIUS, belegt); if (u) { belegt.add(u.id); treffer.set(x.i, u); } }
   if (!treffer.size) { melde('Keine Hütte oder Unterkunft bis 2 km an den Übernachtungen in OpenStreetMap: sie bleiben auf der Route, ziehen verschiebt sie.', 7); return; }
-  S.wps = S.wps.map((w, i) => treffer.has(i) ? Object.assign({}, w, { lat: treffer.get(i).lat, lon: treffer.get(i).lon, name: treffer.get(i).name }) : w);
+  S.wps = S.wps.map((w, i) => treffer.has(i) ? Object.assign({}, w, { lat: treffer.get(i).lat, lon: treffer.get(i).lon, name: treffer.get(i).name }, treffer.get(i).info ? { info: treffer.get(i).info } : {}) : w);
   neuBerechnen();
   const fehlt = ziele.length - treffer.size;
   melde('🛏 ' + [...treffer.values()].map(u => u.name + ' (' + u.art + ')').join(', ') + (fehlt ? '; für ' + fehlt + (fehlt === 1 ? ' Nacht' : ' Nächte') + ' nichts bis 2 km' : '') + '.', 8);
@@ -623,6 +637,16 @@ function etappenZeigen(et, tag, startZeit, pause) {
     div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
       ' · bis ' + R.esc(ziel) + (k < et.length - 1 ? ' 🛏' : '') + '<br><span class="klein">' + R.kmText(s.meter) + ' · ↑ ' + s.auf + ' m · ↓ ' + s.ab + ' m · ' +
       R.zeitText(zeit) + (s.hoch != null ? ' · höchster Punkt ' + s.hoch + ' m' : '') + (plan ? '<br>' + R.esc(plan) : '') + '</span>';
+    // Unterkunft am Ende des Tages: Anrufen, Webseite (Reservierung), Öffnungszeiten aus OpenStreetMap
+    const unterkunft = k < et.length - 1 && S.wps[s.bis].info;
+    if (unterkunft && (unterkunft.tel || unterkunft.web || unterkunft.oh)) {
+      const hi = document.createElement('div');
+      hi.className = 'klein huette-info';
+      if (unterkunft.tel) { const a = document.createElement('a'); a.href = 'tel:' + unterkunft.tel.replace(/[^\d+]/g, ''); a.textContent = '📞 ' + unterkunft.tel; hi.appendChild(a); }
+      if (unterkunft.web) { const a = document.createElement('a'); a.href = unterkunft.web; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '🌐 Webseite, reservieren'; hi.appendChild(a); }
+      if (unterkunft.oh) { const sp = document.createElement('span'); sp.textContent = '🕘 ' + unterkunft.oh; hi.appendChild(sp); }
+      div.appendChild(hi);
+    }
     // ab Tag 2 eine eigene Startzeit (z. B. Frühstück auf der Hütte erst um 7); leer = wie Tag 1
     if (k > 0) {
       const lab = document.createElement('label');

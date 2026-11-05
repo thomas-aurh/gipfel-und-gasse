@@ -459,7 +459,13 @@ var R = (function () {
     if (typeof i.ohd === 'string' && OH_DATUM.test(i.ohd)) o.ohd = i.ohd;
     if (s(i.web, 300) && webAdresse(i.web)) o.web = webAdresse(i.web);
     if (s(i.adr, 200)) o.adr = i.adr;
+    if (s(i.tel, 40) && telAdresse(i.tel)) o.tel = telAdresse(i.tel);
     return Object.keys(o).length ? o : null;
+  }
+  // Telefonnummer aus OSM (phone, contact:phone): die erste von mehreren, nur erlaubte Zeichen, mindestens 6 Ziffern
+  function telAdresse(t) {
+    const n = String(t || '').split(/[;,]/)[0].trim();
+    return /^\+?[\d ()\/-]{6,30}$/.test(n) && (n.match(/\d/g) || []).length >= 6 ? n : null;
   }
   // „Stand 05/2023“ aus dem Prüfdatum in OSM; alt = älter als zwei Jahre (dann eher veraltet, vgl. Abgleich)
   function ohStand(ohd, jetzt) {
@@ -562,9 +568,50 @@ var R = (function () {
       const weg = abstand(p, { lat, lon });
       if (weg > radius) continue;
       const wert = weg + art[1];
-      if (!best || wert < best.wert) best = { id, lat, lon, name: String(t.name).slice(0, 120), art: art[0], weg, wert };
+      if (!best || wert < best.wert) {
+        const web = t.website || t['contact:website'];
+        const info = infoPruefen({ oh: t.opening_hours, web: web && !/^https?:\/\//i.test(web) ? 'https://' + web : web, tel: t.phone || t['contact:phone'] });
+        best = { id, lat, lon, name: String(t.name).slice(0, 120), art: art[0], weg, wert, info };
+      }
     }
     return best;
+  }
+
+  // ---------- Bescheid geben (DAV: Ziel, Route und Rückkehrzeit einer vertrauten Person sagen) ----------
+  // o: { name, meter, stunden, auf, tage, ankunft (Date), start: {lat, lon}, link }
+  function bescheidText(o) {
+    const z = ['Ich bin unterwegs: ' + (o.name || 'Tour') + ' (' + kmText(o.meter) + (o.auf ? ', ↑ ' + Math.round(o.auf) + ' m' : '') +
+      ', etwa ' + zeitText(o.stunden) + (o.tage > 1 ? ', ' + o.tage + ' Tage' : '') + ').'];
+    if (o.start) z.push('Start: https://www.google.com/maps/search/?api=1&query=' + o.start.lat.toFixed(5) + ',' + o.start.lon.toFixed(5));
+    if (o.ankunft) {
+      const tag = o.ankunft.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+      z.push('Zurück geplant gegen ' + uhr(o.ankunft) + ' Uhr (' + tag + '). Melde ich mich bis ' + uhr(new Date(o.ankunft.getTime() + 2 * 3600e3)) +
+        ' Uhr nicht und bin nicht erreichbar: Notruf 112 und diese Nachricht durchgeben.');
+    }
+    if (o.link) z.push('Route: ' + o.link);
+    return z.join('\n');
+  }
+  function ankunftText(name, zeit) { return 'Bin gut angekommen' + (name ? ' (' + name + ')' : '') + ', ' + uhr(zeit) + ' Uhr.'; }
+
+  // ---------- Passt die Tour zu mir? Faustregeln zu Trittsicherheit, Kondition und Höhe ----------
+  // o: { sac: {stufe, text, meter} | null, auf, ab, stunden (längster Tag), meter, hoch, tempo, tage, art }
+  // → [{ art: 'ok' | 'hinweis' | 'warn', text }] (warn: bewusst prüfen, ob es passt)
+  function tourCheck(o) {
+    const out = [], h = +o.stunden || 0, tage = Math.max(1, o.tage || 1), auf = (+o.auf || 0) / tage, ab = (+o.ab || 0) / tage;
+    if (o.art === 'rad' || o.art === 'lauf') return out;
+    const s = o.sac;
+    if (!s) out.push({ art: 'hinweis', text: 'Schwierigkeit der Wege in OpenStreetMap nicht erfasst: Wege vorab ansehen.' });
+    else if (s.stufe <= 1) out.push({ art: 'ok', text: 'Wanderweg (T1): keine besonderen Anforderungen an die Trittsicherheit.' });
+    else if (s.stufe === 2) out.push({ art: 'hinweis', text: 'Bergweg (T2) auf ' + kmText(s.meter) + ': Trittsicherheit nötig, feste Schuhe.' });
+    else if (s.stufe === 3) out.push({ art: 'warn', text: 'Anspruchsvoller Bergweg (T3) auf ' + kmText(s.meter) + ': trittsicher und schwindelfrei, ausgesetzte Stellen möglich.' });
+    else out.push({ art: 'warn', text: 'Alpin (T' + s.stufe + ') auf ' + kmText(s.meter) + ': Hände nötig, Erfahrung im weglosen Gelände; nicht für Einsteiger.' });
+    const k = auf < 500 ? ['ok', 'leicht'] : auf < 1000 ? ['hinweis', 'mittel'] : auf < 1500 ? ['warn', 'anstrengend'] : ['warn', 'sehr anstrengend'];
+    out.push({ art: k[0], text: 'Kondition ' + k[1] + ': ↑ ' + Math.round(auf) + ' m' + (tage > 1 ? ' am Tag' : '') + ', ' + zeitText(h) + ' Gehzeit' + (tage > 1 ? ' am längsten Tag' : '') +
+      (h > 8 ? ': sehr langer Tag, früh starten.' : h > 6 ? ': langer Tag.' : '.') });
+    if (ab >= 1000) out.push({ art: 'hinweis', text: 'Langer Abstieg (↓ ' + Math.round(ab) + ' m' + (tage > 1 ? ' am Tag' : '') + '): belastet die Knie, Stöcke helfen.' });
+    if (o.hoch != null && o.hoch >= 2500) out.push({ art: 'hinweis', text: 'Über 2500 m (' + o.hoch + ' m): Schnee bis in den Sommer möglich, Wetter schlägt schneller um.' });
+    if (o.tempo != null && o.tempo <= 0.7 && ((s && s.stufe >= 3) || auf >= 800 || h > 5)) out.push({ art: 'warn', text: 'Mit Kind: ' + (s && s.stufe >= 3 ? 'T3-Wege' : auf >= 800 ? 'viel Aufstieg' : 'langer Tag') + ' – lieber eine kürzere oder leichtere Tour.' });
+    return out;
   }
 
   // Ausschnitt einer Etappe aus der Auswertung der ganzen Tour, als eigene Route ab Meter 0 (zum Folgen eines Tages):
@@ -2324,7 +2371,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

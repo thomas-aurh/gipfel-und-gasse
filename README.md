@@ -140,6 +140,19 @@ hervorgehoben. Ein Ort, der „Als Stopp“ in die Tour kommt, nimmt seine Öffn
 unter jedem Stopp die Ankunft und ob dann geöffnet ist (⛔ geschlossen, ⚠️ schließt während des Besuchs oder öffnet erst kurz
 danach). Die Zeiten stammen aus OpenStreetMap (bei Museen und Gasthäusern meist eingetragen, bei Hütten selten).
 
+**Bescheid geben:** „📣 Bescheid geben“ (Unterwegs und Planen › Vorbereiten) schickt über das Teilen-Menü (im Browser
+in die Zwischenablage) eine Nachricht an eine vertraute Person: Tour, Länge, Aufstieg, Gehzeit, Start als Google-Maps-Link,
+geplante Rückkehr, „melde ich mich bis … nicht: Notruf 112“ und den Link zur Tour (Empfehlung des DAV, Ziel, Route und
+Rückkehrzeit zu hinterlassen). Unter *Unterwegs* steht dann die geplante Rückkehr; ist sie vorbei, erinnert die App
+(Meldung und Vibration beim nächsten Blick in die App, keine Mitteilung bei geschlossener App) und „✅ Ankunft melden“
+schickt „Bin gut angekommen“. Kein Server, kein Live-Standort.
+
+**Passt die Tour zu mir?** Unter *Vorbereiten*: Trittsicherheit nach der SAC-Wanderskala (T1 bis T6 aus OpenStreetMap),
+Kondition nach Aufstieg und Gehzeit (je Tag bei Mehrtagestouren), langer Abstieg, Höhe über 2500 m und Hinweise mit Kind.
+
+**Hütten:** Bei einer Mehrtagestour zeigt die Karte eines Tages zur Unterkunft Telefon („📞“, ruft an), Webseite zum
+Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
+
 **Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
 **Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:

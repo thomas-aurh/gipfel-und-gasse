@@ -827,5 +827,24 @@ pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.
   pruef('Unterkunft: Abfrage je Übernachtung im Umkreis, nur mit Namen', (q.match(/around:2000,/g) || []).length === 2 && q.includes('alpine_hut') && q.includes('["name"]'), q);
 }
 
+// Bescheid geben, Passt die Tour zu mir, Telefon der Hütte
+{
+  const an = new Date(2026, 6, 10, 16, 30);
+  const t = R.bescheidText({ name: 'Herzogstand', meter: 12300, stunden: 5.25, auf: 820, tage: 1, ankunft: an, start: { lat: 47.6, lon: 11.3 }, link: 'https://x.example/#tour' });
+  pruef('Bescheid: Tour, Start, Rückkehr mit Notruf-Hinweis, Link', t.startsWith('Ich bin unterwegs: Herzogstand (12 km, ↑ 820 m, etwa 5:15 h).') && t.includes('query=47.60000,11.30000') &&
+    t.includes('Zurück geplant gegen 16:30 Uhr') && t.includes('bis 18:30 Uhr nicht') && t.includes('Notruf 112') && t.endsWith('Route: https://x.example/#tour'), t);
+  pruef('Bescheid: Ankunft', R.ankunftText('Herzogstand', an) === 'Bin gut angekommen (Herzogstand), 16:30 Uhr.');
+  const leicht = R.tourCheck({ sac: { stufe: 1, meter: 5000 }, auf: 300, ab: 300, stunden: 3, hoch: 900, tempo: 1, tage: 1, art: 'fuss' });
+  pruef('Tour-Check: leichte Wanderung', leicht.length === 2 && leicht.every(x => x.art === 'ok'), leicht);
+  const schwer = R.tourCheck({ sac: { stufe: 3, meter: 1200 }, auf: 1400, ab: 1400, stunden: 8.5, hoch: 2600, tempo: 0.7, tage: 1, art: 'fuss' });
+  pruef('Tour-Check: T3, viel Aufstieg, langer Tag, Höhe, mit Kind', schwer.filter(x => x.art === 'warn').length === 3 && schwer.some(x => x.text.includes('Knie')) && schwer.some(x => x.text.includes('2500 m')) &&
+    schwer.some(x => /sehr langer Tag/.test(x.text)), schwer);
+  pruef('Tour-Check: Mehrtagestour je Tag gerechnet', /↑ 600 m am Tag/.test(R.tourCheck({ sac: null, auf: 1800, ab: 1800, stunden: 6, tage: 3, art: 'fuss' })[1].text));
+  pruef('Tour-Check: Rad und Laufen ohne Bergregeln', R.tourCheck({ sac: { stufe: 3, meter: 1 }, auf: 2000, art: 'rad' }).length === 0);
+  pruef('Telefon: erste Nummer, Unsinn fällt weg', R.telAdresse('+49 8857 1234; +49 171 000000') === '+49 8857 1234' && R.telAdresse('ruf an') === null && R.telAdresse('123') === null);
+  const u = R.unterkunftWahl({ elements: [{ type: 'node', id: 1, lat: 47.6, lon: 11.3, tags: { tourism: 'alpine_hut', name: 'H', phone: '+43 512 123456', website: 'huette.example', opening_hours: 'Jun-Sep' } }] }, { lat: 47.6, lon: 11.3 }, 2000, new Set());
+  pruef('Unterkunft: Telefon, Webseite und Öffnung mitgenommen', u.info && u.info.tel === '+43 512 123456' && /^https:\/\/huette\.example/.test(u.info.web) && u.info.oh === 'Jun-Sep', u.info);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

@@ -381,6 +381,27 @@ function pruef(name, bed, info) {
     (grenzfall || (zp.includes('Knapp') === knappSoll && (await page.getAttribute('#zeitplan', 'class')).includes('warnung') === knappSoll)), [zp, soll, knappSoll]);
 
   await planReiter(page, 'vorbereiten');
+  // Passt die Tour zu mir? Faustregeln (Testroute: T2, wenig Aufstieg)
+  const check = await page.$$eval('#tourCheck li', l => l.map(x => x.className + ':' + x.textContent));
+  pruef('Passt die Tour zu mir: Trittsicherheit und Kondition', check.some(x => x.startsWith('hinweis:Bergweg (T2)')) && check.some(x => /^ok:Kondition leicht/.test(x)), check);
+  // Bescheid geben: Nachricht mit Tour, Start, geplanter Rückkehr, Notruf-Hinweis und Link (im Browser in die Zwischenablage)
+  await page.evaluate(() => { try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) {} });
+  await page.click('#bBescheidPlan');
+  await page.waitForTimeout(200);
+  const bescheid = await page.evaluate(() => navigator.clipboard.readText());
+  pruef('Bescheid geben: Tour, Start, Rückkehr, Notruf und Link', /^Ich bin unterwegs: .* \(.* km.*etwa .* h\)\./.test(bescheid) && bescheid.includes('Start: https://www.google.com/maps/search/') &&
+    /Zurück geplant gegen \d\d:\d\d Uhr/.test(bescheid) && bescheid.includes('Notruf 112') && bescheid.includes('https://thomas-aurh.github.io/gipfel-und-gasse/#tour-'), bescheid);
+  await zuSeite(page, 'unterwegs');
+  pruef('Bescheid: Hinweis unter Unterwegs mit geplanter Rückkehr', await page.isVisible('#bescheidBox') && (await page.textContent('#bescheidText')).startsWith('📣 Bescheid gegeben'));
+  // Rückkehrzeit vorbei: Erinnerung; „Ankunft melden“ schickt „Bin gut angekommen“ und beendet die Erinnerung
+  await page.evaluate(() => { const b = JSON.parse(localStorage.getItem('gug.bescheid')); b.bis = Date.now() - 60000; localStorage.setItem('gug.bescheid', JSON.stringify(b)); document.dispatchEvent(new Event('visibilitychange')); });
+  pruef('Bescheid: nach der geplanten Rückkehr eine Erinnerung', (await page.getAttribute('#bescheidBox', 'class')).includes('warnung') && (await page.textContent('#bescheidText')).includes('Bist du gut angekommen') &&
+    (await page.textContent('#meldung')).includes('Ankunft melden'));
+  await page.click('#bAnkunft');
+  await page.waitForTimeout(200);
+  pruef('Bescheid: „Ankunft melden“ teilt die Ankunft, Erinnerung aus', (await page.evaluate(() => navigator.clipboard.readText())).startsWith('Bin gut angekommen') && await page.isHidden('#bescheidBox') &&
+    (await page.evaluate(() => localStorage.getItem('gug.bescheid'))) === 'null');
+  await zuSeite(page, 'planen'); await planReiter(page, 'vorbereiten');
   pruef('Anreise zum Start: Bus und Bahn und Auto', await page.isVisible('#anreise') && await page.evaluate(() => {
     const o = document.querySelector('#anreiseOepnv').href, a = document.querySelector('#anreiseAuto').href;
     return /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=-?\d+\.\d{5},-?\d+\.\d{5}&travelmode=transit$/.test(o) && a.endsWith('travelmode=driving') && o.split('&')[1] === a.split('&')[1]; }));
@@ -701,7 +722,7 @@ function pruef(name, bed, info) {
     const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
     if (!q.includes('alpine_hut')) return r.fallback();
     huettenFrage = q;
-    const el = [...q.matchAll(/around:\d+,(-?[\d.]+),(-?[\d.]+)/g)].map((m, k) => ({ type: 'node', id: 900 + k, lat: +m[1] + 0.0027, lon: +m[2], tags: { tourism: 'alpine_hut', name: 'Testhütte ' + (k + 1) } }));
+    const el = [...q.matchAll(/around:\d+,(-?[\d.]+),(-?[\d.]+)/g)].map((m, k) => ({ type: 'node', id: 900 + k, lat: +m[1] + 0.0027, lon: +m[2], tags: { tourism: 'alpine_hut', name: 'Testhütte ' + (k + 1), phone: '+49 8857 1234', website: 'https://huette.example', opening_hours: 'May-Oct' } }));
     r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: el }) });
   };
   await page.route(/overpass-api\.de/, huettenRoute);
@@ -711,6 +732,8 @@ function pruef(name, bed, info) {
   pruef('Tage: 3 Tage setzt Übernachtungspunkte auf der Route', (await page.textContent('#etappen')).includes('Tag 3') && (await page.$$('.wp')).length >= 4, (await page.$$('.wp')).length);
   pruef('Tage: neue Übernachtung auf der Hütte in der Nähe, mit Namen', huettenFrage.includes('around:2000') && (await page.textContent('#etappen')).includes('bis Testhütte') &&
     (await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | '))).includes('🛏 Testhütte'), [await page.$$eval('.wp-name', l => l.map(x => x.textContent)), (await page.textContent('#meldung'))]);
+  pruef('Tage: Tageskarte mit Telefon, Webseite und Öffnung der Hütte', (await page.$$('#etappen a[href="tel:+4988571234"]')).length >= 1 && (await page.$$('#etappen a[href^="https://huette.example"]')).length >= 1 &&
+    (await page.textContent('#etappen')).includes('🕘 May-Oct'), await page.$$eval('#etappen .huette-info', l => l.map(x => x.textContent)));
   await page.unroute(/overpass-api\.de/, huettenRoute);
   await page.selectOption('#profilwahl', 'wandern');
   await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});

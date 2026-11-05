@@ -5,6 +5,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Bescheid geben (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text, ob WhatsApp den Link
+  anzeigt. Die Erinnerung kommt nur beim Öffnen der App oder alle 60 s, solange sie offen ist; eine Mitteilung bei
+  geschlossener App bräuchte eine Erinnerung im Navigationsdienst oder ein Plugin für lokale Mitteilungen.
+
 - **Umbau für mehr Übersicht (04.11.):** Schritt 1 (Planen in Reitern, Bau 203) auf dem Pixel installiert; Schritt 2
   (Mehrtagestour mit Schalter, Teilung nach Gehzeit, Liste nach Tagen, Farbe je Tag, Tag-Knöpfe unterwegs) gebaut, nur im
   Klicktest geprüft. Offen aus Schritt 2: Tag-Chips im Blatt (nur diesen Tag zeigen); Hütte und Tageszahl (05.11.) nur im
@@ -225,6 +229,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Bescheid geben, Hütten-Infos, Passt die Tour zu mir)** Aus der Recherche (komoot Live-Tracking, DAV:
+  Rückkehrzeit hinterlassen, DAV-BergwanderCheck): „📣 Bescheid geben“ mit Tour, Start, Rückkehr, Notruf-Hinweis und
+  Link (R.bescheidText), Erinnerung nach der geplanten Rückkehr, „✅ Ankunft melden“ (R.ankunftText); Tageskarte mit
+  Telefon, Webseite und Öffnung der Unterkunft (aus den OSM-Tags, R.telAdresse); „🧭 Passt die Tour zu mir?“ unter
+  Vorbereiten (R.tourCheck). Einheitstests 306, Klicktest 389.
 
 - **05.11. (Planen neu geordnet, Thomas am Pixel, Bau 215)** Reihenfolge: 1. Berg und Natur | Stadt, 2. Art und Tempo,
   3. Hinweis, „Runde mit Länge“ (nur bei Laufen; unter „⋯“ für alle) und letzte Tour, 4. Aktionsleiste ▶ Los · 💾 · ↶ · ✕ ·
