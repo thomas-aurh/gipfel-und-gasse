@@ -809,5 +809,23 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Tage teilen: ohne Zwischenpunkt ein neuer in der Mitte', zwei.neu.length === 1 && zwei.neu[0].vor === 1 && Math.abs(zwei.neu[0].d - 6000) < 300, zwei);
 }
 
+// Mehrtagestour: Zahl der Tage nach Gehzeit, Unterkunft an der Übernachtung
+pruef('Tage: Vorschlag höchstens 6,5 h am Tag', R.tageVorschlag(3) === 2 && R.tageVorschlag(13) === 2 && R.tageVorschlag(13.1) === 3 && R.tageVorschlag(130) === 20 && R.tageVorschlag(999) === 30);
+pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.tageWahl(20).join() === '18,19,20,21,22' && R.tageWahl(6).join() === '4,5,6,7,8', [R.tageWahl(3), R.tageWahl(20)]);
+{
+  const p = { lat: 47.6, lon: 11.3 };
+  const json = { elements: [
+    { type: 'node', id: 1, lat: 47.6018, lon: 11.3, tags: { tourism: 'hotel', name: 'Hotel Nah' } },          // 200 m + 500
+    { type: 'way', id: 2, center: { lat: 47.6054, lon: 11.3 }, tags: { tourism: 'alpine_hut', name: 'Testhütte' } },   // 600 m + 0
+    { type: 'node', id: 3, lat: 47.63, lon: 11.3, tags: { tourism: 'alpine_hut', name: 'Weit weg' } },        // 3,3 km
+    { type: 'node', id: 4, lat: 47.6001, lon: 11.3, tags: { tourism: 'guest_house' } } ] };                   // ohne Namen
+  const u = R.unterkunftWahl(json, p, 2000, new Set());
+  pruef('Unterkunft: Berghütte vor dem näheren Hotel, ohne Namen und zu weit fällt weg', u && u.name === 'Testhütte' && u.art === 'Berghütte' && Math.abs(u.weg - 600) < 15, u);
+  const u2 = R.unterkunftWahl(json, p, 2000, new Set(['way/2']));
+  pruef('Unterkunft: schon vergebene Hütte nicht doppelt', u2 && u2.name === 'Hotel Nah');
+  const q = R.unterkunftAbfrage([p, { lat: 47.7, lon: 11.4 }], 2000);
+  pruef('Unterkunft: Abfrage je Übernachtung im Umkreis, nur mit Namen', (q.match(/around:2000,/g) || []).length === 2 && q.includes('alpine_hut') && q.includes('["name"]'), q);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

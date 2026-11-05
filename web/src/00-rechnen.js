@@ -534,6 +534,39 @@ var R = (function () {
     return aus;
   }
 
+  // Vorschlag für die Zahl der Tage: höchstens etwa 6,5 h Gehzeit am Tag (mindestens 2, höchstens 30)
+  const TAG_STUNDEN = 6.5;
+  function tageVorschlag(stunden) { return Math.max(2, Math.min(30, Math.ceil((+stunden || 0) / TAG_STUNDEN - 1e-9))); }
+  // Zahlen für die Auswahl: bis 5 Tage 2 bis 5, sonst der Vorschlag mit zwei Tagen darunter und darüber
+  function tageWahl(vorschlag) {
+    const v = Math.max(2, vorschlag | 0), von = v <= 5 ? 2 : v - 2;
+    const out = []; for (let z = von; z <= Math.max(5, v + 2) && out.length < 5; z++) out.push(z);
+    return out;
+  }
+  // Unterkünfte im Umkreis der Übernachtungen: Hütten, Gasthöfe, Pensionen, Jugendherbergen, Hotels, Zeltplätze
+  const UNTERKUNFT = { alpine_hut: ['Berghütte', 0], guest_house: ['Gasthof/Pension', 300], hostel: ['Herberge', 300], chalet: ['Ferienhütte', 600],
+    hotel: ['Hotel', 500], wilderness_hut: ['Selbstversorgerhütte', 800], camp_site: ['Zeltplatz', 1500] };
+  function unterkunftAbfrage(punkte, radius) {
+    const teile = punkte.map(p => 'nwr["tourism"~"^(' + Object.keys(UNTERKUNFT).join('|') + ')$"]["name"](around:' + Math.round(radius) + ',' + p.lat.toFixed(5) + ',' + p.lon.toFixed(5) + ');');
+    return '[out:json][timeout:25];(' + teile.join('') + ');out center tags 200;';
+  }
+  // beste Unterkunft für einen Punkt: Abstand plus Zuschlag je Art (eine Berghütte vor einem Hotel); belegt: schon vergeben
+  function unterkunftWahl(json, p, radius, belegt) {
+    let best = null;
+    for (const el of (json && json.elements) || []) {
+      const t = el.tags || {}, art = UNTERKUNFT[t.tourism];
+      const lat = el.lat != null ? el.lat : el.center && el.center.lat, lon = el.lon != null ? el.lon : el.center && el.center.lon;
+      if (!art || !t.name || lat == null || lon == null) continue;
+      const id = el.type + '/' + el.id;
+      if (belegt && belegt.has(id)) continue;
+      const weg = abstand(p, { lat, lon });
+      if (weg > radius) continue;
+      const wert = weg + art[1];
+      if (!best || wert < best.wert) best = { id, lat, lon, name: String(t.name).slice(0, 120), art: art[0], weg, wert };
+    }
+    return best;
+  }
+
   // Ausschnitt einer Etappe aus der Auswertung der ganzen Tour, als eigene Route ab Meter 0 (zum Folgen eines Tages):
   // Punkte, Teilstück-Enden der Wegpunkte von s.von bis s.bis und Abbiegehinweise dieses Stücks
   function etappeAusschnitt(e, s) {
@@ -2291,7 +2324,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, tagesAufteilung, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

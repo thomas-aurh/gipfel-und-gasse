@@ -7,8 +7,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 - **Umbau für mehr Übersicht (04.11.):** Schritt 1 (Planen in Reitern, Bau 203) auf dem Pixel installiert; Schritt 2
   (Mehrtagestour mit Schalter, Teilung nach Gehzeit, Liste nach Tagen, Farbe je Tag, Tag-Knöpfe unterwegs) gebaut, nur im
-  Klicktest geprüft. Offen aus Schritt 2: Übernachtung an einer Hütte in der Nähe vorschlagen (OSM alpine_hut, Gasthof),
-  Tag-Chips im Blatt (nur diesen Tag zeigen). Die von der App gesetzten Punkte merkt sie sich nur bis zum Speichern als
+  Klicktest geprüft. Offen aus Schritt 2: Tag-Chips im Blatt (nur diesen Tag zeigen); Hütte und Tageszahl (05.11.) nur im
+  Klicktest geprüft (echte Overpass-Antworten, ob 2 km und die Reihenfolge Hütte vor Hotel passen; ohne Netz keine Suche). Die von der App gesetzten Punkte merkt sie sich nur bis zum Speichern als
   „automatisch“ (danach gelten sie als eigene Punkte und bleiben bei „1 Tag“). Schritt 3: Begriffe (Start, Stopp, Ziel, Übernachtung), Warnung ohne Startzeit neutral, Kartennachweis
   kompakt (Attribution Guidelines der OSMF prüfen), Meldungen über dem Blatt mit Rückgängig, Unterwegs vor dem Start als
   Tourkarte mit großem „▶ Los“. Offen auch: Berg/Stadt-Umschalter und Punktliste mit Ziehen statt ▲▼.
@@ -225,6 +225,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Mehrtagestour: Hütte und Tageszahl)** „Mehrere Tage“ schlägt die Zahl der Tage vor (R.tageVorschlag: höchstens
+  etwa 6,5 h am Tag, 2 bis 30 Tage; Auswahl um den Vorschlag mit ★); neue Übernachtungen landen auf der nächsten Hütte
+  oder Unterkunft bis 2 km (R.unterkunftAbfrage/R.unterkunftWahl, Overpass; Berghütte vor Gasthof, Herberge, Hotel,
+  Zeltplatz), mit Namen; ohne Treffer oder Netz bleiben sie auf der Route. Einheitstests 298, Klicktest 382.
 
 - **05.11. (Unterwegs und Info, Thomas am Pixel, Bau 209)** Unterwegs ohne Route mit Knöpfen „✏️ Route planen“ und „🥾 Tour
   öffnen“ statt Text (und ohne „Route folgen“); die Erklärtexte oben in Unterwegs, Reisetagebuch, Reiseziele und Gipfelbuch
