@@ -5,6 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Hangneigung (05.11.) nicht am Gerät geprüft:** Ladezeit und Akku am Pixel bei z14 im Gebirge; in der App ohne Paket
+  kommen die Höhen aus dem Netz (WebView-fetch zu AWS, CORS offen). Lawinengefahr bewusst nicht in der App (nur Link).
+
 - **Stopps ziehen (05.11.) nur im Klicktest mit der Maus geprüft:** am Pixel ausprobieren, ob der Griff beim Ziehen
   nicht das Blatt scrollt und ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
 
@@ -232,6 +235,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Hangneigung als Kartenebene)** R.hangneigung (Horn, Grad) und R.hangFarbe (30/35/40/45°); Ebene „hang“ ab
+  Zoom 12, Höhen aus dem Paket oder `s3.amazonaws.com/elevation-tiles-prod/terrarium` (CORS offen, bis Stufe 13, darüber
+  weich vergrößert); Legende mit Hinweis „keine Lawinenbeurteilung“ und Link zu avalanches.org. Mit echten Daten am
+  Zugspitzplatt angesehen (z12/14/16, nahtlos; an der Grenze AT 10 m / EU-DEM eine Datenkante). Einheitstests 309,
+  Klicktest 410.
 
 - **05.11. (Aufzeichnung im Browser gesichert, doppelte Foto-Kacheln)** Die Browser-Aufzeichnung steht alle 15 s und
   beim Verlassen der Seite im Speicher (`gug.aufzSicherung`); nach Neuladen oder verworfenem Tab läuft sie weiter (Lücke

@@ -854,5 +854,15 @@ pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.
     !R.notsignalAn(65000) && R.notsignalAn(120000), zeichen);
 }
 
+// Hangneigung: schiefe Ebene mit 1 m je Meter ⇒ 45°, flach ⇒ 0°; Farbstufen ab 30°
+{
+  const w = 8, eb = new Float32Array(w * w);
+  for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) eb[y * w + x] = x * 10;
+  const g = R.hangneigung(eb, w, w, 10), flach = R.hangneigung(new Float32Array(w * w), w, w, 10);
+  pruef('Hangneigung: 45° auf der Ebene, 0° im Flachen', Math.abs(g[3 * w + 3] - 45) < 1e-4 && flach[3 * w + 3] === 0, g[3 * w + 3]);
+  pruef('Hangneigung: Farbstufen 30/35/40/45°, darunter keine', R.hangFarbe(29.9) === null && R.hangFarbe(30)[0] === 235 && R.hangFarbe(37)[1] === 140 &&
+    R.hangFarbe(42)[0] === 225 && R.hangFarbe(50)[2] === 170);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

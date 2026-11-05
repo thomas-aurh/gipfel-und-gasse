@@ -33,6 +33,12 @@ Stopps, Etappen), **📊 Überblick** (Kennzahlen, Höhenprofil, Kinderwagen, We
 „Vorbereiten“ zeigt eine Warnung des Zeitplans an. Strecke, Zeit und Aufstieg stehen immer im Kopf des Blatts. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“
 und die zuletzt gespeicherte Tour an. Am Touchscreen wird mit zwei Fingern gezoomt; das Fadenkreuz ⌖ steht nur beim Planen.
 
+**Hangneigung:** Kartenart und Ebenen (rechts an der Karte) › „Hangneigung ab 30°“ färbt ab Zoomstufe 12 steile Hänge:
+ab 30° gelb, 35° orange, 40° rot, 45° violett (Stufen wie in Hangneigungskarten für Skitouren). Die Höhen kommen aus dem
+Kartenpaket, sonst aus dem Netz (Mapzen Terrain Tiles: Österreich 10 m, sonst EU-DEM und SRTM um 25–30 m); kleine
+Steilstufen und Rinnen fehlen. Das ist keine Lawinenbeurteilung: die Legende verweist auf den Lawinenlagebericht
+(avalanches.org, die Lageberichte aller europäischen Warndienste).
+
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
 herunterladen (Oberbayern mit München, Innsbruck und Salzburg; Allgäu und Bodensee; die Größe steht
 in der Liste). Danach unter Kartenart und Ebenen (rechts an der Karte) „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
@@ -172,7 +178,7 @@ kein Netz.
 |---|---|
 | `web/` | die Web-App: Quellen, Bau (`build.sh`), Prüfung (`pruefen.sh`), Tests. Beschreibung in [`web/README.md`](web/README.md) |
 | `android/` | Android-Projekt (Capacitor 8). Eigener Code in `app/src/main/java/io/github/thomasaurh/gipfelundgasse/`: `NaviService` (Vordergrunddienst: GPS, Rest, Abweichung, Ansagen, Aufzeichnung), `NaviPlugin` (Brücke zur Oberfläche, Teilen, Drucken), `NaviRechnen` (Formeln wie die Web-App, mit JUnit-Test), `KartenServer` (liefert Kartenpakete in Teilen an die Oberfläche, Bereich aus `?von=&bis=` oder Range-Kopfzeile, Fehler als Text), `KartenPlugin` (Pakete laden, prüfen, löschen), `Routing` und `RoutingPlugin` (BRouter ohne Netz, dieselbe Antwort wie brouter.de) |
-| `web/src/58-offline.js` | Offline-Karten in der App: Vektorkarte aus dem Paket, Höhenlinien und Relief (eigene Leaflet-Ebene), Höhen ohne Netz, Routen, Orte und Suche ohne Netz, Paketverwaltung |
+| `web/src/58-offline.js` | Offline-Karten in der App: Vektorkarte aus dem Paket, Höhenlinien und Relief (eigene Leaflet-Ebene), Hangneigung (Paket oder Netz), Höhen ohne Netz, Routen, Orte und Suche ohne Netz, Paketverwaltung |
 | `web/vendor/offline/` | Eingang des Offline-Bündels (protomaps-leaflet, pmtiles), von `web/build.sh` mit esbuild gebündelt, Lizenzen werden angehängt |
 | `karten/` | Kartenpakete: `regionen.json` (Regionen), `bauen.py` (Bau, holt auch die Routendaten), `hoehe.py` (Höhen-Paket), `orte.py` (Orte und Suche aus OSM-Auszügen von Geofabrik), `probe.js` (Probe-Rendering), `orte-probe.js` (Probe-Suche auf den echten Orten), `routing-probe.sh` mit `RoutingProbe.java` (Probe-Routen auf den echten Routendaten) |
 | `werkzeuge/brouter-holen.sh` | holt die Routen-Engine BRouter in fester Fassung nach `android/brouter/` und die Profile in die App (nicht im Repo) |

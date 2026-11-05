@@ -2327,6 +2327,24 @@ var R = (function () {
     return out;
   }
 
+  // Hangneigung in Grad je Pixel (Horn wie die Schummerung, ohne Überhöhung). h: Höhengitter w×hoehe, mpp: Meter je Pixel
+  function hangneigung(h, w, hoehe, mpp) {
+    const out = new Float32Array(w * hoehe), k = 1 / (8 * mpp);
+    const at = (x, y) => h[Math.min(hoehe - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+    for (let y = 0; y < hoehe; y++) {
+      for (let x = 0; x < w; x++) {
+        const a = at(x - 1, y - 1), b = at(x, y - 1), c = at(x + 1, y - 1), d = at(x - 1, y), f = at(x + 1, y), g = at(x - 1, y + 1), i = at(x, y + 1), j = at(x + 1, y + 1);
+        const dzdx = ((c + 2 * f + j) - (a + 2 * d + g)) * k, dzdy = ((g + 2 * i + j) - (a + 2 * b + c)) * k;
+        out[y * w + x] = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) / RAD;
+      }
+    }
+    return out;
+  }
+  // Farbstufen wie in Hangneigungskarten für Skitouren (swisstopo, Alpenverein): ab 30° gelb, 35° orange, 40° rot,
+  // 45° violett; darunter durchsichtig
+  const HANG_STUFEN = [[45, [150, 40, 170]], [40, [225, 30, 30]], [35, [245, 140, 0]], [30, [235, 215, 0]]];
+  function hangFarbe(grad) { for (const [g, f] of HANG_STUFEN) if (grad >= g) return f; return null; }
+
   // Abstand der Höhenlinien je Zoomstufe: [Abstand, jede wievielte ist eine Zähllinie]
   function linienAbstand(z) {
     if (z >= 14) return [20, 5];
@@ -2378,7 +2396,7 @@ var R = (function () {
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
-    terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, linienAbstand, hoehenlinien, kachelPixel,
+    terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche

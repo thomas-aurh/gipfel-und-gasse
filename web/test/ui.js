@@ -57,6 +57,25 @@ function server() {
   });
 }
 
+// Höhenkachel (Terrarium-PNG): schiefe Ebene, nach Osten mit 38° ansteigend, für die Hangneigung
+function hangKachel(z, y) {
+  const zlib = require('zlib');
+  const n = Math.pow(2, z), lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n)));
+  const mpp = 40075016.686 * Math.cos(lat) / (256 * n), schritt = mpp * Math.tan(38 * Math.PI / 180);
+  const zeilen = Buffer.alloc(256 * (1 + 256 * 3));
+  for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) {
+    const v = 1000 + i * schritt + 32768, o = j * (1 + 768) + 1 + i * 3;
+    zeilen[o] = Math.floor(v / 256); zeilen[o + 1] = Math.floor(v) % 256; zeilen[o + 2] = Math.floor((v % 1) * 256);
+  }
+  const stueck = (art, daten) => {
+    const l = Buffer.alloc(4); l.writeUInt32BE(daten.length);
+    const k = Buffer.concat([Buffer.from(art), daten]), c = Buffer.alloc(4); c.writeUInt32BE(zlib.crc32(k) >>> 0);
+    return Buffer.concat([l, k, c]);
+  };
+  const kopf = Buffer.alloc(13); kopf.writeUInt32BE(256, 0); kopf.writeUInt32BE(256, 4); kopf[8] = 8; kopf[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), stueck('IHDR', kopf), stueck('IDAT', zlib.deflateSync(zeilen)), stueck('IEND', Buffer.alloc(0))]);
+}
+
 async function dienste(ctx) {
   // Waymarked Trails nicht nachgebildet: antwortet wie überlastet, dann fragt die App Overpass (eigene Prüfung unten)
   await ctx.route(/hiking\.waymarkedtrails\.org\/api/, r => r.fulfill({ status: 503, contentType: 'text/html', body: '<html>busy</html>' }));
@@ -1563,6 +1582,36 @@ function pruef(name, bed, info) {
   pruef('App: Drucken über Android im Druckzustand, danach zurück', druckA[1].druck === true && !(await pa2.evaluate(() => document.body.classList.contains('druck'))));
   pruef('App: keine Skriptfehler', appFehler.length === 0, appFehler);
   await appCtx.close();
+
+  // ---------- Hangneigung als Ebene: Höhenkacheln aus dem Netz (hier eine 38°-Ebene), Farbe orange (35–40°) ----------
+  {
+    const hctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+    await dienste(hctx);
+    const hangAnfragen = [];
+    await hctx.route(/elevation-tiles-prod\/terrarium\//, r => {
+      const m = /terrarium\/(\d+)\/(\d+)\/(\d+)\.png/.exec(r.request().url());
+      hangAnfragen.push(+m[1]);
+      r.fulfill({ status: 200, contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: hangKachel(+m[1], +m[3]) });
+    });
+    const ph = await hctx.newPage();
+    await ph.addInitScript(() => { if (!localStorage.getItem('gug.blick')) localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.42, lon: 11.0, z: 14 })); });
+    await ph.goto(url);
+    await ph.waitForFunction(() => window.__gugBereit);
+    await ph.waitForTimeout(300);
+    pruef('Hangneigung: aus, solange nicht gewählt (keine Anfragen)', hangAnfragen.length === 0, hangAnfragen.length);
+    await ph.click('#bLagen'); await ph.check('#lageHang');
+    pruef('Hangneigung: Legende mit Stufen und Hinweis auf den Lawinenlagebericht', await ph.isVisible('#hangLegende') &&
+      (await ph.textContent('#hangLegende')).includes('Keine Lawinenbeurteilung') && (await ph.getAttribute('#hangLegende a', 'href')) === 'https://www.avalanches.org');
+    await ph.waitForFunction(() => [...document.querySelectorAll('canvas.leaflet-tile-loaded')].length > 0, null, { timeout: 8000 }).catch(() => {});
+    const farbe = await ph.evaluate(() => {
+      const c = [...document.querySelectorAll('canvas.leaflet-tile-loaded')][0];
+      return c ? Array.from(c.getContext('2d').getImageData(128, 128, 1, 1).data) : null;
+    });
+    pruef('Hangneigung: 38° erscheint orange, aus Kacheln bis Stufe 13 (darüber vergrößert)', farbe && farbe[0] === 245 && farbe[1] === 140 && farbe[2] === 0 && farbe[3] === 255 &&
+      hangAnfragen.length > 0 && Math.max(...hangAnfragen) === 13, [farbe, [...new Set(hangAnfragen)]]);
+    pruef('Hangneigung: Wahl bleibt gespeichert', await ph.evaluate(() => JSON.parse(localStorage.getItem('gug.lagen')).hang === true));
+    await hctx.close();
+  }
 
   // ---------- Aufzeichnung im Browser übersteht Neuladen (Chrome verwirft Tabs im Hintergrund) ----------
   {

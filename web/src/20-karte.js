@@ -95,7 +95,7 @@ const ebeneTouren = L.layerGroup();
 const ebeneTagebuch = L.layerGroup();
 const ebeneZiele = L.layerGroup();   // Reiseziele (67-ziele.js)
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
-const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'wander', 'rad'];
+const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'hang', 'wander', 'rad'];
 // Rahmen der installierten Kartenpakete (gefüllt in 58-offline.js), sichtbar bei gewählter Offline-Karte
 const ebenePaketRahmen = L.layerGroup();
 function lagenAnwenden() {
@@ -112,6 +112,8 @@ function lagenAnwenden() {
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageSehens').checked = !!lagenWahl.sehens;
   $('lageRelief').checked = !!lagenWahl.relief;
+  $('lageHang').checked = !!lagenWahl.hang;
+  $('hangLegende').hidden = !lagenWahl.hang;
   $('lageTouren').checked = !!lagenWahl.touren;
   if (lagenWahl.touren) ebeneTouren.addTo(karte); else ebeneTouren.remove();
   $('lageTagebuch').checked = !!lagenWahl.tagebuch;
@@ -128,6 +130,10 @@ $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked;
 $('lageZiele').addEventListener('change', e => { lagenWahl.ziele = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
+$('lageHang').addEventListener('change', e => {
+  lagenWahl.hang = e.target.checked; lagenAnwenden();
+  if (e.target.checked && karte.getZoom() < 12) melde('Hangneigung erscheint ab Zoomstufe 12: näher heranzoomen.', 4);
+});
 $('lageTouren').addEventListener('change', e => { lagenWahl.touren = e.target.checked; lagenAnwenden(); });
 $('lageTagebuch').addEventListener('change', e => { lagenWahl.tagebuch = e.target.checked; lagenAnwenden(); });
 $('bLagen').addEventListener('click', e => { e.stopPropagation(); $('lagenwahl').hidden = !$('lagenwahl').hidden; });
