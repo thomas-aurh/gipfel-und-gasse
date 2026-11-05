@@ -82,10 +82,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
-- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Aufzeichnung im Browser nur im Arbeitsspeicher
-  (Tab im Hintergrund verworfen ⇒ Spur weg); Drucken im Handy-Browser baut nach 500 ms zurück, bevor die Vorschau fertig
-  ist (nicht geprüft); BRouter-Grenze von drei
-  gleichzeitigen Anfragen hält nicht immer; Foto-Kacheln im Tagebuch können bei schnellem Bearbeiten doppelt erscheinen.
+- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Drucken im Handy-Browser baut nach 500 ms zurück,
+  bevor die Vorschau fertig ist (nicht geprüft); BRouter-Grenze von drei gleichzeitigen Anfragen hält nicht immer.
+  (Aufzeichnung im Browser und doppelte Foto-Kacheln: am 05.11. behoben.)
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
   unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
   `adb shell am kill io.github.thomasaurh.gipfelundgasse` im Hintergrund beenden, Mitteilung antippen.
@@ -233,6 +232,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Aufzeichnung im Browser gesichert, doppelte Foto-Kacheln)** Die Browser-Aufzeichnung steht alle 15 s und
+  beim Verlassen der Seite im Speicher (`gug.aufzSicherung`); nach Neuladen oder verworfenem Tab läuft sie weiter (Lücke
+  zählt als Pause), nach über 12 h ohne Sicherung nur zum Speichern; gespeichert ⇒ Sicherung gelöscht. fotosNeuZeigen
+  zählt die Aufrufe, nur der jüngste setzt Kacheln ein (Gegenprobe: Test fällt mit dem alten Code durch).
+  Klicktest 406.
 
 - **05.11. (Stopps ziehen, Rückgängig in der Meldung, breiteres Blatt)** Griff ≡ an jedem verschiebbaren Stopp
   (Pointer-Events, auch in den Etappen-Karten), ▲▼ nur noch bei Maus; melde(text, sek, aktion) zeigt einen Knopf,

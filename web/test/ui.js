@@ -925,8 +925,10 @@ function pruef(name, bed, info) {
   pruef('Tagebuch: Foto groß, Fokus auf Schließen', await page.isVisible('#tbBild') && await page.evaluate(() => document.activeElement.id === 'tbBildZu'));
   await page.keyboard.press('Escape');
   pruef('Tagebuch: Escape schließt, Fokus zurück aufs Foto', await page.isHidden('#tbBild') && await page.evaluate(() => document.activeElement.classList.contains('gross')));
-  await page.click('.tb-eintrag button[title="Eintrag bearbeiten"]');
+  // zweimal schnell hintereinander (früher hängten beide Aufrufe ihre Kacheln an: Foto doppelt)
+  await page.evaluate(() => { const b = document.querySelector('.tb-eintrag button[title="Eintrag bearbeiten"]'); b.click(); b.click(); });
   await page.waitForFunction(() => document.querySelectorAll('#tbFotosNeu figure').length === 1, null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
   pruef('Tagebuch: Bearbeiten zeigt Text und Foto', (await page.inputValue('#tbText')).startsWith('Erster Tag') && (await page.$$('#tbFotosNeu figure')).length === 1);
   await page.fill('#tbText', 'Erster Tag: Sonne, Eis und Baden.');
   await page.click('#tbEintragSpeichern');
@@ -1561,6 +1563,42 @@ function pruef(name, bed, info) {
   pruef('App: Drucken über Android im Druckzustand, danach zurück', druckA[1].druck === true && !(await pa2.evaluate(() => document.body.classList.contains('druck'))));
   pruef('App: keine Skriptfehler', appFehler.length === 0, appFehler);
   await appCtx.close();
+
+  // ---------- Aufzeichnung im Browser übersteht Neuladen (Chrome verwirft Tabs im Hintergrund) ----------
+  {
+    const actx = await browser.newContext({ viewport: { width: 1100, height: 800 }, permissions: ['geolocation'], geolocation: { latitude: 47.7600, longitude: 11.3800, accuracy: 6 } });
+    await dienste(actx);
+    const pz = await actx.newPage();
+    const start = Date.now() - 40 * 60000;
+    const sich = { laeuft: true, start, ende: null, meter: 0, km: 0, kmZeit: 0, pauseMs: 0, gesichert: Date.now() - 5 * 60000,
+      pts: [0, 1, 2].map(i => ({ lat: 47.7500 + i * 0.002, lon: 11.3700 + i * 0.002, ele: 600 + i * 10, t: start + i * 60000 })) };
+    sich.meter = 2 * 270;
+    await pz.addInitScript(v => { if (!sessionStorage.getItem('gesetzt')) { localStorage.setItem('gug.aufzSicherung', v); sessionStorage.setItem('gesetzt', '1'); } }, JSON.stringify(sich));
+    await pz.goto(url);
+    await pz.waitForFunction(() => window.__gugBereit);
+    pruef('Aufzeichnung: nach dem Neuladen läuft sie weiter, mit Meldung und Spur', (await pz.textContent('#bAufz')).includes('beenden') &&
+      (await pz.textContent('#meldung')).includes('läuft weiter') && (await pz.textContent('#aStrecke')) !== '–', [await pz.textContent('#bAufz'), await pz.textContent('#meldung')]);
+    await pz.waitForTimeout(600);
+    for (let i = 1; i <= 2; i++) { await actx.setGeolocation({ latitude: 47.7600 + i * 0.0008, longitude: 11.3800, accuracy: 6 }); await pz.waitForTimeout(300); }
+    await pz.reload();
+    await pz.waitForFunction(() => window.__gugBereit);
+    const gesichert = await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.aufzSicherung')));
+    pruef('Aufzeichnung: neue Punkte beim Verlassen gesichert, nach erneutem Laden noch da', gesichert && gesichert.laeuft && gesichert.pts.length >= 5 && (await pz.textContent('#bAufz')).includes('beenden'), gesichert && gesichert.pts.length);
+    await zuSeite(pz, 'unterwegs');
+    await pz.click('#bAufz');
+    pruef('Aufzeichnung: beendet und speicherbar', !(await pz.isDisabled('#bAufzSpeichern')) && (await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.aufzSicherung')).laeuft)) === false);
+    await pz.click('#bAufzSpeichern');
+    await pz.waitForFunction(() => localStorage.getItem('gug.aufzSicherung') === 'null', null, { timeout: 8000 }).catch(() => {});
+    pruef('Aufzeichnung: als Tour gespeichert, Sicherung gelöscht', (await pz.evaluate(() => localStorage.getItem('gug.aufzSicherung'))) === 'null' &&
+      (await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').some(t => /^Aufzeichnung/.test(t.name)))));
+    // nach mehr als 12 h ohne Sicherung: nicht weiterzeichnen, nur noch speichern
+    await pz.evaluate(v => { const o = JSON.parse(v); o.gesichert = Date.now() - 13 * 3600e3; localStorage.setItem('gug.aufzSicherung', JSON.stringify(o)); }, JSON.stringify(sich));
+    await pz.reload();
+    await pz.waitForFunction(() => window.__gugBereit);
+    pruef('Aufzeichnung: alt (über 12 h) nur wiederhergestellt, nicht weitergezeichnet', (await pz.textContent('#bAufz')).includes('Neue Aufzeichnung') &&
+      (await pz.textContent('#meldung')).includes('wiederhergestellt') && !(await pz.isDisabled('#bAufzSpeichern')), await pz.textContent('#meldung'));
+    await actx.close();
+  }
 
   // ---------- Offline-Karten in der App: Pakete aus test/testkarten.py, Dateien mit echten Byte-Bereichen ----------
   const kartenOrdner = path.join(__dirname, 'out', 'karten');

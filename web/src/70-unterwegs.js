@@ -435,12 +435,14 @@ $('bAufz').onclick = () => {
     $('bAufzSpeichern').disabled = U.aufz.pts.length < 2;
     if (!U.navi) wachHalten(false);
     aufzZahlen();
+    aufzSichern(true);
     gpsFreigeben();
     return;
   }
   if (!gpsFuer()) return;
   U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0 };
   U.aufz.pause = R.autoPause(U.aufz.start, 0);
+  aufzSichern(true);
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
@@ -463,9 +465,53 @@ function aufzNeu(c) {
   if (letzt) a.meter += R.abstand(letzt, p);
   a.pts.push(p);
   aufzLinie.addLatLng([p.lat, p.lon]);
+  aufzSichern(false);
   if (a.pts.length > 1 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   kmAnsagen(a.meter, a.pause, a);
   aufzZahlen();
+}
+
+// Aufzeichnung im Browser sichern: Chrome verwirft Tabs im Hintergrund, ein Neuladen nähme sonst die ganze Spur mit.
+// Höchstens alle 15 s (und beim Verlassen der Seite) in den Speicher; die App zeichnet im Navigationsdienst auf
+let aufzGesichert = 0;
+function aufzSichern(sofort) {
+  const a = U.aufz;
+  if (NATIV || !a || (!sofort && Date.now() - aufzGesichert < 15000)) return;
+  aufzGesichert = Date.now();
+  const r6 = x => Math.round(x * 1e6) / 1e6;
+  SPEICHER.schreiben('aufzSicherung', { laeuft: a.laeuft, start: a.start, ende: a.ende, meter: a.meter, km: a.km, kmZeit: a.kmZeit,
+    pauseMs: a.pause ? a.pause.pauseMs : 0, gesichert: Date.now(),
+    pts: a.pts.map(p => ({ lat: r6(p.lat), lon: r6(p.lon), ele: p.ele == null ? null : Math.round(p.ele * 10) / 10, t: p.t })) });
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) aufzSichern(true); });
+window.addEventListener('pagehide', () => aufzSichern(true));
+// beim Start: eine gesicherte Aufzeichnung zurückholen. Lief sie noch, zeichnet die Seite weiter (die Lücke zählt als
+// Pause); nach mehr als 12 h ohne Sicherung gilt sie als beendet und lässt sich nur noch speichern
+function aufzWiederholen() {
+  if (NATIV || U.aufz) return;
+  const s = SPEICHER.lesen('aufzSicherung', null);
+  if (!s || !Array.isArray(s.pts) || !s.start) return;
+  const weiter = s.laeuft && Date.now() - (s.gesichert || 0) < 12 * 3600e3;
+  const ende = weiter ? null : (s.ende || s.gesichert || Date.now());
+  U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0 };
+  U.aufz.pause = R.autoPause(s.start, (s.pauseMs || 0) + (weiter ? Math.max(0, Date.now() - (s.gesichert || Date.now())) : 0));
+  if (aufzLinie) aufzLinie.remove();
+  aufzLinie = L.polyline(s.pts.map(p => [p.lat, p.lon]), { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
+  const uhrzeit = new Date(s.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (weiter && gpsFuer()) {
+    U.folgen = true; $('bOrt').classList.add('an');
+    $('bAufz').textContent = '■ Aufzeichnung beenden';
+    $('bAufzSpeichern').disabled = true;
+    wachHalten(true);
+    melde('Aufzeichnung von ' + uhrzeit + ' Uhr läuft weiter (die Seite war geschlossen).', 7);
+  } else {
+    U.aufz.laeuft = false; U.aufz.ende = ende || Date.now();
+    $('bAufz').textContent = '⏺ Neue Aufzeichnung';
+    $('bAufzSpeichern').disabled = s.pts.length < 2;
+    if (s.pts.length >= 2) melde('Aufzeichnung von ' + uhrzeit + ' Uhr wiederhergestellt: unter Unterwegs als Tour speichern.', 7);
+  }
+  aufzZahlen();
+  balkenZeigen();
 }
 
 // jeden vollen Kilometer der Aufzeichnung: Zeit und Tempo des letzten Kilometers (im Browser per Sprachausgabe;
@@ -519,6 +565,7 @@ $('bAufzSpeichern').onclick = async () => {
   if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
   const name = 'Aufzeichnung ' + new Date(a.start).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
+  if (!a.laeuft) SPEICHER.schreiben('aufzSicherung', null);   // gespeichert: die Sicherung wird nicht mehr gebraucht
   $('bAufzSpeichern').disabled = true;
   $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
   setTimeout(() => { $('bAufzSpeichern').textContent = '💾 Als Tour speichern'; }, 4000);
