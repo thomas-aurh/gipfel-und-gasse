@@ -155,7 +155,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   „gezeichnet“; Prüfung und Klicktest zählen darum Kacheln mit nur Hintergrund. Overpass mit einem zweiten öffentlichen Server
   (overpass.private.coffee, laut OSM-Wiki weltweit) statt Warten.
 - **Öffnungszeiten der Stopps gegen den Zeitplan** (03.11.): Quelle bleibt OpenStreetMap (`opening_hours`, mit dem
-  Stopp gespeichert), kein zweiter Dienst. Abdeckung im Oberbayern-Paket gemessen: Hütten 21 %, Museen 58 %, Gasthäuser
+  Stopp gespeichert), kein zweiter Dienst (Stichprobe gegen Google Maps: [docs/oeffnungszeiten-abgleich.md](docs/oeffnungszeiten-abgleich.md)). Abdeckung im Oberbayern-Paket gemessen: Hütten 21 %, Museen 58 %, Gasthäuser
   58 %, Cafés 66 % mit Zeiten; Burgen, Kirchen und Bergbahnen kaum (unter 6 %). Der Leser versteht jetzt auch Saison
   ohne Uhrzeit („Jun-Aug“), offenes Ende („11:30+“), Monate mit Doppelpunkt und Tage mit Datum („May 1-Sep 15“);
   lesbar damit Hütten 90 %, Museen 78 %, Gasthäuser 97 %. Feiertage bleiben außen vor (steht im Text dazu).

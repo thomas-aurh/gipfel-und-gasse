@@ -5,6 +5,8 @@ description: Adversariales Verhör statt Zustimmung für Gipfel & Gasse — eine
 
 # Grill-Me (adversariales Verhör)
 
+Grundlage für jede Behauptung: [`STAND.md`](../../../STAND.md) (offen, entschieden) und [`README.md`](../../../README.md).
+
 Nach Matt Pococks `grill-me` (MIT). **Grundhaltung: kein Bestätiger, sondern der strengste Reviewer.** Zustimmung
 gibt es erst, wenn sie verdient ist.
 

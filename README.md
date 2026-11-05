@@ -182,6 +182,9 @@ kein Netz.
 
 | Ordner | Inhalt |
 |---|---|
+| [`STAND.md`](STAND.md) | was offen ist, Entscheidungen mit Grund, Auslieferung, Erledigtes |
+| [`CLAUDE.md`](CLAUDE.md) | Regeln für die Arbeit mit Claude Code; Skills [`projekt-abschluss`](.claude/skills/projekt-abschluss/SKILL.md) (Session-Abschluss) und [`grill-me`](.claude/skills/grill-me/SKILL.md) (Pläne prüfen) |
+| `docs/` | Notizen zu Prüfungen, z. B. [Öffnungszeiten OSM gegen Google Maps](docs/oeffnungszeiten-abgleich.md) |
 | `web/` | die Web-App: Quellen, Bau (`build.sh`), Prüfung (`pruefen.sh`), Tests. Beschreibung in [`web/README.md`](web/README.md) |
 | `android/` | Android-Projekt (Capacitor 8). Eigener Code in `app/src/main/java/io/github/thomasaurh/gipfelundgasse/`: `NaviService` (Vordergrunddienst: GPS, Rest, Abweichung, Ansagen, Aufzeichnung), `NaviPlugin` (Brücke zur Oberfläche, Teilen, Drucken), `NaviRechnen` (Formeln wie die Web-App, mit JUnit-Test), `KartenServer` (liefert Kartenpakete in Teilen an die Oberfläche, Bereich aus `?von=&bis=` oder Range-Kopfzeile, Fehler als Text), `KartenPlugin` (Pakete laden, prüfen, löschen), `Routing` und `RoutingPlugin` (BRouter ohne Netz, dieselbe Antwort wie brouter.de) |
 | `web/src/58-offline.js` | Offline-Karten in der App: Vektorkarte aus dem Paket, Höhenlinien und Relief (eigene Leaflet-Ebene), Hangneigung (Paket oder Netz), Höhen ohne Netz, Routen, Orte und Suche ohne Netz, Paketverwaltung |

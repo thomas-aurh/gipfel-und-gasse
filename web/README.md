@@ -1,5 +1,7 @@
 # Gipfel & Gasse
 
+Überblick und Installation: [README](../README.md) · offen und entschieden: [STAND](../STAND.md)
+
 Tourenplaner für Wanderungen, Stadtrundgänge und Radtouren auf OpenStreetMap, gedacht für Familienausflüge, Bergtouren und Städtereisen. Eine einzige
 HTML-Datei, ohne Konto und ohne eigenen Server. Die Idee kommt von Apps wie komoot; Name, Gestaltung und Code sind eigen.
 
