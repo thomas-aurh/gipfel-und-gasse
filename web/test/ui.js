@@ -1798,6 +1798,20 @@ function pruef(name, bed, info) {
   pruef('Telefon: Start ohne Route mit der reinen Karte', await pt.evaluate(() => document.body.classList.contains('ohneBlatt') &&
     document.querySelector('#leiste [data-reiter=karte]').classList.contains('an')) && await pt.isHidden('#eRunde'));
   await pt.screenshot({ path: path.join(OUT, '7b-telefon-start.png') });
+  // Unterwegs ohne Route: Knöpfe zu Planen und zu den Touren; Erklärtexte stehen gesammelt unter Menü › Info
+  await zuSeite(pt, 'unterwegs');
+  pruef('Telefon: Unterwegs ohne Route mit Knöpfen zu Planen und Touren, ohne Erklärtext oben', await pt.isVisible('#uZuPlanen') && await pt.isVisible('#uZuTouren') &&
+    await pt.isHidden('#unterwegsHinweis') && await pt.isHidden('#bNavi'));
+  await pt.tap('#uZuTouren'); await pt.waitForTimeout(200);
+  pruef('Telefon: „Tour öffnen“ führt zu den Touren', await pt.evaluate(() => document.querySelector('section[data-reiter=touren]').classList.contains('an')));
+  await zuSeite(pt, 'unterwegs');
+  await pt.tap('#uZuPlanen'); await pt.waitForTimeout(200);
+  pruef('Telefon: „Route planen“ führt zu Planen', await pt.evaluate(() => document.querySelector('section[data-reiter=planen]').classList.contains('an')));
+  await zuSeite(pt, 'info');
+  pruef('Info: Erklärtexte der Bereiche gesammelt', await pt.isVisible('#unterwegsHinweis') && (await pt.textContent('.info-bereiche')).includes('Gipfelbuch') &&
+    (await pt.textContent('.info-bereiche')).includes('Reisetagebuch'));
+  await pt.keyboard.press('Escape').catch(() => {});
+  await pt.reload(); await pt.waitForTimeout(500);
   // auf der reinen Karte planen: Start antippen meldet sich, mit dem Ziel geht es zum Planen mit dem Ergebnis
   const kk = await (await pt.$('#karte')).boundingBox();
   await pt.tap('#karte', { position: { x: kk.width * 0.35, y: kk.height * 0.45 } }); await pt.waitForTimeout(250);

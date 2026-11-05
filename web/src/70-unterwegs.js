@@ -184,7 +184,15 @@ $('bNavi').onclick = () => {
 // ---------- vor dem Start: welche Tour folgt die Navigation (Name, Strecke, Zeit, Aufstieg) ----------
 function unterwegsKarte() {
   const e = S.ergebnis, box = $('uTourKarte');
-  if (!e) { box.innerHTML = '<span class="klein">Noch keine Route. Unter <b style="display:inline">Planen</b> eine Route setzen oder unter Ich › Touren eine Tour öffnen.</span>'; return; }
+  // ohne Route hat „Route folgen“ nichts zu folgen (läuft die Navigation, bleibt der Knopf zum Beenden)
+  $('bNavi').hidden = !e && !/beenden/.test($('bNavi').textContent);
+  if (!e) {
+    box.innerHTML = '<span class="klein">Noch keine Route.</span><div class="knopfreihe"><button class="knopf" type="button" id="uZuPlanen">✏️ Route planen</button>' +
+      '<button class="knopf" type="button" id="uZuTouren">🥾 Tour öffnen</button></div>';
+    $('uZuPlanen').onclick = () => reiter('planen');
+    $('uZuTouren').onclick = () => reiter('touren');
+    return;
+  }
   const name = (S.name || '').trim() || (S.fest ? 'Geöffnete Spur' : 'Geplante Route');
   const et = etappenAktuell();
   box.innerHTML = '<b>🥾 ' + R.esc(name) + '</b><span class="klein">' + R.esc(R.kmText(e.laenge) + ' · ' + R.zeitText(e.zeit + (S.fest ? 0 : besichtigung() / 60)) +

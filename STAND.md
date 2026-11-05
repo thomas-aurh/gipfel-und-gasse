@@ -226,6 +226,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Unterwegs und Info, Thomas am Pixel, Bau 209)** Unterwegs ohne Route mit Knöpfen „✏️ Route planen“ und „🥾 Tour
+  öffnen“ statt Text (und ohne „Route folgen“); die Erklärtexte oben in Unterwegs, Reisetagebuch, Reiseziele und Gipfelbuch
+  stehen jetzt gesammelt unter Menü › Werkzeuge › Info („Die Bereiche kurz erklärt“). Klicktest 380.
+
 - **05.11. (Schritt 3a, Prüfbericht Browser Use vom 04.11.)** Leiste am PC mit allen fünf Bereichen (vorher abgeschnitten
   mit Rollbalken); aktiver Bereich mit `aria-current`, Seitentitel als Überschrift; Bedienflächen mindestens 44 px;
   bei 320 px Berg/Stadt, Aktionsleiste und Reiter ohne Umbruch; Kartennachweis am Telefon einzeilig mit „Kartendaten ©
