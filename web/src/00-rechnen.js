@@ -1358,6 +1358,12 @@ var R = (function () {
     if (!tb || typeof tb !== 'object') return out;
     for (const r of Array.isArray(tb.reisen) ? tb.reisen : []) {
       const o = r && { id: id(r.id), name: text(r.name, 120), von: tag(r.von), bis: tag(r.bis) };
+      // Etappen einer Mehrtagestour (aus Planen › „Als Reise ins Tagebuch“), fürs Heft
+      if (o && Array.isArray(r.etappen)) {
+        const et = r.etappen.slice(0, 30).filter(x => x && typeof x === 'object').map(x => ({ ziel: text(x.ziel, 120) || '',
+          meter: Math.max(0, zahl(x.meter) || 0), auf: Math.max(0, zahl(x.auf) || 0), ab: Math.max(0, zahl(x.ab) || 0), zeit: Math.max(0, zahl(x.zeit) || 0) }));
+        if (et.length) o.etappen = et;
+      }
       if (o && o.id && o.name && o.von && o.bis && o.von <= o.bis) out.reisen.push(o);
     }
     const reiseIds = new Set(out.reisen.map(r => r.id));
@@ -2093,6 +2099,17 @@ var R = (function () {
     }
     return neu;
   }
+  // Fotos vom Gipfel: aus der Fotoliste (fotoListe) die Bilder einer Tour, mit der der Gipfel besucht wurde, deren Ort
+  // (R.fotoOrt: aus dem Foto, sonst Zeitpunkt auf der Spur, sonst Ort des Eintrags) höchstens radius Meter vom Gipfel liegt
+  function gipfelFotos(g, liste, eintraege, radius) {
+    const touren = new Set(g.besuche.map(b => b.tour).filter(Boolean));
+    return liste.filter(x => {
+      if (!x.tour || !touren.has(x.tour.id)) return false;
+      const e = eintraege.get(x.eintrag);
+      const o = fotoOrt(e && e.fotoInfo && e.fotoInfo[x.foto], e, x.tour.spur);
+      return !!o && abstand(o, { lat: g.lat, lon: g.lon }) <= (radius || 150);
+    });
+  }
   function gipfelBesuchGleich(a, b) { return a.tour === b.tour && (a.tour !== '' || a.datum === b.datum); }
   // Gipfelbuch aus Speicher oder Sicherung prüfen: nur bekannte Felder, Kennungen n/w/r<Zahl>, nur Gipfel mit gültigem
   // Besuch (ein Gipfel ohne Besuch hätte die Seite angehalten). geprueft: Touren, die schon durchsucht sind
@@ -2397,7 +2414,7 @@ var R = (function () {
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
-    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
+    wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
   };

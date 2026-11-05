@@ -864,5 +864,23 @@ pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.
     R.hangFarbe(42)[0] === 225 && R.hangFarbe(50)[2] === 170);
 }
 
+// Gipfelbuch: Fotos vom Gipfel (Ort aus dem Foto oder Zeitpunkt auf der Spur, bis 150 m), nur von Touren mit Besuch
+{
+  const g = { lat: 47.5, lon: 11.0, besuche: [{ datum: '2026-07-01', tour: 't1', name: 'Tour' }] };
+  const spur = [[47.49, 11.0, 900, 1000], [47.5, 11.0, 1800, 5000], [47.49, 11.0, 900, 9000]];
+  const t1 = { id: 't1', spur }, t2 = { id: 't2', spur };
+  const eintraege = new Map([['e1', { id: 'e1', zeit: 5000, fotoInfo: { a: { lat: 47.5005, lon: 11.0 } } }], ['e2', { id: 'e2', zeit: 1000 }], ['e3', { id: 'e3', zeit: 5100 }]]);
+  const liste = [{ foto: 'a', eintrag: 'e1', tour: t1 }, { foto: 'b', eintrag: 'e2', tour: t1 }, { foto: 'c', eintrag: 'e3', tour: t1 }, { foto: 'd', eintrag: 'e3', tour: t2 }, { foto: 'e', eintrag: 'e3', tour: null }];
+  const f = R.gipfelFotos(g, liste, eintraege, 150).map(x => x.foto);
+  pruef('Gipfelbuch-Fotos: GPS am Gipfel und Zeitpunkt oben, nicht im Tal und nicht von anderen Touren', JSON.stringify(f) === '["a","c"]', f);
+}
+
+// Tagebuch: Etappen einer Reise bleiben in der Sicherung, nur bekannte Felder und Zahlen
+{
+  const tb = R.tagebuchPruefen({ reisen: [{ id: 'r1', name: 'Hütten', von: '2026-07-10', bis: '2026-07-11', etappen: [{ ziel: 'Hütte', meter: 12000, auf: 900, ab: 200, zeit: 5.5, boese: '<x>' }, null, { ziel: 7, meter: 'x' }] }], eintraege: [] }, {});
+  const et = tb.reisen[0].etappen;
+  pruef('Tagebuch: Etappen geprüft übernommen', et.length === 2 && et[0].ziel === 'Hütte' && et[0].zeit === 5.5 && !('boese' in et[0]) && et[1].ziel === '' && et[1].meter === 0, et);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

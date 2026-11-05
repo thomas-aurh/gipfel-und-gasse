@@ -656,10 +656,24 @@ async function heftBauen(reiseId) {
   h.innerHTML = '<h1>' + R.esc(r.name) + '</h1><p class="unter">' + R.esc(zeitraumText(r)) + '</p>' +
     '<div class="heft-zahlen"><span><b>' + eintraege.length + '</b>' + (eintraege.length === 1 ? 'Eintrag' : 'Einträge') + '</span><span><b>' + fotos + '</b>Fotos</span>' +
     (touren.length ? '<span><b>' + touren.length + '</b>' + (touren.length === 1 ? 'Tour' : 'Touren') + '</span><span><b>' + R.kmText(km) + '</b>unterwegs</span>' : '') + '</div>' + skizze;
+  // Mehrtagestour: die geplanten Etappen als Tabelle, und bei jedem Tag „Tag n: bis …“
+  const et = Array.isArray(r.etappen) ? r.etappen : [];
+  const tagNr = tag => Math.round((new Date(tag + 'T12:00') - new Date(r.von + 'T12:00')) / 864e5);
+  if (et.length) {
+    const tab = document.createElement('table');
+    tab.className = 'heft-etappen';
+    tab.innerHTML = '<caption>Etappen</caption><tr><th>Tag</th><th>bis</th><th>Strecke</th><th>↑</th><th>↓</th><th>Gehzeit</th></tr>' + et.map((x, k) => {
+      const d = new Date(r.von + 'T12:00'); d.setDate(d.getDate() + k);
+      return '<tr><td>' + (k + 1) + ' · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) + '</td><td>' + R.esc(x.ziel) + '</td><td>' +
+        R.kmText(x.meter) + '</td><td>' + x.auf + ' m</td><td>' + x.ab + ' m</td><td>' + R.zeitText(x.zeit) + '</td></tr>';
+    }).join('');
+    h.appendChild(tab);
+  }
   const warten = [];
   for (const t of R.tagebuchTage(eintraege).reverse()) {
     const h2 = document.createElement('h2');
-    h2.textContent = datumLang(t.tag);
+    const k = tagNr(t.tag);
+    h2.textContent = datumLang(t.tag) + (et[k] ? ' · Tag ' + (k + 1) + ': bis ' + et[k].ziel : '');
     h.appendChild(h2);
     for (const e of t.eintraege) {
       const div = document.createElement('div');

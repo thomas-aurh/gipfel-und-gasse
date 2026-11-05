@@ -778,6 +778,19 @@ function pruef(name, bed, info) {
   const etPlan2 = await page.textContent('#etappen');
   pruef('Etappen: eigene Startzeit an Tag 2', /Start 0?9:00, Ankunft/.test(etPlan2) && /Start 0?7:30, Ankunft/.test(etPlan2) && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30', etPlan2);
   await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
+  // Tag-Chips: nur Tag 2 zeigen (eine Etappenkarte, die Linie von Tag 1 blass), dann wieder alle
+  const chips = await page.$$eval('#etappen .tag-chips .chip', l => l.map(c => c.textContent + '=' + c.getAttribute('aria-pressed')));
+  pruef('Tag-Chips: Alle Tage (gewählt), Tag 1, Tag 2', JSON.stringify(chips) === JSON.stringify(['Alle Tage=true', 'Tag 1=false', 'Tag 2=false']), chips);
+  const blassePfade = () => page.$$eval('.leaflet-overlay-pane path', l => l.filter(x => x.getAttribute('stroke-opacity') === '0.3').length);
+  const zoomVorher = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.blick')).z);
+  await page.click('#etappen .tag-chips .chip >> nth=2');
+  await page.waitForTimeout(400);
+  const sichtbar = await page.$$eval('#etappen .etappe', l => l.filter(e => !e.hidden).map(e => e.dataset.tag));
+  pruef('Tag-Chips: nur Tag 2 sichtbar, Tag 1 auf der Karte blass', JSON.stringify(sichtbar) === '["1"]' && (await blassePfade()) >= 1 &&
+    (await page.getAttribute('#etappen .tag-chips .chip >> nth=2', 'aria-pressed')) === 'true', [sichtbar, await blassePfade(), zoomVorher]);
+  await page.click('#etappen .tag-chips .chip >> nth=0');
+  await page.waitForTimeout(300);
+  pruef('Tag-Chips: Alle Tage zeigt wieder beide, nichts blass', (await page.$$eval('#etappen .etappe', l => l.filter(e => !e.hidden).length)) === 2 && (await blassePfade()) === 0);
   // Unterwegs: einem Tag folgen; vorgewählt Tag 1 (der geplante Tag liegt nicht heute), Tag 2 folgt nur der zweiten Etappe
   await zuSeite(page, 'unterwegs');
   pruef('Unterwegs: vor dem Start die Tour mit Strecke, Zeit und Tagen', /km · .* h.* · 2 Tage$/.test(await page.textContent('#uTourKarte')), await page.textContent('#uTourKarte'));
@@ -809,6 +822,16 @@ function pruef(name, bed, info) {
   pruef('Etappen: gespeicherte Tour behält die Übernachtung und die Startzeit an Tag 2', (await page.textContent('#etappen')).includes('Tag 2') && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30');
   await page.click('#bEtappenReise');
   pruef('Etappen: als Reise ins Tagebuch (zwei Tage)', (await page.textContent('#seitenTitel')) === 'Reisetagebuch' && (await page.textContent('#tbTitel')).includes('Hüttentour'), await page.textContent('#tbTitel'));
+  const reiseEt = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.tagebuch')).reisen.find(r => r.name === 'Hüttentour').etappen);
+  pruef('Etappen: die Reise bekommt die zwei Etappen mit (Ziel, Strecke, Höhenmeter, Gehzeit)', reiseEt && reiseEt.length === 2 && reiseEt[1].ziel === 'Ziel' && reiseEt[0].meter > 0 && reiseEt[0].zeit > 0, reiseEt);
+  // Heft der Reise: Tabelle der Etappen
+  await page.evaluate(() => { window.__heftDruck = null; window.__altPrint = window.print; window.print = () => { window.__heftDruck = true; };
+    window.__altTimeout = window.setTimeout; window.setTimeout = (f, ms, ...x) => ms === 500 && window.__heftDruck ? 0 : window.__altTimeout(f, ms, ...x); });
+  await page.click('#tbHeftKnopf');
+  await page.waitForFunction(() => window.__heftDruck, null, { timeout: 8000 }).catch(() => {});
+  const heftEt = await page.$$eval('#tbHeft .heft-etappen tr', l => l.map(z => z.textContent));
+  await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); window.print = window.__altPrint; window.setTimeout = window.__altTimeout; });
+  pruef('Heft: Etappen der Mehrtagestour als Tabelle', heftEt.length === 3 && heftEt[1].startsWith('1 · ') && heftEt[2].includes('Ziel') && heftEt[2].includes(' m'), heftEt);
   // aufräumen: Testreise und Testtour wieder weg (spätere Tests erwarten ein leeres Tagebuch)
   await page.click('#tbZurueck');
   await page.evaluate(() => {
@@ -953,6 +976,28 @@ function pruef(name, bed, info) {
   await page.click('#tbEintragSpeichern');
   await page.waitForFunction(() => document.querySelector('.tb-eintrag .text') && document.querySelector('.tb-eintrag .text').textContent.includes('Baden'));
   pruef('Tagebuch: geändert, Ort und Uhrzeit bleiben', (await page.$$('.tb-eintrag')).length === 1 && (await page.textContent('.tb-eintrag')).includes('Teststadt'));
+  // Gipfelbuch mit Fotos vom Gipfel: das Foto des Eintrags hat (hier nachgetragen) seinen Ort am Aufnahmegipfel
+  await page.evaluate(() => {
+    const gb = JSON.parse(localStorage.getItem('gug.gipfelbuch')), g = Object.values(gb.gipfel).find(x => x.name === 'Aufnahmegipfel');
+    const tb = JSON.parse(localStorage.getItem('gug.tagebuch')), e = tb.eintraege[0];
+    e.fotoInfo = { [e.fotos[0]]: { lat: g.lat + 0.0003, lon: g.lon, zeit: null } };
+    localStorage.setItem('gug.tagebuch', JSON.stringify(tb));
+  });
+  await zuSeite(page, 'gipfelbuch');
+  await page.waitForFunction(() => document.querySelectorAll('#gbListe .gb-fotos img[src]').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Gipfelbuch: Foto vom Gipfel (33 m daneben) beim Gipfel, mit Zahl', (await page.$$('#gbListe .gb-fotos button')).length === 1 &&
+    (await page.textContent('#gbListe')).includes('📷 1'), await page.textContent('#gbListe'));
+  await page.click('#gbListe .gb-fotos button');
+  pruef('Gipfelbuch: Foto groß, die Seite bleibt (nicht zur Karte)', await page.isVisible('#tbBild') && (await page.textContent('#seitenTitel')) === 'Gipfelbuch');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    const gb = JSON.parse(localStorage.getItem('gug.gipfelbuch')), g = Object.values(gb.gipfel).find(x => x.name === 'Aufnahmegipfel');
+    const tb = JSON.parse(localStorage.getItem('gug.tagebuch')), e = tb.eintraege[0];
+    e.fotoInfo = { [e.fotos[0]]: { lat: g.lat + 0.003, lon: g.lon, zeit: null } };
+    localStorage.setItem('gug.tagebuch', JSON.stringify(tb));
+  });
+  await zuSeite(page, 'karte'); await zuSeite(page, 'gipfelbuch');
+  pruef('Gipfelbuch: Foto 330 m unterhalb gehört nicht dazu', (await page.$$('#gbListe .gb-fotos')).length === 0 && !(await page.textContent('#gbListe')).includes('📷'));
   // Ich › Fotos: alle Bilder, groß mit Reise und Tour des Tages; Querverweise zur Reise und zur Tour
   await zuSeite(page, 'fotos');
   await page.waitForFunction(() => document.querySelectorAll('#fotoRaster img[src]').length >= 1, null, { timeout: 5000 }).catch(() => {});

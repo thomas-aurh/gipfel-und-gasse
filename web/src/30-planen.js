@@ -144,6 +144,8 @@ const TAG_FARBEN = ['#e5532d', '#1f6fd1', '#8e44ad', '#16a085', '#c48a00', '#d63
 const tagFarbe = k => TAG_FARBEN[k % TAG_FARBEN.length];
 // Tag (0, 1, …) des Teilstücks k (von Punkt k nach k+1): Zahl der Übernachtungen bis Punkt k
 function stueckTag(k) { let t = 0; for (let i = 1; i <= k && i < S.wps.length - 1; i++) if (S.wps[i] && S.wps[i].nacht) t++; return t; }
+// Mehrtagestour: nur einen Tag zeigen (Chips über den Etappen); null = alle. Gilt nur für diese Sitzung
+let tagFokus = null;
 
 function zeichenRoute() {
   ebeneRoute.clearLayers();
@@ -160,7 +162,8 @@ function zeichenRoute() {
     // Lücken (mehrere Abschnitte einer GPX-Datei) als getrennte Linien
     const teil = [[]];
     e.pts.filter(p => p.d >= d0 - 0.01 && p.d <= d1 + 0.01).forEach(p => { if (p.luecke && teil[teil.length - 1].length) teil.push([]); teil[teil.length - 1].push([p.lat, p.lon]); });
-    const linie = L.polyline(teil, { color: S.fest ? '#e5532d' : tagFarbe(stueckTag(k)), weight: 5, opacity: 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
+    const blass = tagFokus != null && !S.fest && stueckTag(k) !== tagFokus;
+    const linie = L.polyline(teil, { color: S.fest ? '#e5532d' : tagFarbe(stueckTag(k)), weight: blass ? 4 : 5, opacity: blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }
@@ -424,7 +427,10 @@ function zeitplanZeigen() {
     etKnapp = etappenZeigen(et, tag, start ? [h, m] : null, pause);
     text = et.length + ' Etappen, ' + R.kmText(e.laenge) + ' in ' + R.zeitText(e.zeit + besichtigung() / 60) + ' Gehzeit: Zeitplan je Tag unter „Etappen“.' +
       (etKnapp ? ' ⚠️ An mindestens einem Tag wird es vor Sonnenuntergang knapp.' : '');
-  } else { $('etappen').hidden = true; $('etappen').innerHTML = ''; }
+  } else {
+    $('etappen').hidden = true; $('etappen').innerHTML = '';
+    if (tagFokus != null) { tagFokus = null; zeichenRoute(); }
+  }
   if (typeof naviEtappenFeld === 'function') naviEtappenFeld();
   tageSchalterZeigen();
   mehrtagAuto();
@@ -617,6 +623,20 @@ function etappenZeigen(et, tag, startZeit, pause) {
   const box = $('etappen');
   box.innerHTML = '';
   let knapp = false;
+  if (tagFokus != null && tagFokus >= et.length) { tagFokus = null; zeichenRoute(); }
+  // Chips: alle Tage oder nur einer (Karte zeigt den Tag, die anderen blass; nur seine Karte bleibt offen)
+  const chips = document.createElement('div');
+  chips.className = 'tag-chips'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'Tage zeigen');
+  [null, ...et.map((_, k) => k)].forEach(k => {
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'chip'; c.dataset.tag = k == null ? '' : k;
+    c.textContent = k == null ? 'Alle Tage' : 'Tag ' + (k + 1);
+    if (k != null) c.style.setProperty('--tagfarbe', tagFarbe(k));
+    c.setAttribute('aria-pressed', String(tagFokus === k));
+    c.onclick = () => tagZeigen(k, et);
+    chips.appendChild(c);
+  });
+  box.appendChild(chips);
   et.forEach((s, k) => {
     const d = new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + k, 12);
     let besicht = 0;
@@ -635,6 +655,7 @@ function etappenZeigen(et, tag, startZeit, pause) {
     else if (unter) plan = 'spätestens um ' + R.uhr(z.spaetestens) + ' Uhr losgehen (Sonnenuntergang ' + R.uhr(unter) + ')';
     const div = document.createElement('div');
     div.className = 'etappe' + (z.knapp || zuLang ? ' knapp' : '');
+    div.hidden = tagFokus != null && tagFokus !== k;
     div.dataset.tag = k;
     div.style.setProperty('--tagfarbe', tagFarbe(k));
     div.innerHTML = '<b>Tag ' + (k + 1) + '</b> · ' + R.esc(d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })) +
@@ -678,11 +699,23 @@ function etappenZeigen(et, tag, startZeit, pause) {
   });
   const b = document.createElement('button');
   b.className = 'knopf'; b.id = 'bEtappenReise'; b.textContent = '📔 Als Reise ins Tagebuch';
-  b.onclick = () => etappenAlsReise(et.length, tag);
+  b.onclick = () => etappenAlsReise(et, tag);
   box.appendChild(b);
   box.hidden = false;
   stoppsInEtappen();
   return knapp;
+}
+// einen Tag zeigen (k) oder alle (null): Karte auf den Tag, Linien der anderen Tage blass, nur seine Etappenkarte
+function tagZeigen(k, et) {
+  tagFokus = k;
+  document.querySelectorAll('#etappen .tag-chips .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.tag === (k == null ? '' : String(k)))));
+  document.querySelectorAll('#etappen .etappe').forEach(d => { d.hidden = k != null && +d.dataset.tag !== k; });
+  zeichenRoute();
+  const e = S.ergebnis;
+  if (!e) return;
+  const s = k == null ? null : et[k];
+  const pts = s ? e.pts.filter(p => p.d >= s.vonD - 0.01 && p.d <= s.bisD + 0.01) : e.pts;
+  if (pts.length > 1) einpassen(L.latLngBounds(pts.map(p => [p.lat, p.lon])));
 }
 // Mehrtagestour: Punkte aus der Liste in die Karte ihres Tages (Tag, Strecke, Zeit und Punkte beieinander)
 function stoppsInEtappen() {
@@ -692,13 +725,22 @@ function stoppsInEtappen() {
   });
 }
 // Reise im Tagebuch über die Tage der Etappen anlegen (gegangene Touren dieser Tage zeigt das Tagebuch von selbst)
-function etappenAlsReise(tage, tag) {
+function etappenAlsReise(et, tag) {
+  const tage = et.length;
   const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const von = iso(tag), bis = iso(new Date(tag.getFullYear(), tag.getMonth(), tag.getDate() + tage - 1));
   const name = ((S.name || '').trim() || 'Mehrtagestour').slice(0, 120);
+  // die Etappen kommen mit (das Heft der Reise zeigt sie je Tag)
+  const etappen = et.map((s, k) => ({ ziel: String(S.wps[s.bis].name || (k === tage - 1 ? 'Ziel' : 'Übernachtung ' + (k + 1))).slice(0, 120),
+    meter: Math.round(s.meter), auf: Math.round(s.auf), ab: Math.round(s.ab), zeit: Math.round(s.zeit * 100) / 100 }));
   const d = tagebuchLesen();
-  if (d.reisen.some(r => r.name === name && r.von === von && r.bis === bis)) { melde('Diese Reise steht schon im Tagebuch.'); return; }
-  d.reisen.push({ id: 'r' + tbId(), name, von, bis });
+  const da = d.reisen.find(r => r.name === name && r.von === von && r.bis === bis);
+  if (da) {
+    da.etappen = etappen;
+    if (tagebuchSchreiben(d)) melde('Diese Reise steht schon im Tagebuch; die Etappen sind jetzt aktuell.', 5);
+    return;
+  }
+  d.reisen.push({ id: 'r' + tbId(), name, von, bis, etappen });
   if (!tagebuchSchreiben(d)) return;
   melde('Reise „' + name + '“ (' + tage + ' Tage) im Tagebuch angelegt.', 5);
   reiter('tagebuch');
