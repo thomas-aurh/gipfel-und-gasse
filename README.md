@@ -47,8 +47,10 @@ gestrichelter Rahmen mit Namen, wie weit jedes installierte Paket reicht; außer
 (ohne Netz gerechnet) und warnt, wenn weniger als 30 Minuten Reserve bleiben; ohne Startzeit nennt sie den spätesten Start.
 Darunter „Anreise zum Start“ mit Bus und Bahn oder Auto (öffnet Google Maps).
 
-**Stopps und Tourliste:** Ab drei Punkten steht unter *Planen* die Liste der Punkte; ▲ und ▼ schieben einen Stopp oder das
-Ziel eine Stelle weiter (der Start bleibt, „↶ Rückgängig“ holt die alte Reihenfolge). Ab drei Touren lassen sich die Listen unter
+**Stopps und Tourliste:** Ab drei Punkten steht unter *Planen* die Liste der Punkte; am Griff ≡ zieht man einen Stopp
+oder das Ziel an eine andere Stelle (eine grüne Linie zeigt, wo er landet), mit der Maus gehen auch ▲ und ▼ (am Touchscreen
+nur der Griff). Der Start bleibt, „↶ Rückgängig“ holt die alte Reihenfolge. Punkt entfernen, Ordnen und Tage teilen melden
+sich unten mit „↶ Rückgängig“ in der Meldung (7 s). Am PC ist das Blatt 440 px breit. Ab drei Touren lassen sich die Listen unter
 *Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
 Rad, Stadt, GPX).
 

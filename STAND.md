@@ -5,6 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Stopps ziehen (05.11.) nur im Klicktest mit der Maus geprüft:** am Pixel ausprobieren, ob der Griff beim Ziehen
+  nicht das Blatt scrollt und ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
+
 - **Bescheid geben und Notsignal (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text; die
   Erinnerung als Mitteilung von Android (AlarmManager, ohne Erlaubnis für genaue Wecker: Android darf um Minuten
   verschieben) nicht auf dem Pixel gesehen; Taschenlampe beim Notsignal (CameraManager.setTorchMode) nicht auf dem Gerät
@@ -230,6 +233,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Stopps ziehen, Rückgängig in der Meldung, breiteres Blatt)** Griff ≡ an jedem verschiebbaren Stopp
+  (Pointer-Events, auch in den Etappen-Karten), ▲▼ nur noch bei Maus; melde(text, sek, aktion) zeigt einen Knopf,
+  „↶ Rückgängig“ nach Punkt entfernen, Ordnen, Tage teilen und zurück zur Tagestour; Blatt am PC 440 statt 400 px.
+  Einheitstests 307, Klicktest 401.
 
 - **05.11. (Erinnerung als Mitteilung, alpines Notsignal)** „Bescheid geben“ stellt in der App eine Mitteilung von
   Android zur geplanten Rückkehr (ErinnerungEmpfaenger, NaviPlugin.erinnern/erinnernAus), auch bei geschlossener App;

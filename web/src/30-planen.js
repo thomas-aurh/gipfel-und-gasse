@@ -36,7 +36,9 @@ function wegpunktDazu(lat, lon, index, extra) {
 
 function wegpunktWeg(i) {
   merken();
+  const w = S.wps[i];
   S.wps.splice(i, 1);
+  melde((w && w.name ? '„' + w.name + '“' : 'Punkt') + ' entfernt.', 7, RUECK);
   neuBerechnen();
 }
 
@@ -567,7 +569,7 @@ function tageTeilen(z) {
   const neuePunkte = wps.length !== S.wps.length || wps.some((w, i) => w.lat !== S.wps[i].lat || w.lon !== S.wps[i].lon);
   S.wps = wps;
   if (neuePunkte) neuBerechnen(); else { zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern(); }
-  melde(z > 1 ? z + ' Tage, gleich lang nach Gehzeit' + (auf.neu.length ? ': suche Hütten und Unterkünfte in der Nähe …' : '.') : 'Wieder eine Tagestour.', 4);
+  melde(z > 1 ? z + ' Tage, gleich lang nach Gehzeit' + (auf.neu.length ? ': suche Hütten und Unterkünfte in der Nähe …' : '.') : 'Wieder eine Tagestour.', 6, RUECK);
   unterkunftLauf++;   // eine noch laufende Suche gilt für die alte Teilung
   if (z > 1 && auf.neu.length) unterkunftSuchen();
 }
@@ -744,6 +746,7 @@ function stoppsZeigen() {
     const rund = i === n - 1 && n > 2 && R.abstand(w, S.wps[0]) < 30;
     const d = document.createElement('div');
     d.className = 'stopp';
+    d.dataset.i = i;
     // Tag des Punkts: der Start gehört zu Tag 1, jeder weitere Punkt zum Tag, an dessen Ende er liegt
     if (mehrtags) d.dataset.tag = i === 0 ? 0 : stueckTag(i - 1);
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
@@ -760,6 +763,11 @@ function stoppsZeigen() {
       d.appendChild(sel);
     }
     if (i >= 1 && i <= letzter && letzter >= 2) {
+      // Griff zum Ziehen (vorn in der Zeile); ▲▼ bleiben für Maus und Tastatur
+      const g = document.createElement('button');
+      g.type = 'button'; g.className = 'griff'; g.textContent = '≡'; g.title = 'Ziehen zum Umsortieren'; g.setAttribute('aria-label', 'Ziehen zum Umsortieren');
+      g.onpointerdown = ev => stoppZiehen(ev, i, letzter);
+      d.prepend(g);
       for (const [zeichen, d2, titel] of [['▲', -1, 'Nach oben'], ['▼', 1, 'Nach unten']]) {
         const b = document.createElement('button');
         b.className = 'schieben'; b.textContent = zeichen; b.title = titel; b.setAttribute('aria-label', titel);
@@ -793,6 +801,44 @@ function stoppsZeigen() {
   }
 }
 
+// Stopp an eine andere Stelle ziehen (Griff ≡): die Zeile folgt dem Finger, eine Linie zeigt, wo sie landet
+function stoppZiehen(ev, i, letzter) {
+  ev.preventDefault();
+  const g = ev.currentTarget, zeile = g.closest('.stopp');
+  const zeilen = [...document.querySelectorAll('#etappen .stopp[data-i], #stopps .stopp[data-i]')].filter(z => z.offsetParent && +z.dataset.i >= 1 && +z.dataset.i <= letzter);
+  const y0 = ev.clientY;
+  let ziel = i;
+  try { g.setPointerCapture(ev.pointerId); } catch (e) { /* ältere Browser */ }
+  zeile.classList.add('zieht');
+  const weg = () => zeilen.forEach(z => z.classList.remove('ziel-ober', 'ziel-unter'));
+  g.onpointermove = e => {
+    zeile.style.transform = 'translateY(' + (e.clientY - y0) + 'px)';
+    weg();
+    ziel = i;
+    for (const z of zeilen) {
+      if (z === zeile) continue;
+      const r = z.getBoundingClientRect(), j = +z.dataset.i;
+      if (j < i && e.clientY < r.top + r.height / 2) { ziel = Math.min(ziel, j); }
+      if (j > i && e.clientY > r.top + r.height / 2) { ziel = Math.max(ziel, j); }
+    }
+    const zz = zeilen.find(z => +z.dataset.i === ziel);
+    if (zz && ziel !== i) zz.classList.add(ziel < i ? 'ziel-ober' : 'ziel-unter');
+  };
+  g.onpointerup = g.onpointercancel = () => {
+    g.onpointermove = g.onpointerup = g.onpointercancel = null;
+    zeile.style.transform = ''; zeile.classList.remove('zieht'); weg();
+    if (ziel !== i) stoppVerschiebenNach(i, ziel);
+  };
+}
+function stoppVerschiebenNach(i, j) {
+  if (i === j || j < 1 || j >= S.wps.length) return;
+  merken();
+  const w = S.wps.slice(), [x] = w.splice(i, 1);
+  w.splice(j, 0, x);
+  S.wps = w;
+  neuBerechnen();
+}
+
 // Stopp eine Stelle nach oben oder unten; Rückgängig holt die alte Reihenfolge
 function stoppVerschieben(i, d) {
   const j = i + d;
@@ -816,7 +862,7 @@ $('bOrdnen').onclick = () => {
   if (nachher >= vorher - 1) { melde('Die Reihenfolge ist schon kurz.'); return; }
   merken();
   S.wps = [S.wps[0]].concat(neu, rund ? [S.wps[n - 1]] : []);
-  melde('Reihenfolge geändert: etwa ' + R.kmText(vorher - nachher) + ' kürzer (Luftlinie).');
+  melde('Reihenfolge geändert: etwa ' + R.kmText(vorher - nachher) + ' kürzer (Luftlinie).', 7, RUECK);
   neuBerechnen();
 };
 
@@ -905,7 +951,7 @@ $('profilwahl').onchange = e => {
   if (vorher === 'mehrtag' && S.profil !== 'mehrtag' && S.wps.some(w => w.nacht)) {
     merken();
     S.wps = S.wps.filter((w, i) => !(w.auto && i > 0 && i < S.wps.length - 1)).map(w => { const x = Object.assign({}, w); delete x.nacht; delete x.auto; return x; });
-    melde('Wieder eine Tagestour (Rückgängig holt die Übernachtungen zurück).', 5);
+    melde('Wieder eine Tagestour.', 7, RUECK);
   }
   if (S.profil === 'mehrtag') mehrtagGeteilt.clear();
   tempoFelder();
