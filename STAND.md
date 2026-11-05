@@ -5,11 +5,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Hangneigung (05.11.) nicht am Gerät geprüft:** Ladezeit und Akku am Pixel bei z14 im Gebirge; in der App ohne Paket
-  kommen die Höhen aus dem Netz (WebView-fetch zu AWS, CORS offen). Lawinengefahr bewusst nicht in der App (nur Link).
+- **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
+  schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
+  gemessen im Browser mit 4× gedrosselter CPU beim Verschieben: blockiert 0,6 statt 2,9 s, längste Aufgabe 0,16 statt
+  0,5 s. Am Pixel nachzuprüfen, dazu der Akku. Lawinengefahr bewusst nicht in der App (nur Link).
 
-- **Stopps ziehen (05.11.) nur im Klicktest mit der Maus geprüft:** am Pixel ausprobieren, ob der Griff beim Ziehen
-  nicht das Blatt scrollt und ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
+- **Stopps ziehen:** Thomas am 05.11. auf dem Pixel (Bau 233): Ziehen geht, das Blatt scrollt dabei nicht mit. Offen:
+  ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
 
 - **Bescheid geben und Notsignal (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text; die
   Erinnerung als Mitteilung von Android (AlarmManager, ohne Erlaubnis für genaue Wecker: Android darf um Minuten
@@ -17,7 +19,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   geprüft, Ton bei stummem Handy unklar.
 
 - **Mehrtagestour (05.11.) nur im Klicktest geprüft:** Hütte und Tageszahl mit echten Overpass-Antworten (passen 2 km und
-  Hütte vor Hotel? ohne Netz keine Suche), Tag-Chips am Pixel. Von der App gesetzte Punkte gelten nur bis zum Speichern als
+  Hütte vor Hotel? ohne Netz keine Suche). Tag-Chips von Thomas am 05.11. auf dem Pixel geprüft (Bau 233). Von der App gesetzte Punkte gelten nur bis zum Speichern als
   „automatisch“ (danach als eigene Punkte, sie bleiben bei einer Tagestour).
 
 - **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
