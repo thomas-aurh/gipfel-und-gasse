@@ -246,6 +246,7 @@ function tempoFelder() {
   const lauf = artAktuell() === 'lauf';
   $('pacewahlFeld').hidden = !lauf;
   $('tempowahlFeld').hidden = lauf;
+  $('eRunde').hidden = !lauf;   // „Runde mit Länge“ gehört zum Laufen (unter „⋯“ gibt es sie für alle Arten)
 }
 
 function auswertenUndZeigen() {
