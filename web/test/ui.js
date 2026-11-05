@@ -684,9 +684,25 @@ function pruef(name, bed, info) {
     (await page.$$('#stopps .stopp')).length === 0 && (await page.getAttribute('#tageZahl [data-zahl="2"]', 'class')).includes('an') &&
     await page.isVisible('#etappen .nacht-knopf'), [await tagKarten(), wpsVor]);
   pruef('Tage: Route je Tag in eigener Farbe', await page.evaluate(() => { const f = new Set([...document.querySelectorAll('.leaflet-overlay-pane path.leaflet-interactive')].map(p => p.getAttribute('stroke'))); return f.has('#e5532d') && f.has('#1f6fd1'); }));
+  pruef('Tage: Vorschlag nach Gehzeit markiert (kurze Tour: 2 Tage ★)', (await page.textContent('#tageZahl [data-zahl="2"]')).includes('★') && (await page.textContent('#tageHinweis')).startsWith('★ Vorschlag: 2 Tage'),
+    await page.textContent('#tageHinweis'));
+  // 3 Tage: neue Übernachtungen; die App legt sie auf eine Hütte in der Nähe (Overpass nachgebildet: je Punkt eine Hütte 300 m nördlich)
+  let huettenFrage = '';
+  const huettenRoute = r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    if (!q.includes('alpine_hut')) return r.fallback();
+    huettenFrage = q;
+    const el = [...q.matchAll(/around:\d+,(-?[\d.]+),(-?[\d.]+)/g)].map((m, k) => ({ type: 'node', id: 900 + k, lat: +m[1] + 0.0027, lon: +m[2], tags: { tourism: 'alpine_hut', name: 'Testhütte ' + (k + 1) } }));
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: el }) });
+  };
+  await page.route(/overpass-api\.de/, huettenRoute);
   await page.click('#tageZahl [data-zahl="3"]');
   await page.waitForFunction(() => (document.getElementById('etappen').textContent.match(/Tag 3/) || []).length > 0, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /Testhütte/.test(document.getElementById('etappen').textContent), null, { timeout: 8000 }).catch(() => {});
   pruef('Tage: 3 Tage setzt Übernachtungspunkte auf der Route', (await page.textContent('#etappen')).includes('Tag 3') && (await page.$$('.wp')).length >= 4, (await page.$$('.wp')).length);
+  pruef('Tage: neue Übernachtung auf der Hütte in der Nähe, mit Namen', huettenFrage.includes('around:2000') && (await page.textContent('#etappen')).includes('bis Testhütte') &&
+    (await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | '))).includes('🛏 Testhütte'), [await page.$$eval('.wp-name', l => l.map(x => x.textContent)), (await page.textContent('#meldung'))]);
+  await page.unroute(/overpass-api\.de/, huettenRoute);
   await page.click('#tageBox [data-tage="1"]');
   await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});
   pruef('Tage: „1 Tag“ nimmt die gesetzten Punkte und Übernachtungen zurück', await page.isHidden('#etappen') && (await page.$$('.wp')).length === wpsVor, (await page.$$('.wp')).length);
