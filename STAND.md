@@ -226,6 +226,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Planen neu geordnet, Thomas am Pixel, Bau 215)** Reihenfolge: 1. Berg und Natur | Stadt, 2. Art und Tempo,
+  3. Hinweis, „Runde mit Länge“ (nur bei Laufen; unter „⋯“ für alle) und letzte Tour, 4. Aktionsleiste ▶ Los · 💾 · ↶ · ✕ ·
+  ⏺ Aufzeichnen · ⋯. Einstieg „Stadtrundgang“ entfernt (führte nur zu Entdecken, dort steht der Rundgang). Klicktest 383.
+
 - **05.11. (Planen umgeordnet, Mehrtagestour als Art; Thomas am Pixel, Bau 213)** Art und Tempo ganz oben im Blatt, Berg/Stadt
   ans Ende des Reiters Route (ohne Route unter den Einstiegen). Neue Art „Mehrtagestour“ (Profil `mehrtag`, geroutet wie
   Wandern): ihre Optionen (Tage mit ★-Vorschlag, Hütten, Tageskarten) erscheinen nur dort; die Route teilt sich von

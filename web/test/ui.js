@@ -185,11 +185,18 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#karte .leaflet-tile-loaded', { timeout: 10000 });
   pruef('Seite lädt ohne Fehler', konsole.length === 0, konsole);
   pruef('Hinweis ohne Route sichtbar', await page.isVisible('#leerHinweis'));
-  // Einstiege ohne Route: Runde und Stadtrundgang; „Letzte Tour“ erst, wenn eine geplante Tour gespeichert ist
-  pruef('Einstiege ohne Route', await page.isVisible('#eRunde') && await page.isVisible('#eStadt') && await page.isHidden('#eLetzte'));
+  // Reihenfolge (Thomas, 05.11.): 1. Berg/Stadt, 2. Art und Tempo, 3. Hinweis, Runde (nur Laufen), letzte Tour, 4. Aktionsleiste
+  pruef('Planen: Berg/Stadt, Art, Einstiege, Aktionsleiste untereinander', await page.evaluate(() => {
+    const y = sel => document.querySelector(sel).getBoundingClientRect().top;
+    return y('section[data-reiter=planen] .modus') < y('#einstellBox') && y('#einstellBox') < y('#einstiege') && y('#einstiege') < y('#aktionen'); }));
+  pruef('Einstiege ohne Route: bei Wandern keine Runde, kein Stadtrundgang, Aufzeichnen in der Aktionsleiste', await page.isHidden('#eRunde') && !(await page.$('#eStadt')) &&
+    await page.isHidden('#eLetzte') && await page.isVisible('#aktionen #eAufz'));
+  await page.selectOption('#profilwahl', 'laufen');
+  pruef('Einstieg „Runde mit Länge“ bei Laufen', await page.isVisible('#eRunde'));
   await page.click('#eRunde');
   pruef('Einstieg „Runde mit Länge“ öffnet die Wunschlänge', await page.isVisible('#rundFeld') && (await page.getAttribute('#bRunde', 'aria-expanded')) === 'true');
   await page.click('#bRunde');
+  await page.selectOption('#profilwahl', 'wandern');
   pruef('Am PC: Art und Tempo offen, ohne Klappzeile; ohne Route keine Reiter', await page.isVisible('#profilwahl') && await page.isHidden('#bEinstell') && await page.isHidden('#planReiter'));
   pruef('Am PC: Zoom-Knöpfe da', await page.isVisible('#bPlus') && await page.isVisible('#bMinus'));
   // Prüfbericht vom 04.11.: am PC alle fünf Bereiche in der Leiste ohne Rollbalken; aktiver Bereich für Screenreader
@@ -1847,13 +1854,9 @@ function pruef(name, bed, info) {
   await pt.screenshot({ path: path.join(OUT, '7d-telefon-ich.png') });
   await zuSeite(pt, 'planen');
   await klick('#bNeu'); await pt.waitForTimeout(300);
-  pruef('Telefon: Planen ohne Route zeigt die Einstiege', await pt.isVisible('#eRunde') && await pt.isVisible('#eStadt'));
+  pruef('Telefon: Planen ohne Route: Aufzeichnen in der Aktionsleiste, ohne Stadtrundgang', await pt.isVisible('#aktionen #eAufz') && !(await pt.$('#eStadt')));
   await klick('#eAufz'); await pt.waitForTimeout(200);
   pruef('Einstieg „Aufzeichnen“ führt zu Unterwegs', await pt.evaluate(() => document.querySelector('section[data-reiter=unterwegs]').classList.contains('an')) && await pt.isVisible('#bAufz'));
-  await zuSeite(pt, 'planen');
-  await pt.tap('#eStadt'); await pt.waitForTimeout(300);
-  pruef('Einstieg „Stadtrundgang“: Stadt an, Entdecken mit Rundgang', await pt.evaluate(() => document.querySelector('.modus [data-modus=stadt]').classList.contains('an') &&
-    document.querySelector('section[data-reiter=entdecken]').classList.contains('an')) && await pt.isVisible('#bRundgang'));
   pruef('Telefon: keine Fehler', telFehler.length === 0, telFehler);
 
   // ---------- Tourlisten suchen, sortieren, nach Art filtern; Stopps umsortieren ----------
