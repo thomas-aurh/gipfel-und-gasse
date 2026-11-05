@@ -1,5 +1,7 @@
 # Öffnungszeiten: OpenStreetMap gegen Google Maps (Stichprobe 03.11.2026)
 
+Gehört zur Entscheidung „Öffnungszeiten der Stopps gegen den Zeitplan“ in [STAND.md](../STAND.md).
+
 Frage: Wie verlässlich sind die Öffnungszeiten, die die App aus OpenStreetMap zeigt (`opening_hours`, Kartenpaket
 Oberbayern vom 03.11.)? Stichprobe: je 10 Museen, Gasthäuser/Cafés und Hütten mit eingetragenen Zeiten, gezogen mit festem
 Startwert (20261103) aus `oberbayern-orte-4d3e6ae8678e.json.gz`. Google Maps im Browser von Hand gelesen (Stand 03.11.,

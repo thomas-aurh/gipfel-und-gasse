@@ -37,6 +37,8 @@ Gerätefalle → STAND.md „Entscheidungen“ bzw. `web/README.md`. Ein Einzelf
 
 ## 3. STAND.md
 
+Datei: [`STAND.md`](../../../STAND.md); dazu [`README.md`](../../../README.md) und [`web/README.md`](../../../web/README.md).
+
 | Abschnitt | Was hinein |
 |---|---|
 | **Offen** | nicht Geprüftes, nicht Gebautes, was auf Thomas wartet (z. B. Test auf dem Pixel). Erledigtes **streichen**, nicht abhaken. |
