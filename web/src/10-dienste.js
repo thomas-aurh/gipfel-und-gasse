@@ -53,14 +53,9 @@ async function holenRoh(url, opt, sekunden) {
 }
 
 // höchstens drei Anfragen an BRouter gleichzeitig: ein Rundgang mit zehn Stopps soll den freien Dienst nicht fluten
-let brouterAktiv = 0;
-const brouterWarten = [];
-async function brouterPlatz() {
-  if (brouterAktiv < 3) { brouterAktiv++; return; }
-  await new Promise(r => brouterWarten.push(r));
-  brouterAktiv++;
-}
-function brouterFrei() { brouterAktiv--; const n = brouterWarten.shift(); if (n) n(); }
+const BROUTER_REIHE = R.warteschlange(3);
+const brouterPlatz = () => BROUTER_REIHE.platz();
+const brouterFrei = () => BROUTER_REIHE.frei();
 
 // ein Teilstück zwischen zwei Wegpunkten
 async function teilstueck(a, b, profilKey) {

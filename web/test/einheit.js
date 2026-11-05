@@ -882,5 +882,23 @@ pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.
   pruef('Tagebuch: Etappen geprüft übernommen', et.length === 2 && et[0].ziel === 'Hütte' && et[0].zeit === 5.5 && !('boese' in et[0]) && et[1].ziel === '' && et[1].meter === 0, et);
 }
 
+// Warteschlange (BRouter, höchstens drei): wird ein Platz frei und kommt sofort eine neue Anfrage, darf sie sich nicht
+// vor die wartende drängen; es laufen nie mehr als drei
+async function warteschlangePruefen() {
+  const q = R.warteschlange(3), laeuft = new Set();
+  let max = 0;
+  const auf = n => q.platz().then(() => { laeuft.add(n); max = Math.max(max, laeuft.size); });
+  const fertig = n => { laeuft.delete(n); q.frei(); };
+  auf(1); auf(2); auf(3); auf(4);
+  await null; await null;
+  fertig(1); auf(5);          // frei, und gleich danach eine neue Anfrage
+  for (let i = 0; i < 5; i++) await null;
+  const nachEinem = [...laeuft].sort().join(',');
+  fertig(2); fertig(3); fertig(4);
+  for (let i = 0; i < 5; i++) await null;
+  pruef('Warteschlange: nie mehr als drei, die wartende kommt vor der neuen dran', max === 3 && nachEinem === '2,3,4' && laeuft.has(5) && q.aktiv === 1, [max, nachEinem, [...laeuft], q.aktiv]);
+}
+warteschlangePruefen().then(() => {
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);
+});
