@@ -144,7 +144,7 @@ danach). Die Zeiten stammen aus OpenStreetMap (bei Museen und Gasthäusern meist
 in die Zwischenablage) eine Nachricht an eine vertraute Person: Tour, Länge, Aufstieg, Gehzeit, Start als Google-Maps-Link,
 geplante Rückkehr, „melde ich mich bis … nicht: Notruf 112“ und den Link zur Tour (Empfehlung des DAV, Ziel, Route und
 Rückkehrzeit zu hinterlassen). Unter *Unterwegs* steht dann die geplante Rückkehr; ist sie vorbei, erinnert die App
-(Meldung und Vibration beim nächsten Blick in die App, keine Mitteilung bei geschlossener App) und „✅ Ankunft melden“
+(in der App als Mitteilung von Android, auch bei geschlossener App; im Browser beim nächsten Blick in die Seite) und „✅ Ankunft melden“
 schickt „Bin gut angekommen“. Kein Server, kein Live-Standort.
 
 **Passt die Tour zu mir?** Unter *Vorbereiten*: Trittsicherheit nach der SAC-Wanderskala (T1 bis T6 aus OpenStreetMap),
@@ -153,7 +153,7 @@ Kondition nach Aufstieg und Gehzeit (je Tag bei Mehrtagestouren), langer Abstieg
 **Hütten:** Bei einer Mehrtagestour zeigt die Karte eines Tages zur Unterkunft Telefon („📞“, ruft an), Webseite zum
 Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
 
-**Notfall:** Menü ☰ › *Notfall*: Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
+**Notfall:** Menü ☰ › *Notfall*: „🔦 Notsignal geben“ (alpines Notsignal: sechs Zeichen je Minute, eine Minute Pause; in der App mit der Taschenlampe, sonst blinkt der Bildschirm, dazu Ton und Vibration), Hinweis auf die Notruf-App SOS-EU-ALP; Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
 **Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links

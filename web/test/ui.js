@@ -823,6 +823,14 @@ function pruef(name, bed, info) {
   // Notfall: Koordinaten zum Vorlesen, Senden über die Zwischenablage (ohne Teilen-Menü im Browser), 112 als Telefon-Link
   await zuSeite(page, 'notfall');
   pruef('Notfall: eigene Seite über das Menü', (await page.textContent('#seitenTitel')) === 'Notfall' && await page.isVisible('#bNotruf'));
+  // alpines Notsignal: im Browser blinkt der Bildschirm (sechs Zeichen je Minute), Knopf beendet es wieder
+  await page.click('#bNotsignal');
+  pruef('Notsignal: an, erstes Zeichen sofort (Bildschirm hell), Hinweis auf SOS-EU-ALP', (await page.getAttribute('#bNotsignal', 'aria-pressed')) === 'true' && await page.isVisible('#notsignalBlitz') &&
+    (await page.textContent('section[data-reiter=notfall]')).includes('SOS-EU-ALP'));
+  await page.waitForTimeout(1800);
+  pruef('Notsignal: nach 1,5 s Pause bis zum nächsten Zeichen', await page.isHidden('#notsignalBlitz'));
+  await page.click('#bNotsignal');
+  pruef('Notsignal: aus', (await page.getAttribute('#bNotsignal', 'aria-pressed')) === 'false' && await page.isHidden('#notsignalBlitz'));
   const notOrt = await page.textContent('#notfallOrt');
   pruef('Notfall: Koordinaten in Dezimalgrad und Grad/Minuten', /47\.76\d{3}, 11\.39\d{3}/.test(notOrt) && notOrt.includes('° ') && notOrt.includes('N'), notOrt);
   await page.evaluate(() => { try { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } catch (e) {} });
@@ -1284,6 +1292,9 @@ function pruef(name, bed, info) {
         dateiStueck: async o => { aufrufe.push(['dateiStueck', { name: o.name, laenge: o.daten.length, erstes: !!o.erstes, pk: o.daten.startsWith('UEsDB') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
         textTeilen: async o => { aufrufe.push(['textTeilen', { text: o.text }]); },
+        erinnern: async o => { aufrufe.push(['erinnern', { zeit: o.zeit, titel: o.titel, text: o.text }]); return { mitteilungen: true }; },
+        erinnernAus: async () => { aufrufe.push(['erinnernAus', {}]); },
+        lampe: async o => { aufrufe.push(['lampe', { an: o.an }]); },
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
         vorlesen: async o => { aufrufe.push(['vorlesen', { text: o.text }]); },
         vorlesenStopp: async () => { aufrufe.push(['vorlesenStopp', {}]); },
@@ -1302,6 +1313,21 @@ function pruef(name, bed, info) {
   await pa2.goto(url + '#tour-wandern-47.75350_11.37470~47.77000_11.40000');
   await pa2.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   pruef('App: Hinweis für gesperrten Bildschirm', (await pa2.textContent('#unterwegsHinweis')).includes('gesperrtem Bildschirm'));
+  // Bescheid geben in der App: Teilen-Menü und eine Mitteilung von Android zur geplanten Rückkehr; Ankunft löscht sie
+  await zuSeite(pa2, 'unterwegs');
+  await pa2.click('#bBescheid');
+  await pa2.waitForTimeout(200);
+  const erin = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'erinnern');
+  pruef('App: Bescheid stellt eine Erinnerung als Mitteilung zur Rückkehr', erin.length === 1 && erin[0][1].zeit > Date.now() && erin[0][1].titel === 'Bist du gut angekommen?' &&
+    (await pa2.evaluate(() => window.__navi.aufrufe)).some(x => x[0] === 'textTeilen' && x[1].text.startsWith('Ich bin unterwegs')), erin);
+  await pa2.click('#bAnkunft');
+  await pa2.waitForTimeout(200);
+  pruef('App: Ankunft melden löscht die Erinnerung', (await pa2.evaluate(() => window.__navi.aufrufe)).some(x => x[0] === 'erinnernAus'));
+  // Notsignal in der App: Taschenlampe an und wieder aus
+  await zuSeite(pa2, 'notfall');
+  await pa2.click('#bNotsignal'); await pa2.waitForTimeout(300); await pa2.click('#bNotsignal'); await pa2.waitForTimeout(100);
+  const lampe = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'lampe').map(x => x[1].an);
+  pruef('App: Notsignal mit der Taschenlampe', lampe[0] === true && lampe[lampe.length - 1] === false && await pa2.isHidden('#notsignalBlitz'), lampe);
   await zuSeite(pa2, 'unterwegs');
   await pa2.click('#bNavi');
   await pa2.waitForTimeout(200);
@@ -1464,7 +1490,7 @@ function pruef(name, bed, info) {
   await zuSeite(pa2, 'notfall');
   await pa2.click('#bStandortSenden');
   await pa2.waitForTimeout(200);
-  const notApp = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'textTeilen');
+  const notApp = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'textTeilen' && x[1].text.startsWith('Mein Standort'));
   pruef('App: Standort senden über das Teilen-Menü', notApp.length === 1 && notApp[0][1].text.includes('47.61220, 11.31170'), notApp);
   // Sicherung in der App: genau ein Teilen-Fenster mit einer JSON-Datei
   await zuSeite(pa2, 'daten');

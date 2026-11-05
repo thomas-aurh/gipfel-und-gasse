@@ -200,8 +200,41 @@ function unterwegsKarte() {
     (e.tief != null ? ' · ↑ ' + e.auf + ' m' : '') + (et ? ' · ' + et.length + ' Tage' : '')) + '</span>';
 }
 
+// ---------- Alpines Notsignal: Licht (App: Taschenlampe, sonst weißer Bildschirm), Ton, Vibration ----------
+let notsignalUhr = null, notsignalBeginn = 0, notsignalWar = false, notsignalTon = null;
+let notsignalLampe = an => { $('notsignalBlitz').hidden = !an; };   // die App ersetzt das durch die Taschenlampe (75-app.js)
+function notsignalSchritt() {
+  const an = R.notsignalAn(Date.now() - notsignalBeginn);
+  if (an === notsignalWar) return;
+  notsignalWar = an;
+  notsignalLampe(an);
+  if (an) {
+    if (navigator.vibrate) navigator.vibrate(1500);
+    try {
+      notsignalTon = notsignalTon || new (window.AudioContext || window.webkitAudioContext)();
+      const o = notsignalTon.createOscillator(), g = notsignalTon.createGain();
+      o.frequency.value = 2800; g.gain.value = 0.6; o.connect(g); g.connect(notsignalTon.destination);
+      o.start(); o.stop(notsignalTon.currentTime + 1.5);
+    } catch (e) { /* ohne Ton: Licht und Vibration */ }
+  }
+}
+function notsignal(an) {
+  clearInterval(notsignalUhr); notsignalUhr = null;
+  if (notsignalWar) { notsignalWar = false; notsignalLampe(false); }
+  $('bNotsignal').setAttribute('aria-pressed', String(an));
+  $('bNotsignal').textContent = an ? '■ Notsignal beenden' : '🔦 Notsignal geben';
+  if (!an) return;
+  notsignalBeginn = Date.now();
+  wachHalten(true);
+  notsignalSchritt();
+  notsignalUhr = setInterval(notsignalSchritt, 200);
+}
+$('bNotsignal').onclick = () => notsignal(!notsignalUhr);
+
 // ---------- Bescheid geben: Tour und geplante Rückkehr an eine vertraute Person (ohne Server: über das Teilen-Menü) ----------
 const PAGES = 'https://thomas-aurh.github.io/gipfel-und-gasse/';
+// in der App: Mitteilung von Android zur geplanten Rückkehr (auch bei geschlossener App); im Browser nur die Anzeige hier
+let bescheidMitteilung = () => {}, bescheidMitteilungAus = () => {};
 function bescheidGeben() {
   const plan = naviPlan(), e = plan.e;
   if (!e) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
@@ -216,6 +249,7 @@ function bescheidGeben() {
   const text = R.bescheidText({ name, meter: e.laenge, stunden, auf: e.tief != null ? e.auf : 0, tage: plan.tag == null && et ? et.length : 1, ankunft,
     start: e.pts[0], link: S.fest ? '' : PAGES + '#' + R.linkSchreiben(S.profil, plan.wps) });
   SPEICHER.schreiben('bescheid', { name, bis: ankunft.getTime(), erinnert: false });
+  bescheidMitteilung(ankunft.getTime(), name);
   textTeilen(text, 'Nachricht kopiert: in WhatsApp, SMS oder Mail an deine Kontaktperson einfügen.');
   bescheidZeigen();
 }
@@ -239,17 +273,20 @@ $('bBescheidPlan').onclick = bescheidGeben;
 $('bAnkunft').onclick = () => {
   const b = SPEICHER.lesen('bescheid', null);
   SPEICHER.schreiben('bescheid', null);
+  bescheidMitteilungAus();
   bescheidZeigen();
   textTeilen(R.ankunftText(b && b.name, new Date()), 'Nachricht kopiert: an deine Kontaktperson schicken.');
 };
 $('bBescheidSpaeter').onclick = () => {
   const b = SPEICHER.lesen('bescheid', null);
   if (!b) return;
-  SPEICHER.schreiben('bescheid', Object.assign({}, b, { bis: Math.max(b.bis, Date.now()) + 3600e3, erinnert: false }));
+  const bis = Math.max(b.bis, Date.now()) + 3600e3;
+  SPEICHER.schreiben('bescheid', Object.assign({}, b, { bis, erinnert: false }));
+  bescheidMitteilung(bis, b.name);
   bescheidZeigen();
   melde('Erinnerung eine Stunde später. Die Nachricht an deine Kontaktperson ändert das nicht: sag ihr Bescheid, wenn es später wird.', 7);
 };
-$('bBescheidAus').onclick = () => { SPEICHER.schreiben('bescheid', null); bescheidZeigen(); };
+$('bBescheidAus').onclick = () => { SPEICHER.schreiben('bescheid', null); bescheidMitteilungAus(); bescheidZeigen(); };
 setInterval(bescheidZeigen, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) bescheidZeigen(); });
 setTimeout(bescheidZeigen, 0);

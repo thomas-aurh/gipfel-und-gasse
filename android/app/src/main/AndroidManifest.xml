@@ -30,6 +30,11 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Erinnerung nach der geplanten Rückkehr („Bescheid geben“), auch bei geschlossener App -->
+        <receiver
+            android:name=".ErinnerungEmpfaenger"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
