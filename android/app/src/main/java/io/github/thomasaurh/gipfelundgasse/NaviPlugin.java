@@ -346,6 +346,65 @@ public class NaviPlugin extends Plugin {
         }
     }
 
+    // ---------- Erinnerung nach der geplanten Rückkehr („Bescheid geben“) ----------
+    private android.app.PendingIntent erinnerungsWecker(String titel, String text) {
+        Intent i = new Intent(getContext(), ErinnerungEmpfaenger.class);
+        if (titel != null) i.putExtra("titel", titel);
+        if (text != null) i.putExtra("text", text);
+        return android.app.PendingIntent.getBroadcast(getContext(), ErinnerungEmpfaenger.NUMMER, i,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** Erinnerung zur Zeit zeit (ms seit 1970) stellen; ersetzt eine frühere. Fragt ab Android 13 nach Mitteilungen. */
+    @PluginMethod
+    public void erinnern(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33 && getPermissionState("mitteilungen") != PermissionState.GRANTED) {
+            requestPermissionForAlias("mitteilungen", call, "nachErinnernErlaubnis");
+            return;
+        }
+        nachErinnernErlaubnis(call);
+    }
+
+    @PermissionCallback
+    private void nachErinnernErlaubnis(PluginCall call) {
+        Long zeit = call.getLong("zeit");
+        if (zeit == null) { call.reject("Zeit fehlt"); return; }
+        android.app.AlarmManager am = (android.app.AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+        if (am == null) { call.reject("Wecker von Android nicht verfügbar"); return; }
+        // ohne genaue Wecker-Erlaubnis: Android darf ein paar Minuten verschieben, weckt aber auch im Ruhezustand
+        am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, zeit, erinnerungsWecker(call.getString("titel"), call.getString("text")));
+        JSObject r = new JSObject();
+        r.put("mitteilungen", Build.VERSION.SDK_INT < 33 || getPermissionState("mitteilungen") == PermissionState.GRANTED);
+        call.resolve(r);
+    }
+
+    /** Gestellte Erinnerung löschen (Ankunft gemeldet, ausgeschaltet). */
+    @PluginMethod
+    public void erinnernAus(PluginCall call) {
+        android.app.AlarmManager am = (android.app.AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+        if (am != null) am.cancel(erinnerungsWecker(null, null));
+        android.app.NotificationManager nm = (android.app.NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) nm.cancel(ErinnerungEmpfaenger.NUMMER);
+        call.resolve();
+    }
+
+    /** Taschenlampe (Blitz der Kamera) an oder aus, für das alpine Notsignal; braucht keine Kamera-Erlaubnis. */
+    @PluginMethod
+    public void lampe(PluginCall call) {
+        boolean an = Boolean.TRUE.equals(call.getBoolean("an", false));
+        try {
+            android.hardware.camera2.CameraManager cm = (android.hardware.camera2.CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
+            if (cm == null) { call.reject("Keine Kamera"); return; }
+            for (String id : cm.getCameraIdList()) {
+                Boolean blitz = cm.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                if (Boolean.TRUE.equals(blitz)) { cm.setTorchMode(id, an); call.resolve(); return; }
+            }
+            call.reject("Keine Taschenlampe");
+        } catch (Exception e) {
+            call.reject("Taschenlampe geht nicht: " + e.getMessage());
+        }
+    }
+
     // ---------- Vorlesen (Wikipedia-Kurzinfo): eigene Sprachausgabe, unabhängig vom Navigationsdienst ----------
     private android.speech.tts.TextToSpeech sprache;
     private boolean spracheBereit;

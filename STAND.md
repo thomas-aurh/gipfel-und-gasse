@@ -5,9 +5,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Bescheid geben (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text, ob WhatsApp den Link
-  anzeigt. Die Erinnerung kommt nur beim Öffnen der App oder alle 60 s, solange sie offen ist; eine Mitteilung bei
-  geschlossener App bräuchte eine Erinnerung im Navigationsdienst oder ein Plugin für lokale Mitteilungen.
+- **Bescheid geben und Notsignal (05.11.) nur im Klicktest geprüft:** Teilen-Menü der App mit dem langen Text; die
+  Erinnerung als Mitteilung von Android (AlarmManager, ohne Erlaubnis für genaue Wecker: Android darf um Minuten
+  verschieben) nicht auf dem Pixel gesehen; Taschenlampe beim Notsignal (CameraManager.setTorchMode) nicht auf dem Gerät
+  geprüft, Ton bei stummem Handy unklar.
 
 - **Umbau für mehr Übersicht (04.11.):** Schritt 1 (Planen in Reitern, Bau 203) auf dem Pixel installiert; Schritt 2
   (Mehrtagestour mit Schalter, Teilung nach Gehzeit, Liste nach Tagen, Farbe je Tag, Tag-Knöpfe unterwegs) gebaut, nur im
@@ -229,6 +230,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (Erinnerung als Mitteilung, alpines Notsignal)** „Bescheid geben“ stellt in der App eine Mitteilung von
+  Android zur geplanten Rückkehr (ErinnerungEmpfaenger, NaviPlugin.erinnern/erinnernAus), auch bei geschlossener App;
+  „Ankunft melden“ und „Aus“ löschen sie, „+1 h“ verschiebt sie. Notfall-Seite: alpines Notsignal (6 Zeichen je Minute,
+  dann eine Minute Pause; R.notsignalAn) mit Taschenlampe in der App (NaviPlugin.lampe), sonst weißer Bildschirm, dazu
+  Ton und Vibration; Hinweis auf die Notruf-App SOS-EU-ALP (DAV). Einheitstests 307, Klicktest 396.
 
 - **05.11. (Name über der Aktionsleiste, Thomas am Pixel, Bau 219)** „Name der Tour“ steht mit Route direkt über ▶ Los und
   💾 Speichern statt unter Vorbereiten. Klicktest 390.

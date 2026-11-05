@@ -846,5 +846,13 @@ pruef('Tage: Auswahl um den Vorschlag', R.tageWahl(3).join() === '2,3,4,5' && R.
   pruef('Unterkunft: Telefon, Webseite und Öffnung mitgenommen', u.info && u.info.tel === '+43 512 123456' && /^https:\/\/huette\.example/.test(u.info.web) && u.info.oh === 'Jun-Sep', u.info);
 }
 
+// alpines Notsignal: 6 Zeichen je Minute, dann eine Minute Pause
+{
+  let zeichen = 0, warAn = false;
+  for (let t = 0; t < 120000; t += 100) { const an = R.notsignalAn(t); if (an && !warAn) zeichen++; warAn = an; }
+  pruef('Notsignal: 6 Zeichen in der ersten Minute, keins in der Pause, dann wieder', zeichen === 6 && R.notsignalAn(0) && !R.notsignalAn(2000) && R.notsignalAn(10500) &&
+    !R.notsignalAn(65000) && R.notsignalAn(120000), zeichen);
+}
+
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

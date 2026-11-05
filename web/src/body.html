@@ -416,6 +416,7 @@
       </section>
 
       <!-- Notfall -->
+      <div id="notsignalBlitz" hidden></div>
       <section data-reiter="notfall">
         <div id="notfall">
           <div id="notfallOrt" class="klein">Standort noch unbekannt.</div>
@@ -424,6 +425,12 @@
             <button class="knopf" id="bStandortSenden">📍 Standort senden</button>
             <button class="knopf" id="bStandortHolen">🛰 Standort bestimmen</button>
           </div>
+          <h3>Ohne Empfang: alpines Notsignal</h3>
+          <div class="knopfreihe"><button class="knopf" id="bNotsignal" aria-pressed="false">🔦 Notsignal geben</button></div>
+          <p class="klein" id="notsignalText">Sechs Zeichen in einer Minute (Licht, Ton, Vibration), dann eine Minute Pause, immer wieder.
+            Die Antwort der Rettung: drei Zeichen in einer Minute. In der App blinkt die Taschenlampe, sonst der Bildschirm.</p>
+          <p class="klein">Offizielle Notruf-App für die Alpen: <a href="https://www.alpenverein.de/artikel/notfall-app-sos-eu-alp_69098d79-169b-40df-8bca-daa419eeced6" target="_blank" rel="noopener">SOS-EU-ALP</a>
+            (schickt Standort und Telefonnummer an die Leitstelle, auch per SMS).</p>
           <p class="klein">112 gilt in ganz Europa, auch ohne Guthaben und in fremden Netzen. In Österreich erreicht 140 direkt die
             Bergrettung, in der Schweiz 1414 die Rega. Am Telefon: was passiert ist, wo (Koordinaten vorlesen), wie viele Verletzte.
             Bleibt der Empfang schwach, hilft oft ein Ortswechsel von wenigen Metern oder eine SMS mit dem Standort.</p>

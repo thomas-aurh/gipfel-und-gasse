@@ -228,6 +228,15 @@ if (NATIV) {
     }
     await Navi.teilen({ name: datei, mime, entwurf: true });
   };
+  // Erinnerung nach der geplanten Rückkehr als Mitteilung von Android, auch bei geschlossener App
+  bescheidMitteilung = (bis, name) => {
+    Navi.erinnern({ zeit: bis, titel: 'Bist du gut angekommen?', text: (name ? name + ': ' : '') + 'geplante Rückkehr ' + R.uhr(new Date(bis)) + ' Uhr ist vorbei. Antippen und „Ankunft melden“.' })
+      .then(r => { if (r && r.mitteilungen === false) melde('Ohne Erlaubnis für Mitteilungen kommt die Erinnerung nur beim Öffnen der App.', 7); })
+      .catch(err => melde('Erinnerung nicht gestellt: ' + (err.message || err), 6));
+  };
+  bescheidMitteilungAus = () => { Navi.erinnernAus().catch(() => {}); };
+  // Notsignal mit der Taschenlampe; geht sie nicht, blinkt der Bildschirm
+  notsignalLampe = an => { Navi.lampe({ an }).catch(() => { $('notsignalBlitz').hidden = !an; }); };
   fotoTeilen = async function (blob, name, text) {
     const daten = await new Promise((ok, nein) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => nein(r.error); r.readAsDataURL(blob); });
     return Navi.teilen({ name, daten, mime: blob.type || 'image/jpeg', text }).catch(err => melde(err.message || String(err), 6));
