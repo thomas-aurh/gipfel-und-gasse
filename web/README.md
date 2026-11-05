@@ -108,4 +108,5 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 - **Kartendaten** © OpenStreetMap-Mitwirkende, Open Database License (ODbL). Hinweis steht auf der Karte und in exportierten GPX-Dateien.
 - **Kacheln:** OpenTopoMap (CC-BY-SA, Höhen SRTM), OpenStreetMap Standard, Waymarked Trails (CC-BY-SA). Werden beim Ansehen geladen, nicht mitgeliefert.
 - **Dienste:** BRouter (Routen), Photon (Suche, betrieben von komoot), Overpass API (Orte), Open-Meteo (Wetter und Höhen, CC-BY 4.0). Werden nur auf Handlung hin angefragt.
+- **Höhenkacheln für die Hangneigung:** Mapzen Terrain Tiles (AWS Open Data; Quellen u. a. SRTM, EU-DEM, Österreich OGD 10 m, Nennung als Quellenangabe der Ebene). Nur geladen, wenn die Ebene an ist.
 - Alles andere (Code, Gestaltung, Logo und Symbol) ist selbst gemacht.
