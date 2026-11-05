@@ -125,9 +125,9 @@ async function frischerStandort(ms) {
   return false;
 }
 // Text weitergeben: im Browser über das Teilen-Menü oder die Zwischenablage; die App nimmt das Teilen-Menü von Android
-async function textTeilen(text) {
+async function textTeilen(text, kopiert) {
   if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
-  try { await navigator.clipboard.writeText(text); melde('Standort kopiert: in eine SMS oder Nachricht einfügen.', 6); }
+  try { await navigator.clipboard.writeText(text); melde(kopiert || 'Standort kopiert: in eine SMS oder Nachricht einfügen.', 6); }
   catch (e) { melde(text, 12); }
 }
 $('bStandortHolen').onclick = async () => {
@@ -186,6 +186,7 @@ function unterwegsKarte() {
   const e = S.ergebnis, box = $('uTourKarte');
   // ohne Route hat „Route folgen“ nichts zu folgen (läuft die Navigation, bleibt der Knopf zum Beenden)
   $('bNavi').hidden = !e && !/beenden/.test($('bNavi').textContent);
+  $('bBescheid').hidden = !e;
   if (!e) {
     box.innerHTML = '<span class="klein">Noch keine Route.</span><div class="knopfreihe"><button class="knopf" type="button" id="uZuPlanen">✏️ Route planen</button>' +
       '<button class="knopf" type="button" id="uZuTouren">🥾 Tour öffnen</button></div>';
@@ -198,6 +199,60 @@ function unterwegsKarte() {
   box.innerHTML = '<b>🥾 ' + R.esc(name) + '</b><span class="klein">' + R.esc(R.kmText(e.laenge) + ' · ' + R.zeitText(e.zeit + (S.fest ? 0 : besichtigung() / 60)) +
     (e.tief != null ? ' · ↑ ' + e.auf + ' m' : '') + (et ? ' · ' + et.length + ' Tage' : '')) + '</span>';
 }
+
+// ---------- Bescheid geben: Tour und geplante Rückkehr an eine vertraute Person (ohne Server: über das Teilen-Menü) ----------
+const PAGES = 'https://thomas-aurh.github.io/gipfel-und-gasse/';
+function bescheidGeben() {
+  const plan = naviPlan(), e = plan.e;
+  if (!e) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
+  const pause = (+$('pausewahl').value || 0) / 60;
+  const stunden = e.zeit + pause + (S.fest || plan.tag != null ? 0 : besichtigung() / 60);
+  // Start: geplante Startzeit, wenn sie heute noch kommt, sonst jetzt
+  const geplant = zeitplanStart(), jetzt = new Date();
+  const start = geplant && geplant > jetzt && geplant.toDateString() === jetzt.toDateString() ? geplant : jetzt;
+  const ankunft = new Date(start.getTime() + stunden * 3600e3);
+  const et = etappenAktuell();
+  const name = ((S.name || '').trim() || (S.fest ? 'Spur' : 'Tour')) + (plan.tag != null ? ', Tag ' + (plan.tag + 1) : '');
+  const text = R.bescheidText({ name, meter: e.laenge, stunden, auf: e.tief != null ? e.auf : 0, tage: plan.tag == null && et ? et.length : 1, ankunft,
+    start: e.pts[0], link: S.fest ? '' : PAGES + '#' + R.linkSchreiben(S.profil, plan.wps) });
+  SPEICHER.schreiben('bescheid', { name, bis: ankunft.getTime(), erinnert: false });
+  textTeilen(text, 'Nachricht kopiert: in WhatsApp, SMS oder Mail an deine Kontaktperson einfügen.');
+  bescheidZeigen();
+}
+function bescheidZeigen() {
+  const b = SPEICHER.lesen('bescheid', null), box = $('bescheidBox');
+  if (!b || !b.bis) { box.hidden = true; return; }
+  const ueber = Date.now() > b.bis;
+  box.hidden = false;
+  box.classList.toggle('warnung', ueber);
+  $('bescheidText').textContent = ueber ? '⏰ Geplante Rückkehr (' + R.uhr(new Date(b.bis)) + ' Uhr) ist vorbei: Bist du gut angekommen? Dann gib kurz Bescheid.'
+    : '📣 Bescheid gegeben: ' + b.name + ', zurück geplant gegen ' + R.uhr(new Date(b.bis)) + ' Uhr.';
+  // einmal erinnern, wenn die Zeit vorbei ist (beim nächsten Blick in die App)
+  if (ueber && !b.erinnert) {
+    SPEICHER.schreiben('bescheid', Object.assign({}, b, { erinnert: true }));
+    melde('Geplante Rückkehr vorbei: Bist du gut angekommen? Unter Unterwegs „✅ Ankunft melden“.', 10);
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+  }
+}
+$('bBescheid').onclick = bescheidGeben;
+$('bBescheidPlan').onclick = bescheidGeben;
+$('bAnkunft').onclick = () => {
+  const b = SPEICHER.lesen('bescheid', null);
+  SPEICHER.schreiben('bescheid', null);
+  bescheidZeigen();
+  textTeilen(R.ankunftText(b && b.name, new Date()), 'Nachricht kopiert: an deine Kontaktperson schicken.');
+};
+$('bBescheidSpaeter').onclick = () => {
+  const b = SPEICHER.lesen('bescheid', null);
+  if (!b) return;
+  SPEICHER.schreiben('bescheid', Object.assign({}, b, { bis: Math.max(b.bis, Date.now()) + 3600e3, erinnert: false }));
+  bescheidZeigen();
+  melde('Erinnerung eine Stunde später. Die Nachricht an deine Kontaktperson ändert das nicht: sag ihr Bescheid, wenn es später wird.', 7);
+};
+$('bBescheidAus').onclick = () => { SPEICHER.schreiben('bescheid', null); bescheidZeigen(); };
+setInterval(bescheidZeigen, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) bescheidZeigen(); });
+setTimeout(bescheidZeigen, 0);
 
 // ---------- Mehrtagestour: einem Tag folgen ----------
 // Auswahl „Tag 1 … Tag n“ oder die ganze Tour; vorgewählt ist der Tag, der nach dem geplanten Starttag heute ist,
