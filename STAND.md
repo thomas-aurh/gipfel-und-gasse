@@ -8,7 +8,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
   schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
   gemessen im Browser mit 4× gedrosselter CPU beim Verschieben: blockiert 0,6 statt 2,9 s, längste Aufgabe 0,16 statt
-  0,5 s. Am Pixel nachzuprüfen, dazu der Akku. Lawinengefahr bewusst nicht in der App (nur Link).
+  0,5 s. Thomas am 05.11. auf dem Pixel (Bau 237): „lädt jetzt schnell und flüssig“. Offen: Akku bei längerer Nutzung.
+  Lawinengefahr bewusst nicht in der App (nur Link).
 
 - **Stopps ziehen:** Thomas am 05.11. auf dem Pixel (Bau 233): Ziehen geht, das Blatt scrollt dabei nicht mit. Offen:
   ob lange Listen beim Ziehen mitlaufen müssten (bisher kein Auto-Scroll).
