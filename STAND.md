@@ -73,7 +73,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Stufe 5 (Orte und Suche ohne Netz) gebaut:** geprüft mit Testdaten (Einheitstests, Klicktest) und im Ablauf
   „Kartenpakete“ mit den echten Orten (Probe-Suche Zugspitze, Marienplatz u. a.). Nicht geprüft: Ladezeit und Speicher
   der Orte-Datei auf dem Handy (auf dem Pixel liegt sie seit 02.11., 7 MB).
-- **Emulator-Test in GitHub Actions** fehlt (App startet, Dienst startet mit vorgegebener Position).
+- **Emulator-Test (05.11., Job `emulator`):** startet die Debug-APK in Android 14 (x86_64), lädt die Oberfläche,
+  folgt einer Route mit Position aus `adb emu geo fix` und beendet den Dienst (`web/test/emulator.js`). Nicht abgedeckt:
+  gesperrter Bildschirm, Ansagen, Prozess-Tod, Offline-Karten und -Routing, Drucken und Teilen.
 - **Web mit den echten Diensten am PC geprüft (03.11., Browser über 127.0.0.1):** Karte, Routing über BRouter (mit
   Wegtypen, Untergrund und SAC-Stufe), Suche über Photon, Höhen. Overpass beantwortete das Info-Antippen an dem Abend
   nicht (beide Server Zeitüberschreitung bzw. 502), die App meldete das sauber. Ungeprüft: die Seite unter GitHub Pages
@@ -82,9 +84,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (höchstens 250 Marken), Dauer der Overpass-Abfrage. Nächster Schritt: Rundgang in der Münchner Altstadt planen.
 - **Web-App auf dem Telefon nicht geprüft:** GPS, Vibration, Bildschirm wach halten und Teilen-Menü im Browser
   (eigene Wege, nicht die der Android-App); geht jetzt über die Pages-Adresse (siehe Auslieferung).
-- **Aus der Code-Durchsicht vom 03.11., noch nicht behoben (Web):** Drucken im Handy-Browser baut nach 500 ms zurück,
-  bevor die Vorschau fertig ist (nicht geprüft); BRouter-Grenze von drei gleichzeitigen Anfragen hält nicht immer.
-  (Aufzeichnung im Browser und doppelte Foto-Kacheln: am 05.11. behoben.)
+- **Drucken im Handy-Browser (05.11. geändert) nicht auf dem Telefon geprüft:** ob Chrome auf Android afterprint
+  schickt; sonst holt das erste Antippen die App zurück.
 - **Android-Durchsicht (03.11.) nicht auf dem Gerät geprüft:** Fortsetzen nach Prozess-Tod (Mitteilung „Navigation
   unterbrochen“, Antippen setzt fort), Meldung bei GPS- oder Sprachausfall. Nachstellen: Navigation starten, App per
   `adb shell am kill io.github.thomasaurh.gipfelundgasse` im Hintergrund beenden, Mitteilung antippen.
@@ -243,6 +244,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **05.11. (abends: Drucken, BRouter, Emulator)** Drucken und Heft im Handy-Browser: Rückkehr erst bei afterprint oder dem
+  ersten Antippen (nachDruck), nicht mehr nach 500 ms, wenn print sofort zurückkehrt. BRouter höchstens drei gleichzeitig
+  (R.warteschlange übergibt den Platz direkt; Gegenprobe: die alte ließ vier zu). Neuer Job `emulator` in GitHub Actions.
 
 - **05.11. (PRs bis #88, Bau 231)** Schritt 3a (Leiste am PC, 44 px, 320 px, Kartennachweis einzeilig, Begriffe);
   Unterwegs ohne Route mit Knöpfen, Erklärtexte unter Menü › Info; Planen neu geordnet (Berg/Stadt, Art/Tempo mit neuer

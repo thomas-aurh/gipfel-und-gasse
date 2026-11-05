@@ -730,11 +730,12 @@ $('tbHeftKnopf').onclick = async () => {
     $('tbHeft').hidden = false;
     document.documentElement.classList.add('heft');
     druckName = 'Reisetagebuch ' + $('tbTitel').textContent;
+    const t0 = Date.now();
     try {
       const r = window.print();
       if (r && typeof r.then === 'function') { r.then(heftEnde, err => { heftEnde(); melde('Drucken ging nicht: ' + (err.message || err)); }); return; }
-    } catch (err) { melde('Drucken ging nicht: ' + err.message); }
-    setTimeout(heftEnde, 500);
+    } catch (err) { melde('Drucken ging nicht: ' + err.message); heftEnde(); return; }
+    nachDruck(heftEnde, t0);   // wie beim Drucken der Tour (57-drucken.js)
   } finally { b.disabled = false; }
 };
 

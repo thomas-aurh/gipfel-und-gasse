@@ -43,14 +43,27 @@ $('bDrucken').onclick = async () => {
   karte.fitBounds(L.latLngBounds(e.pts.map(p => [p.lat, p.lon])), { padding: [24, 24], maxZoom: 17 });
   await kachelnGeladen(4000);
   druckLaeuft = false;
+  const t0 = Date.now();
   try {
     const r = window.print();
     // in der Android-App liefert print ein Versprechen, das sich erfüllt, wenn der Druckdialog fertig ist
     if (r && typeof r.then === 'function') { r.then(druckEnde, err => { druckEnde(); melde('Drucken ging nicht: ' + (err.message || err)); }); return; }
-  } catch (err) { melde('Drucken ging nicht: ' + err.message); }
-  // manche Browser feuern afterprint nicht zuverlässig: nach dem Dialog sicher zurück
-  setTimeout(druckEnde, 500);
+  } catch (err) { melde('Drucken ging nicht: ' + err.message); druckEnde(); return; }
+  nachDruck(druckEnde, t0);
 };
+
+// Nach window.print(): Am PC wartet der Aufruf, bis der Druckdialog zu ist, dann sicher zurück (manche Browser feuern
+// afterprint nicht zuverlässig). Im Handy-Browser kehrt er sofort zurück und die Vorschau baut sich erst danach auf: ein
+// Zurück nach 500 ms hätte die normale Seite gedruckt. Dort zurück bei afterprint oder beim ersten Antippen oder
+// Tastendruck auf der Seite (dann ist die Vorschau zu)
+function nachDruck(ende, t0) {
+  if (Date.now() - t0 > 400) { setTimeout(ende, 500); return; }
+  let fertig = false;
+  const arten = ['pointerdown', 'keydown'];
+  const zurueck = () => { if (fertig) return; fertig = true; arten.forEach(a => document.removeEventListener(a, zurueck, true)); ende(); };
+  window.addEventListener('afterprint', zurueck, { once: true });
+  setTimeout(() => { if (!fertig) arten.forEach(a => document.addEventListener(a, zurueck, true)); }, 1000);
+}
 
 function kachelnGeladen(ms) {
   return new Promise(res => {

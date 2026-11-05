@@ -1301,6 +1301,7 @@ function pruef(name, bed, info) {
   await page.evaluate(() => {
     window.print = () => { window.__gedruckt = true; };
     const st = window.setTimeout;
+    window.__st0 = st;
     window.setTimeout = (f, ms, ...a) => ms === 500 && window.__gedruckt ? 0 : st(f, ms, ...a);
   });
   await page.click('[data-reiter=planen]');
@@ -1315,6 +1316,16 @@ function pruef(name, bed, info) {
   pruef('PDF hat genau eine Seite', (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length === 1);
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
   pruef('Nach dem Drucken wieder normal, Dunkelmodus zurück', await page.evaluate(() => !document.body.classList.contains('druck') && document.documentElement.dataset.thema === 'dunkel'));
+  // wie im Handy-Browser: print kehrt sofort zurück, afterprint kommt nicht. Die Druckansicht bleibt (früher nach 500 ms
+  // zurück, die Vorschau hätte die normale Seite gezeigt), bis man die Seite wieder antippt oder eine Taste drückt
+  await page.evaluate(() => { window.setTimeout = window.__st0; window.__gedruckt = false; });
+  await page.click('#bDrucken');
+  await page.waitForFunction(() => window.__gedruckt, null, { timeout: 8000 });
+  await page.waitForTimeout(1500);
+  const druckBleibt = await page.evaluate(() => document.body.classList.contains('druck'));
+  await page.keyboard.press('Shift');
+  pruef('Drucken im Handy-Browser: Druckansicht bleibt ohne afterprint, Antippen holt die App zurück', druckBleibt &&
+    await page.evaluate(() => !document.body.classList.contains('druck') && document.documentElement.dataset.thema === 'dunkel'), druckBleibt);
   await themaWahl('automatisch');
   await planReiter(page, 'route'); await page.click('.modus [data-modus=berg]');
   pruef('Zurück in Berg: topografisch, Wanderwege', await page.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked && document.querySelector('#lageWander').checked && !document.querySelector('#lageSehens').checked));

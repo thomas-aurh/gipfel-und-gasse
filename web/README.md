@@ -79,6 +79,7 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 | `test/syntax.js` | prüft die Skripte in der fertigen HTML-Datei |
 | `test/einheit.js` | Einheitstests der Rechnungen (Node, ohne Browser) |
 | `test/ui.js` | Klicktest mit Playwright und Chromium; bildet die Dienste nach (siehe dort), Bildschirmfotos nach `test/out/` |
+| `test/emulator.js` | Gerätetest im Android-Emulator (nur GitHub Actions, Job `emulator`): Debug-APK installieren, Oberfläche über die WebView-Entwicklerschnittstelle bedienen, Navigationsdienst mit Position aus `adb emu geo fix` |
 
 ## Wie gerechnet wird
 
