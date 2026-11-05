@@ -107,7 +107,9 @@ und lässt bei Bedarf den letzten Ort weg.
 **Mehrtagestour:** Ganz oben in *Planen* die Art **„🛏 Mehrtagestour“** wählen (geroutet wie Wandern): die App schlägt die Zahl der Tage
 vor (höchstens etwa 6,5 h Gehzeit am Tag, bis 30 Tage, ★ in der Auswahl) und teilt die Tour nach Gehzeit in gleich lange Tage: liegt ein vorhandener Punkt höchstens 15 % eines Tages neben der
 Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt und legt ihn auf die nächste Hütte oder Unterkunft bis 2 km (OpenStreetMap über
-Overpass; Berghütte vor Gasthof, Herberge und Hotel); findet sie keine, bleibt er auf der Route (ziehen verschiebt ihn). Je Tag steht dann
+Overpass; Berghütte vor Gasthof, Herberge und Hotel; mit Kartenpaket die Hütten zuerst aus dem Paket, auch ohne Netz).
+Antwortet Overpass nicht, fragt die App nach 6 s einen zweiten Server; klappt beides nicht, holt „🔍 Nochmal suchen“ in
+der Meldung die Suche nach. Findet sie keine, bleibt er auf der Route (ziehen verschiebt ihn). Je Tag steht dann
 eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start (ab Tag 2 eigene Startzeit) und darunter den Punkten dieses Tages; ein
 Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe.
 Über den Tageskarten wählen Chips „Alle Tage“ oder einen Tag: dann zeigt die Karte nur diesen Tag (die anderen blass), und nur

@@ -539,21 +539,37 @@ function tageSchalterZeigen() {
   $('tageHinweis').textContent = '★ Vorschlag: ' + vor + ' Tage mit je etwa ' + R.zeitText((e.zeit + besichtigung() / 60) / vor) + ' Gehzeit. ' +
     'Neue Übernachtungen legt die App auf eine Hütte oder Unterkunft in der Nähe (bis 2 km, aus OpenStreetMap). 🛏 an einem Punkt beendet den Tag dort; Art „Wandern“ macht wieder eine Tagestour.';
 }
-// neue Übernachtungen auf die nächste Hütte oder Unterkunft legen (Overpass; ohne Netz bleiben sie auf der Route)
+// neue Übernachtungen auf die nächste Hütte oder Unterkunft legen: zuerst aus dem Kartenpaket (Berghütten, sofort und ohne
+// Netz), für den Rest Overpass (nach 6 s auch der zweite Server); ohne Treffer bleiben sie auf der Route
 let unterkunftLauf = 0;
 const UNTERKUNFT_RADIUS = 2000;
 async function unterkunftSuchen() {
   const nr = ++unterkunftLauf;
   const ziele = S.wps.map((w, i) => ({ w, i })).filter(x => x.w.auto && x.w.nacht && !x.w.name);
   if (!ziele.length) return;
-  let json;
-  try { json = await overpassHolen(R.unterkunftAbfrage(ziele.map(x => x.w), UNTERKUNFT_RADIUS), 30); }
-  catch (err) { if (nr === unterkunftLauf) melde('Unterkünfte nicht abrufbar (' + err.message + '): die Übernachtungen bleiben auf der Route.', 6); return; }
+  const belegt = new Set(), treffer = new Map();
+  const waehlen = (json, liste) => { for (const x of liste) { const u = R.unterkunftWahl(json, x.w, UNTERKUNFT_RADIUS, belegt); if (u) { belegt.add(u.id); treffer.set(x.i, u); } } };
+  let paket = null;
+  try { paket = typeof unterkunftOffline === 'function' ? await unterkunftOffline(ziele.map(x => x.w), UNTERKUNFT_RADIUS) : null; } catch (err) { paket = null; }
   if (nr !== unterkunftLauf) return;
+  if (paket) waehlen(paket, ziele);
+  const rest = ziele.filter(x => !treffer.has(x.i));
+  if (rest.length && navigator.onLine !== false) {
+    let json = null;
+    try { json = await overpassHolen(R.unterkunftAbfrage(rest.map(x => x.w), UNTERKUNFT_RADIUS), 25, 6); }
+    catch (err) {
+      if (nr !== unterkunftLauf) return;
+      if (!treffer.size) {
+        melde('Unterkünfte nicht abrufbar (' + err.message + '): die Übernachtungen bleiben vorerst auf der Route.', 12, { text: '🔍 Nochmal suchen', tun: unterkunftSuchen });
+        return;
+      }
+    }
+    if (nr !== unterkunftLauf) return;
+    if (json) waehlen(json, rest);
+  }
   // inzwischen etwas geändert (gezogen, anders geteilt): dann nichts verschieben
   if (ziele.some(x => S.wps[x.i] !== x.w)) return;
-  const belegt = new Set(), treffer = new Map();
-  for (const x of ziele) { const u = R.unterkunftWahl(json, x.w, UNTERKUNFT_RADIUS, belegt); if (u) { belegt.add(u.id); treffer.set(x.i, u); } }
+  if (!treffer.size && navigator.onLine === false) { melde('Ohne Netz: Hütten nur aus einem Kartenpaket, hier keins. Die Übernachtungen bleiben vorerst auf der Route.', 10, { text: '🔍 Nochmal suchen', tun: unterkunftSuchen }); return; }
   if (!treffer.size) { melde('Keine Hütte oder Unterkunft bis 2 km an den Übernachtungen in OpenStreetMap: sie bleiben auf der Route, ziehen verschiebt sie.', 7); return; }
   S.wps = S.wps.map((w, i) => treffer.has(i) ? Object.assign({}, w, { lat: treffer.get(i).lat, lon: treffer.get(i).lon, name: treffer.get(i).name }, treffer.get(i).info ? { info: treffer.get(i).info } : {}) : w);
   neuBerechnen();

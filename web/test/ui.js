@@ -197,7 +197,8 @@ function pruef(name, bed, info) {
   await dienste(ctx);
   const page = await ctx.newPage();
   const konsole = [];
-  page.on('console', m => { if (m.type() === 'error' && !/status of 400/.test(m.text())) konsole.push(m.text()); });  // 400 = absichtlich „kein Weg“
+  // 400 = absichtlich „kein Weg“, 504 = absichtlich ausgefallenes Overpass (Hüttensuche)
+  page.on('console', m => { if (m.type() === 'error' && !/status of (400|504)/.test(m.text())) konsole.push(m.text()); });
   page.on('pageerror', e => { konsole.push(e.message); if (process.env.STAPEL) console.log('STAPEL', e.stack); });
 
   await page.goto(url);
@@ -758,6 +759,36 @@ function pruef(name, bed, info) {
   await page.selectOption('#profilwahl', 'wandern');
   await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});
   pruef('Tage: Art „Wandern“ nimmt die gesetzten Punkte und Übernachtungen zurück', await page.isHidden('#etappen') && (await page.$$('.wp')).length === wpsVor, (await page.$$('.wp')).length);
+  // Hüttensuche, wenn Overpass klemmt (Pixel 05.11.: Zeitüberschreitung): beide Server fallen aus ⇒ Meldung mit
+  // „Nochmal suchen“; danach hängt der Hauptserver ⇒ nach 6 s antwortet der zweite
+  const huetteNichts = r => { const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, '')); if (!q.includes('alpine_hut')) return r.fallback(); r.fulfill({ status: 504, body: 'Gateway Timeout' }); };
+  await page.route(/overpass-api\.de|overpass\.private\.coffee/, huetteNichts);
+  await page.selectOption('#profilwahl', 'mehrtag');
+  await page.waitForSelector('#tageZahl [data-zahl="3"]', { timeout: 8000 });
+  await page.click('#tageZahl [data-zahl="3"]');
+  await page.waitForFunction(() => /nicht abrufbar/.test(document.getElementById('meldung').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Hütten: beide Server weg ⇒ Meldung mit „Nochmal suchen“', (await page.textContent('#meldung')).includes('nicht abrufbar') && (await page.textContent('#meldung button').catch(() => '')) === '🔍 Nochmal suchen',
+    await page.textContent('#meldung'));
+  await page.unroute(/overpass-api\.de|overpass\.private\.coffee/, huetteNichts);
+  let haengtFertig = Promise.resolve();
+  const huetteHaengt = r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    if (!q.includes('alpine_hut')) return r.fallback();
+    haengtFertig = new Promise(x => setTimeout(x, 9000)).then(() => r.fulfill({ status: 504, body: 'Gateway Timeout' }).catch(() => {}));
+    return haengtFertig;
+  };
+  await page.route(/overpass-api\.de/, huetteHaengt);
+  await page.route(/overpass\.private\.coffee/, huettenRoute);
+  const t0Huette = Date.now();
+  await page.click('#meldung button');
+  await page.waitForFunction(() => /Testhütte/.test(document.getElementById('etappen').textContent), null, { timeout: 14000 }).catch(() => {});
+  const dauerHuette = Date.now() - t0Huette;
+  pruef('Hütten: „Nochmal suchen“; hängt der Hauptserver, antwortet nach 6 s der zweite', (await page.textContent('#etappen')).includes('bis Testhütte') && dauerHuette > 5500 && dauerHuette < 12000, dauerHuette);
+  await haengtFertig;
+  await page.unroute(/overpass-api\.de/, huetteHaengt);
+  await page.unroute(/overpass\.private\.coffee/, huettenRoute);
+  await page.selectOption('#profilwahl', 'wandern');
+  await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
@@ -1862,6 +1893,17 @@ function pruef(name, bed, info) {
   // Suchtreffer außerhalb des Pakets: Kartenwahl bleibt „Offline-Karte“, gezeigt wird die topografische Karte
   pruef('Plan-Hinweis zu Zwischenzielen sichtbar', await po.evaluate(() => !document.querySelector('#planHinweis').hidden));
   await po.evaluate(() => localStorage.setItem('gug.tippGesehen', 'true'));
+  // Mehrtagestour im Paketgebiet: die Übernachtung kommt auf die Hütte aus dem Paket, Overpass wird nicht gefragt
+  await zuSeite(po, 'planen');
+  const vorOverpassH = zaehler.overpass;
+  await po.selectOption('#profilwahl', 'mehrtag');
+  await po.waitForSelector('#tageZahl [data-zahl="2"]', { timeout: 8000 }).catch(() => {});
+  if (!/Probehütte/.test(await po.textContent('#etappen').catch(() => ''))) await po.click('#tageZahl [data-zahl="2"]').catch(() => {});
+  await po.waitForFunction(() => /Probehütte/.test(document.getElementById('etappen').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Hütten aus dem Kartenpaket: Übernachtung auf der Probehütte, ohne Overpass', (await po.textContent('#etappen')).includes('bis Probehütte') && zaehler.overpass === vorOverpassH,
+    [zaehler.overpass - vorOverpassH, (await po.textContent('#etappen')).slice(0, 160), await po.textContent('#meldung')]);
+  await po.selectOption('#profilwahl', 'wandern');
+  await po.waitForTimeout(500);
   await po.fill('#suchfeld', 'Teststadt');
   await po.waitForFunction(() => [...document.querySelectorAll('#treffer button')].some(b => b.textContent.includes('Teststadt')), null, { timeout: 8000 });
   await po.click('#treffer button:has-text("Teststadt")');
