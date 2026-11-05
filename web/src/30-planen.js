@@ -396,7 +396,7 @@ function zeitplanZeigen() {
     text = 'Start ' + R.uhr(start) + ' → Ankunft etwa ' + R.uhr(z.ankunft) + ' Uhr' + amTag(z.ankunft) + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + (sonne ? ' · ' + sonne : '');
     if (unter) text += z.knapp ? '. ⚠️ Knapp: spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen (30 min Reserve).' : ' · ' + R.zeitText(z.puffer / 60) + ' Reserve.';
   } else {
-    text = sonne && zuLangFuerTag(z.spaetestens, tag) ? '⚠️ Länger als das Tageslicht (' + sonne + '): als Mehrtagestour planen (Reiter Route, „Mehrere Tage“).'
+    text = sonne && zuLangFuerTag(z.spaetestens, tag) ? '⚠️ Länger als das Tageslicht (' + sonne + '): als Mehrtagestour planen (Art „Mehrtagestour“).'
       : sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
   // Mehrtagestour: Zeitplan je Tag in den Etappen statt eines Tages
@@ -409,6 +409,7 @@ function zeitplanZeigen() {
   } else { $('etappen').hidden = true; $('etappen').innerHTML = ''; }
   if (typeof naviEtappenFeld === 'function') naviEtappenFeld();
   tageSchalterZeigen();
+  mehrtagAuto();
   // Stopps mit Öffnungszeiten: geschlossen oder knapp bei Ankunft?
   const probleme = start ? besuchProbleme() : 0;
   if (probleme) text += ' ⚠️ ' + (probleme === 1 ? 'Ein Stopp ist' : probleme + ' Stopps sind') + ' bei Ankunft geschlossen oder knapp (siehe Stopps).';
@@ -490,13 +491,10 @@ function stoppAnkunft() {
 // ---------- Mehrtagestour: Schalter „1 Tag | Mehrere Tage“ und Zahl der Tage ----------
 function tageSchalterZeigen() {
   const e = S.ergebnis, et = etappenAktuell();
-  $('tageBox').hidden = !e || !!S.fest || S.wps.length < 2;
+  // Optionen der Mehrtagestour: bei der Art „Mehrtagestour“ (oder einer Tour, die schon Übernachtungen hat)
+  $('tageBox').hidden = !e || !!S.fest || S.wps.length < 2 || !(S.profil === 'mehrtag' || et);
   if ($('tageBox').hidden) return;
   const mehr = !!et;
-  document.querySelectorAll('#tageBox [data-tage]').forEach(b => {
-    const an = (b.dataset.tage === 'mehr') === mehr;
-    b.classList.toggle('an', an); b.setAttribute('aria-pressed', String(an));
-  });
   $('tageHinweis').hidden = !mehr;
   const box = $('tageZahl');
   box.hidden = !mehr;
@@ -515,7 +513,7 @@ function tageSchalterZeigen() {
     box.appendChild(b);
   }
   $('tageHinweis').textContent = '★ Vorschlag: ' + vor + ' Tage mit je etwa ' + R.zeitText((e.zeit + besichtigung() / 60) / vor) + ' Gehzeit. ' +
-    'Neue Übernachtungen legt die App auf eine Hütte oder Unterkunft in der Nähe (bis 2 km, aus OpenStreetMap). 🛏 an einem Punkt beendet den Tag dort.';
+    'Neue Übernachtungen legt die App auf eine Hütte oder Unterkunft in der Nähe (bis 2 km, aus OpenStreetMap). 🛏 an einem Punkt beendet den Tag dort; Art „Wandern“ macht wieder eine Tagestour.';
 }
 // neue Übernachtungen auf die nächste Hütte oder Unterkunft legen (Overpass; ohne Netz bleiben sie auf der Route)
 let unterkunftLauf = 0;
@@ -557,13 +555,17 @@ function tageTeilen(z) {
   unterkunftLauf++;   // eine noch laufende Suche gilt für die alte Teilung
   if (z > 1 && auf.neu.length) unterkunftSuchen();
 }
-document.querySelectorAll('#tageBox [data-tage]').forEach(b => {
-  b.onclick = () => {
-    const mehr = b.dataset.tage === 'mehr', ist = !!etappenAktuell();
-    if (mehr === ist) return;
-    tageTeilen(mehr ? R.tageVorschlag(S.ergebnis.zeit + besichtigung() / 60) : 1);
-  };
-});
+// Art „Mehrtagestour“: die Route teilt sich von selbst in den vorgeschlagenen Tagen, einmal je Route (wer danach
+// Übernachtungen wegnimmt, bekommt sie nicht ungefragt zurück); Wechsel auf eine andere Art macht wieder eine Tagestour
+const mehrtagGeteilt = new Set();
+function mehrtagAuto() {
+  const e = S.ergebnis;
+  if (S.profil !== 'mehrtag' || !e || S.fest || S.rechnet || S.wps.length < 2 || S.wps.some(w => w.nacht)) return;
+  const k = S.wps.map(w => w.lat.toFixed(5) + ',' + w.lon.toFixed(5)).join(';');
+  if (mehrtagGeteilt.has(k)) return;
+  mehrtagGeteilt.add(k);
+  setTimeout(() => { if (S.profil === 'mehrtag' && !S.wps.some(w => w.nacht)) tageTeilen(R.tageVorschlag(e.zeit + besichtigung() / 60)); }, 0);
+}
 
 // ---------- Mehrtagestour: Etappen an den Übernachtungen ----------
 function etappenAktuell() {
@@ -871,7 +873,15 @@ $('bNeu').onclick = () => {
   neuBerechnen();
 };
 $('profilwahl').onchange = e => {
+  const vorher = S.profil;
   S.profil = e.target.value; SPEICHER.schreiben('profil', S.profil);
+  // weg von der Mehrtagestour: Übernachtungen und gesetzte Punkte zurück (Rückgängig holt sie wieder)
+  if (vorher === 'mehrtag' && S.profil !== 'mehrtag' && S.wps.some(w => w.nacht)) {
+    merken();
+    S.wps = S.wps.filter((w, i) => !(w.auto && i > 0 && i < S.wps.length - 1)).map(w => { const x = Object.assign({}, w); delete x.nacht; delete x.auto; return x; });
+    melde('Wieder eine Tagestour (Rückgängig holt die Übernachtungen zurück).', 5);
+  }
+  if (S.profil === 'mehrtag') mehrtagGeteilt.clear();
   tempoFelder();
   einstellTextSetzen();
   // wer laufen geht, will meist die Kilometer hören: einmal einschalten, abschalten bleibt möglich
@@ -897,7 +907,7 @@ function klapp(box, auf) {
 }
 document.querySelectorAll('.klapp-kopf').forEach(b => { b.onclick = () => klapp(b.parentElement, !b.parentElement.classList.contains('offen')); });
 // Art und Tempo in einer Zeile: „🥾 Wandern · Normal“ (Werte auch nach Tour öffnen oder Rundgang, darum aus den Feldern)
-const ART_ZEICHEN = { wandern: '🥾', stadt: '🚶', laufen: '🏃', rad: '🚲', kurz: '📏', linie: '📐' };
+const ART_ZEICHEN = { wandern: '🥾', mehrtag: '🛏', stadt: '🚶', laufen: '🏃', rad: '🚲', kurz: '📏', linie: '📐' };
 function gewaehlt(id) { const s = $(id); return s.selectedIndex >= 0 ? s.options[s.selectedIndex].text : ''; }
 function einstellTextSetzen() {
   const p = $('profilwahl').value;

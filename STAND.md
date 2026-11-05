@@ -226,6 +226,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Planen umgeordnet, Mehrtagestour als Art; Thomas am Pixel, Bau 213)** Art und Tempo ganz oben im Blatt, Berg/Stadt
+  ans Ende des Reiters Route (ohne Route unter den Einstiegen). Neue Art „Mehrtagestour“ (Profil `mehrtag`, geroutet wie
+  Wandern): ihre Optionen (Tage mit ★-Vorschlag, Hütten, Tageskarten) erscheinen nur dort; die Route teilt sich von
+  selbst, einmal je Route; eine andere Art macht wieder eine Tagestour. Der Schalter „1 Tag | Mehrere Tage“ entfällt.
+  Klicktest 382.
+
 - **05.11. (Mehrtagestour: Hütte und Tageszahl)** „Mehrere Tage“ schlägt die Zahl der Tage vor (R.tageVorschlag: höchstens
   etwa 6,5 h am Tag, 2 bis 30 Tage; Auswahl um den Vorschlag mit ★); neue Übernachtungen landen auf der nächsten Hütte
   oder Unterkunft bis 2 km (R.unterkunftAbfrage/R.unterkunftWahl, Overpass; Berghütte vor Gasthof, Herberge, Hotel,

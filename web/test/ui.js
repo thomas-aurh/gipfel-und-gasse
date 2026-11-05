@@ -248,7 +248,7 @@ function pruef(name, bed, info) {
   pruef('Planen: Reiter Route · Überblick · Vorbereiten, Route offen', await page.isVisible('#planReiter') && (await page.getAttribute('#planReiter [data-plan=route]', 'aria-selected')) === 'true' &&
     await page.isVisible('#profilwahl') && await page.isHidden('#profil') && await page.isHidden('#bTourWetter'));
   await planReiter(page, 'vorbereiten');
-  pruef('Planen: Vorbereiten mit Tag, Startzeit, Wetter und Packliste', await page.isVisible('#startZeit') && await page.isVisible('#bTourWetter') && await page.isVisible('#ergebnis [data-pack]') && await page.isHidden('#profilwahl'));
+  pruef('Planen: Vorbereiten mit Tag, Startzeit, Wetter und Packliste', await page.isVisible('#startZeit') && await page.isVisible('#bTourWetter') && await page.isVisible('#ergebnis [data-pack]') && await page.isHidden('#stopps'));
   await planReiter(page, 'ueberblick');
   pruef('Planen: Überblick mit Zahlen, Profil und Wegtypen', await page.isVisible('#zLaenge') && await page.isVisible('#profil') && await page.isVisible('#wege'));
   pruef('Planen: „▶ Los“ in der Aktionsleiste', await page.isVisible('#bPlanLos') && !(await page.isDisabled('#bPlanLos')));
@@ -673,9 +673,11 @@ function pruef(name, bed, info) {
   await planReiter(page, 'vorbereiten'); await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // Mehrtagestour über den Schalter im Reiter Route: „Mehrere Tage“ teilt nach Gehzeit, 3 Tage, zurück zu 1 Tag
   await planReiter(page, 'route');
-  pruef('Tage: Schalter 1 Tag | Mehrere Tage im Reiter Route, 1 Tag gewählt', await page.isVisible('#tageBox') && (await page.getAttribute('#tageBox [data-tage="1"]', 'class')).includes('an') && await page.isHidden('#tageZahl'));
+  // Mehrtagestour als Art (Thomas, 05.11.): ganz oben „Mehrtagestour“ wählen, dann erscheinen ihre Optionen
+  pruef('Tage: bei Wandern keine Optionen der Mehrtagestour, Art oben im Blatt', await page.isHidden('#tageBox') && await page.evaluate(() =>
+    document.getElementById('einstellBox').getBoundingClientRect().top < document.getElementById('aktionen').getBoundingClientRect().top));
   const wpsVor = (await page.$$('.wp')).length;
-  await page.click('#tageBox [data-tage=mehr]');
+  await page.selectOption('#profilwahl', 'mehrtag');
   await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
   // je Tag eine Karte mit Datum, Strecke, Zeit und den Punkten dieses Tages (Übernachtung als letzter Punkt von Tag 1)
@@ -703,9 +705,9 @@ function pruef(name, bed, info) {
   pruef('Tage: neue Übernachtung auf der Hütte in der Nähe, mit Namen', huettenFrage.includes('around:2000') && (await page.textContent('#etappen')).includes('bis Testhütte') &&
     (await page.$$eval('.wp-name', l => l.map(x => x.textContent).join(' | '))).includes('🛏 Testhütte'), [await page.$$eval('.wp-name', l => l.map(x => x.textContent)), (await page.textContent('#meldung'))]);
   await page.unroute(/overpass-api\.de/, huettenRoute);
-  await page.click('#tageBox [data-tage="1"]');
+  await page.selectOption('#profilwahl', 'wandern');
   await page.waitForFunction(n => document.getElementById('etappen').hidden && document.querySelectorAll('.wp').length === n, wpsVor, { timeout: 8000 }).catch(() => {});
-  pruef('Tage: „1 Tag“ nimmt die gesetzten Punkte und Übernachtungen zurück', await page.isHidden('#etappen') && (await page.$$('.wp')).length === wpsVor, (await page.$$('.wp')).length);
+  pruef('Tage: Art „Wandern“ nimmt die gesetzten Punkte und Übernachtungen zurück', await page.isHidden('#etappen') && (await page.$$('.wp')).length === wpsVor, (await page.$$('.wp')).length);
   // am Element auslösen: die Karte kann sich nach dem Einpassen noch bewegen (Klick auf „nicht stabil“ hinge sonst)
   await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
   await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 });
@@ -1099,7 +1101,7 @@ function pruef(name, bed, info) {
   // ---------- Stadt ----------
   await page.click('[data-reiter=planen]');
   await page.click('#bNeu');
-  await page.click('.modus [data-modus=stadt]');
+  await planReiter(page, 'route'); await page.click('.modus [data-modus=stadt]');
   pruef('Stadtmodus: Stadtplan, Sehenswürdigkeiten, Stadtspaziergang', await page.evaluate(() =>
     document.querySelector('input[name=basis][value=osm]').checked && document.querySelector('#lageSehens').checked && document.querySelector('#profilwahl').value === 'stadt'));
   await page.fill('#suchfeld', 'Testg');
@@ -1209,7 +1211,7 @@ function pruef(name, bed, info) {
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
   pruef('Nach dem Drucken wieder normal, Dunkelmodus zurück', await page.evaluate(() => !document.body.classList.contains('druck') && document.documentElement.dataset.thema === 'dunkel'));
   await themaWahl('automatisch');
-  await page.click('.modus [data-modus=berg]');
+  await planReiter(page, 'route'); await page.click('.modus [data-modus=berg]');
   pruef('Zurück in Berg: topografisch, Wanderwege', await page.evaluate(() => document.querySelector('input[name=basis][value=topo]').checked && document.querySelector('#lageWander').checked && !document.querySelector('#lageSehens').checked));
 
   // Löschen mit Rückfrage
