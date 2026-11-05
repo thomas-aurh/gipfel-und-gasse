@@ -90,14 +90,38 @@ function demRoh(p, z, x, y) {
   return v;
 }
 
+// Höhenkacheln aus dem Netz (Mapzen Terrain Tiles bei AWS, dieselben Daten wie in den Paketen) für die Hangneigung
+// ohne Kartenpaket; ohne Netz null
+const HOEHE_NETZ = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/';
+function demRohNetz(z, x, y) {
+  const k = 'netz/' + z + '/' + x + '/' + y;
+  if (demSpeicher.has(k)) { const v = demSpeicher.get(k); demSpeicher.delete(k); demSpeicher.set(k, v); return v; }
+  const v = (async () => {
+    const antwort = await fetch(HOEHE_NETZ + z + '/' + x + '/' + y + '.png');
+    if (!antwort.ok) return null;
+    const bild = await createImageBitmap(await antwort.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    const cv = document.createElement('canvas');
+    cv.width = bild.width; cv.height = bild.height;
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(bild, 0, 0);
+    return { g: bild.width, h: R.terrariumGitter(g.getImageData(0, 0, bild.width, bild.height).data) };
+  })().catch(() => null);
+  demSpeicher.set(k, v);
+  if (demSpeicher.size > 96) demSpeicher.delete(demSpeicher.keys().next().value);
+  // fehlgeschlagen (kein Netz): nicht merken, beim nächsten Mal neu fragen
+  v.then(r => { if (!r && demSpeicher.get(k) === v) demSpeicher.delete(k); });
+  return v;
+}
+
 // Höhengitter mit 1 Pixel Rand (258×258) für eine Kartenkachel; über der höchsten Stufe des Pakets hochgerechnet
-async function demGitter(p, z, x, y) {
-  const s = Math.min(z, p.hoehe_maxzoom || 12);
+function demGitter(p, z, x, y) { return demGitterAus((s, tx, ty) => demRoh(p, s, tx, ty), p.hoehe_maxzoom || 12, z, x, y); }
+async function demGitterAus(roh, maxz, z, x, y) {
+  const s = Math.min(z, maxz);
   if (z - s > 8) return null;
   const quellen = R.randKacheln(x, y, z, s);
   const geladen = {};
   await Promise.all(quellen.map(async ([tx, ty]) => {
-    const r = await demRoh(p, s, tx, ty);
+    const r = await roh(s, tx, ty);
     if (r && r.g === 256) geladen[tx + ',' + ty] = r.h;
   }));
   if (!geladen[Math.floor(x / Math.pow(2, z - s)) + ',' + Math.floor(y / Math.pow(2, z - s))]) return null;
@@ -299,6 +323,43 @@ async function reliefZeichnen(kachel, c) {
   }
 }
 const RAD_GRAD = Math.PI / 180;
+
+// ---------- Hangneigung als Kartenebene (ab 30°), aus dem Kartenpaket oder aus dem Netz ----------
+// Grob: das Höhenmodell hat 10 m (Österreich) bis 30 m Auflösung, kleine Steilstufen und Rinnen fehlen. Keine
+// Lawinenbeurteilung; dafür verweist die Legende auf den Lagebericht
+const HANG_NETZ_MAX = 13;   // feiner haben die Daten im Netz kaum etwas; darüber wird weich vergrößert
+const Hang = L.GridLayer.extend({
+  createTile(c, fertig) {
+    const kachel = document.createElement('canvas');
+    kachel.width = kachel.height = 256;
+    hangZeichnen(kachel, c).then(() => fertig(null, kachel), e => fertig(e, kachel));
+    return kachel;
+  }
+});
+async function hangZeichnen(kachel, c) {
+  const n = Math.pow(2, c.z);
+  const lonW = c.x / n * 360 - 180, lonO = (c.x + 1) / n * 360 - 180;
+  const breite = t => Math.atan(Math.sinh(Math.PI * (1 - 2 * t / n))) / RAD_GRAD;
+  const latN = breite(c.y), latS = breite(c.y + 1);
+  const p = OFF.installiert.find(q => q.bbox && hoehenQuelle(q) && lonO >= q.bbox[0] && lonW <= q.bbox[2] && latN >= q.bbox[1] && latS <= q.bbox[3]);
+  const roh = p ? (s, tx, ty) => demRoh(p, s, tx, ty) : demRohNetz;
+  const maxz = p ? (p.hoehe_maxzoom || 12) : HANG_NETZ_MAX;
+  const sz = Math.min(c.z, maxz), dz = c.z - sz, px = c.x >> dz, py = c.y >> dz;
+  const h = await demGitterAus(roh, maxz, sz, px, py);
+  if (!h) return;
+  const grad258 = R.hangneigung(h, 258, 258, R.meterJePixel(sz, (latN + latS) / 2));
+  const teil = 256 / Math.pow(2, dz);
+  const grad = R.aufziehen(grad258, 258, 1 + (c.x - (px << dz)) * teil, 1 + (c.y - (py << dz)) * teil, teil, 256);
+  const g = kachel.getContext('2d'), bild = g.createImageData(256, 256), d = bild.data;
+  for (let i = 0; i < 65536; i++) {
+    const f = R.hangFarbe(grad[i]);
+    if (!f) continue;
+    d[4 * i] = f[0]; d[4 * i + 1] = f[1]; d[4 * i + 2] = f[2]; d[4 * i + 3] = 255;
+  }
+  g.putImageData(bild, 0, 0);
+}
+LAGEN.hang = new Hang({ minZoom: 12, maxZoom: 19, zIndex: 3, opacity: 0.5, attribution: 'Hangneigung aus Mapzen Terrain Tiles (SRTM, EU-DEM, Österreich 10 m u. a.)' });
+lagenAnwenden();
 
 // ---------- Ebenen aufbauen, wenn sich die installierten Pakete ändern ----------
 function offlineEbenen() {
