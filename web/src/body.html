@@ -287,7 +287,6 @@
 
       <!-- Unterwegs -->
       <section data-reiter="unterwegs">
-        <div class="tipp" id="unterwegsHinweis">Im Browser den Bildschirm anlassen: gesperrt hält der Browser das GPS an.</div>
         <div id="gpsStatus" class="klein" style="margin-top:8px">GPS aus.</div>
         <h3>Route folgen</h3>
         <!-- vor dem Start: welche Tour, wie lang; dann Tag, „Los“, Führung; die Zahlen darunter füllen sich unterwegs -->
@@ -392,8 +391,6 @@
 
       <!-- Gipfelbuch: Gipfel aus gegangenen Touren -->
       <section data-reiter="gipfelbuch">
-        <p class="tipp">Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
-          aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</p>
         <div id="gbZahlen" class="zahlen" hidden></div>
         <ul id="gbListe" class="liste"></ul>
         <div class="zeile"><button class="knopf" id="gbSuchen">🔍 Gegangene Touren durchsuchen</button></div>
@@ -432,8 +429,6 @@
       <!-- Reisetagebuch: Reisen mit Zeitraum, Einträge mit Text, Fotos, Ort und Wetter -->
       <section data-reiter="tagebuch">
         <div id="tbUebersicht">
-          <p class="tipp">Für Urlaub und Ausflüge: je Reise Einträge mit Text und Fotos, Ort und Wetter kommen von selbst dazu.
-            Alles bleibt auf diesem Gerät; „Sicherung speichern“ nimmt es mit.</p>
           <div class="zeile"><button class="knopf haupt" id="tbHeute" hidden>✍️ Eintrag für heute</button>
             <button class="knopf" id="tbNeueReise">＋ Neue Reise</button></div>
           <ul id="tbReisen" class="liste"></ul>
@@ -474,7 +469,6 @@
       <!-- Reiseziele: Listen mit Orten (eintippen oder aus einer Datei), Sterne auf der Karte -->
       <section data-reiter="ziele">
         <div id="zlUebersicht">
-          <p class="tipp">Ideen fürs nächste Mal sammeln: Gipfel, Städte, Seen, Hütten. Je Liste beliebig viele Ziele; sie stehen als ⭐ auf der Karte.</p>
           <div class="zeile">
             <label style="flex:1">Liste<select id="zlListe"></select></label>
             <button class="knopf" id="zlListeNeu" title="Neue Liste">＋ Liste</button>
@@ -539,6 +533,16 @@
 
       <!-- Info -->
       <section data-reiter="info">
+        <!-- Erklärtexte der Bereiche gesammelt hier statt oben in jedem Bereich -->
+        <h3>Die Bereiche kurz erklärt</h3>
+        <dl class="info-bereiche klein">
+          <dt>🧭 Unterwegs</dt><dd id="unterwegsHinweis">Im Browser den Bildschirm anlassen: gesperrt hält der Browser das GPS an.</dd>
+          <dt>📔 Reisetagebuch</dt><dd>Für Urlaub und Ausflüge: je Reise Einträge mit Text und Fotos, Ort und Wetter kommen von selbst dazu.
+            Alles bleibt auf diesem Gerät; „Sicherung speichern“ nimmt es mit.</dd>
+          <dt>⭐ Reiseziele</dt><dd>Ideen fürs nächste Mal sammeln: Gipfel, Städte, Seen, Hütten. Je Liste beliebig viele Ziele; sie stehen als ⭐ auf der Karte.</dd>
+          <dt>⛰️ Gipfelbuch</dt><dd>Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
+            aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</dd>
+        </dl>
         <h3>Was Gipfel &amp; Gasse ist</h3>
         <p>Ein Tourenplaner auf OpenStreetMap: Route planen, Höhenprofil, Gehzeit nach DIN 33466, Wegtypen und Untergrund,
           Orte entlang der Strecke, Wetter, GPX, unterwegs der Route folgen und aufzeichnen. Ohne Konto, ohne eigenen Server;
