@@ -336,6 +336,30 @@ const Hang = L.GridLayer.extend({
     return kachel;
   }
 });
+// Neigung je Höhenkachel nur einmal rechnen (darüber teilen sich bis zu 64 Kartenkacheln eine), zuletzt genutzte zuerst
+const hangSpeicher = new Map();
+function hangGitter(schluessel, rechnen) {
+  if (hangSpeicher.has(schluessel)) { const v = hangSpeicher.get(schluessel); hangSpeicher.delete(schluessel); hangSpeicher.set(schluessel, v); return v; }
+  const v = rechnen().catch(() => null);
+  hangSpeicher.set(schluessel, v);
+  if (hangSpeicher.size > 24) hangSpeicher.delete(hangSpeicher.keys().next().value);
+  v.then(r => { if (!r && hangSpeicher.get(schluessel) === v) hangSpeicher.delete(schluessel); });
+  return v;
+}
+// Farbe je halbem Grad als fertiges Pixel (RGBA in einem Wort), statt je Pixel R.hangFarbe zu fragen
+const HANG_FARBEN = (() => {
+  const t = new Uint32Array(181), b = new Uint8Array(t.buffer);
+  for (let i = 0; i <= 180; i++) { const f = R.hangFarbe(i / 2); if (f) { b[4 * i] = f[0]; b[4 * i + 1] = f[1]; b[4 * i + 2] = f[2]; b[4 * i + 3] = 255; } }
+  return t;
+})();
+// zwischen zwei Kacheln einen Bildaufbau zulassen, damit Verschieben der Karte flüssig bleibt
+let hangWarten = Promise.resolve();
+function hangReihe() {
+  const vorher = hangWarten;
+  let frei;
+  hangWarten = new Promise(r => { frei = r; });
+  return vorher.then(() => new Promise(r => (window.requestAnimationFrame || setTimeout)(() => r(frei))));
+}
 async function hangZeichnen(kachel, c) {
   const n = Math.pow(2, c.z);
   const lonW = c.x / n * 360 - 180, lonO = (c.x + 1) / n * 360 - 180;
@@ -345,20 +369,24 @@ async function hangZeichnen(kachel, c) {
   const roh = p ? (s, tx, ty) => demRoh(p, s, tx, ty) : demRohNetz;
   const maxz = p ? (p.hoehe_maxzoom || 12) : HANG_NETZ_MAX;
   const sz = Math.min(c.z, maxz), dz = c.z - sz, px = c.x >> dz, py = c.y >> dz;
-  const h = await demGitterAus(roh, maxz, sz, px, py);
-  if (!h) return;
-  const grad258 = R.hangneigung(h, 258, 258, R.meterJePixel(sz, (latN + latS) / 2));
-  const teil = 256 / Math.pow(2, dz);
-  const grad = R.aufziehen(grad258, 258, 1 + (c.x - (px << dz)) * teil, 1 + (c.y - (py << dz)) * teil, teil, 256);
-  const g = kachel.getContext('2d'), bild = g.createImageData(256, 256), d = bild.data;
-  for (let i = 0; i < 65536; i++) {
-    const f = R.hangFarbe(grad[i]);
-    if (!f) continue;
-    d[4 * i] = f[0]; d[4 * i + 1] = f[1]; d[4 * i + 2] = f[2]; d[4 * i + 3] = 255;
-  }
-  g.putImageData(bild, 0, 0);
+  const grad258 = await hangGitter((p ? p.id : 'netz') + '/' + sz + '/' + px + '/' + py, async () => {
+    const h = await demGitterAus(roh, maxz, sz, px, py);
+    return h ? R.hangneigung(h, 258, 258, R.meterJePixel(sz, (latN + latS) / 2)) : null;
+  });
+  if (!grad258) return;
+  const frei = await hangReihe();
+  try {
+    const teil = 256 / Math.pow(2, dz);
+    const grad = dz ? R.aufziehen(grad258, 258, 1 + (c.x - (px << dz)) * teil, 1 + (c.y - (py << dz)) * teil, teil, 256) : null;
+    const g = kachel.getContext('2d'), bild = g.createImageData(256, 256), d = new Uint32Array(bild.data.buffer);
+    for (let i = 0; i < 65536; i++) {
+      const v = grad ? grad[i] : grad258[((i >> 8) + 1) * 258 + (i & 255) + 1];
+      if (v >= 30) d[i] = HANG_FARBEN[Math.min(180, (v * 2) | 0)];
+    }
+    g.putImageData(bild, 0, 0);
+  } finally { frei(); }
 }
-LAGEN.hang = new Hang({ minZoom: 12, maxZoom: 19, zIndex: 3, opacity: 0.5, attribution: 'Hangneigung aus Mapzen Terrain Tiles (SRTM, EU-DEM, Österreich 10 m u. a.)' });
+LAGEN.hang = new Hang({ minZoom: 12, maxZoom: 19, zIndex: 3, opacity: 0.5, updateWhenZooming: false, attribution: 'Hangneigung aus Mapzen Terrain Tiles (SRTM, EU-DEM, Österreich 10 m u. a.)' });
 lagenAnwenden();
 
 // ---------- Ebenen aufbauen, wenn sich die installierten Pakete ändern ----------
