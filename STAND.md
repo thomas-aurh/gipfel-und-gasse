@@ -16,13 +16,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   verschieben) nicht auf dem Pixel gesehen; Taschenlampe beim Notsignal (CameraManager.setTorchMode) nicht auf dem Gerät
   geprüft, Ton bei stummem Handy unklar.
 
-- **Umbau für mehr Übersicht (04.11.):** Schritt 1 (Planen in Reitern, Bau 203) auf dem Pixel installiert; Schritt 2
-  (Mehrtagestour mit Schalter, Teilung nach Gehzeit, Liste nach Tagen, Farbe je Tag, Tag-Knöpfe unterwegs) gebaut, nur im
-  Klicktest geprüft. Offen aus Schritt 2: Tag-Chips im Blatt (nur diesen Tag zeigen); Hütte und Tageszahl (05.11.) nur im
-  Klicktest geprüft (echte Overpass-Antworten, ob 2 km und die Reihenfolge Hütte vor Hotel passen; ohne Netz keine Suche). Die von der App gesetzten Punkte merkt sie sich nur bis zum Speichern als
-  „automatisch“ (danach gelten sie als eigene Punkte und bleiben bei „1 Tag“). Schritt 3: Begriffe (Start, Stopp, Ziel, Übernachtung), Warnung ohne Startzeit neutral, Kartennachweis
-  kompakt (Attribution Guidelines der OSMF prüfen), Meldungen über dem Blatt mit Rückgängig, Unterwegs vor dem Start als
-  Tourkarte mit großem „▶ Los“. Offen auch: Berg/Stadt-Umschalter und Punktliste mit Ziehen statt ▲▼.
+- **Mehrtagestour (05.11.) nur im Klicktest geprüft:** Hütte und Tageszahl mit echten Overpass-Antworten (passen 2 km und
+  Hütte vor Hotel? ohne Netz keine Suche), Tag-Chips am Pixel. Von der App gesetzte Punkte gelten nur bis zum Speichern als
+  „automatisch“ (danach als eigene Punkte, sie bleiben bei einer Tagestour).
 
 - **Fotos unter „Ich“ (04.11.) nur im Klicktest geprüft:** Wischen im WebView, Ladezeit bei vielen Fotos (jedes Bild
   wird aus IndexedDB gelesen), Verknüpfung nur über den Tag (ohne Aufzeichnung an dem Tag kein „Zur Tour“).
@@ -95,10 +91,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Länge der Ansage, echte Wikipedia-Antworten (im Klicktest nachgebildet). Im Browser nur der Ladevorgang geprüft, das
   Vorlesen am Stopp braucht echtes GPS.
 - **Gipfelbuch (03.11.) nicht mit echten Daten geprüft:** Erkennung mit echtem Overpass und mit dem Kartenpaket in der App
-  (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht; Fotos aus dem Tagebuch am Gipfel sind noch nicht verknüpft.
+  (im Klicktest nachgebildet). Gipfel ohne Namen zählen nicht. Fotos vom Gipfel (05.11.) treffen nur, wenn das Foto
+  seinen Ort hat oder zur Zeit der Aufzeichnung entstand.
 - **Mehrtagestour:** seit 04.11. Startzeit je Tag, Folgen je Etappe (Browser und Dienst der App) und Etappen im Druck;
   nur im Klicktest geprüft (in der App nur die Übergabe an den Dienst nachgebildet, kein echtes Folgen auf dem Pixel).
-  Noch nicht gebaut: Etappen im Reisetagebuch-Heft. Die Startzeiten je Tag hängen an der Nummer des Tages: wer eine
+  Die Startzeiten je Tag hängen an der Nummer des Tages: wer eine
   Übernachtung davor einfügt oder streicht, verschiebt sie.
 - **Packliste (04.11.) nur im Klicktest geprüft:** ob die Dinge und Mengen auf echten Touren passen (Thomas' Urteil steht
   aus); Wetter kommt nur, wenn „Wetter für die Tour“ für denselben Plan geladen ist.
@@ -114,8 +111,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
 - **Ideen, nicht gebaut:** Notizen an Punkten der Tour;
-  kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket); Fotos aus dem
-  Tagebuch im Gipfelbuch.
+  kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket).
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
   (Liste je Punkt, UTC-Stunden, `elevation=nan`), im Browser und in der App aber nur mit nachgebildeter Antwort.
 - **Prüfdatum der Öffnungszeiten ohne Netz (#47):** in den Kartenpaketen seit dem Bau vom 03.11. abends (von Hand
@@ -124,6 +120,17 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Paket aktualisieren (Menü › Offline-Karten) und „Stand …“ in einem Ort-Fenster ohne Netz.
 
 ## Entscheidungen
+
+- **Planen-Reihenfolge** (05.11., Thomas): 1. Berg und Natur | Stadt, 2. Art und Tempo (Mehrtagestour ist eine Art, kein
+  eigener Schalter), 3. Einstiege, 4. Name der Tour, darunter ▶ Los · 💾 · ↶ · ✕ · ⏺ · ⋯. Erklärtexte stehen gesammelt
+  unter Menü › Info, nicht oben auf den Seiten (Thomas: „bündle solche Sachen“).
+- **Hangneigung selbst gerechnet** (05.11.): aus den Mapzen Terrain Tiles (offen, CORS, auch im Kartenpaket) statt einer
+  fremden Kartenebene (swisstopo deckt nur die Schweiz). Lawinengefahr bewusst nicht in der App, nur der Link zu den
+  Lageberichten (avalanches.org): eine veraltete oder falsch gelesene Gefahrenstufe wäre gefährlicher als keine.
+- **Rückkehr-Erinnerung ohne genauen Wecker** (05.11.): AlarmManager.setAndAllowWhileIdle, keine Erlaubnis
+  SCHEDULE_EXACT_ALARM (Sondererlaubnis in den Einstellungen); Android darf um einige Minuten verschieben, das reicht.
+- **Browser-Aufzeichnung im localStorage** (05.11.): alle 15 s und beim Verlassen; eine Lücke zählt als Pause, nach 12 h
+  ohne Sicherung nur noch speichern (sonst liefe eine vergessene Aufzeichnung am nächsten Tag weiter).
 
 - **Tourvorschläge aus offenen Daten** (04.11.): markierte Wanderwege aus OpenStreetMap statt kuratierter Touren, weil es
   keine offene Datenbank mit Tourvorschlägen gibt. Verworfen: Outdooractive/alpenvereinaktiv (Lizenz, Schlüssel läge offen
@@ -236,70 +243,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **05.11. (Tag-Chips, Etappen im Heft, Gipfelbuch-Fotos)** Chips „Alle Tage · Tag 1 · …“ über den Tageskarten (tagFokus:
-  Karte auf den Tag, andere Linien blass, nur dessen Karte offen); „Als Reise ins Tagebuch“ speichert die Etappen an der
-  Reise (`reisen[].etappen`, in R.tagebuchPruefen geprüft), das Heft zeigt sie als Tabelle und je Tag „Tag n: bis …“;
-  Gipfelbuch zeigt Tagebuch-Fotos bis 150 m vom Gipfel (R.gipfelFotos über R.fotoOrt). Einheitstests 311, Klicktest 418.
-  Damit ist die Liste 1–10 vom 05.11. abgearbeitet.
-
-- **05.11. (Hangneigung als Kartenebene)** R.hangneigung (Horn, Grad) und R.hangFarbe (30/35/40/45°); Ebene „hang“ ab
-  Zoom 12, Höhen aus dem Paket oder `s3.amazonaws.com/elevation-tiles-prod/terrarium` (CORS offen, bis Stufe 13, darüber
-  weich vergrößert); Legende mit Hinweis „keine Lawinenbeurteilung“ und Link zu avalanches.org. Mit echten Daten am
-  Zugspitzplatt angesehen (z12/14/16, nahtlos; an der Grenze AT 10 m / EU-DEM eine Datenkante). Einheitstests 309,
-  Klicktest 410.
-
-- **05.11. (Aufzeichnung im Browser gesichert, doppelte Foto-Kacheln)** Die Browser-Aufzeichnung steht alle 15 s und
-  beim Verlassen der Seite im Speicher (`gug.aufzSicherung`); nach Neuladen oder verworfenem Tab läuft sie weiter (Lücke
-  zählt als Pause), nach über 12 h ohne Sicherung nur zum Speichern; gespeichert ⇒ Sicherung gelöscht. fotosNeuZeigen
-  zählt die Aufrufe, nur der jüngste setzt Kacheln ein (Gegenprobe: Test fällt mit dem alten Code durch).
-  Klicktest 406.
-
-- **05.11. (Stopps ziehen, Rückgängig in der Meldung, breiteres Blatt)** Griff ≡ an jedem verschiebbaren Stopp
-  (Pointer-Events, auch in den Etappen-Karten), ▲▼ nur noch bei Maus; melde(text, sek, aktion) zeigt einen Knopf,
-  „↶ Rückgängig“ nach Punkt entfernen, Ordnen, Tage teilen und zurück zur Tagestour; Blatt am PC 440 statt 400 px.
-  Einheitstests 307, Klicktest 401.
-
-- **05.11. (Erinnerung als Mitteilung, alpines Notsignal)** „Bescheid geben“ stellt in der App eine Mitteilung von
-  Android zur geplanten Rückkehr (ErinnerungEmpfaenger, NaviPlugin.erinnern/erinnernAus), auch bei geschlossener App;
-  „Ankunft melden“ und „Aus“ löschen sie, „+1 h“ verschiebt sie. Notfall-Seite: alpines Notsignal (6 Zeichen je Minute,
-  dann eine Minute Pause; R.notsignalAn) mit Taschenlampe in der App (NaviPlugin.lampe), sonst weißer Bildschirm, dazu
-  Ton und Vibration; Hinweis auf die Notruf-App SOS-EU-ALP (DAV). Einheitstests 307, Klicktest 396.
-
-- **05.11. (Name über der Aktionsleiste, Thomas am Pixel, Bau 219)** „Name der Tour“ steht mit Route direkt über ▶ Los und
-  💾 Speichern statt unter Vorbereiten. Klicktest 390.
-
-- **05.11. (Bescheid geben, Hütten-Infos, Passt die Tour zu mir)** Aus der Recherche (komoot Live-Tracking, DAV:
-  Rückkehrzeit hinterlassen, DAV-BergwanderCheck): „📣 Bescheid geben“ mit Tour, Start, Rückkehr, Notruf-Hinweis und
-  Link (R.bescheidText), Erinnerung nach der geplanten Rückkehr, „✅ Ankunft melden“ (R.ankunftText); Tageskarte mit
-  Telefon, Webseite und Öffnung der Unterkunft (aus den OSM-Tags, R.telAdresse); „🧭 Passt die Tour zu mir?“ unter
-  Vorbereiten (R.tourCheck). Einheitstests 306, Klicktest 389.
-
-- **05.11. (Planen neu geordnet, Thomas am Pixel, Bau 215)** Reihenfolge: 1. Berg und Natur | Stadt, 2. Art und Tempo,
-  3. Hinweis, „Runde mit Länge“ (nur bei Laufen; unter „⋯“ für alle) und letzte Tour, 4. Aktionsleiste ▶ Los · 💾 · ↶ · ✕ ·
-  ⏺ Aufzeichnen · ⋯. Einstieg „Stadtrundgang“ entfernt (führte nur zu Entdecken, dort steht der Rundgang). Klicktest 383.
-
-- **05.11. (Planen umgeordnet, Mehrtagestour als Art; Thomas am Pixel, Bau 213)** Art und Tempo ganz oben im Blatt, Berg/Stadt
-  ans Ende des Reiters Route (ohne Route unter den Einstiegen). Neue Art „Mehrtagestour“ (Profil `mehrtag`, geroutet wie
-  Wandern): ihre Optionen (Tage mit ★-Vorschlag, Hütten, Tageskarten) erscheinen nur dort; die Route teilt sich von
-  selbst, einmal je Route; eine andere Art macht wieder eine Tagestour. Der Schalter „1 Tag | Mehrere Tage“ entfällt.
-  Klicktest 382.
-
-- **05.11. (Mehrtagestour: Hütte und Tageszahl)** „Mehrere Tage“ schlägt die Zahl der Tage vor (R.tageVorschlag: höchstens
-  etwa 6,5 h am Tag, 2 bis 30 Tage; Auswahl um den Vorschlag mit ★); neue Übernachtungen landen auf der nächsten Hütte
-  oder Unterkunft bis 2 km (R.unterkunftAbfrage/R.unterkunftWahl, Overpass; Berghütte vor Gasthof, Herberge, Hotel,
-  Zeltplatz), mit Namen; ohne Treffer oder Netz bleiben sie auf der Route. Einheitstests 298, Klicktest 382.
-
-- **05.11. (Unterwegs und Info, Thomas am Pixel, Bau 209)** Unterwegs ohne Route mit Knöpfen „✏️ Route planen“ und „🥾 Tour
-  öffnen“ statt Text (und ohne „Route folgen“); die Erklärtexte oben in Unterwegs, Reisetagebuch, Reiseziele und Gipfelbuch
-  stehen jetzt gesammelt unter Menü › Werkzeuge › Info („Die Bereiche kurz erklärt“). Klicktest 380.
-
-- **05.11. (Schritt 3a, Prüfbericht Browser Use vom 04.11.)** Leiste am PC mit allen fünf Bereichen (vorher abgeschnitten
-  mit Rollbalken); aktiver Bereich mit `aria-current`, Seitentitel als Überschrift; Bedienflächen mindestens 44 px;
-  bei 320 px Berg/Stadt, Aktionsleiste und Reiter ohne Umbruch; Kartennachweis am Telefon einzeilig mit „Kartendaten ©
-  OpenStreetMap-Mitwirkende“ vorn, Antippen klappt ihn auf (OSMF-Attribution-Guidelines erlauben das Einklappen, die Tile
-  Usage Policy verlangt die sichtbare OSM-Nennung; Leaflet-Vorspann weg); Begriffe Start, Stopp n, Übernachtung, Ziel;
-  Unterwegs vor dem Start eine Karte der Tour über „▶ Route folgen“. Klicktest 376. Zurückgestellt: eigene Symbole statt
-  Emoji (fehlen auf Rechnern ohne Emoji-Schrift), doppelte Suchtreffer (erst an mehreren Begriffen prüfen).
+- **05.11. (PRs bis #88, Bau 231)** Schritt 3a (Leiste am PC, 44 px, 320 px, Kartennachweis einzeilig, Begriffe);
+  Unterwegs ohne Route mit Knöpfen, Erklärtexte unter Menü › Info; Planen neu geordnet (Berg/Stadt, Art/Tempo mit neuer
+  Art „Mehrtagestour“, Einstiege, Aktionsleiste; Name über ▶ Los; von Thomas am Pixel geprüft bis Bau 221); Mehrtagestour
+  mit Tagesvorschlag ★, Hütten bis 2 km, Tag-Chips und Etappen im Heft; „📣 Bescheid geben“ mit Android-Mitteilung zur
+  Rückkehr, „Passt die Tour zu mir?“, Hütten-Infos; alpines Notsignal und SOS-EU-ALP; Stopps am Griff ≡ ziehen,
+  „↶ Rückgängig“ in Meldungen, Blatt am PC 440 px; Browser-Aufzeichnung übersteht Neuladen, keine doppelten Foto-Kacheln;
+  Hangneigung als Kartenebene; Fotos vom Gipfel im Gipfelbuch. Einheitstests 311, Klicktest 418.
 
 - **04.11. (Abend, Tage gebündelt)** Thomas am Pixel (Bau 205): „Hier sollten die Infos zu den Tagen gebündelt sein.“ Jetzt
   je Tag eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start und den Punkten dieses Tages (Übernachtung als letzter
