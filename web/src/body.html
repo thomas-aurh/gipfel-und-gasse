@@ -134,6 +134,8 @@
             <button class="einstieg" id="eLetzte" hidden><span>🕘</span><b>Letzte Tour</b><small id="eLetzteName"></small></button>
           </div>
         </div>
+        <!-- Name der Tour über „Los“ und „Speichern“ (Thomas, 05.11.), sobald eine Route steht -->
+        <div class="zeile" id="nameZeile" hidden><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
         <div id="aktionen">
           <button class="knopf haupt" id="bPlanLos" title="Losgehen: der Route folgen">▶ Los</button>
           <button class="knopf" id="bSpeichern" aria-label="Speichern">💾<span class="txt2"> Speichern</span></button>
@@ -209,7 +211,6 @@
               <option value="45">45 min</option><option value="60">1 h</option><option value="90">1:30 h</option><option value="120">2 h</option>
             </select></label>
           </div>
-          <div class="zeile"><label>Name der Tour<input type="text" id="tourname" placeholder="z. B. Rundweg zum Gipfel"></label></div>
           </div>
         </div>
             <div id="tourCheckBox"><h3>🧭 Passt die Tour zu mir?</h3><ul id="tourCheck" class="tour-check"></ul>

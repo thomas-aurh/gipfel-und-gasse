@@ -230,6 +230,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **05.11. (Name über der Aktionsleiste, Thomas am Pixel, Bau 219)** „Name der Tour“ steht mit Route direkt über ▶ Los und
+  💾 Speichern statt unter Vorbereiten. Klicktest 390.
+
 - **05.11. (Bescheid geben, Hütten-Infos, Passt die Tour zu mir)** Aus der Recherche (komoot Live-Tracking, DAV:
   Rückkehrzeit hinterlassen, DAV-BergwanderCheck): „📣 Bescheid geben“ mit Tour, Start, Rückkehr, Notruf-Hinweis und
   Link (R.bescheidText), Erinnerung nach der geplanten Rückkehr, „✅ Ankunft melden“ (R.ankunftText); Tageskarte mit
