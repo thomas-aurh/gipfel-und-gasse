@@ -1,7 +1,7 @@
 <style>
 :root{--gruen:#2f6b3a;--haupt:#2f6b3a;--gruen2:#e7f1e4;--route:#e5532d;--text:#1c2620;--grau:#68736b;--linie:#e3e8e0;--hg:#f4f6f2;
   --karte:#fff;--feld:#fff;--spur:#edf1ea;--kartengrund:#e9ede6;--warn:#fff3d9;--fehlerhg:#fde7e1;--fehlertext:#7a1f14;
-  --schatten:0 1px 2px #0000000f,0 3px 10px #00000014;--schatten-gross:0 6px 24px #00000026;--radius:14px;--panel:400px;
+  --schatten:0 1px 2px #0000000f,0 3px 10px #00000014;--schatten-gross:0 6px 24px #00000026;--radius:14px;--panel:440px;
   font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text);color-scheme:light}
 /* Dunkelmodus: nach der Einstellung des Geräts oder fest gewählt (Menü › Darstellung) */
 :root[data-thema=dunkel]{--gruen:#86d394;--haupt:#3e8a4c;--gruen2:#23382a;--text:#e6ebe7;--grau:#9aa69d;--linie:#2c3538;--hg:#111517;
@@ -67,9 +67,9 @@ body[data-seite]:not([data-seite=planen]):not([data-seite=karte]) #bKreuz{displa
 body.ohneBlatt{--panel:0px}
 @media (min-width:761px){
   /* am PC: nur der Kopf mit Titel und den vier Hauptbereichen bleibt als Karte links oben, die Karte nutzt die volle Breite */
-  body.ohneBlatt #panel{bottom:auto;width:400px;border-radius:0 0 14px 0}
+  body.ohneBlatt #panel{bottom:auto;width:440px;border-radius:0 0 14px 0}
   body.ohneBlatt #panel .inhalt{display:none}
-  body.ohneBlatt #oben{left:412px}
+  body.ohneBlatt #oben{left:452px}
 }
 #suchfeld{width:100%;padding:11px 14px 11px 38px;border:0;border-radius:12px;box-shadow:var(--schatten);background:var(--karte) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%236b756d' stroke-width='2'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='M12.5 12.5L17 17'/%3E%3C/svg%3E") 12px 50% no-repeat}
 #suchfeld:focus{outline:2px solid var(--gruen)}
@@ -222,6 +222,14 @@ nav.reiter#leiste button span{margin:0;font-size:18px;line-height:1.1}
 .huette-info a{margin-right:10px}
 #notsignalBlitz{position:fixed;inset:0;background:#fff;z-index:9000;pointer-events:none}
 #bNotsignal[aria-pressed=true]{background:#c62828;color:#fff;border-color:#c62828}
+#meldung.mitKnopf{pointer-events:auto;display:flex;align-items:center;gap:12px}
+#meldung button{border:0;background:none;color:#9fe3ad;font:700 14px system-ui,sans-serif;padding:6px 2px;min-height:36px;white-space:nowrap}
+/* 3. Stopps ziehen: Griff ≡; am Touchscreen ersetzt er ▲▼ */
+.stopp .griff{touch-action:none;cursor:grab;font-size:18px;color:var(--grau);min-width:32px;min-height:40px;border:0;background:none;padding:0}
+.stopp.zieht{background:var(--karte);box-shadow:0 4px 14px #0003;position:relative;z-index:5;border-radius:8px}
+.stopp.ziel-ober{box-shadow:inset 0 3px 0 var(--gruen)}
+.stopp.ziel-unter{box-shadow:inset 0 -3px 0 var(--gruen)}
+@media (pointer:coarse){.stopp .schieben{display:none}}
 #tbBildTeilen{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff3;color:#fff;font:600 15px system-ui,sans-serif}
 #tbBildZu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#fff3;color:#fff;font-size:20px}
 #lagenwahl{position:absolute;right:62px;top:calc(10px + env(safe-area-inset-top,0px));z-index:1001;background:var(--karte);border-radius:12px;box-shadow:0 4px 16px #0003;padding:10px 14px;min-width:220px}

@@ -6,12 +6,22 @@ const NATIV = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform ==
   typeof window.Capacitor.registerPlugin === 'function');
 
 let meldUhr = null;
-function melde(text, sek) {
+// aktion: { text, tun } zeigt einen Knopf in der Meldung (z. B. „↶ Rückgängig“)
+function melde(text, sek, aktion) {
   const m = $('meldung');
   m.textContent = text;
+  m.classList.toggle('mitKnopf', !!aktion);
+  if (aktion) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = aktion.text || '↶ Rückgängig';
+    b.onclick = () => { m.textContent = ''; m.classList.remove('mitKnopf'); aktion.tun(); };
+    m.appendChild(b);
+  }
   clearTimeout(meldUhr);
-  meldUhr = setTimeout(() => { m.textContent = ''; }, (sek || 3.5) * 1000);
+  meldUhr = setTimeout(() => { m.textContent = ''; m.classList.remove('mitKnopf'); }, (sek || (aktion ? 7 : 3.5)) * 1000);
 }
+// Rückgängig aus einer Meldung: derselbe Schritt wie ↶ in der Aktionsleiste
+const RUECK = { text: '↶ Rückgängig', tun: () => $('bZurueck').click() };
 
 const SPEICHER = {
   lesen(k, ersatz) { try { const v = localStorage.getItem('gug.' + k); return v == null ? ersatz : JSON.parse(v); } catch (e) { return ersatz; } },

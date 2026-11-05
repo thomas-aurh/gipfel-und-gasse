@@ -227,6 +227,7 @@ function pruef(name, bed, info) {
   await page.keyboard.press('Escape');
   await page.click('[data-reiter=karte]');
   pruef('Karte: keine Seite mehr aktiv (nichts per Tastatur erreichbar)', await page.evaluate(() => !document.querySelector('.inhalt>section.an') && document.body.classList.contains('ohneBlatt')));
+  pruef('PC: Blatt 440 px breit', await page.evaluate(() => Math.round(document.getElementById('panel').getBoundingClientRect().width)) === 440, await page.evaluate(() => document.getElementById('panel').getBoundingClientRect().width));
   await page.click('[data-reiter=planen]');
   pruef('Logo und Seitentitel im Kopf, Name im Menü', await page.evaluate(() => !!document.querySelector('#logo svg') && document.querySelector('.marke').textContent.includes('Tour planen') &&
     document.querySelector('.menue-kopf').textContent.includes('Gipfel & Gasse')));
@@ -1961,6 +1962,30 @@ function pruef(name, bed, info) {
   await pf.click('#bZurueck'); await pf.click('#bZurueck');
   await pf.waitForFunction(v => JSON.stringify(JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lat)) === v, JSON.stringify(tvorher), { timeout: 8000 }).catch(() => {});
   pruef('Stopps: Rückgängig holt die alte Reihenfolge', JSON.stringify(await treihe()) === JSON.stringify(tvorher), await treihe());
+  // Ziehen am Griff ≡: den zweiten Stopp unter den dritten ziehen
+  await planReiter(pf, 'route');
+  pruef('Stopps: Griff zum Ziehen nur an verschiebbaren Zeilen', (await pf.$$('#stopps .stopp .griff')).length === 3 && (await pf.$$('#stopps .stopp:nth-child(1) .griff')).length === 0);
+  {
+    const g = await pf.$('#stopps .stopp:nth-child(2) .griff'), gb = await g.boundingBox();
+    const z3 = await (await pf.$('#stopps .stopp:nth-child(3)')).boundingBox();
+    await pf.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await pf.mouse.down();
+    await pf.mouse.move(gb.x + gb.width / 2, z3.y + z3.height * 0.8, { steps: 6 });
+    const markiert = await pf.$$('#stopps .stopp.ziel-unter');
+    await pf.mouse.up();
+    await pf.waitForFunction(v => JSON.parse(localStorage.getItem('gug.entwurf')).wps[1].lat !== v, tvorher[1], { timeout: 8000 }).catch(() => {});
+    pruef('Stopps: Ziehen am Griff verschiebt den Stopp (mit Linie, wo er landet)', markiert.length === 1 && JSON.stringify(await treihe()) === JSON.stringify([tvorher[0], tvorher[2], tvorher[1], tvorher[3]]), await treihe());
+  }
+  // Punkt entfernen meldet sich mit „Rückgängig“ in der Meldung
+  await planReiter(pf, 'route');
+  await pf.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await pf.waitForSelector('.leaflet-popup button:has-text("Punkt entfernen")', { timeout: 5000 });
+  await pf.evaluate(() => [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Punkt entfernen')).click());
+  await pf.waitForSelector('#meldung button', { timeout: 3000 }).catch(() => {});
+  pruef('Meldung: „entfernt.“ mit Knopf Rückgängig', (await pf.textContent('#meldung')).includes('entfernt.') && (await pf.textContent('#meldung button')) === '↶ Rückgängig' &&
+    (await treihe()).length === 3, await pf.textContent('#meldung'));
+  await pf.click('#meldung button');
+  await pf.waitForFunction(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.length === 4, null, { timeout: 8000 }).catch(() => {});
+  pruef('Meldung: Rückgängig holt den Punkt zurück, Meldung weg', (await treihe()).length === 4 && !(await pf.textContent('#meldung')).includes('entfernt'), await treihe());
   // Wanderwege in der Nähe: markierte Routen (Overpass hier nachgebildet), Verlauf zeigen, als Tour übernehmen
   const wegeRoute = async r => {
     const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
