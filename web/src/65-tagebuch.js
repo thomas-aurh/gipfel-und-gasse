@@ -430,17 +430,25 @@ function eintragFormular(id) {
 }
 
 // Fotos im Formular: vorhandene (Kennung) und neue (noch nicht gespeichert)
+// Jeder Aufruf zählt hoch; nur der jüngste setzt seine Kacheln ein. Vorher hängten zwei schnelle Aufrufe (Foto dazu und
+// eins entfernen, während die alten noch geladen wurden) beide ihre Kacheln an: Fotos erschienen doppelt
+let fotosNeuNr = 0;
 async function fotosNeuZeigen(alte) {
-  tbUrlsFrei();
-  const g = $('tbFotosNeu');
-  g.innerHTML = '';
+  const nr = ++fotosNeuNr;
+  const kacheln = [];
   for (const f of alte || []) {
     if (TB.weg.includes(f)) continue;
     try {
       const b = await FOTOS.holen(f);
-      if (b) g.appendChild(fotoKachel(b, () => { TB.weg.push(f); fotosNeuZeigen(alte); }));
+      if (nr !== fotosNeuNr) return;
+      if (b) kacheln.push(() => fotoKachel(b, () => { TB.weg.push(f); fotosNeuZeigen(alte); }));
     } catch (err) { /* fehlt */ }
   }
+  if (nr !== fotosNeuNr) return;
+  tbUrlsFrei();
+  const g = $('tbFotosNeu');
+  g.innerHTML = '';
+  kacheln.forEach(k => g.appendChild(k()));
   TB.neu.forEach((n, i) => g.appendChild(fotoKachel(n.blob, () => { TB.neu.splice(i, 1); fotosNeuZeigen(alte); })));
 }
 const alteFotos = () => { const e = TB.eintrag && tagebuchLesen().eintraege.find(x => x.id === TB.eintrag); return e ? e.fotos : []; };

@@ -157,7 +157,9 @@ Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
 
 **Notfall:** Menü ☰ › *Notfall*: „🔦 Notsignal geben“ (alpines Notsignal: sechs Zeichen je Minute, eine Minute Pause; in der App mit der Taschenlampe, sonst blinkt der Bildschirm, dazu Ton und Vibration), Hinweis auf die Notruf-App SOS-EU-ALP; Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
-**Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Danach darf der Bildschirm aus:
+**Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Im Browser sichert die
+Seite die Aufzeichnung laufend; wird der Tab neu geladen oder vom Browser verworfen, zeichnet sie danach weiter (über 12 h
+alt: nur noch speichern). Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
 abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an, warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
 App oder direkt in der Mitteilung. Mit „🎧 Führung“ liest die App an jedem Stopp mit Wikipedia-Artikel dessen Kurzinfo vor
