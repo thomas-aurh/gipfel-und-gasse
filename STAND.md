@@ -126,6 +126,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Gerätetest im Emulator** (05.11.): Debug-APK in Android 14 (x86_64) in GitHub Actions, Oberfläche direkt über das
+  DevTools-Protokoll der WebView. Verworfen: Playwright `connectOverCDP` (die WebView kennt keine Browser-Kontexte, Lauf
+  vom 05.11. scheiterte daran). Der Job hält die APK nicht auf (`apk` braucht ihn nicht), muss aber vor dem Merge grün sein.
+- **Overpass mit frühem zweitem Server** (05.11., nur Hüttensuche): nach 6 s parallel overpass.private.coffee, die erste
+  Antwort zählt. Grund: Zeitüberschreitung am Pixel; vorher 30 s Warten je Server. Andere Abfragen bleiben nacheinander
+  (keine doppelte Last ohne Not).
+
 - **Planen-Reihenfolge** (05.11., Thomas): 1. Berg und Natur | Stadt, 2. Art und Tempo (Mehrtagestour ist eine Art, kein
   eigener Schalter), 3. Einstiege, 4. Name der Tour, darunter ▶ Los · 💾 · ↶ · ✕ · ⏺ · ⋯. Erklärtexte stehen gesammelt
   unter Menü › Info, nicht oben auf den Seiten (Thomas: „bündle solche Sachen“).
@@ -248,13 +255,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **05.11. (abends: Hüttensuche)** Nach Thomas' Test (Zeitüberschreitung): Unterkünfte erst aus dem Kartenpaket
-  (unterkunftOffline), dann Overpass mit frühem zweitem Server (overpassHolen mit `frueh`), „🔍 Nochmal suchen“.
-  Klicktest 422.
-
-- **05.11. (abends: Drucken, BRouter, Emulator)** Drucken und Heft im Handy-Browser: Rückkehr erst bei afterprint oder dem
-  ersten Antippen (nachDruck), nicht mehr nach 500 ms, wenn print sofort zurückkehrt. BRouter höchstens drei gleichzeitig
-  (R.warteschlange übergibt den Platz direkt; Gegenprobe: die alte ließ vier zu). Neuer Job `emulator` in GitHub Actions.
+- **05.11. (abends, PRs #90 bis #94, Bau 243)** Hangneigung flüssig (Neigung je Höhenkachel einmal, Farbtabelle, eine
+  Kachel je Bild; #91). Drucken und Heft im Handy-Browser erst nach der Vorschau zurück (nachDruck); BRouter wirklich
+  höchstens drei gleichzeitig (R.warteschlange, Gegenprobe: die alte ließ vier zu); Gerätetest im Emulator (Job `emulator`,
+  10 Schritte; #92). Hüttensuche: Kartenpaket zuerst, zweiter Overpass-Server nach 6 s, „🔍 Nochmal suchen“ (#93).
+  Markdown-Dateien untereinander verlinkt (#94). Einheitstests 312, Klicktest 422.
 
 - **05.11. (PRs bis #88, Bau 231)** Schritt 3a (Leiste am PC, 44 px, 320 px, Kartennachweis einzeilig, Begriffe);
   Unterwegs ohne Route mit Knöpfen, Erklärtexte unter Menü › Info; Planen neu geordnet (Berg/Stadt, Art/Tempo mit neuer

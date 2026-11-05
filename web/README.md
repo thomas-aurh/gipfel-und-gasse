@@ -52,6 +52,11 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
   bewegt sich nach dem Einpassen noch, Playwright wartet dann auf „stabil“ bis zur Zeitüberschreitung.
 - Nach einer Änderung auf das Ergebnis warten (`waitForFunction`), nicht sofort lesen.
 - Testdaten (Touren, Reisen), die spätere Schritte nicht erwarten, am Ende des Schritts wieder entfernen.
+- Eine Umleitung (`page.route`) erst aufheben, wenn ihre Anfrage beantwortet ist: sonst geht die hängende Anfrage ins
+  echte Netz (in der Cloud gesperrt, gibt einen Skriptfehler). Absichtliche Fehler der Dienste (400, 504) filtert die
+  Prüfung „Keine Skriptfehler“, andere nicht.
+- Gerätetest `test/emulator.js` nur in GitHub Actions (Job `emulator`, kein Android in der Cloud): die WebView über das
+  DevTools-Protokoll ansprechen, nicht mit Playwright (`connectOverCDP` scheitert an fehlenden Browser-Kontexten).
 
 ## Aufbau
 
