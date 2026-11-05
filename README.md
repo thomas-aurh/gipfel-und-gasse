@@ -96,13 +96,13 @@ derselben Grenze filtern.
 wählen: Die App nimmt die bekanntesten Orte, so viele in die Zeit passen (Weg samt Besichtigung), misst nach dem Routen nach
 und lässt bei Bedarf den letzten Ort weg.
 
-**Mehrtagestour:** Im Reiter *Route* der Schalter **„☀️ 1 Tag | 🛏 Mehrere Tage“**. „Mehrere Tage“ schlägt die Zahl der Tage
+**Mehrtagestour:** Ganz oben in *Planen* die Art **„🛏 Mehrtagestour“** wählen (geroutet wie Wandern): die App schlägt die Zahl der Tage
 vor (höchstens etwa 6,5 h Gehzeit am Tag, bis 30 Tage, ★ in der Auswahl) und teilt die Tour nach Gehzeit in gleich lange Tage: liegt ein vorhandener Punkt höchstens 15 % eines Tages neben der
 Grenze, wird er die Übernachtung, sonst setzt die App einen neuen Punkt und legt ihn auf die nächste Hütte oder Unterkunft bis 2 km (OpenStreetMap über
 Overpass; Berghütte vor Gasthof, Herberge und Hotel); findet sie keine, bleibt er auf der Route (ziehen verschiebt ihn). Je Tag steht dann
 eine Karte mit Datum, Strecke, Höhenmetern, Gehzeit, Start (ab Tag 2 eigene Startzeit) und darunter den Punkten dieses Tages; ein
-Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. „1 Tag“
-nimmt Übernachtungen und gesetzte Punkte zurück. Weiter geht auch: Zwischenziel antippen › „🛏 Hier übernachten“. Unter *Planen* steht dann je
+Tag, der länger als das Tageslicht ist, wird so benannt. 🛏 an einem Punkt beendet den Tag dort; jeder Tag hat auf der Karte seine Farbe. Eine andere Art (z. B. „Wandern“)
+nimmt Übernachtungen und gesetzte Punkte zurück (Rückgängig holt sie wieder). Weiter geht auch: Zwischenziel antippen › „🛏 Hier übernachten“. Unter *Planen* steht dann je
 Tag Strecke, Höhenmeter, Gehzeit und höchster Punkt, mit Startzeit die Ankunft gegen den Sonnenuntergang am Etappenziel.
 Ab Tag 2 lässt sich eine eigene Startzeit eintragen (leer: wie Tag 1); sie gilt auch für Stopps, Tourwetter und Druck und
 bleibt mit der Tour gespeichert. Unter *Unterwegs* wählt „Welcher Tag?“ mit großen Knöpfen (Strecke, Gehzeit, Ziel je Tag) einen Tag (vorgewählt der Tag, der nach dem geplanten

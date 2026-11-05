@@ -14,6 +14,7 @@ const DIENST = {
 // Profile: was der Nutzer wählt → BRouter-Profil und Zeitrechnung
 const PROFILE = {
   wandern: { brouter: 'hiking-mountain', art: 'fuss', name: 'Wandern' },
+  mehrtag: { brouter: 'hiking-mountain', art: 'fuss', name: 'Mehrtagestour' },
   stadt: { brouter: 'hiking-mountain', art: 'fuss', name: 'Stadtspaziergang' },
   laufen: { brouter: 'hiking-mountain', art: 'lauf', name: 'Laufen' },
   rad: { brouter: 'trekking', art: 'rad', name: 'Fahrrad' },
