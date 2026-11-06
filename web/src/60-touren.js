@@ -37,16 +37,18 @@ function tourSpeichern() {
     art: S.fest ? (S.fest.art || 'spur') : 'plan',
     kurz: { laenge: e.laenge, auf: e.auf, ab: e.ab, zeit: e.zeit + (S.fest ? 0 : besichtigung() / 60) }
   };
-  // erneutes Speichern behält den Ordner
-  const alt = liste.find(t => t.id === tour.id);
-  if (alt && alt.ordner) tour.ordner = alt.ordner;
+  // Ordner aus der Auswahl neben dem Namen (bei einer gespeicherten Tour steht dort ihr Ordner)
+  const ordner = $('nameZeile').hidden ? ((liste.find(t => t.id === tour.id) || {}).ordner || '') : planOrdnerWert();
+  if (ordner) tour.ordner = ordner;
   const i = liste.findIndex(t => t.id === tour.id);
   if (i >= 0) liste[i] = tour; else liste.unshift(tour);
   if (!tourenSchreiben(liste)) return;
   S.tourId = tour.id; S.name = name; $('tourname').value = name;
+  delete $('planOrdner').dataset.neu;
+  zeichenRoute();   // Linie und Marke in der Farbe des Ordners
   entwurfSichern();
   tourenZeigen();
-  melde('Gespeichert: ' + name);
+  melde('Gespeichert: ' + name + (tour.ordner ? ' (Ordner „' + tour.ordner + '“)' : ''));
 }
 // Spur (z. B. Aufzeichnung) direkt ablegen, ohne die offene Planung zu ersetzen
 // extra (aus GPX-Dateien): profil, punkte [[lat, lon, Name, Art]], quelle, dateiDauer
@@ -371,6 +373,37 @@ function ordnerLeiste(box, alle, teil) {
     box.appendChild(reihe);
   }
 }
+// Auswahl „Ordner“ neben dem Namen in Planen: gespeicherte Tour → ihr Ordner (Ändern legt sie gleich um); neue Tour →
+// der in der Liste gewählte Ordner; 💾 Speichern legt sie dorthin (tourSpeichern liest die Auswahl)
+function ordnerOptionen(sel, wert) {
+  sel.innerHTML = '';
+  const opt = (v, text) => { const o = document.createElement('option'); o.value = v; o.textContent = text; sel.appendChild(o); };
+  opt('', 'Kein Ordner');
+  for (const n of ordnerAlle()) opt(n, '● ' + n);
+  opt('__neu__', '＋ Neuer Ordner …');
+  sel.value = wert || '';
+  sel.style.borderLeft = wert ? '8px solid ' + farbeVon(wert) : '';
+}
+function planOrdnerZeigen() {
+  const t = S.tourId && tourenLesen().find(x => x.id === S.tourId);
+  const sel = $('planOrdner');
+  const wert = t ? (t.ordner || '') : (sel.dataset.neu != null ? sel.dataset.neu : SPEICHER.lesen('ordnerWahl', ''));
+  ordnerOptionen(sel, ordnerAlle().includes(wert) ? wert : '');
+}
+$('planOrdner').addEventListener('change', () => {
+  const sel = $('planOrdner');
+  let n = sel.value;
+  if (n === '__neu__') n = ordnerNeu() || '';
+  const t = S.tourId && tourenLesen().find(x => x.id === S.tourId);
+  if (t) tourInOrdner(t.id, n); else sel.dataset.neu = n;
+  planOrdnerZeigen();
+  if (!t) ordnerOptionen(sel, n);
+});
+function planOrdnerWert() {
+  const v = $('planOrdner').value;
+  return v && v !== '__neu__' && ordnerAlle().includes(v) ? v : '';
+}
+
 // Auswahl auf der Tourseite
 function tourOrdnerWahl(t) {
   const sel = $('tourOrdner');
@@ -460,11 +493,23 @@ function listeZeigen(ul, liste, leer) {
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
       R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') +
       (t.ordner && !ordnerGewaehlt ? ' · <i class="ordner-farbe" style="--f:' + farbeVon(t.ordner) + '"></i>' + R.esc(t.ordner) : '') + '</small></button>' +
-      '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
+      '<span class="aktionen"><select class="ordner-knopf" title="In einen Ordner legen" aria-label="Ordner für „' + R.esc(t.name) + '“"></select><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
     bG.onclick = ev => { ev.stopPropagation(); gpxHerunter(t.name, spurEntpacken(t.spur), t.wps ? t.wps.map((w, i) => ({ lat: w[0], lon: w[1], name: w[2] || (i === 0 ? 'Start' : 'Punkt ' + (i + 1)) })) : []); };
     bL.onclick = ev => { ev.stopPropagation(); tourLoeschen(t.id); };
+    const ok = li.querySelector('.ordner-knopf');
+    ordnerOptionen(ok, t.ordner || '');
+    const leer = document.createElement('option'); leer.value = '__halt__'; leer.textContent = '📁'; leer.hidden = true;
+    ok.prepend(leer); ok.value = '__halt__'; ok.style.borderLeft = '';
+    ok.onclick = ev => ev.stopPropagation();
+    ok.onchange = ev => {
+      ev.stopPropagation();
+      let n = ok.value;
+      if (n === '__halt__') return;
+      if (n === '__neu__') { n = ordnerNeu(); if (!n) { ok.value = '__halt__'; return; } }
+      tourInOrdner(t.id, n);
+    };
     ul.appendChild(li);
   }
 }

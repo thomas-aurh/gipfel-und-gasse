@@ -66,7 +66,9 @@ Rad, Stadt, GPX).
 
 **Ordner:** Über den Listen unter Ich › Touren (Geplant und Gegangen) stehen „Alle“, die Ordner mit der Zahl ihrer Touren und
 „＋ Ordner“. Ein Ordner zeigt nur seine Touren; ist einer gewählt, benennt ✏️ ihn um und 🗑 löscht ihn (die Touren bleiben,
-dann ohne Ordner). Einsortiert wird auf der Tourseite unter „📁 Ordner“ (auch „＋ Neuer Ordner …“). Eine Tour liegt in
+dann ohne Ordner). Einsortiert wird mit 📁 an jeder Tour in der Liste, in *Planen* mit „Ordner“ neben dem Namen (💾 Speichern
+legt eine neue Tour dorthin; vorgewählt ist der Ordner, der in der Liste gewählt ist) oder auf der Tourseite unter „📁 Ordner“
+(überall auch „＋ Neuer Ordner …“). Eine Tour liegt in
 höchstens einem Ordner, ein Ordner gilt für geplante und gegangene Touren. Jeder Ordner hat eine Farbe (acht zur Wahl,
 ein neuer bekommt eine freie; ändern: Ordner wählen, dann einen Farbpunkt antippen). Eine offene Tour aus einem Ordner
 zeigt ihre Linie in dieser Farbe (eine Mehrtagestour behält die Tagesfarben), oben auf der Karte steht das Farblabel mit

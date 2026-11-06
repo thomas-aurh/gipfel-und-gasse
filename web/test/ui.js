@@ -2352,6 +2352,25 @@ function pruef(name, bed, info) {
   await pf.waitForTimeout(200);
   pruef('Ordner: gelöscht, die Tour bleibt ohne Ordner, Marke weg', !(await pf.textContent('#ordnerGeplant')).includes('Karwendel') && await pf.isHidden('#ordnerMarke') &&
     await pf.evaluate(() => { const t = JSON.parse(localStorage.getItem('gug.touren')).find(x => x.name === 'Seerundweg'); return !!t && !t.ordner; }), await pf.textContent('#ordnerGeplant'));
+  // direkt aus der Liste: 📁 an der Tour, „＋ Neuer Ordner …“ legt an und sortiert ein
+  pf.once('dialog', d => d.accept('Mit Kind'));
+  await pf.selectOption('#tourliste li:has-text("MTB-Runde Rabenkopf") .ordner-knopf', '__neu__');
+  await pf.waitForTimeout(200);
+  pruef('Ordner aus der Liste: neuer Ordner, Tour liegt drin, Knopf zeigt wieder 📁', await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'MTB-Runde Rabenkopf').ordner === 'Mit Kind') &&
+    (await pf.textContent('#ordnerGeplant')).includes('Mit Kind (1)') && (await pf.inputValue('#tourliste li:has-text("MTB-Runde Rabenkopf") .ordner-knopf')) === '__halt__', await pf.textContent('#ordnerGeplant'));
+  await pf.selectOption('#tourliste li:has-text("Seerundweg") .ordner-knopf', 'Mit Kind');
+  await pf.waitForTimeout(200);
+  await pf.screenshot({ path: path.join(OUT, '43-ordner-liste.png'), clip: { x: 0, y: 150, width: 440, height: 380 } });
+  pruef('Ordner aus der Liste: vorhandenen Ordner wählen', (await pf.textContent('#ordnerGeplant')).includes('Mit Kind (2)'), await pf.textContent('#ordnerGeplant'));
+  // in Planen neben dem Namen: zeigt den Ordner der offenen Tour, Ändern legt sie um
+  await pf.click('#tourliste li:has-text("Seerundweg") .oeffnen');
+  await pf.waitForTimeout(300);
+  await pf.click('#tBearbeiten');
+  await pf.waitForSelector('#planOrdner', { state: 'visible', timeout: 8000 }).catch(() => {});
+  pruef('Ordner in Planen: Auswahl neben dem Namen zeigt den Ordner der Tour', (await pf.inputValue('#planOrdner')) === 'Mit Kind', await pf.inputValue('#planOrdner'));
+  await pf.selectOption('#planOrdner', '');
+  await pf.waitForTimeout(200);
+  pruef('Ordner in Planen: „Kein Ordner“ nimmt die Tour heraus', await pf.evaluate(() => !JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'Seerundweg').ordner));
   await zuSeite(pf, 'entdecken');
   // überlasteter Dienst: kurze Meldung statt der Fehlerseite des Servers
   const vollRoute = r => r.fulfill({ status: 504, contentType: 'text/html', body: '# 502 Gateway Timeout This Overpass API server is currently at capacity. All query workers are busy.' });
