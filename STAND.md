@@ -5,6 +5,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Steigung einfärben und Punkt-Alarm (06.11., nach dem Blick auf Locus Map):** geprüft in Einheitstests (Steigung über
+  ±25 m, bei dünnen Routen über die Nachbarpunkte; Alarm-Punkte bis 150 m neben der Route) und im Klicktest (Farben an und
+  aus, Vorgabe 300 m, App schickt `alarm` an den Dienst). Der Dienst kündigt Stopps jetzt `alarm` Meter vorher an
+  (vorher fest 150 m); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf dem Pixel (Ansage bei
+  gesperrtem Bildschirm), im Browser nicht mit echter Bewegung. Nach dem Umplanen unterwegs baut der Dienst die Stopps aus
+  den Zielen neu: dann fehlen die Punkte aus GPX und Orte-Liste bis zum nächsten Start.
 - **Tourvorschläge aus dem Kartenpaket (06.11.):** beschilderte Wander- und MTB-Routen (ohne Fernwege, bis 80 km) mit
   Verlauf in der Orte-Datei (`routen`, karten/orte.py, auf 8 m vereinfacht); Liste und Verlauf ohne Netz. Online den
   Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`, aus dem Quellcode abgeleitet, gegen den

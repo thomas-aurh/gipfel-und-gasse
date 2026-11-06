@@ -367,6 +367,59 @@ var R = (function () {
   // nächster Punkt der Strecke zu einer Position: {i, d (Meter ab Start), abw (Meter neben der Strecke)}.
   // vorher: bisheriger Fortschritt in Metern. Dann zählt zuerst nur das Stück kurz davor bis 2 km danach,
   // damit bei Rundtouren und Wegen, die zweimal begangen werden, nicht ans Ende gesprungen wird.
+  // ---------- Steigung einfärben ----------
+  // Stufen der Steilheit (bergauf wie bergab) in Prozent: Grenze, Farbe, Text
+  const STEIL_STUFEN = [[5, '#2e9d3a', 'bis 5 %'], [10, '#e6c200', '5–10 %'], [15, '#f08c00', '10–15 %'], [20, '#e0301e', '15–20 %'], [Infinity, '#8e2bb0', 'über 20 %']];
+  // Steigung in % je Punkt, gemittelt über ±fenster Meter (Höhen der Route sind auf Meter gerundet, Punkte oft dicht)
+  function steigungen(pts, fenster) {
+    const f = fenster || 25, out = new Array(pts.length).fill(null);
+    let a = 0, b = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const d = pts[i].d;
+      while (a < i && pts[a].d < d - f) a++;
+      if (b < i) b = i;
+      while (b < pts.length - 1 && pts[b + 1].d <= d + f && !pts[b + 1].luecke) b++;
+      let x = a;
+      for (let k = i; k > a; k--) if (pts[k].luecke) { x = k; break; }
+      // dünn besetzte Route (Punkte weiter als das Fenster auseinander): wenigstens die direkten Nachbarn
+      let y = b;
+      if (x === i && i > 0 && !pts[i].luecke) x = i - 1;
+      if (y === i && i < pts.length - 1 && !pts[i + 1].luecke) y = i + 1;
+      const p0 = pts[x], p1 = pts[y], dd = p1.d - p0.d;
+      if (dd >= 10 && p0.ele != null && p1.ele != null) out[i] = (p1.ele - p0.ele) / dd * 100;
+    }
+    return out;
+  }
+  // Teilstücke gleicher Stufe: [{ farbe, ll: [[lat, lon], …] }]; ohne Höhe grau; Lücken trennen
+  function steigungStuecke(pts) {
+    const st = steigungen(pts), out = [];
+    let akt = null;
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].luecke) { akt = null; continue; }
+      const s = st[i] != null && st[i - 1] != null ? (st[i] + st[i - 1]) / 2 : st[i] != null ? st[i] : st[i - 1];
+      const farbe = s == null ? '#9aa0a6' : STEIL_STUFEN.find(x => Math.abs(s) < x[0])[1];
+      if (!akt || akt.farbe !== farbe) { akt = { farbe, ll: [[pts[i - 1].lat, pts[i - 1].lon]] }; out.push(akt); }
+      akt.ll.push([pts[i].lat, pts[i].lon]);
+    }
+    return out;
+  }
+
+  // ---------- Punkt-Alarm: Punkte nahe der Route mit ihrem Meter auf der Route ----------
+  // punkte [{ lat, lon, name }] → [{ d, name, lat, lon }] höchstens maxAbseits neben der Route, nach d; gleicher Name
+  // innerhalb von 50 m (z. B. ein Wegpunkt auf derselben Hütte) zählt einmal
+  function alarmPunkte(pts, punkte, maxAbseits) {
+    if (!pts || pts.length < 2) return [];
+    const out = [];
+    for (const p of punkte || []) {
+      if (!p || !p.name || !isFinite(p.lat) || !isFinite(p.lon)) continue;
+      const l = aufStrecke(pts, p);
+      if (!l || l.abw > (maxAbseits || 150)) continue;
+      if (out.some(q => q.name === p.name && Math.abs(q.d - l.d) < 50)) continue;
+      out.push({ d: Math.round(l.d), name: p.name, lat: p.lat, lon: p.lon });
+    }
+    return out.sort((a, b) => a.d - b.d);
+  }
+
   function aufStrecke(pts, pos, vorher) {
     const kx = Math.cos(pos.lat * RAD) * 111320, ky = 110540;
     const suche = (von, bis) => {
@@ -2562,7 +2615,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

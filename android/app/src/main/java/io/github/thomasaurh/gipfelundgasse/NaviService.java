@@ -71,6 +71,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         double tempo = 1;
         boolean rad, lauf, folgen, aufzeichnen, ansagen = true;
         boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
+        double alarm = 150;          // Punkt-Alarm: Stopps und Punkte so viele Meter vorher ankündigen
         String gewitter;             // Warnung „Gewitter möglich gegen …“ für die Anzeige, null = keine
         long gewitterGemeldet;       // wann zuletzt angesagt (höchstens alle zwei Stunden)
         int aufzKm;                  // zuletzt angesagter Kilometer der Aufzeichnung
@@ -345,11 +346,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.abseitsGemeldet = false;
         }
         if (!Z.ansagen || lage.abw > 80) return;
-        // Stopps: in 150 m ankündigen, bei 30 m „erreicht“
+        // Stopps (auch Punkte des Punkt-Alarms): Z.alarm Meter vorher ankündigen (Standard 150), bei 30 m „erreicht“
         for (int i = 0; i < Z.stopps.size(); i++) {
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
-            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < 150) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
+            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < Z.alarm) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
                 Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
                 String ort = i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "";
@@ -531,7 +532,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 o.put("unterbrochen", Z.unterbrochen);
                 o.put("gesichert", System.currentTimeMillis());
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
-                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("alarm", Z.alarm); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
                 o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
                 // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
@@ -676,7 +677,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 zieleLesen(o.optJSONArray("ziele"));
                 Z.profil = BRouterDateien.PROFILE.contains(o.optString("profil", "")) ? o.optString("profil") : null;
                 Z.umgeplant = o.optInt("umgeplant", 0);
-                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.ansagen = o.optBoolean("ansagen", true);
+                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.alarm = o.optDouble("alarm", 150); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
                 Z.aufzStart = o.optLong("aufzStart", 0); Z.aufzEnde = o.optLong("aufzEnde", 0);

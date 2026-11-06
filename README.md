@@ -39,6 +39,10 @@ Kartenpaket, sonst aus dem Netz (Mapzen Terrain Tiles: Österreich 10 m, sonst E
 Steilstufen und Rinnen fehlen. Das ist keine Lawinenbeurteilung: die Legende verweist auf den Lawinenlagebericht
 (avalanches.org, die Lageberichte aller europäischen Warndienste).
 
+**Route nach Steigung:** Kartenart und Ebenen › „Route nach Steigung färben“ färbt die offene Route nach Steilheit (bergauf
+wie bergab, gemittelt über 50 m): bis 5 % grün, 5–10 % gelb, 10–15 % orange, 15–20 % rot, über 20 % violett; ohne Höhen grau.
+Antippen der Route setzt weiter Zwischenziele.
+
 **Offline-Karten:** Menü ☰ › *Offline-Karten* (oder Kartenart und Ebenen rechts an der Karte › „Kartenpakete laden und verwalten“): Region
 herunterladen (Oberbayern mit München, Innsbruck und Salzburg; Allgäu und Bodensee; die Größe steht
 in der Liste). Danach unter Kartenart und Ebenen (rechts an der Karte) „Offline-Karte“ und „Höhenlinien und Relief“; ohne Netz
@@ -195,7 +199,9 @@ Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
 Seite die Aufzeichnung laufend; wird der Tab neu geladen oder vom Browser verworfen, zeichnet sie danach weiter (über 12 h
 alt: nur noch speichern). Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
-abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an, warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
+abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an (🔔 Punkt-Alarm: 150, 300 oder 500 m vorher, Vorgabe 300 m; dazu
+Wegpunkte aus der GPX-Datei und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“, bis 150 m neben der Route; im Browser
+als Meldung, Sprache und Vibration, solange die Seite offen ist), warnt mit Vibration, wenn man mehr als 50 m neben der Route ist, und meldet das Ziel. Beenden geht in der
 App oder direkt in der Mitteilung. Mit „🎧 Führung“ liest die App an jedem Stopp mit Wikipedia-Artikel dessen Kurzinfo vor
 (Stopps aus *Entdecken* oder der Stadt-Liste bringen ihn mit); die Texte lädt sie beim Losgehen, unterwegs braucht es dafür
 kein Netz.

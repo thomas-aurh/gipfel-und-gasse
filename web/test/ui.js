@@ -882,7 +882,18 @@ function pruef(name, bed, info) {
   await page.evaluate(() => { for (const id of ['startTag', 'startZeit']) { const el = document.getElementById(id); el.value = ''; el.dispatchEvent(new Event('change')); } });
   await page.evaluate(() => { location.hash = '#tour-wandern-47.75350_11.37470~47.77000_11.40000'; });
   await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
+  // Route nach Steigung färben: Linie in den Farben der Stufen, Legende sichtbar, aus wieder einfarbig
+  await page.waitForTimeout(500);
+  await page.click('#bLagen'); await page.check('#lageSteigung');
+  await page.screenshot({ path: path.join(OUT, '42-steigung.png') });
+  const steilFarben = await page.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')));
+  pruef('Steigung: Route in Stufenfarben, Legende da', steilFarben.some(f => ['#2e9d3a', '#e6c200', '#f08c00', '#e0301e', '#8e2bb0'].includes(f)) && await page.isVisible('#steigLegende'), [...new Set(steilFarben)]);
+  await page.uncheck('#lageSteigung');
+  const ohneSteil = await page.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')));
+  pruef('Steigung: aus, keine Stufenfarben mehr', !ohneSteil.some(f => ['#2e9d3a', '#e6c200', '#f08c00', '#8e2bb0'].includes(f)) && await page.isHidden('#steigLegende'), [...new Set(ohneSteil)]);
+  await page.click('#bLagen');
   await zuSeite(page, 'unterwegs');
+  pruef('Punkt-Alarm: Auswahl unter Unterwegs, 300 m vorher als Vorgabe', (await page.inputValue('#punktAlarm')) === '300');
   await page.click('#bNavi');
   await page.waitForFunction(() => document.querySelector('#uRest').textContent !== '–', null, { timeout: 8000 });
   const rest1 = await page.textContent('#uRest');
@@ -1443,6 +1454,7 @@ function pruef(name, bed, info) {
   const a1 = await pa2.evaluate(() => window.__navi.aufrufe);
   const st1 = a1.find(x => x[0] === 'starten');
   pruef('App: Route folgen schickt Route an den Dienst', st1 && st1[1].folgen === true && st1[1].pts.length > 10 && Array.isArray(st1[1].pts[0]) && st1[1].ansagen === true, st1 && Object.keys(st1[1]));
+  pruef('App: Punkt-Alarm mit 300 m an den Dienst', st1 && st1[1].alarm === 300, st1 && st1[1].alarm);
   pruef('App: Knopf zeigt „Folgen beenden“', (await pa2.textContent('#bNavi')).includes('beenden'));
   pruef('App: Route mit Abschnitts-Merker (4 Werte je Punkt)', st1[1].pts[0].length === 4 && st1[1].pts[0][3] === 0);
   pruef('App: „Link teilen“ ausgeblendet', await pa2.isHidden('#bTeilen'));

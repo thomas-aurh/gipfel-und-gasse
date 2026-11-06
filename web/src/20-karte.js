@@ -117,6 +117,8 @@ function lagenAnwenden() {
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageMtb').checked = !!lagenWahl.mtb;
+  $('lageSteigung').checked = !!lagenWahl.steigung;
+  $('steigLegende').hidden = !lagenWahl.steigung;
   $('lageTrails').checked = !!lagenWahl.trails;
   $('trailLegende').hidden = !lagenWahl.trails;
   $('lageSehens').checked = !!lagenWahl.sehens;
@@ -138,6 +140,7 @@ document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('
 $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
 $('lageMtb').addEventListener('change', e => { lagenWahl.mtb = e.target.checked; lagenAnwenden(); });
+$('lageSteigung').addEventListener('change', e => { lagenWahl.steigung = e.target.checked; lagenAnwenden(); zeichenRoute(); });
 $('lageTrails').addEventListener('change', e => {
   lagenWahl.trails = e.target.checked; lagenAnwenden();
   if (e.target.checked && karte.getZoom() < 13) melde('MTB-Trails erscheinen ab Zoomstufe 13: näher heranzoomen.', 4);
