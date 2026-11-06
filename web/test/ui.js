@@ -2306,27 +2306,39 @@ function pruef(name, bed, info) {
   pf.once('dialog', d => d.accept('Karwendel'));
   await pf.click('#ordnerGeplant button:has-text("＋ Ordner")');
   await pf.waitForTimeout(200);
-  pruef('Ordner: neuer Ordner gewählt, Liste leer mit Hinweis', (await pf.textContent('#ordnerGeplant button.an')) === '📁 Karwendel (0)' &&
+  pruef('Ordner: neuer Ordner gewählt, Liste leer mit Hinweis', (await pf.textContent('#ordnerGeplant button.an')) === 'Karwendel (0)' &&
     (await pf.textContent('#tourliste')).includes('Im Ordner „Karwendel“ liegt hier noch nichts'), await pf.textContent('#ordnerGeplant'));
   await pf.click('#ordnerGeplant button:has-text("Alle")');
   await pf.click('#tourliste li:has-text("Seerundweg") .oeffnen');
   await pf.waitForSelector('#tourOrdner', { state: 'visible', timeout: 8000 }).catch(() => {});
   await pf.selectOption('#tourOrdner', 'Karwendel');
   await pf.waitForTimeout(200);
+  // Farbe des Ordners auf der offenen Route und als Marke auf der Karte
+  const ordnerFarbe = await pf.evaluate(() => getComputedStyle(document.querySelector('#ordnerGeplant [data-ordner="Karwendel"] .ordner-farbe')).backgroundColor);
+  const linienFarben = await pf.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')));
+  pruef('Ordner-Farbe: Marke auf der Karte und Route in der Farbe des Ordners', await pf.isVisible('#ordnerMarke') && (await pf.textContent('#ordnerMarke')) === 'Karwendel' &&
+    linienFarben.includes(await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.ordnerFarben')).Karwendel)), [ordnerFarbe, linienFarben, await pf.textContent('#ordnerMarke')]);
   await zuSeite(pf, 'touren');
-  pruef('Ordner: Liste zeigt den Ordner an der Tour', (await pf.textContent('#tourliste li:has-text("Seerundweg")')).includes('📁 Karwendel'), await pf.textContent('#tourliste'));
+  pruef('Ordner: Liste zeigt den Ordner an der Tour', (await pf.textContent('#tourliste li:has-text("Seerundweg")')).includes('Karwendel'), await pf.textContent('#tourliste'));
   await pf.click('#ordnerGeplant button:has-text("Karwendel")');
   const imOrdner = await pf.$$eval('#tourliste li[data-tour]', l => l.map(x => x.textContent));
-  pruef('Ordner: gewählt zeigt nur seine Touren', imOrdner.length === 1 && imOrdner[0].includes('Seerundweg') && (await pf.textContent('#ordnerGeplant button.an')) === '📁 Karwendel (1)', imOrdner);
+  pruef('Ordner: gewählt zeigt nur seine Touren', imOrdner.length === 1 && imOrdner[0].includes('Seerundweg') && (await pf.textContent('#ordnerGeplant button.an')) === 'Karwendel (1)', imOrdner);
+  // andere Farbe wählen: gespeichert, Route zieht mit
+  await pf.click('#ordnerGeplant .farbknopf[title="Farbe #ad1457"]');
+  await pf.waitForTimeout(200);
+  await pf.screenshot({ path: path.join(OUT, '41-ordner-farbe.png') });
+  pruef('Ordner-Farbe: gewählt, gespeichert, Route in der neuen Farbe', await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.ordnerFarben')).Karwendel === '#ad1457') &&
+    (await pf.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')))).includes('#ad1457') && await pf.isVisible('#ordnerGeplant .farbknopf.an[title="Farbe #ad1457"]'));
   pf.once('dialog', d => d.accept('Karwendel Nord'));
   await pf.click('#ordnerGeplant button[title="Ordner umbenennen"]');
   await pf.waitForTimeout(200);
-  pruef('Ordner: umbenannt, Tour zieht mit', (await pf.textContent('#ordnerGeplant button.an')) === '📁 Karwendel Nord (1)' &&
+  pruef('Ordner: umbenannt, Tour und Farbe ziehen mit', (await pf.textContent('#ordnerGeplant button.an')) === 'Karwendel Nord (1)' &&
+    await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.ordnerFarben'))['Karwendel Nord'] === '#ad1457') &&
     await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'Seerundweg').ordner === 'Karwendel Nord'), await pf.textContent('#ordnerGeplant'));
   pf.once('dialog', d => d.accept());
   await pf.click('#ordnerGeplant button[title^="Ordner löschen"]');
   await pf.waitForTimeout(200);
-  pruef('Ordner: gelöscht, die Tour bleibt ohne Ordner', !(await pf.textContent('#ordnerGeplant')).includes('Karwendel') &&
+  pruef('Ordner: gelöscht, die Tour bleibt ohne Ordner, Marke weg', !(await pf.textContent('#ordnerGeplant')).includes('Karwendel') && await pf.isHidden('#ordnerMarke') &&
     await pf.evaluate(() => { const t = JSON.parse(localStorage.getItem('gug.touren')).find(x => x.name === 'Seerundweg'); return !!t && !t.ordner; }), await pf.textContent('#ordnerGeplant'));
   await zuSeite(pf, 'entdecken');
   // überlasteter Dienst: kurze Meldung statt der Fehlerseite des Servers

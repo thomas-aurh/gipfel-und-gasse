@@ -306,6 +306,13 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .chips button{border:1px solid var(--linie);background:var(--karte);border-radius:16px;padding:4px 10px;font-size:13px}
 .chips button.aus{opacity:.45}
+.ordner-farbe{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--f);margin-right:5px;vertical-align:baseline}
+.ordner-farbwahl{display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap}
+.chips .farbknopf{width:26px;min-width:26px;height:26px;min-height:26px;padding:0;border-radius:50%;background:var(--f);border:2px solid var(--karte)}
+.chips .farbknopf.an{background:var(--f);border-color:var(--karte);outline:3px solid var(--text, #222);outline-offset:1px}
+#ordnerMarke{position:absolute;left:50%;top:calc(66px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:6px;
+  background:var(--karte);color:var(--text, #222);border-radius:16px;padding:4px 12px;font-size:13px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.3);pointer-events:none}
+#ordnerMarke i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--f)}
 .ordner-wahl{display:flex;gap:6px;align-items:center;margin:4px 0}.ordner-wahl select{max-width:60%}
 .chips button.an{background:var(--gruen2);border-color:var(--gruen);color:var(--gruen);font-weight:700}
 .wetter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}

@@ -13,7 +13,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Höhenmeter stehen erst nach dem Antippen bzw. „＋ Tour“ fest (nicht in der Liste).
 - **Ordner für Touren (06.11.):** nur im Klicktest geprüft (anlegen, einsortieren, filtern, umbenennen, löschen) und in den
   Einheitstests (Sicherung behält den Ordner). Am Pixel offen: ob die Eingabefenster (prompt/confirm) im WebView gut gehen,
-  ob die Leiste mit vielen Ordnern zu voll wird.
+  ob die Leiste mit vielen Ordnern zu voll wird. Farben je Ordner (06.11., Thomas: „Farbcodes … auch auf die offene Route
+  mit einem Farblabel“): Linie, Marke oben auf der Karte und Rand der Startpunkte; im Klicktest geprüft, am Pixel offen,
+  ob die Linie auf der Karte kräftig genug ist (8 feste Töne in `R.ORDNER_FARBEN`).
 - **MTB-Routen (06.11., Stufe 1 von 2):** Liste in *Entdecken* (Art „🚵 MTB-Routen“) und Kartenebene „MTB-Routen
   (beschildert)“, beide von Waymarked Trails (`mtb.waymarkedtrails.org`, `tile.waymarkedtrails.org/mtb`), sonst Overpass
   `route=mtb`. Nur im Klicktest mit nachgebildetem Dienst geprüft; Antwortformat wie bei den Wanderwegen angenommen

@@ -703,6 +703,8 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   const ol = R.ordnerListe([{ ordner: 'Mit Kind' }, { ordner: 'Karwendel' }, { ordner: 'Karwendel' }, {}], ['Leer', 'Karwendel']);
   pruef('Ordner: aus Touren und leeren Ordnern, nach Name, mit Zahl', ol.map(o => o.name + ':' + o.zahl).join() === 'Karwendel:2,Leer:0,Mit Kind:1', ol);
   const tp = R.sicherungLesen({ app: 'gipfel-und-gasse', touren: [{ id: 't1', name: 'A', spur: [[47.6, 11.3, 600]], kurz: { laenge: 1 }, ordner: ' Karwendel ' }, { id: 't2', name: 'B', spur: [[47.6, 11.3, 600]], kurz: { laenge: 1 }, ordner: 7 }] });
+  pruef('Ordner-Farbe: gespeicherte aus der Liste, sonst fest aus dem Namen, freie zuerst', R.ordnerFarbe('A', { A: '#c62828' }) === '#c62828' && R.ordnerFarbe('A', { A: 'rot' }) === R.ordnerFarbe('A', {}) &&
+    R.ORDNER_FARBEN.includes(R.ordnerFarbe('Karwendel')) && R.ordnerFarbeFrei(['A'], { A: R.ORDNER_FARBEN[0] }) === R.ORDNER_FARBEN[1]);
   pruef('Ordner: Sicherung behält ihn, ungültiger fällt weg', tp[0].ordner === 'Karwendel' && !('ordner' in tp[1]), tp);
 }
 
