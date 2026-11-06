@@ -10,7 +10,10 @@ Ausgabe (gzip-JSON):
                                                    (Orte entlang der Route und Sehenswürdigkeiten in der Stadt)
    "suche": [[Name, lat, lon, Art, bei Ort, Rang], …]  Orte, Gipfel, Seen, Straßen und benannte Orte von oben
    "trails": [[Skala, Name, [lat, lon, dlat, dlon, …]], …]  Wege mit mtb:scale (Skala 0–6 = S0–S6), Verlauf vereinfacht
-                                                   (Douglas-Peucker, 3 m), in 1e-5 Grad, ab dem zweiten Punkt als Differenz}
+                                                   (Douglas-Peucker, 3 m), in 1e-5 Grad, ab dem zweiten Punkt als Differenz
+   "routen": [[Relation, Art, Name, Nummer, Netz, Rundweg, [[lat, lon, dlat, dlon, …], …]], …]
+             beschilderte Wander- (Art "w") und MTB-Routen ("m") ohne Fernwege, Verlauf aus den Wegen der Relation
+             aneinandergehängt (Teile, wo sie in OSM nicht zusammenhängen), vereinfacht auf 8 m}
 Mehrere Auszüge dürfen sich überlappen (z. B. Bayern und Österreich); doppelte Objekte zählen einmal.
 """
 import gzip
@@ -201,10 +204,78 @@ def trail_eintrag(skala, name, pts):
     return [skala, name, flach]
 
 
+# ---------- Beschilderte Routen (Relationen route=hiking/foot/mtb) für die Tourvorschläge ----------
+ROUTE_ART = {"hiking": "w", "foot": "w", "mtb": "m"}
+FERNWEG = {"iwn", "nwn", "icn", "ncn"}   # durchgehende Fernwege: lang, selten das Ziel eines Tages, groß im Paket
+ROUTE_MAX_KM = 80
+
+
+def routen_relationen(dateien):
+    """Erster, schneller Durchgang: Routen-Relationen mit Namen oder Nummer und den Wegen, aus denen sie bestehen."""
+    rel = {}
+    for datei in dateien:
+        for r in osmium.FileProcessor(datei, osmium.osm.RELATION).with_filter(osmium.filter.KeyFilter("route")):
+            t = {tag.k: tag.v for tag in r.tags}
+            art = ROUTE_ART.get(t.get("route"))
+            name = t.get("name:de") or t.get("name") or (("Weg " + t["ref"]) if t.get("ref") else "")
+            if not art or not name or t.get("network") in FERNWEG or r.id in rel:
+                continue
+            wege = [m.ref for m in r.members if m.type == "w" and m.role not in ("alternative", "excursion", "approach", "connection")]
+            if wege:
+                rel[r.id] = (art, name, t.get("ref", ""), t.get("network", ""), t.get("roundtrip") == "yes", wege)
+    return rel
+
+
+def verlauf(stuecke, luecke=80.0):
+    """Wege der Reihe nach aneinanderhängen (umdrehen, wenn das Ende näher liegt), wie wegVerlauf in der App.
+    Liegt das nächste Stück weiter als `luecke` Meter weg, beginnt ein neuer Teil."""
+    stuecke = [st for st in stuecke if len(st) > 1]
+    if not stuecke:
+        return []
+    teile, akt = [], list(stuecke.pop(0))
+    while stuecke:
+        ende, anf = akt[-1], akt[0]
+        best, d, dreh, vorn = 0, float("inf"), False, False
+        for i, st in enumerate(stuecke):
+            for dd, dr, vo in ((abstand(ende, st[0]), False, False), (abstand(ende, st[-1]), True, False),
+                               (abstand(anf, st[-1]), False, True), (abstand(anf, st[0]), True, True)):
+                if dd < d:
+                    best, d, dreh, vorn = i, dd, dr, vo
+        st = stuecke.pop(best)
+        st = st[::-1] if dreh else st
+        if d > luecke:
+            teile.append(akt)
+            akt = list(st)
+        elif vorn:
+            akt = st[:-1] + akt if d < 1 else st + akt
+        else:
+            akt = akt + (st[1:] if d < 1 else st)
+    teile.append(akt)
+    return teile
+
+
+def routen_bauen(rel, geo, bbox):
+    w, s, o, n = bbox
+    out = []
+    for rid, (art, name, ref, netz, rund, wege) in rel.items():
+        teile = verlauf([geo[x] for x in wege if x in geo])
+        if not teile or not any(w <= p[1] <= o and s <= p[0] <= n for t in teile for p in t):
+            continue
+        km = sum(abstand(t[i - 1], t[i]) for t in teile for i in range(1, len(t))) / 1000
+        if km < 0.3 or km > ROUTE_MAX_KM:
+            continue
+        flach = [trail_eintrag(0, "", vereinfachen(t, 8.0))[2] for t in teile]
+        out.append([rid, art, name, ref, netz, rund, [f for f in flach if len(f) >= 4]])
+    return out
+
+
 def lesen(dateien, bbox):
     w, s, o, n = bbox
     orte, suche, orte_ids, gesehen = [], [], set(), set()
     trails, trail_ids = [], set()
+    rel = routen_relationen(dateien)
+    routen_wege = {x for r in rel.values() for x in r[5]}
+    geo = {}
     schluessel = ("place", "tourism", "amenity", "natural", "leisure", "historic", "waterway", "highway", "railway", "aerialway")
     for datei in dateien:
         fp = (osmium.FileProcessor(datei)
@@ -220,6 +291,11 @@ def lesen(dateien, bbox):
             else:
                 kennung = "n" + str(obj.id)
             t = {tag.k: tag.v for tag in obj.tags}
+            if isinstance(obj, osmium.osm.Way) and obj.id in routen_wege and obj.id not in geo:
+                try:
+                    geo[obj.id] = [(n_.location.lat, n_.location.lon) for n_ in obj.nodes]
+                except osmium.InvalidLocationError:
+                    pass
             if isinstance(obj, osmium.osm.Way) and "mtb:scale" in t and "highway" in t and obj.id not in trail_ids:
                 skala = mtb_skala(t["mtb:scale"])
                 try:
@@ -270,7 +346,7 @@ def lesen(dateien, bbox):
                 except ValueError:
                     pass
             suche.append([name, lat, lon, art, "", rang, t.get("place")])
-    return orte, suche, trails
+    return orte, suche, trails, routen_bauen(rel, geo, bbox)
 
 
 def bei_ort(suche):
@@ -312,13 +388,13 @@ def main():
         sys.exit(__doc__)
     bbox = [float(x) for x in sys.argv[1:5]]
     ziel, dateien = sys.argv[5], sys.argv[6:]
-    orte, suche, trails = lesen(dateien, bbox)
+    orte, suche, trails, routen = lesen(dateien, bbox)
     bei_ort(suche)
     suche = zusammenfassen(suche)
-    daten = {"v": 1, "bbox": bbox, "orte": orte, "suche": suche, "trails": trails}
+    daten = {"v": 1, "bbox": bbox, "orte": orte, "suche": suche, "trails": trails, "routen": routen}
     with gzip.open(ziel, "wt", encoding="utf-8", compresslevel=9) as f:
         json.dump(daten, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"  Orte: {len(orte)}, Suchbegriffe: {len(suche)}, MTB-Trails: {len(trails)}", flush=True)
+    print(f"  Orte: {len(orte)}, Suchbegriffe: {len(suche)}, MTB-Trails: {len(trails)}, Routen: {len(routen)}", flush=True)
 
 
 if __name__ == "__main__":

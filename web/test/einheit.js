@@ -687,6 +687,16 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('MTB-Routen: Netz der Radrouten gelesen', mo.length === 1 && mo[0].netz === 'örtlich', mo);
 }
 
+// Routen aus dem Kartenpaket (Tourvorschläge ohne Netz)
+{
+  const r = R.routenEntpacken([[700, 'w', 'Proberunde', 'P1', 'lwn', true, [[4760000, 1130000, 1000, 0], [4762000, 1130000, 1000, 0]]], [701, 'm', 'MTB', '', '', false, [[4760000, 1130000, 0, 1000]]], ['kaputt']]);
+  pruef('Paket-Routen: entpackt mit Art, Netz, Länge aus den Teilen', r.length === 2 && r[0].art === 'wandern' && r[0].netz === 'örtlich' && r[0].teile.length === 2 &&
+    Math.abs(r[0].km - 2.2) < 0.05 && r[1].art === 'mtb', r.map(x => [x.name, x.km, x.netz]));
+  const w = R.wegeAusPaket(r, { lat: 47.6, lon: 11.3 }, 2000, 'wandern');
+  pruef('Paket-Routen: im Umkreis, Verlauf mit Lücke zwischen den Teilen', w.length === 1 && w[0].km === r[0].km && w[0].abstand < 1 && w[0].pts.length === 4 && w[0].pts[2].luecke === true && !w[0].pts[1].luecke, w);
+  pruef('Paket-Routen: andere Art und zu weit weg nicht dabei', R.wegeAusPaket(r, { lat: 47.6, lon: 11.3 }, 2000, 'mtb').length === 1 && R.wegeAusPaket(r, { lat: 47.7, lon: 11.3 }, 2000, 'wandern').length === 0);
+}
+
 // Ordner der Touren
 {
   pruef('Ordner: Name gekürzt, Steuerzeichen weg, kein Text → leer', R.ordnerName('  Karwendel\n  Nord ') === 'Karwendel Nord' && R.ordnerName('x'.repeat(80)).length === 60 && R.ordnerName(5) === '');

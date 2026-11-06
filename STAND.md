@@ -5,6 +5,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Tourvorschläge aus dem Kartenpaket (06.11.):** beschilderte Wander- und MTB-Routen (ohne Fernwege, bis 80 km) mit
+  Verlauf in der Orte-Datei (`routen`, karten/orte.py, auf 8 m vereinfacht); Liste und Verlauf ohne Netz. Online den
+  Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`, aus dem Quellcode abgeleitet, gegen den
+  echten Dienst nicht gemessen), zuletzt Overpass. Geprüft: Einheitstests, Klicktest, orte.py an einer kleinen OSM-Datei.
+  Offen: Größe der Orte-Datei und Zahl der Routen mit echten Daten (Ablauf „Kartenpakete“), danach Paket neu laden.
+  Höhenmeter stehen erst nach dem Antippen bzw. „＋ Tour“ fest (nicht in der Liste).
 - **Ordner für Touren (06.11.):** nur im Klicktest geprüft (anlegen, einsortieren, filtern, umbenennen, löschen) und in den
   Einheitstests (Sicherung behält den Ordner). Am Pixel offen: ob die Eingabefenster (prompt/confirm) im WebView gut gehen,
   ob die Leiste mit vielen Ordnern zu voll wird.

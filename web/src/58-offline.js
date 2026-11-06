@@ -681,6 +681,24 @@ if (Karten) {
   OFF.bereit.then(() => { statusFragen(); return paketeLaden(true); });
 }
 
+// ---------- Beschilderte Routen aus dem Kartenpaket (Wege in der Nähe, ohne Netz) ----------
+const routenEntpackt = new WeakMap();
+// Liste wie wegeLesen samt Verlauf, oder null (kein Paket deckt den Umkreis, oder ein altes Paket ohne Routen und Netz da)
+async function wegeOffline(mitte, radius, art) {
+  const ps = await ortePakete([mitte], radius);
+  if (!ps) return null;
+  const gesehen = new Set(), out = [];
+  let alt = false;
+  for (const p of ps) {
+    const j = await orteLaden(p);
+    if (!Array.isArray(j.routen)) { alt = true; continue; }
+    if (!routenEntpackt.has(j)) routenEntpackt.set(j, R.routenEntpacken(j.routen));
+    for (const w of R.wegeAusPaket(routenEntpackt.get(j), mitte, radius, art)) if (!gesehen.has(w.id)) { gesehen.add(w.id); out.push(w); }
+  }
+  if (alt && (navigator.onLine !== false || !out.length)) return null;
+  return out.sort((a, b) => a.abstand - b.abstand);
+}
+
 // ---------- MTB-Trails nach Schwierigkeit (mtb:scale): aus dem Kartenpaket, sonst Overpass für den Ausschnitt ----------
 // Nur bei gewählter Ebene und ab Zoomstufe 13; geladen wird der Ausschnitt mit Rand, erst beim Verlassen neu
 // Gezeichnet als Kacheln (wie die Hangneigung): jede Kachel einmal, mit einem Bildaufbau dazwischen; Verschieben malt

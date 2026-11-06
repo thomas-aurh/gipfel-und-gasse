@@ -402,20 +402,24 @@ $('bWege').onclick = async () => {
   $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
   $('bWege').disabled = true;
   try {
-    // zuerst Waymarked Trails (eigene Datenbank, schnell), sonst Overpass
-    let wege, quelle = 'Waymarked Trails';
-    try {
+    // zuerst das Kartenpaket (ohne Netz, sofort, mit Verlauf), dann Waymarked Trails (eigene Datenbank, schnell), sonst Overpass
+    let wege = null, quelle = 'aus dem Kartenpaket';
+    try { wege = await wegeOffline({ lat: c.lat, lon: c.lng }, radius, art); } catch (e) { wege = null; }
+    if (nr !== wegeLauf) return;
+    if (!wege && navigator.onLine === false) throw new Error('ohne Netz und ohne Kartenpaket für diese Gegend');
+    if (!wege) try {
+      quelle = 'über Waymarked Trails';
       const w = await holen(A.dienst + '/list/by_area?bbox=' + R.bbox3857(c.lat, c.lng, radius).join(',') + '&limit=60', null, 20);
       wege = R.wegeAusWmt(w, { lat: c.lat, lon: c.lng }, art);
     } catch (e) {
       if (nr !== wegeLauf) return;
-      quelle = 'Overpass';
+      quelle = 'über Overpass';
       $('wegeStatus').textContent = 'Waymarked Trails nicht erreichbar (' + e.message + '), frage Overpass …';
       wege = R.wegeLesen(await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius, art), 35), { lat: c.lat, lon: c.lng });
     }
     if (nr !== wegeLauf) return;
     wege = wege.slice(0, 30);
-    $('wegeStatus').textContent = wege.length ? wege.length + ' ' + A.gefunden + ' (OpenStreetMap, über ' + quelle + '). Antippen zeigt den Verlauf.' : 'Keine ' + (art === 'mtb' ? 'beschilderten MTB-Routen' : 'markierten Wanderwege') + ' in OpenStreetMap gefunden.';
+    $('wegeStatus').textContent = wege.length ? wege.length + ' ' + A.gefunden + ' (OpenStreetMap, ' + quelle + '). Antippen zeigt den Verlauf.' : 'Keine ' + (art === 'mtb' ? 'beschilderten MTB-Routen' : 'markierten Wanderwege') + ' in OpenStreetMap gefunden.';
     for (const w of wege) {
       const li = document.createElement('li');
       li.dataset.weg = w.id;
@@ -435,9 +439,15 @@ async function wegZeigen(w, uebernehmen) {
   const nr = ++wegeLauf;
   $('wegeStatus').textContent = 'Lade Verlauf von „' + w.name + '“ …';
   try {
-    let pts = wegeCache.get(w.id);
+    // Verlauf: aus dem Kartenpaket schon da; sonst als GPX von Waymarked Trails (schnell), zuletzt Overpass
+    let pts = w.pts || wegeCache.get(w.id);
     if (!pts) {
-      pts = R.wegVerlauf(await overpassHolen('[out:json][timeout:25];relation(' + w.id + ');out geom;', 35));
+      try {
+        const gpx = await holen((WEGE_ART[w.art] || WEGE_ART.wandern).dienst + '/details/relation/' + w.id + '/geometry/gpx', { alsText: true }, 15);
+        pts = R.gpxLesen(gpx).pts.map(p => Object.assign({ lat: p.lat, lon: p.lon }, p.luecke ? { luecke: true } : {}));
+      } catch (e) { pts = null; }
+      if (nr !== wegeLauf) return;
+      if (!pts || pts.length < 2) pts = R.wegVerlauf(await overpassHolen('[out:json][timeout:25];relation(' + w.id + ');out geom;', 35));
       if (pts.length > 1) wegeCache.set(w.id, pts);
     }
     if (nr !== wegeLauf) return;

@@ -50,6 +50,7 @@ async function holenRoh(url, opt, sekunden) {
     try { text = await r.text(); }
     catch (e) { throw new Error(e.name === 'AbortError' ? 'Zeitüberschreitung' : 'Antwort abgebrochen'); }
     if (!r.ok) throw new Error(R.dienstFehler(r.status, text));
+    if (opt && opt.alsText) return text;   // z. B. GPX
     try { return JSON.parse(text); } catch (e) { throw new Error('unlesbare Antwort'); }
   } finally { clearTimeout(uhr); }
 }

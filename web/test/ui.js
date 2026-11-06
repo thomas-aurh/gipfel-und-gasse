@@ -1937,6 +1937,23 @@ function pruef(name, bed, info) {
     zaehler.overpass === vorOverpassT && await po.isVisible('#trailLegende'), [await po.textContent('#trailZahl'), zaehler.overpass - vorOverpassT, await po.evaluate(() => document.querySelector('#karte') && 0)]);
   await po.uncheck('#lageTrails');
   await po.click('#bLagen');
+  // Wege in der Nähe aus dem Kartenpaket: Liste mit Länge und Verlauf ohne Waymarked Trails und Overpass
+  const vorOverpassW = zaehler.overpass;
+  let wmtFragen = 0;
+  const wmtZaehlen = r => { wmtFragen++; r.fallback(); };
+  await po.route(/waymarkedtrails\.org\/api/, wmtZaehlen);
+  await zuSeite(po, 'entdecken');
+  await po.selectOption('#wegeUmkreis', '2000');
+  await po.click('#bWege');
+  await po.waitForFunction(() => /aus dem Kartenpaket/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  const offWege = await po.$$eval('#wegeListe li', l => l.map(x => x.textContent));
+  pruef('Wege aus dem Kartenpaket: nur die Wanderroute, mit Länge, Rundweg und Netz', offWege.length === 1 && /Proberunde.*[\d,]+ km · Rundweg · örtlich · Nr\. P1/.test(offWege[0]), [offWege, await po.textContent('#wegeStatus')]);
+  await po.click('#wegeListe li >> nth=0');
+  await po.waitForFunction(() => /„Proberunde“: /.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('Wege aus dem Kartenpaket: Verlauf sofort, in zwei Stücken, ohne Netzdienst', /„Proberunde“: [\d,]+ (m|km) in 2 Stücken/.test(await po.textContent('#wegeStatus')) &&
+    zaehler.overpass === vorOverpassW && wmtFragen === 0, [await po.textContent('#wegeStatus'), zaehler.overpass - vorOverpassW, wmtFragen]);
+  await po.unroute(/waymarkedtrails\.org\/api/, wmtZaehlen);
+  await zuSeite(po, 'planen');
   await po.selectOption('#profilwahl', 'wandern');
   await po.waitForTimeout(500);
   await po.fill('#suchfeld', 'Teststadt');
@@ -2256,8 +2273,16 @@ function pruef(name, bed, info) {
   await pf.unroute(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
   // MTB-Routen: eigene Schnittstelle bei Waymarked Trails, „＋ Tour“ speichert als Fahrrad
   let mtbUrl = '';
-  const mtbRoute = r => { mtbUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ results: [{ type: 'relation', id: 905, name: 'Bike-Transalp', group: 'NAT' }, { type: 'relation', id: 901, name: 'MTB-Runde Rabenkopf', group: 'LOC' }] }) }); };
+  let gpxGeholt = '';
+  const mtbRoute = r => {
+    if (/\/geometry\/gpx$/.test(r.request().url())) {
+      gpxGeholt = r.request().url();
+      return r.fulfill({ status: 200, contentType: 'application/gpx+xml', headers: { 'Access-Control-Allow-Origin': '*' }, body: '<?xml version="1.0"?><gpx><trk><trkseg>' +
+        [[47.7535, 11.3747], [47.7550, 11.3770], [47.7560, 11.3790], [47.7590, 11.3820]].map(([a, b]) => '<trkpt lat="' + a + '" lon="' + b + '"/>').join('') + '</trkseg></trk></gpx>' });
+    }
+    mtbUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ results: [{ type: 'relation', id: 905, name: 'Bike-Transalp', group: 'NAT' }, { type: 'relation', id: 909, name: 'MTB-Runde Rabenkopf', group: 'LOC' }] }) });
+  };
   await pf.route(/mtb\.waymarkedtrails\.org\/api/, mtbRoute);
   await pf.route(/overpass-api\.de/, wegeRoute);
   await pf.selectOption('#wegeArt', 'mtb');
@@ -2270,6 +2295,8 @@ function pruef(name, bed, info) {
   await pf.click('#wegeListe li >> nth=0 >> button');
   await pf.waitForFunction(() => (JSON.parse(localStorage.getItem('gug.touren')) || []).some(t => t.name === 'MTB-Runde Rabenkopf'), null, { timeout: 8000 }).catch(() => {});
   pruef('MTB-Routen: „＋ Tour“ speichert als Fahrrad', await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).some(t => t.name === 'MTB-Runde Rabenkopf' && t.profil === 'rad' && t.quelle === 'OpenStreetMap')));
+  pruef('Wege in der Nähe: Verlauf als GPX von Waymarked Trails (4 Punkte statt der 3 von Overpass)', /mtb\.waymarkedtrails\.org\/api\/v1\/details\/relation\/909\/geometry\/gpx$/.test(gpxGeholt) &&
+    await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'MTB-Runde Rabenkopf').spur.length === 4), gpxGeholt);
   await pf.unroute(/mtb\.waymarkedtrails\.org\/api/, mtbRoute);
   await pf.unroute(/overpass-api\.de/, wegeRoute);
   await zuSeite(pf, 'entdecken');
