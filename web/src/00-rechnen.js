@@ -938,6 +938,17 @@ var R = (function () {
   // Sicherung aller Touren: {app, version, touren}. Eine Sicherung kann von irgendwoher kommen: jede Tour wird
   // Feld für Feld neu aufgebaut (nur endliche Zahlen, Texte mit Längengrenze, bekannte Werte); was nicht passt,
   // fällt weg. Liefert die gültigen Touren oder wirft mit Grund.
+  // Ordner der Touren (Bibliothek): Name gekürzt und ohne Steuerzeichen, sonst ''
+  function ordnerName(x) {
+    return typeof x === 'string' ? x.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+  }
+  // alle Ordner aus den Touren und der Liste leerer Ordner, nach Name; zahl je Ordner in liste (z. B. nur geplante)
+  function ordnerListe(touren, gespeichert, liste) {
+    const namen = new Set();
+    for (const n of gespeichert || []) { const o = ordnerName(n); if (o) namen.add(o); }
+    for (const t of touren || []) { const o = ordnerName(t.ordner); if (o) namen.add(o); }
+    return [...namen].sort((a, b) => a.localeCompare(b, 'de')).map(name => ({ name, zahl: (liste || touren || []).filter(t => t.ordner === name).length }));
+  }
   function sicherungLesen(text) {
     let d = text;
     if (typeof text === 'string') { try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); } }
@@ -1007,6 +1018,8 @@ var R = (function () {
     if (t.modus === 'berg' || t.modus === 'stadt') out.modus = t.modus;
     if (zahl(t.tempo) != null && t.tempo > 0 && t.tempo < 3) out.tempo = t.tempo;
     if (zahl(t.pace) != null && t.pace >= 2 && t.pace <= 20) out.pace = t.pace;
+    const ordner = ordnerName(t.ordner);
+    if (ordner) out.ordner = ordner;
     // aus einer GPX-Datei: Wegpunkte [lat, lon, Name, Art], Herkunft, Dauer laut Zeitstempeln
     if (Array.isArray(t.punkte)) {
       const pk = t.punkte.filter(p => Array.isArray(p) && ort(p[0], p[1])).slice(0, 200)
@@ -2502,7 +2515,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

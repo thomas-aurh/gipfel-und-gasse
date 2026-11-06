@@ -37,6 +37,9 @@ function tourSpeichern() {
     art: S.fest ? (S.fest.art || 'spur') : 'plan',
     kurz: { laenge: e.laenge, auf: e.auf, ab: e.ab, zeit: e.zeit + (S.fest ? 0 : besichtigung() / 60) }
   };
+  // erneutes Speichern behält den Ordner
+  const alt = liste.find(t => t.id === tour.id);
+  if (alt && alt.ordner) tour.ordner = alt.ordner;
   const i = liste.findIndex(t => t.id === tour.id);
   if (i >= 0) liste[i] = tour; else liste.unshift(tour);
   if (!tourenSchreiben(liste)) return;
@@ -92,6 +95,7 @@ function tourSeiteZeigen() {
   $('tourZahlen').innerHTML = S.ergebnis ? zahl('zLaenge', 'Strecke') + zahl('zZeit', $('zZeitText').textContent) + zahl('zAuf', 'Aufstieg') +
     zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') +
     (t && t.dateiDauer ? '<div class="zahl"><b>' + R.esc(R.zeitText(t.dateiDauer, true)) + '</b><span>Dauer laut Datei</span></div>' : '') : '';
+  tourOrdnerWahl(t);
   dateiPunkteZeigen(t);
   tourFotosZeigen(t);
   packlisteNeu();
@@ -271,12 +275,88 @@ function tourenPunkte(liste) {
 }
 
 // Touren getrennt: geplante (Planungen und geöffnete GPX-Spuren) und gegangene (Aufzeichnungen) mit Statistik
+// ---------- Ordner (Bibliothek): jede Tour in höchstens einem Ordner; leere Ordner merkt sich 'ordner' ----------
+let ordnerGewaehlt = SPEICHER.lesen('ordnerWahl', '');   // '' alle, sonst der Name
+function ordnerGespeichert() { return SPEICHER.lesen('ordner', []); }
+function ordnerAlle() { return R.ordnerListe(tourenLesen(), ordnerGespeichert()).map(o => o.name); }
+function ordnerNeu(dann) {
+  const name = R.ordnerName(prompt('Name des neuen Ordners', '') || '');
+  if (!name) return '';
+  if (!ordnerAlle().includes(name)) SPEICHER.schreiben('ordner', ordnerGespeichert().concat([name]));
+  if (dann) dann(name);
+  return name;
+}
+function ordnerUmbenennen(alt) {
+  const neu = R.ordnerName(prompt('Neuer Name des Ordners', alt) || '');
+  if (!neu || neu === alt) return;
+  const liste = tourenLesen();
+  liste.forEach(t => { if (t.ordner === alt) t.ordner = neu; });
+  if (!tourenSchreiben(liste)) return;
+  SPEICHER.schreiben('ordner', [...new Set(ordnerGespeichert().map(n => (n === alt ? neu : n)).concat([neu]))]);
+  ordnerGewaehlt = neu; SPEICHER.schreiben('ordnerWahl', neu);
+  tourenZeigen();
+  melde('Ordner umbenannt in „' + neu + '“.');
+}
+function ordnerLoeschen(name) {
+  const liste = tourenLesen(), drin = liste.filter(t => t.ordner === name).length;
+  if (!confirm('Ordner „' + name + '“ löschen?' + (drin ? ' Die ' + drin + ' Touren darin bleiben erhalten (ohne Ordner).' : ''))) return;
+  liste.forEach(t => { if (t.ordner === name) delete t.ordner; });
+  if (!tourenSchreiben(liste)) return;
+  SPEICHER.schreiben('ordner', ordnerGespeichert().filter(n => n !== name));
+  ordnerGewaehlt = ''; SPEICHER.schreiben('ordnerWahl', '');
+  tourenZeigen();
+  melde('Ordner „' + name + '“ gelöscht.');
+}
+function tourInOrdner(id, name) {
+  const liste = tourenLesen(), t = liste.find(x => x.id === id);
+  if (!t) return;
+  if (name) t.ordner = name; else delete t.ordner;
+  if (!tourenSchreiben(liste)) return;
+  tourenZeigen();
+  melde(name ? '„' + t.name + '“ liegt jetzt im Ordner „' + name + '“.' : '„' + t.name + '“ ohne Ordner.', 4);
+}
+// Leiste über einer Liste: Alle · 📁 Ordner (Zahl) · ＋ Ordner; beim gewählten Ordner Umbenennen und Löschen
+function ordnerLeiste(box, alle, teil) {
+  const ordner = R.ordnerListe(alle, ordnerGespeichert(), teil);
+  if (ordnerGewaehlt && !ordner.some(o => o.name === ordnerGewaehlt)) { ordnerGewaehlt = ''; SPEICHER.schreiben('ordnerWahl', ''); }
+  box.innerHTML = '';
+  const knopf = (text, an, f, titel) => { const b = document.createElement('button'); b.textContent = text; if (an) b.className = 'an'; if (titel) b.title = titel; b.onclick = f; box.appendChild(b); return b; };
+  const waehlen = n => () => { ordnerGewaehlt = n; SPEICHER.schreiben('ordnerWahl', n); tourenZeigen(); };
+  knopf('Alle', !ordnerGewaehlt, waehlen(''));
+  for (const o of ordner) knopf('📁 ' + o.name + ' (' + o.zahl + ')', o.name === ordnerGewaehlt, waehlen(o.name)).dataset.ordner = o.name;
+  knopf('＋ Ordner', false, () => ordnerNeu(n => waehlen(n)()), 'Neuen Ordner anlegen');
+  if (ordnerGewaehlt) {
+    knopf('✏️', false, () => ordnerUmbenennen(ordnerGewaehlt), 'Ordner umbenennen');
+    knopf('🗑', false, () => ordnerLoeschen(ordnerGewaehlt), 'Ordner löschen (die Touren bleiben)');
+  }
+}
+// Auswahl auf der Tourseite
+function tourOrdnerWahl(t) {
+  const sel = $('tourOrdner');
+  $('tourOrdnerZeile').hidden = !t;
+  if (!t) return;
+  sel.innerHTML = '';
+  const opt = (v, text) => { const o = document.createElement('option'); o.value = v; o.textContent = text; sel.appendChild(o); };
+  opt('', 'Kein Ordner');
+  for (const n of ordnerAlle()) opt(n, '📁 ' + n);
+  opt('__neu__', '＋ Neuer Ordner …');
+  sel.value = t.ordner || '';
+  sel.onchange = () => {
+    if (sel.value === '__neu__') { const n = ordnerNeu(); if (n) tourInOrdner(t.id, n); tourOrdnerWahl(tourenLesen().find(x => x.id === t.id)); return; }
+    tourInOrdner(t.id, sel.value);
+  };
+}
+
 function tourenZeigen() {
   const liste = tourenLesen();
   tourenPunkte(liste);
   const gegangen = liste.filter(t => t.art === 'aufzeichnung'), geplant = liste.filter(t => t.art !== 'aufzeichnung');
-  listeZeigen($('tourliste'), geplant, 'Noch keine geplanten Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.');
-  listeZeigen($('gangliste'), gegangen, 'Noch keine gegangenen Touren. Unter „Unterwegs“ aufzeichnen, danach „Als Tour speichern“.');
+  ordnerLeiste($('ordnerGeplant'), liste, geplant);
+  ordnerLeiste($('ordnerGegangen'), liste, gegangen);
+  const imOrdner = l => (ordnerGewaehlt ? l.filter(t => t.ordner === ordnerGewaehlt) : l);
+  const leerOrdner = 'Im Ordner „' + ordnerGewaehlt + '“ liegt hier noch nichts. Eine Tour öffnen und oben „📁 Ordner“ wählen.';
+  listeZeigen($('tourliste'), imOrdner(geplant), ordnerGewaehlt && geplant.length ? leerOrdner : 'Noch keine geplanten Touren. Plane eine Route und tippe auf 💾 Speichern, oder öffne eine GPX-Datei.');
+  listeZeigen($('gangliste'), imOrdner(gegangen), ordnerGewaehlt && gegangen.length ? leerOrdner : 'Noch keine gegangenen Touren. Unter „Unterwegs“ aufzeichnen, danach „Als Tour speichern“.');
   const sum = (f) => gegangen.reduce((s, t) => s + (+t.kurz[f] || 0), 0);
   // gemessene Dauer und Aufnahmetag aus den Zeitstempeln der Spur; ohne Zeitstempel die geschätzte Gehzeit und das Speicherdatum
   const dauer = t => { const a = t.spur[0] && t.spur[0][3], b = t.spur[t.spur.length - 1] && t.spur[t.spur.length - 1][3]; return a && b > a ? (b - a) / 3.6e6 : (+t.kurz.zeit || 0); };
@@ -336,7 +416,8 @@ function listeZeigen(ul, liste, leer) {
     const zeichen = tourZeichen(t);
     // Öffnen ist ein echter Knopf, damit es auch mit Tastatur und Bildschirmleser geht
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
-      R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') + '</small></button>' +
+      R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') +
+      (t.ordner && !ordnerGewaehlt ? ' · 📁 ' + R.esc(t.ordner) : '') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
@@ -379,7 +460,7 @@ async function sicherungSpeichern() {
     fotoDateien[id] = 'fotos/' + id + ({ 'image/png': '.png', 'image/webp': '.webp' }[art] || '.jpg');
     dateien.push({ name: fotoDateien[id], daten: b });
   }
-  const json = JSON.stringify({ app: 'gipfel-und-gasse', version: 2, erstellt: new Date().toISOString(), touren: liste, tagebuch: tb.tagebuch, fotoDateien, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() });
+  const json = JSON.stringify({ app: 'gipfel-und-gasse', version: 2, erstellt: new Date().toISOString(), touren: liste, ordner: ordnerGespeichert(), tagebuch: tb.tagebuch, fotoDateien, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() });
   dateien.unshift({ name: 'sicherung.json', daten: new TextEncoder().encode(json) });
   await blobAusgeben('gipfel-und-gasse-sicherung-' + tag + '.zip', new Blob(R.zipTeile(dateien), { type: 'application/zip' }), 'application/zip');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
@@ -408,6 +489,11 @@ async function sicherungEinlesen(text) {
   const dazu = neu.filter(t => !ids.has(t.id));
   // die drei Teile unabhängig: passen die Touren nicht in den Speicher, kommen Tagebuch und Reiseziele trotzdem
   const tourenOk = !dazu.length || tourenSchreiben(dazu.concat(liste));
+  // leere Ordner der Sicherung dazu (Ordner mit Touren kommen mit den Touren)
+  try {
+    const d = typeof text === 'string' ? JSON.parse(text) : text;
+    if (d && Array.isArray(d.ordner)) SPEICHER.schreiben('ordner', [...new Set(ordnerGespeichert().concat(d.ordner.map(R.ordnerName).filter(Boolean)))]);
+  } catch (e) { /* ohne Ordner */ }
   const tb = await tagebuchEinlesen(text);
   const zl = zieleEinlesen(text);
   const gb = gipfelbuchEinlesen(text);
