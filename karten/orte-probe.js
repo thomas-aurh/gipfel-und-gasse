@@ -18,7 +18,9 @@ const PROBEN = {
     ],
     // Herzogstandbahn (Bergstation) → Herzogstandhaus → Gipfel; München Altstadt mit Museen
     strecke: { pts: [[47.6176, 11.3194], [47.6150, 11.3140], [47.6122, 11.3117]], radius: 500, kat: ['gipfel', 'huette'] },
-    stadt: { bbox: [48.130, 11.565, 48.145, 11.590], mindestens: 30, kat: ['museum', 'sehens'] }
+    stadt: { bbox: [48.130, 11.565, 48.145, 11.590], mindestens: 30, kat: ['museum', 'sehens'] },
+    // MTB-Trails mit mtb:scale zwischen Kochelsee, Herzogstand und Walchensee
+    trails: { bbox: [47.55, 11.25, 47.70, 11.45], mindestens: 5 }
   },
   'allgaeu-bodensee': {
     suche: [
@@ -42,7 +44,8 @@ for (const p of liste.pakete) {
   const datei = path.join(aus, path.basename(d.url));
   const t0 = Date.now();
   const j = JSON.parse(zlib.gunzipSync(fs.readFileSync(datei)).toString('utf8'));
-  console.log(p.id + ': ' + j.orte.length + ' Orte, ' + j.suche.length + ' Suchbegriffe, ' + (fs.statSync(datei).size / 1048576).toFixed(1) +
+  const trails = j.trails || [], trailPunkte = trails.reduce((summe, t) => summe + t[2].length / 2, 0);
+  console.log(p.id + ': ' + j.orte.length + ' Orte, ' + j.suche.length + ' Suchbegriffe, ' + trails.length + ' MTB-Trails (' + trailPunkte + ' Punkte), ' + (fs.statSync(datei).size / 1048576).toFixed(1) +
     ' MB gepackt, gelesen in ' + (Date.now() - t0) + ' ms');
   const pr = PROBEN[p.id];
   if (!pr) { pruef(j.orte.length > 0 && j.suche.length > 0, p.id + ': Datei nicht leer (keine Proben hinterlegt)'); continue; }
@@ -60,6 +63,11 @@ for (const p of liste.pakete) {
   })() : null);
   const kats = new Set(orte.map(o => o.kat));
   pruef(pr.strecke.kat.every(k => kats.has(k)), 'Orte entlang der Strecke: ' + orte.length + ' (' + [...kats].join(', ') + ')');
+  }
+  if (pr.trails) {
+    const im = R.trailsImAusschnitt(R.trailsEntpacken(trails), pr.trails.bbox);
+    const stufen = [0, 1, 2, 3, 4, 5, 6].map(s => im.filter(t => t.s === s).length).join('/');
+    pruef(im.length >= pr.trails.mindestens, 'MTB-Trails im Ausschnitt: ' + im.length + ' (S0–S6: ' + stufen + ')');
   }
   const stadt = R.stadtLesen(R.orteAusschnitt(j.orte, pr.stadt.bbox));
   const skats = new Set(stadt.map(o => o.kat));

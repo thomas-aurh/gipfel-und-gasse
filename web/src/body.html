@@ -63,6 +63,13 @@
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageMtb"> MTB-Routen (beschildert)</label>
+    <label><input type="checkbox" id="lageTrails"> MTB-Trails nach Schwierigkeit (ab Zoomstufe 13)</label>
+    <div id="trailLegende" hidden>
+      <span class="hang-stufen"><i style="--f:#2e9d3a"></i>S0 <i style="--f:#1f6fd1"></i>S1 <i style="--f:#e0301e"></i>S2 <i style="--f:#1a1a1a"></i>S3 <i style="--f:#8e2bb0"></i>S4+</span>
+      <small>Singletrail-Skala aus OpenStreetMap (mtb:scale), mit Kartenpaket ohne Netz, sonst über Overpass. Eingetragen von
+        Freiwilligen: nicht jeder Trail ist erfasst, vor Ort zählen Zustand und Sperrungen. Antippen zeigt Name und Stufe.</small>
+      <small id="trailZahl"></small>
+    </div>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
     <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
     <label><input type="checkbox" id="lageTagebuch"> Reisetagebuch (Einträge mit Ort)</label>
@@ -269,7 +276,7 @@
           <ul id="stadtListe" class="liste"></ul>
         </div>
         <div id="wegeBox">
-          <h3>🥾 Wege in der Nähe</h3>
+          <h3><span id="wegeZeichen">🥾</span> Wege in der Nähe</h3>
           <div class="zeile">
             <label>Art<select id="wegeArt"><option value="wandern" selected>🥾 Wanderwege</option><option value="mtb">🚵 MTB-Routen</option></select></label>
             <label>Umkreis<select id="wegeUmkreis"><option value="2000">2 km</option><option value="5000" selected>5 km</option><option value="10000">10 km</option></select></label>

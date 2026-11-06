@@ -9,8 +9,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   (beschildert)“, beide von Waymarked Trails (`mtb.waymarkedtrails.org`, `tile.waymarkedtrails.org/mtb`), sonst Overpass
   `route=mtb`. Nur im Klicktest mit nachgebildetem Dienst geprüft; Antwortformat wie bei den Wanderwegen angenommen
   (gleiche Software), gegen den echten Dienst nicht gemessen (aus der Cloud gesperrt). Am Pixel offen: kommen Routen,
-  wie viele im Voralpenland, sind die Kacheln sichtbar. Stufe 2 (Thomas, 06.11.): Singletrails mit `mtb:scale` (S0–S5)
-  aus dem Kartenpaket, nach Schwierigkeit gefärbt, erst wenn sie nach Stufe 1 auf dem Pixel fehlen.
+  wie viele im Voralpenland, sind die Kacheln sichtbar. Thomas am 06.11. auf dem Pixel (Bau 249): Liste geht, 3 Routen
+  in 10 km um Kochel („viele Mountainbike-Routen sind es nicht“), darum Stufe 2.
+- **MTB-Trails nach Schwierigkeit (06.11., Stufe 2):** Wege mit `mtb:scale` als Kartenebene ab Zoomstufe 13, aus der
+  Orte-Datei des Kartenpakets (`trails`, karten/orte.py, Verlauf auf 3 m vereinfacht), sonst Overpass für den Ausschnitt
+  mit 30 % Rand. Geprüft: Einheitstests, Klicktest (Paket ohne Overpass, Browser über Overpass, Antippen), orte.py an einer
+  kleinen OSM-Datei. Offen: Zahl und Größe mit den echten Daten (Ablauf „Kartenpakete“), Tempo beim Zeichnen vieler Trails
+  auf dem Pixel, Antwortzeit von Overpass außerhalb des Pakets. Das Paket Oberbayern muss nach dem Bau neu geladen werden.
 
 - **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
   schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
@@ -133,6 +138,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **MTB-Trails aus Paket und Overpass** (06.11., Thomas' Wahl): wie die Hüttensuche erst das Kartenpaket, außerhalb
+  Overpass nur für den sichtbaren Ausschnitt (eine leichte Abfrage, nicht der Umkreis von 10 km). Die Trails liegen in der
+  Orte-Datei statt in einer eigenen Datei (kein neuer Download-Weg, alte Apps übergehen den Schlüssel).
 - **Keine Trailforks-Daten** (06.11.): Nutzung laut deren Data Use Policy nur über die API mit freigeschaltetem
   Schlüssel, für Privatprojekte meist nicht vergeben, und ein Schlüssel läge offen in Repo und APK. Stattdessen MTB-Routen
   aus OpenStreetMap; einzelne Trails von Trailforks gehen als GPX über „GPX laden“.

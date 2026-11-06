@@ -102,6 +102,7 @@ const ebeneZiele = L.layerGroup();   // Reiseziele (67-ziele.js)
 const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'hang', 'wander', 'rad', 'mtb'];
 // Rahmen der installierten Kartenpakete (gefüllt in 58-offline.js), sichtbar bei gewählter Offline-Karte
 const ebenePaketRahmen = L.layerGroup();
+let trailsAnwenden = null;   // MTB-Trails nach Schwierigkeit, gesetzt in 58-offline.js
 function lagenAnwenden() {
   // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen) oder Offline-Karte außerhalb jedes Pakets:
   // solange topografisch zeigen, Wahl behalten (zurück im Paketgebiet erscheint wieder die Offline-Karte)
@@ -115,6 +116,8 @@ function lagenAnwenden() {
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
   $('lageMtb').checked = !!lagenWahl.mtb;
+  $('lageTrails').checked = !!lagenWahl.trails;
+  $('trailLegende').hidden = !lagenWahl.trails;
   $('lageSehens').checked = !!lagenWahl.sehens;
   $('lageRelief').checked = !!lagenWahl.relief;
   $('lageHang').checked = !!lagenWahl.hang;
@@ -126,6 +129,7 @@ function lagenAnwenden() {
   $('lageZiele').checked = lagenWahl.ziele !== false;
   if (lagenWahl.ziele !== false) ebeneZiele.addTo(karte); else ebeneZiele.remove();
   SPEICHER.schreiben('lagen', lagenWahl);
+  if (trailsAnwenden) trailsAnwenden();
   if (stadtBereit) sehensPruefen();   // Sehenswürdigkeiten laden oder ausblenden (55-stadt.js)
 }
 lagenAnwenden();
@@ -133,6 +137,10 @@ document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('
 $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
 $('lageMtb').addEventListener('change', e => { lagenWahl.mtb = e.target.checked; lagenAnwenden(); });
+$('lageTrails').addEventListener('change', e => {
+  lagenWahl.trails = e.target.checked; lagenAnwenden();
+  if (e.target.checked && karte.getZoom() < 13) melde('MTB-Trails erscheinen ab Zoomstufe 13: näher heranzoomen.', 4);
+});
 $('lageZiele').addEventListener('change', e => { lagenWahl.ziele = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
