@@ -151,8 +151,12 @@ let tagFokus = null;
 function zeichenRoute() {
   ebeneRoute.clearLayers();
   ebeneHervor.clearLayers();
+  ordnerMarkeZeigen();
   const e = S.ergebnis;
   if (!e || e.pts.length < 2) return;
+  // Tour in einem Ordner: Linie in dessen Farbe (eine Mehrtagestour behält ihre Tagesfarben)
+  const ordner = routeOrdner(), mehrTage = !S.fest && S.wps.some((w, i) => i && i < S.wps.length - 1 && w.nacht);
+  const farbe = k => (ordner && !mehrTage ? ordner.farbe : S.fest ? '#e5532d' : tagFarbe(stueckTag(k)));
   const ll = [[]];
   e.pts.forEach(p => { if (p.luecke && ll[ll.length - 1].length) ll.push([]); ll[ll.length - 1].push([p.lat, p.lon]); });
   L.polyline(ll, { color: '#fff', weight: 9, opacity: 0.9, interactive: false }).addTo(ebeneRoute);
@@ -164,7 +168,7 @@ function zeichenRoute() {
     const teil = [[]];
     e.pts.filter(p => p.d >= d0 - 0.01 && p.d <= d1 + 0.01).forEach(p => { if (p.luecke && teil[teil.length - 1].length) teil.push([]); teil[teil.length - 1].push([p.lat, p.lon]); });
     const blass = tagFokus != null && !S.fest && stueckTag(k) !== tagFokus;
-    const linie = L.polyline(teil, { color: S.fest ? '#e5532d' : tagFarbe(stueckTag(k)), weight: blass ? 4 : 5, opacity: blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
+    const linie = L.polyline(teil, { color: farbe(k), weight: blass ? 4 : 5, opacity: blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }

@@ -949,6 +949,21 @@ var R = (function () {
     for (const t of touren || []) { const o = ordnerName(t.ordner); if (o) namen.add(o); }
     return [...namen].sort((a, b) => a.localeCompare(b, 'de')).map(name => ({ name, zahl: (liste || touren || []).filter(t => t.ordner === name).length }));
   }
+  // Farben der Ordner: acht gut unterscheidbare, auch auf der Karte kräftige Töne
+  const ORDNER_FARBEN = ['#2e7d32', '#1565c0', '#c62828', '#ef6c00', '#6a1b9a', '#00838f', '#ad1457', '#5d4037'];
+  // gespeicherte Farbe (nur aus der Liste), sonst eine feste aus dem Namen
+  function ordnerFarbe(name, farben) {
+    const f = farben && farben[name];
+    if (ORDNER_FARBEN.includes(f)) return f;
+    let h = 0;
+    for (const c of String(name || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return ORDNER_FARBEN[h % ORDNER_FARBEN.length];
+  }
+  // erste Farbe, die noch kein Ordner hat (sonst reihum)
+  function ordnerFarbeFrei(namen, farben) {
+    const vergeben = new Set(namen.map(n => ordnerFarbe(n, farben)));
+    return ORDNER_FARBEN.find(f => !vergeben.has(f)) || ORDNER_FARBEN[namen.length % ORDNER_FARBEN.length];
+  }
   function sicherungLesen(text) {
     let d = text;
     if (typeof text === 'string') { try { d = JSON.parse(text); } catch (e) { throw new Error('keine Sicherung von Gipfel & Gasse (kein JSON)'); } }
@@ -2547,7 +2562,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

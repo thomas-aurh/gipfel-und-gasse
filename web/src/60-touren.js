@@ -258,7 +258,7 @@ function tourenPunkte(liste) {
     const gegangen = t.art === 'aufzeichnung';
     const m = L.marker([a.lat, a.lon], {
       title: t.name, zIndexOffset: -500,
-      icon: L.divIcon({ className: '', html: '<div class="tour-mk ' + (gegangen ? 'gegangen' : 'geplant') + '">' + (gegangen ? '✓' : tourZeichen(t)) + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] })
+      icon: L.divIcon({ className: '', html: '<div class="tour-mk ' + (gegangen ? 'gegangen' : 'geplant') + '"' + (t.ordner ? ' style="border-color:' + farbeVon(t.ordner) + '"' : '') + '>' + (gegangen ? '✓' : tourZeichen(t)) + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] })
     });
     m.bindPopup(() => {
       const box = document.createElement('div');
@@ -278,11 +278,30 @@ function tourenPunkte(liste) {
 // ---------- Ordner (Bibliothek): jede Tour in höchstens einem Ordner; leere Ordner merkt sich 'ordner' ----------
 let ordnerGewaehlt = SPEICHER.lesen('ordnerWahl', '');   // '' alle, sonst der Name
 function ordnerGespeichert() { return SPEICHER.lesen('ordner', []); }
+function ordnerFarben() { return SPEICHER.lesen('ordnerFarben', {}); }
+function farbeVon(name) { return R.ordnerFarbe(name, ordnerFarben()); }
+function farbeSetzen(name, farbe) { const f = ordnerFarben(); if (farbe) f[name] = farbe; else delete f[name]; SPEICHER.schreiben('ordnerFarben', f); }
+// Ordner und Farbe der offenen Tour (für Linie und Marke auf der Karte), sonst null
+function routeOrdner() {
+  if (!S.tourId) return null;
+  const t = tourenLesen().find(x => x.id === S.tourId);
+  return t && t.ordner ? { name: t.ordner, farbe: farbeVon(t.ordner) } : null;
+}
+function ordnerMarkeZeigen() {
+  const m = $('ordnerMarke'), o = S.ergebnis ? routeOrdner() : null;
+  m.hidden = !o;
+  if (!o) return;
+  m.innerHTML = '<i style="--f:' + o.farbe + '"></i>' + R.esc(o.name);
+  m.title = 'Ordner „' + o.name + '“';
+}
 function ordnerAlle() { return R.ordnerListe(tourenLesen(), ordnerGespeichert()).map(o => o.name); }
 function ordnerNeu(dann) {
   const name = R.ordnerName(prompt('Name des neuen Ordners', '') || '');
   if (!name) return '';
-  if (!ordnerAlle().includes(name)) SPEICHER.schreiben('ordner', ordnerGespeichert().concat([name]));
+  if (!ordnerAlle().includes(name)) {
+    farbeSetzen(name, R.ordnerFarbeFrei(ordnerAlle(), ordnerFarben()));
+    SPEICHER.schreiben('ordner', ordnerGespeichert().concat([name]));
+  }
   if (dann) dann(name);
   return name;
 }
@@ -293,6 +312,9 @@ function ordnerUmbenennen(alt) {
   liste.forEach(t => { if (t.ordner === alt) t.ordner = neu; });
   if (!tourenSchreiben(liste)) return;
   SPEICHER.schreiben('ordner', [...new Set(ordnerGespeichert().map(n => (n === alt ? neu : n)).concat([neu]))]);
+  const farbe = farbeVon(alt);
+  farbeSetzen(alt, null); farbeSetzen(neu, farbe);   // die Farbe zieht mit
+  zeichenRoute();
   ordnerGewaehlt = neu; SPEICHER.schreiben('ordnerWahl', neu);
   tourenZeigen();
   melde('Ordner umbenannt in „' + neu + '“.');
@@ -303,6 +325,8 @@ function ordnerLoeschen(name) {
   liste.forEach(t => { if (t.ordner === name) delete t.ordner; });
   if (!tourenSchreiben(liste)) return;
   SPEICHER.schreiben('ordner', ordnerGespeichert().filter(n => n !== name));
+  farbeSetzen(name, null);
+  zeichenRoute();
   ordnerGewaehlt = ''; SPEICHER.schreiben('ordnerWahl', '');
   tourenZeigen();
   melde('Ordner „' + name + '“ gelöscht.');
@@ -313,6 +337,7 @@ function tourInOrdner(id, name) {
   if (name) t.ordner = name; else delete t.ordner;
   if (!tourenSchreiben(liste)) return;
   tourenZeigen();
+  if (S.tourId === id) zeichenRoute();   // Linie und Marke in der Farbe des Ordners
   melde(name ? '„' + t.name + '“ liegt jetzt im Ordner „' + name + '“.' : '„' + t.name + '“ ohne Ordner.', 4);
 }
 // Leiste über einer Liste: Alle · 📁 Ordner (Zahl) · ＋ Ordner; beim gewählten Ordner Umbenennen und Löschen
@@ -320,14 +345,30 @@ function ordnerLeiste(box, alle, teil) {
   const ordner = R.ordnerListe(alle, ordnerGespeichert(), teil);
   if (ordnerGewaehlt && !ordner.some(o => o.name === ordnerGewaehlt)) { ordnerGewaehlt = ''; SPEICHER.schreiben('ordnerWahl', ''); }
   box.innerHTML = '';
-  const knopf = (text, an, f, titel) => { const b = document.createElement('button'); b.textContent = text; if (an) b.className = 'an'; if (titel) b.title = titel; b.onclick = f; box.appendChild(b); return b; };
+  const knopf = (text, an, f, titel, farbe) => {
+    const b = document.createElement('button');
+    b.textContent = text; if (an) b.className = 'an'; if (titel) b.title = titel; b.onclick = f;
+    if (farbe) { const i = document.createElement('i'); i.className = 'ordner-farbe'; i.style.setProperty('--f', farbe); b.prepend(i); }
+    box.appendChild(b); return b;
+  };
   const waehlen = n => () => { ordnerGewaehlt = n; SPEICHER.schreiben('ordnerWahl', n); tourenZeigen(); };
   knopf('Alle', !ordnerGewaehlt, waehlen(''));
-  for (const o of ordner) knopf('📁 ' + o.name + ' (' + o.zahl + ')', o.name === ordnerGewaehlt, waehlen(o.name)).dataset.ordner = o.name;
+  for (const o of ordner) knopf(o.name + ' (' + o.zahl + ')', o.name === ordnerGewaehlt, waehlen(o.name), 'Ordner „' + o.name + '“', farbeVon(o.name)).dataset.ordner = o.name;
   knopf('＋ Ordner', false, () => ordnerNeu(n => waehlen(n)()), 'Neuen Ordner anlegen');
   if (ordnerGewaehlt) {
     knopf('✏️', false, () => ordnerUmbenennen(ordnerGewaehlt), 'Ordner umbenennen');
     knopf('🗑', false, () => ordnerLoeschen(ordnerGewaehlt), 'Ordner löschen (die Touren bleiben)');
+    // Farbe des gewählten Ordners: acht Töne zum Antippen
+    const reihe = document.createElement('span');
+    reihe.className = 'ordner-farbwahl';
+    for (const f of R.ORDNER_FARBEN) {
+      const b = document.createElement('button');
+      b.className = 'farbknopf' + (f === farbeVon(ordnerGewaehlt) ? ' an' : '');
+      b.style.setProperty('--f', f); b.style.background = f; b.title = 'Farbe ' + f; b.setAttribute('aria-label', 'Farbe ' + f);
+      b.onclick = () => { farbeSetzen(ordnerGewaehlt, f); tourenZeigen(); zeichenRoute(); };
+      reihe.appendChild(b);
+    }
+    box.appendChild(reihe);
   }
 }
 // Auswahl auf der Tourseite
@@ -338,9 +379,10 @@ function tourOrdnerWahl(t) {
   sel.innerHTML = '';
   const opt = (v, text) => { const o = document.createElement('option'); o.value = v; o.textContent = text; sel.appendChild(o); };
   opt('', 'Kein Ordner');
-  for (const n of ordnerAlle()) opt(n, '📁 ' + n);
+  for (const n of ordnerAlle()) opt(n, '● ' + n);
   opt('__neu__', '＋ Neuer Ordner …');
   sel.value = t.ordner || '';
+  sel.style.borderLeft = t.ordner ? '8px solid ' + farbeVon(t.ordner) : '';
   sel.onchange = () => {
     if (sel.value === '__neu__') { const n = ordnerNeu(); if (n) tourInOrdner(t.id, n); tourOrdnerWahl(tourenLesen().find(x => x.id === t.id)); return; }
     tourInOrdner(t.id, sel.value);
@@ -417,7 +459,7 @@ function listeZeigen(ul, liste, leer) {
     // Öffnen ist ein echter Knopf, damit es auch mit Tastatur und Bildschirmleser geht
     li.innerHTML = '<span class="zeichen">' + zeichen + '</span><button class="was oeffnen" title="Tour öffnen">' + R.esc(t.name) + '<small>' +
       R.kmText(t.kurz.laenge) + ' · ↑ ' + Math.round(+t.kurz.auf || 0) + ' m · ' + R.zeitText(t.kurz.zeit) + ' · ' + new Date(t.datum).toLocaleDateString('de-DE') +
-      (t.ordner && !ordnerGewaehlt ? ' · 📁 ' + R.esc(t.ordner) : '') + '</small></button>' +
+      (t.ordner && !ordnerGewaehlt ? ' · <i class="ordner-farbe" style="--f:' + farbeVon(t.ordner) + '"></i>' + R.esc(t.ordner) : '') + '</small></button>' +
       '<span class="aktionen"><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
@@ -460,7 +502,7 @@ async function sicherungSpeichern() {
     fotoDateien[id] = 'fotos/' + id + ({ 'image/png': '.png', 'image/webp': '.webp' }[art] || '.jpg');
     dateien.push({ name: fotoDateien[id], daten: b });
   }
-  const json = JSON.stringify({ app: 'gipfel-und-gasse', version: 2, erstellt: new Date().toISOString(), touren: liste, ordner: ordnerGespeichert(), tagebuch: tb.tagebuch, fotoDateien, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() });
+  const json = JSON.stringify({ app: 'gipfel-und-gasse', version: 2, erstellt: new Date().toISOString(), touren: liste, ordner: ordnerGespeichert(), ordnerFarben: ordnerFarben(), tagebuch: tb.tagebuch, fotoDateien, reiseziele: ziele, gipfelbuch: gipfelbuchLesen() });
   dateien.unshift({ name: 'sicherung.json', daten: new TextEncoder().encode(json) });
   await blobAusgeben('gipfel-und-gasse-sicherung-' + tag + '.zip', new Blob(R.zipTeile(dateien), { type: 'application/zip' }), 'application/zip');
   // nicht still: ein Foto, das sich nicht lesen ließ, fehlt in dieser Sicherung
@@ -493,6 +535,12 @@ async function sicherungEinlesen(text) {
   try {
     const d = typeof text === 'string' ? JSON.parse(text) : text;
     if (d && Array.isArray(d.ordner)) SPEICHER.schreiben('ordner', [...new Set(ordnerGespeichert().concat(d.ordner.map(R.ordnerName).filter(Boolean)))]);
+    // Farben nur für Ordner ohne eigene Farbe auf diesem Gerät
+    if (d && d.ordnerFarben && typeof d.ordnerFarben === 'object') {
+      const f = ordnerFarben();
+      for (const [n, c] of Object.entries(d.ordnerFarben)) if (R.ordnerName(n) && R.ORDNER_FARBEN.includes(c) && !f[n]) f[R.ordnerName(n)] = c;
+      SPEICHER.schreiben('ordnerFarben', f);
+    }
   } catch (e) { /* ohne Ordner */ }
   const tb = await tagebuchEinlesen(text);
   const zl = zieleEinlesen(text);
