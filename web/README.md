@@ -55,6 +55,16 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 - Eine Umleitung (`page.route`) erst aufheben, wenn ihre Anfrage beantwortet ist: sonst geht die hängende Anfrage ins
   echte Netz (in der Cloud gesperrt, gibt einen Skriptfehler). Absichtliche Fehler der Dienste (400, 504) filtert die
   Prüfung „Keine Skriptfehler“, andere nicht.
+- Der Klicktest liest `dist/`: nach einer Änderung erst `sh pruefen.sh` (oder `sh build.sh`), sonst prüft er den alten
+  Stand und ein „gerade behobener“ Fehler bleibt im Bild (06.11. passiert).
+- Wer in einem Schritt die Seite wechselt, geht am Ende zurück: spätere Schritte erwarten ihre Seite (sonst Zeitüberschreitung
+  bei einem Knopf, der nicht sichtbar ist).
+- Nummern in Testdaten (z. B. Relationen) nicht von früheren Schritten übernehmen: Zwischenspeicher wie `wegeCache`
+  liefern sonst den alten Verlauf, und der neue Weg wird gar nicht durchlaufen.
+- Oberfläche: ein natives `<select>` als Knopf in der Liste braucht eine feste Breite, sonst ist es so breit wie sein
+  längster Eintrag und fängt den Tipp auf die Zeile ab.
+- Tempo erst messen, dann bauen (Skript mit gedrosselter CPU und Long Tasks wie bei Hangneigung und MTB-Trails): die
+  naheliegende Verbesserung bringt oft nichts.
 - Gerätetest `test/emulator.js` nur in GitHub Actions (Job `emulator`, kein Android in der Cloud): die WebView über das
   DevTools-Protokoll ansprechen, nicht mit Playwright (`connectOverCDP` scheitert an fehlenden Browser-Kontexten).
 

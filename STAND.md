@@ -5,41 +5,29 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Steigung einfärben und Punkt-Alarm (06.11., nach dem Blick auf Locus Map):** geprüft in Einheitstests (Steigung über
-  ±25 m, bei dünnen Routen über die Nachbarpunkte; Alarm-Punkte bis 150 m neben der Route) und im Klicktest (Farben an und
-  aus, Vorgabe 300 m, App schickt `alarm` an den Dienst). Der Dienst kündigt Stopps jetzt `alarm` Meter vorher an
-  (vorher fest 150 m); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf dem Pixel (Ansage bei
-  gesperrtem Bildschirm), im Browser nicht mit echter Bewegung. Nach dem Umplanen unterwegs baut der Dienst die Stopps aus
-  den Zielen neu: dann fehlen die Punkte aus GPX und Orte-Liste bis zum nächsten Start.
-- **Tourvorschläge aus dem Kartenpaket (06.11.):** beschilderte Wander- und MTB-Routen (ohne Fernwege, bis 80 km) mit
-  Verlauf in der Orte-Datei (`routen`, karten/orte.py, auf 8 m vereinfacht); Liste und Verlauf ohne Netz. Online den
-  Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`, aus dem Quellcode abgeleitet, gegen den
-  echten Dienst nicht gemessen), zuletzt Overpass. Geprüft: Einheitstests, Klicktest, orte.py an einer kleinen OSM-Datei.
-  Offen: Größe der Orte-Datei und Zahl der Routen mit echten Daten (Ablauf „Kartenpakete“), danach Paket neu laden.
-  Höhenmeter stehen erst nach dem Antippen bzw. „＋ Tour“ fest (nicht in der Liste).
-- **Ordner für Touren (06.11.):** nur im Klicktest geprüft (anlegen, einsortieren, filtern, umbenennen, löschen) und in den
-  Einheitstests (Sicherung behält den Ordner). Am Pixel offen: ob die Eingabefenster (prompt/confirm) im WebView gut gehen,
-  ob die Leiste mit vielen Ordnern zu voll wird. Thomas am 06.11. auf dem Pixel (Bau 261): „Es fehlt, dass man die Touren in
-  den Ordner speichern kann“ (die Auswahl auf der Tourseite war zu versteckt); danach 📁 an jeder Tour in der Liste und
-  „Ordner“ neben dem Namen in Planen. Farben je Ordner (06.11., Thomas: „Farbcodes … auch auf die offene Route
-  mit einem Farblabel“): Linie, Marke oben auf der Karte und Rand der Startpunkte; im Klicktest geprüft, am Pixel offen,
-  ob die Linie auf der Karte kräftig genug ist (8 feste Töne in `R.ORDNER_FARBEN`).
-- **MTB-Routen (06.11., Stufe 1 von 2):** Liste in *Entdecken* (Art „🚵 MTB-Routen“) und Kartenebene „MTB-Routen
-  (beschildert)“, beide von Waymarked Trails (`mtb.waymarkedtrails.org`, `tile.waymarkedtrails.org/mtb`), sonst Overpass
-  `route=mtb`. Nur im Klicktest mit nachgebildetem Dienst geprüft; Antwortformat wie bei den Wanderwegen angenommen
-  (gleiche Software), gegen den echten Dienst nicht gemessen (aus der Cloud gesperrt). Am Pixel offen: kommen Routen,
-  wie viele im Voralpenland, sind die Kacheln sichtbar. Thomas am 06.11. auf dem Pixel (Bau 249): Liste geht, 3 Routen
-  in 10 km um Kochel („viele Mountainbike-Routen sind es nicht“), darum Stufe 2.
-- **MTB-Trails nach Schwierigkeit (06.11., Stufe 2):** Wege mit `mtb:scale` als Kartenebene ab Zoomstufe 13, aus der
-  Orte-Datei des Kartenpakets (`trails`, karten/orte.py, Verlauf auf 3 m vereinfacht), sonst Overpass für den Ausschnitt
-  mit 30 % Rand. Geprüft: Einheitstests, Klicktest (Paket ohne Overpass, Browser über Overpass, Antippen), orte.py an einer
-  kleinen OSM-Datei. Offen: Zahl und Größe mit den echten Daten (Ablauf „Kartenpakete“), Tempo beim Zeichnen vieler Trails
-  auf dem Pixel, Antwortzeit von Overpass außerhalb des Pakets. Das Paket Oberbayern muss nach dem Bau neu geladen werden.
-  Gemessen im Ablauf „Kartenpakete“ (06.11.): Oberbayern 24 303 Trails, Orte-Datei 7,9 MB (vorher 7,2 MB); zwischen
-  Kochelsee und Walchensee 253 Trails. Thomas am 06.11. auf dem Pixel (Bau 251, neues Paket): geht, „laggt beim Zoomen
-  und Scrollen ein bisschen“. Danach als Kacheln gezeichnet (wie die Hangneigung); gemessen im Browser mit 3000 Trails und
-  4× gedrosselter CPU beim Verschieben und Zoomen: blockiert 0,05 statt 3,5 s, längste Aufgabe 0,05 statt 0,7 s.
-  Eine Linie je Stufe statt je Trail hatte nichts gebracht (die Zeit steckt im Malen der ganzen Leinwand).
+- **Steigung einfärben und Punkt-Alarm (06.11., Bau 261):** geprüft in Einheitstests und im Klicktest (Farben an und aus,
+  Vorgabe 300 m, App schickt `alarm` an den Dienst); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf
+  dem Pixel (Ansage bei gesperrtem Bildschirm), im Browser nicht mit echter Bewegung; ob die Steigungsfarben zum Gelände
+  passen. Hütten, Gipfel und Brunnen kommen nur dazu, wenn „Orte entlang der Route“ geladen ist. Nach dem Umplanen
+  unterwegs fehlen die Punkte aus GPX und Orte-Liste bis zum nächsten Start (der Dienst baut die Stopps aus den Zielen neu).
+- **Tourvorschläge aus dem Kartenpaket (06.11., Bau 261, Pakete vom 06.11. 13:59 UTC):** gemessen im Ablauf
+  „Kartenpakete“: Oberbayern 3670 Routen (3020 Wandern, 650 MTB), Orte-Datei 8,3 MB; um Kochel 9 Wanderrouten in 62 ms.
+  Nicht geprüft: auf dem Pixel im Flugmodus; der Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`,
+  aus dem Quellcode abgeleitet, Rückfall Overpass). Höhenmeter stehen erst nach dem Antippen bzw. „＋ Tour“ fest.
+- **Ordner für Touren:** Thomas am 06.11. auf dem Pixel: Ordner und Trails „funktioniert“ (Bau 255), Einsortieren über 📁 in
+  der Liste und „Ordner“ in Planen „funktioniert“ (Bau 263; vorher fehlte es, die Auswahl auf der Tourseite war zu
+  versteckt). Offen: ob die Ordnerfarbe der Linie auf der Karte kräftig genug ist, ob die Leiste mit vielen Ordnern zu
+  voll wird.
+- **MTB-Routen (beschildert):** Thomas am 06.11. auf dem Pixel (Bau 249): Liste geht, 3 Routen in 10 km um Kochel. Offen:
+  ob die Kartenebene (Kacheln von Waymarked Trails) Routen zeigt; der Verlauf blieb damals bei „Lade Verlauf …“ (Overpass),
+  seit Bau 261 zuerst als GPX von Waymarked Trails.
+- **MTB-Trails nach Schwierigkeit:** gemessen im Ablauf „Kartenpakete“: Oberbayern 24 303 Trails, zwischen Kochelsee und
+  Walchensee 253. Thomas am 06.11. auf dem Pixel: Bau 251 „laggt beim Zoomen und Scrollen ein bisschen“, danach als
+  Kacheln gezeichnet; Bau 255 „funktioniert“. Offen: Antwortzeit von Overpass außerhalb eines Pakets, Akku.
+- **Weitere Datenquellen (Recherche 06.11.):** offizielles MTB- und Singletrail-Netz des Landes Tirol (tiris, GeoJSON u. a.,
+  Lizenz je nach Seite CC0 oder CC BY 4.0, an der Datei selbst zu prüfen) als eigene Ebene angeboten, Thomas hat noch
+  nicht entschieden. Freizeitwege Bayern (CC BY 4.0, über 200 000 km laut Bayernportal) erst, wenn feststeht, dass der
+  Download mehr als die am 04.11. verworfenen Fernwege enthält (aus der Cloud gesperrt).
 
 - **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
   schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
@@ -162,6 +150,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Kartenebenen mit vielen Linien als Kacheln** (06.11.): MTB-Trails wie die Hangneigung als `L.GridLayer`, je Kachel
+  einmal gemalt; Antippen sucht den Trail selbst. Verworfen: eine Leaflet-Linie je Trail (Leinwand bei jedem Verschieben
+  neu gemalt, 3,5 s blockiert bei 3000 Trails) und eine Linie je Stufe (brachte nichts: gemessen, bevor gebaut wurde).
+- **Tourvorschläge im Kartenpaket ohne Fernwege** (06.11.): Routen mit Verlauf in der Orte-Datei, Fernwege
+  (`iwn/nwn/icn/ncn`) und Routen über 80 km weg, sonst würde die Datei groß; online bleibt Waymarked Trails.
+- **Punkt-Alarm über die Stopps des Dienstes** (06.11.): Zusatzpunkte gehen als Stopps ohne Besichtigungszeit an den
+  Navigationsdienst, der Abstand als `alarm`; kein zweiter Mechanismus im Dienst. Nicht gebaut aus Locus Map: Live-Tracking
+  (bräuchte einen Server), Cockpit, Geocaching.
 - **Ordner als Feld der Tour** (06.11., Thomas' Wahl „Touren in Ordner“): je Tour höchstens ein Ordner (`ordner`), leere
   Ordner in `gug.ordner`; gilt für geplante und gegangene. Verworfen: Ordner auch für Fotos und Tagebuch (anders
   gespeichert, viel Umbau), echte Dateiordner auf dem Handy (Android erlaubt das nur eingeschränkt).
@@ -291,14 +287,22 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   trotzdem ab: erst `gh release view neueste --json assets,name` messen (APK und Baunummer), dann den Job einmal neu
   anstoßen; das Skript räumt einen halben Lauf selbst auf (`-neu`/`-alt`).
 - **Kartenpakete:** Ablauf „Kartenpakete“ (`kartenpakete.yml`), monatlich am 3. und von Hand (Actions › Kartenpakete ›
-  Run workflow); legt Karte, Höhen und Routendaten samt `pakete.json` in den Release `kartenpakete`, die Größen stehen
-  dort und in der App-Liste. Die App holt die Liste von dort.
+  Run workflow); legt Karte, Höhen, Routendaten und die Orte-Datei (Orte, Suche, MTB-Trails, beschilderte Routen) samt
+  `pakete.json` in den Release `kartenpakete`, die Größen stehen dort und in der App-Liste. Die App holt die Liste von
+  dort. Ein Neubau ersetzt meist alle Dateien eines Pakets (neue Karte von Protomaps): auf dem Handy dann rund 800 MB
+  neu laden, die App verlangt dafür das Paket plus 200 MB frei.
 - **Web:** https://thomas-aurh.github.io/gipfel-und-gasse/ (GitHub Pages, Quelle „GitHub Actions“, am 03.11. auf
   Thomas' Wunsch eingerichtet). Ablauf `pages.yml`: nach jedem Merge auf `main`, der `web/` betrifft, bauen, prüfen
   (`web/pruefen.sh`) und `web/dist/Gipfel-und-Gasse.html` als `index.html` veröffentlichen. Daten (Touren, Tagebuch)
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **06.11. (PRs #96 bis #103, Bau 249 bis 263, Kartenpakete neu)** MTB-Routen von Waymarked Trails als Liste und Ebene
+  (#96); MTB-Trails nach Schwierigkeit aus dem Kartenpaket oder Overpass (#97), als Kacheln flüssig (#98); Ordner für
+  Touren (#99) mit Farben, Farblabel und Linie in der Ordnerfarbe (#101), Einsortieren über 📁 in der Liste und beim
+  Speichern (#103); Tourvorschläge aus dem Kartenpaket, Verlauf online als GPX (#100); Route nach Steigung färben und
+  Punkt-Alarm (#102). Keine Trailforks-Daten (nur über API mit Schlüssel). Einheitstests 336, Klicktest 447.
 
 - **05.11. (abends, PRs #90 bis #94, Bau 243)** Hangneigung flüssig (Neigung je Höhenkachel einmal, Farbtabelle, eine
   Kachel je Bild; #91). Drucken und Heft im Handy-Browser erst nach der Vorschau zurück (nachDruck); BRouter wirklich
