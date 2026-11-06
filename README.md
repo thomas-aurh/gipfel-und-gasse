@@ -94,6 +94,11 @@ erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum
 aus OpenStreetMap (über Waymarked Trails, sonst Overpass) mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
 der Karte, „＋ Tour“ legt ihn mit Höhen unter „Geplant“ ab („aus OpenStreetMap“). Es sind beschilderte Wege, keine
 ausgesuchten Touren mit Beschreibung; Stücke, die in OSM nicht zusammenhängen, bleiben getrennte Abschnitte. Braucht Netz.
+Unter „Art“ statt Wanderwegen **🚵 MTB-Routen** wählen: beschilderte Mountainbike-Routen aus OpenStreetMap (`route=mtb`, über
+Waymarked Trails, sonst Overpass), „＋ Tour“ speichert sie als Fahrrad-Tour. Einzelne Singletrails mit Schwierigkeit
+(S0–S5) gehören nicht dazu, sie sind in OSM keine Routen. Auf der Karte zeigt die Ebene „MTB-Routen (beschildert)“ dieselben
+Routen (Kacheln von Waymarked Trails). Trailforks-Daten sind nicht eingebaut: deren Nutzung ist nur über eine freigeschaltete
+Schnittstelle mit Schlüssel erlaubt.
 
 **Familie:** In *Planen* „👨‍👩‍👧 Familien-Check“: passt die Tour zur gewählten Grenze (bis 5 km und 200 Hm, 8 km und 400 Hm
 oder 12 km und 700 Hm; gewählt unter *Touren* in der Liste, sonst 8 km und 400 Hm), und gibt es auf halber Strecke (30 bis

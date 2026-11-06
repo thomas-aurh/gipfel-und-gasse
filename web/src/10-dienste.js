@@ -8,7 +8,9 @@ const DIENST = {
   wetter: 'https://api.open-meteo.com/v1/forecast',
   hoehe: 'https://api.open-meteo.com/v1/elevation',
   // Waymarked Trails: Liste der markierten Wanderwege aus eigener Datenbank (OSM), schneller als Overpass (CORS offen)
-  wanderwege: 'https://hiking.waymarkedtrails.org/api/v1'
+  wanderwege: 'https://hiking.waymarkedtrails.org/api/v1',
+  // dieselbe Schnittstelle für beschilderte MTB-Routen (route=mtb)
+  mtbwege: 'https://mtb.waymarkedtrails.org/api/v1'
 };
 
 // Profile: was der Nutzer wählt → BRouter-Profil und Zeitrechnung

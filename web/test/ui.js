@@ -78,7 +78,7 @@ function hangKachel(z, y) {
 
 async function dienste(ctx) {
   // Waymarked Trails nicht nachgebildet: antwortet wie überlastet, dann fragt die App Overpass (eigene Prüfung unten)
-  await ctx.route(/hiking\.waymarkedtrails\.org\/api/, r => r.fulfill({ status: 503, contentType: 'text/html', body: '<html>busy</html>' }));
+  await ctx.route(/(hiking|mtb)\.waymarkedtrails\.org\/api/, r => r.fulfill({ status: 503, contentType: 'text/html', body: '<html>busy</html>' }));
   await ctx.route(/tile\.opentopomap\.org|tile\.openstreetmap\.org|tile\.waymarkedtrails\.org/, r => r.fulfill({ status: 200, contentType: 'image/png', body: KACHEL }));
   await ctx.route(/brouter\.de\/brouter/, r => {
     const u = r.request().url();
@@ -1697,6 +1697,11 @@ function pruef(name, bed, info) {
     pruef('Hangneigung: 38° erscheint orange, aus Kacheln bis Stufe 13 (darüber vergrößert)', farbe && farbe[0] === 245 && farbe[1] === 140 && farbe[2] === 0 && farbe[3] === 255 &&
       hangAnfragen.length > 0 && Math.max(...hangAnfragen) === 13, [farbe, [...new Set(hangAnfragen)]]);
     pruef('Hangneigung: Wahl bleibt gespeichert', await ph.evaluate(() => JSON.parse(localStorage.getItem('gug.lagen')).hang === true));
+    // MTB-Routen als Ebene: Kacheln von Waymarked Trails (mtb), Wahl gespeichert
+    const mtbKachel = ph.waitForRequest(/tile\.waymarkedtrails\.org\/mtb\/\d+\/\d+\/\d+\.png/, { timeout: 8000 }).catch(() => null);
+    await ph.check('#lageMtb');
+    pruef('MTB-Routen: Ebene lädt Kacheln von Waymarked Trails und bleibt gewählt', !!(await mtbKachel) &&
+      await ph.evaluate(() => JSON.parse(localStorage.getItem('gug.lagen')).mtb === true));
     await hctx.close();
   }
 
@@ -2219,6 +2224,26 @@ function pruef(name, bed, info) {
   pruef('Wanderwege: zuerst Waymarked Trails, örtliche vor Fernwegen', wegeW.length === 2 && wegeW[0].includes('Rund um den Rabenkopf') && wegeW[0].includes('Nr. R4') && wegeW[1].includes('Fernwanderweg') &&
     /\/list\/by_area\?bbox=\d+,\d+,\d+,\d+&limit=60/.test(wmtUrl), [wegeW, wmtUrl]);
   await pf.unroute(/hiking\.waymarkedtrails\.org\/api/, wmtRoute);
+  // MTB-Routen: eigene Schnittstelle bei Waymarked Trails, „＋ Tour“ speichert als Fahrrad
+  let mtbUrl = '';
+  const mtbRoute = r => { mtbUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ results: [{ type: 'relation', id: 905, name: 'Bike-Transalp', group: 'NAT' }, { type: 'relation', id: 901, name: 'MTB-Runde Rabenkopf', group: 'LOC' }] }) }); };
+  await pf.route(/mtb\.waymarkedtrails\.org\/api/, mtbRoute);
+  await pf.route(/overpass-api\.de/, wegeRoute);
+  await pf.selectOption('#wegeArt', 'mtb');
+  pruef('MTB-Routen: Knopf und Hinweis passen zur Art', (await pf.textContent('#bWege')) === 'MTB-Routen suchen' && (await pf.textContent('#wegeStatus')).includes('keine einzelnen Singletrails'), await pf.textContent('#bWege'));
+  await pf.click('#bWege');
+  await pf.waitForFunction(() => /MTB-Routen \(OpenStreetMap, über Waymarked Trails/.test(document.getElementById('wegeStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  const mtb = await pf.$$eval('#wegeListe li', l => l.map(x => x.textContent));
+  pruef('MTB-Routen: Liste von mtb.waymarkedtrails.org, örtliche vor nationalen', mtb.length === 2 && mtb[0].startsWith('🚵') && mtb[0].includes('MTB-Runde Rabenkopf') && mtb[1].includes('national') &&
+    /mtb\.waymarkedtrails\.org\/api\/v1\/list\/by_area\?bbox=/.test(mtbUrl), [mtb, mtbUrl]);
+  await pf.click('#wegeListe li >> nth=0 >> button');
+  await pf.waitForFunction(() => (JSON.parse(localStorage.getItem('gug.touren')) || []).some(t => t.name === 'MTB-Runde Rabenkopf'), null, { timeout: 8000 }).catch(() => {});
+  pruef('MTB-Routen: „＋ Tour“ speichert als Fahrrad', await pf.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).some(t => t.name === 'MTB-Runde Rabenkopf' && t.profil === 'rad' && t.quelle === 'OpenStreetMap')));
+  await pf.unroute(/mtb\.waymarkedtrails\.org\/api/, mtbRoute);
+  await pf.unroute(/overpass-api\.de/, wegeRoute);
+  await zuSeite(pf, 'entdecken');
+  await pf.selectOption('#wegeArt', 'wandern');
   // überlasteter Dienst: kurze Meldung statt der Fehlerseite des Servers
   const vollRoute = r => r.fulfill({ status: 504, contentType: 'text/html', body: '# 502 Gateway Timeout This Overpass API server is currently at capacity. All query workers are busy.' });
   await pf.route(/overpass-api\.de|overpass\.private\.coffee/, vollRoute);
