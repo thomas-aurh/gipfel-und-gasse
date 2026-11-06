@@ -49,6 +49,7 @@ karte.on('click', e => {
   if (kreuzAn) { kreuzHin(e.latlng); return; }
   // Info-Modus (52-info.js): Antippen zeigt, was dort ist, statt einen Punkt zu setzen
   if (infoAn) { infoZeigen(e.latlng); return; }
+  if (trailAntippen && trailAntippen(e.latlng)) return;
   wegpunktDazu(e.latlng.lat, e.latlng.lng);
 });
 

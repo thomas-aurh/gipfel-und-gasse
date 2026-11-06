@@ -683,10 +683,13 @@ if (Karten) {
 
 // ---------- MTB-Trails nach Schwierigkeit (mtb:scale): aus dem Kartenpaket, sonst Overpass für den Ausschnitt ----------
 // Nur bei gewählter Ebene und ab Zoomstufe 13; geladen wird der Ausschnitt mit Rand, erst beim Verlassen neu
-const ebeneTrails = L.layerGroup();
-const trailsMaler = L.canvas({ padding: 0.3 });
+// Gezeichnet als Kacheln (wie die Hangneigung): jede Kachel einmal, mit einem Bildaufbau dazwischen; Verschieben malt
+// nichts neu. Vorher eine Leaflet-Linie je Trail auf einer Leinwand, die bei jedem Verschieben und Zoomen ganz neu
+// gemalt wurde (gemessen 06.11., 3000 Trails, 4× gedrosselte CPU: 3,5 s blockiert, längste Aufgabe 0,7 s).
 const trailsEntpackt = new WeakMap();   // gelesene Orte-Datei → entpackte Trails
 let trailsLauf = 0, trailsRahmen = null, trailsUhr = null;
+let trailsSichtbar = [], trailsGitter = new Map();
+const TRAIL_ZELLE = 0.02;   // Gitter in Grad für „welche Trails berühren diese Kachel“
 async function trailsAusPaketen(b) {
   const ps = await ortePakete([{ lat: b[0], lon: b[1] }, { lat: b[2], lon: b[3] }, { lat: b[0], lon: b[3] }, { lat: b[2], lon: b[1] }], 0);
   if (!ps) return null;
@@ -701,17 +704,65 @@ async function trailsAusPaketen(b) {
   if (alt && navigator.onLine !== false) return null;
   return { trails: out, alt };
 }
-function trailsZeichnen(liste) {
-  ebeneTrails.clearLayers();
-  for (const t of liste) {
-    L.polyline(t.pts, { renderer: trailsMaler, color: '#fff', weight: 6, opacity: 0.8, interactive: false }).addTo(ebeneTrails);
+const TrailKacheln = L.GridLayer.extend({
+  createTile(c, fertig) {
+    const kachel = document.createElement('canvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    kachel.width = kachel.height = Math.round(256 * dpr);
+    hangReihe().then(frei => {
+      try { trailKachelMalen(kachel, c, dpr); } finally { frei(); }
+      fertig(null, kachel);
+    }, e => fertig(e, kachel));
+    return kachel;
   }
-  for (const t of liste) {
-    const l = L.polyline(t.pts, { renderer: trailsMaler, color: R.TRAIL_FARBE[t.s] || '#8e2bb0', weight: 3.5, opacity: 0.95, bubblingMouseEvents: false });
-    l.on('click', () => melde('🚵 ' + R.trailText(t), 6));
-    l.addTo(ebeneTrails);
+});
+function trailKachelMalen(kachel, c, dpr) {
+  const n = Math.pow(2, c.z);
+  const lonW = c.x / n * 360 - 180, lonO = (c.x + 1) / n * 360 - 180;
+  const breite = t => Math.atan(Math.sinh(Math.PI * (1 - 2 * t / n))) / RAD_GRAD;
+  const rand = (lonO - lonW) * 0.05, b = [breite(c.y + 1) - rand, lonW - rand, breite(c.y) + rand, lonO + rand];
+  const treffer = new Set();
+  for (let i = Math.floor(b[0] / TRAIL_ZELLE); i <= Math.floor(b[2] / TRAIL_ZELLE); i++) {
+    for (let j = Math.floor(b[1] / TRAIL_ZELLE); j <= Math.floor(b[3] / TRAIL_ZELLE); j++) {
+      for (const t of trailsGitter.get(i + ':' + j) || []) if (t.b[0] <= b[2] && t.b[2] >= b[0] && t.b[1] <= b[3] && t.b[3] >= b[1]) treffer.add(t);
+    }
   }
+  if (!treffer.size) return;
+  const g = kachel.getContext('2d'), ox = c.x * 256, oy = c.y * 256;
+  g.scale(dpr, dpr);
+  g.lineJoin = g.lineCap = 'round';
+  const pfad = t => {
+    g.beginPath();
+    t.pts.forEach(([la, lo], k) => { const [x, y] = R.mercatorPixel(la, lo, c.z); if (k) g.lineTo(x - ox, y - oy); else g.moveTo(x - ox, y - oy); });
+  };
+  const liste = [...treffer].sort((p, q) => p.s - q.s);   // schwere zuletzt, also obenauf
+  g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 6;
+  for (const t of liste) { pfad(t); g.stroke(); }
+  g.lineWidth = 3.5; g.globalAlpha = 0.95;
+  for (const t of liste) { g.strokeStyle = R.TRAIL_FARBE[t.s] || '#8e2bb0'; pfad(t); g.stroke(); }
 }
+const ebeneTrails = new TrailKacheln({ minZoom: 13, maxZoom: 19, zIndex: 4, updateWhenZooming: false, keepBuffer: 3 });
+function trailsZeichnen(liste) {
+  trailsSichtbar = liste;
+  trailsGitter = new Map();
+  for (const t of liste) {
+    for (let i = Math.floor(t.b[0] / TRAIL_ZELLE); i <= Math.floor(t.b[2] / TRAIL_ZELLE); i++) {
+      for (let j = Math.floor(t.b[1] / TRAIL_ZELLE); j <= Math.floor(t.b[3] / TRAIL_ZELLE); j++) {
+        const k = i + ':' + j;
+        if (!trailsGitter.has(k)) trailsGitter.set(k, []);
+        trailsGitter.get(k).push(t);
+      }
+    }
+  }
+  ebeneTrails.redraw();
+}
+// Antippen: nächster Trail bis 14 px zeigt Name und Stufe (30-planen.js setzt dann keinen Punkt)
+trailAntippen = ll => {
+  if (!lagenWahl.trails || karte.getZoom() < 13 || !trailsSichtbar.length) return false;
+  const t = R.naechsterTrail(trailsSichtbar, { lat: ll.lat, lon: ll.lng }, 14 * R.meterJePixel(karte.getZoom(), ll.lat));
+  if (!t) return false;
+  melde('🚵 ' + R.trailText(t), 6);
+  return true;
+};
 async function trailsLaden() {
   if (!lagenWahl.trails || karte.getZoom() < 13) return;
   const g = karte.getBounds(), b = [g.getSouth(), g.getWest(), g.getNorth(), g.getEast()];
@@ -744,7 +795,7 @@ async function trailsLaden() {
 trailsAnwenden = () => {
   if (!lagenWahl.trails || karte.getZoom() < 13) {
     ebeneTrails.remove();
-    if (!lagenWahl.trails) { ebeneTrails.clearLayers(); trailsRahmen = null; trailsLauf++; }
+    if (!lagenWahl.trails) { trailsSichtbar = []; trailsGitter = new Map(); trailsRahmen = null; trailsLauf++; }
     return;
   }
   ebeneTrails.addTo(karte);

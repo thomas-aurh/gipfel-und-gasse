@@ -16,6 +16,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   mit 30 % Rand. Geprüft: Einheitstests, Klicktest (Paket ohne Overpass, Browser über Overpass, Antippen), orte.py an einer
   kleinen OSM-Datei. Offen: Zahl und Größe mit den echten Daten (Ablauf „Kartenpakete“), Tempo beim Zeichnen vieler Trails
   auf dem Pixel, Antwortzeit von Overpass außerhalb des Pakets. Das Paket Oberbayern muss nach dem Bau neu geladen werden.
+  Gemessen im Ablauf „Kartenpakete“ (06.11.): Oberbayern 24 303 Trails, Orte-Datei 7,9 MB (vorher 7,2 MB); zwischen
+  Kochelsee und Walchensee 253 Trails. Thomas am 06.11. auf dem Pixel (Bau 251, neues Paket): geht, „laggt beim Zoomen
+  und Scrollen ein bisschen“. Danach als Kacheln gezeichnet (wie die Hangneigung); gemessen im Browser mit 3000 Trails und
+  4× gedrosselter CPU beim Verschieben und Zoomen: blockiert 0,05 statt 3,5 s, längste Aufgabe 0,05 statt 0,7 s.
+  Eine Linie je Stufe statt je Trail hatte nichts gebracht (die Zeit steckt im Malen der ganzen Leinwand).
 
 - **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
   schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
