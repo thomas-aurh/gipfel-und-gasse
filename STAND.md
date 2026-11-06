@@ -5,6 +5,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **MTB-Routen (06.11., Stufe 1 von 2):** Liste in *Entdecken* (Art „🚵 MTB-Routen“) und Kartenebene „MTB-Routen
+  (beschildert)“, beide von Waymarked Trails (`mtb.waymarkedtrails.org`, `tile.waymarkedtrails.org/mtb`), sonst Overpass
+  `route=mtb`. Nur im Klicktest mit nachgebildetem Dienst geprüft; Antwortformat wie bei den Wanderwegen angenommen
+  (gleiche Software), gegen den echten Dienst nicht gemessen (aus der Cloud gesperrt). Am Pixel offen: kommen Routen,
+  wie viele im Voralpenland, sind die Kacheln sichtbar. Stufe 2 (Thomas, 06.11.): Singletrails mit `mtb:scale` (S0–S5)
+  aus dem Kartenpaket, nach Schwierigkeit gefärbt, erst wenn sie nach Stufe 1 auf dem Pixel fehlen.
+
 - **Hangneigung:** Thomas am 05.11. auf dem Pixel (Bau 233): funktioniert, beim Scrollen „laggt es ein bisschen“. Danach
   schneller gemacht (Neigung je Höhenkachel nur einmal gerechnet, Farben aus einer Tabelle, eine Kachel je Bild);
   gemessen im Browser mit 4× gedrosselter CPU beim Verschieben: blockiert 0,6 statt 2,9 s, längste Aufgabe 0,16 statt
@@ -126,6 +133,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Keine Trailforks-Daten** (06.11.): Nutzung laut deren Data Use Policy nur über die API mit freigeschaltetem
+  Schlüssel, für Privatprojekte meist nicht vergeben, und ein Schlüssel läge offen in Repo und APK. Stattdessen MTB-Routen
+  aus OpenStreetMap; einzelne Trails von Trailforks gehen als GPX über „GPX laden“.
 - **Gerätetest im Emulator** (05.11.): Debug-APK in Android 14 (x86_64) in GitHub Actions, Oberfläche direkt über das
   DevTools-Protokoll der WebView. Verworfen: Playwright `connectOverCDP` (die WebView kennt keine Browser-Kontexte, Lauf
   vom 05.11. scheiterte daran). Der Job hält die APK nicht auf (`apk` braucht ihn nicht), muss aber vor dem Merge grün sein.

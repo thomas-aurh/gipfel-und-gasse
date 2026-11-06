@@ -381,40 +381,52 @@ $('bFamilie').onclick = async () => {
   }
 };
 
-// ---------- Wanderwege in der Nähe: markierte Routen aus OpenStreetMap (Overpass), anzeigen und als Tour übernehmen ----------
+// ---------- Wege in der Nähe: markierte Wanderwege oder beschilderte MTB-Routen aus OpenStreetMap, anzeigen und als Tour übernehmen ----------
 const ebeneWeg = L.layerGroup().addTo(karte);
+// je Art: Dienst bei Waymarked Trails, Wörter für die Meldungen, Zeichen in der Liste, Profil der gespeicherten Tour
+const WEGE_ART = {
+  wandern: { dienst: DIENST.wanderwege, wort: 'Wanderwege', gefunden: 'markierte Wege', zeichen: '🥾', profil: 'wandern' },
+  mtb: { dienst: DIENST.mtbwege, wort: 'MTB-Routen', gefunden: 'MTB-Routen', zeichen: '🚵', profil: 'rad' }
+};
+const wegeArt = () => (WEGE_ART[$('wegeArt').value] ? $('wegeArt').value : 'wandern');
+$('wegeArt').addEventListener('change', () => {
+  $('bWege').textContent = WEGE_ART[wegeArt()].wort + ' suchen';
+  $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
+  $('wegeStatus').textContent = wegeArt() === 'mtb' ? 'Beschilderte MTB-Routen aus OpenStreetMap rund um die Kartenmitte (keine einzelnen Singletrails).' : 'Markierte Wege aus OpenStreetMap rund um die Kartenmitte, mit „Als Tour übernehmen“.';
+});
 let wegeLauf = 0;
 $('bWege').onclick = async () => {
-  const c = karte.getCenter(), nr = ++wegeLauf, radius = +$('wegeUmkreis').value;
-  $('wegeStatus').textContent = 'Suche markierte Wanderwege bis ' + R.kmText(radius) + ' um die Kartenmitte …';
+  const c = karte.getCenter(), nr = ++wegeLauf, radius = +$('wegeUmkreis').value, art = wegeArt(), A = WEGE_ART[art];
+  $('wegeStatus').textContent = 'Suche ' + (art === 'mtb' ? 'MTB-Routen' : 'markierte Wanderwege') + ' bis ' + R.kmText(radius) + ' um die Kartenmitte …';
   $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
   $('bWege').disabled = true;
   try {
     // zuerst Waymarked Trails (eigene Datenbank, schnell), sonst Overpass
     let wege, quelle = 'Waymarked Trails';
     try {
-      const w = await holen(DIENST.wanderwege + '/list/by_area?bbox=' + R.bbox3857(c.lat, c.lng, radius).join(',') + '&limit=60', null, 20);
-      wege = R.wegeAusWmt(w, { lat: c.lat, lon: c.lng });
+      const w = await holen(A.dienst + '/list/by_area?bbox=' + R.bbox3857(c.lat, c.lng, radius).join(',') + '&limit=60', null, 20);
+      wege = R.wegeAusWmt(w, { lat: c.lat, lon: c.lng }, art);
     } catch (e) {
       if (nr !== wegeLauf) return;
       quelle = 'Overpass';
       $('wegeStatus').textContent = 'Waymarked Trails nicht erreichbar (' + e.message + '), frage Overpass …';
-      wege = R.wegeLesen(await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius), 35), { lat: c.lat, lon: c.lng });
+      wege = R.wegeLesen(await overpassHolen(R.wegeAbfrage(c.lat, c.lng, radius, art), 35), { lat: c.lat, lon: c.lng });
     }
     if (nr !== wegeLauf) return;
     wege = wege.slice(0, 30);
-    $('wegeStatus').textContent = wege.length ? wege.length + ' markierte Wege (OpenStreetMap, über ' + quelle + '). Antippen zeigt den Verlauf.' : 'Keine markierten Wanderwege in OpenStreetMap gefunden.';
+    $('wegeStatus').textContent = wege.length ? wege.length + ' ' + A.gefunden + ' (OpenStreetMap, über ' + quelle + '). Antippen zeigt den Verlauf.' : 'Keine ' + (art === 'mtb' ? 'beschilderten MTB-Routen' : 'markierten Wanderwege') + ' in OpenStreetMap gefunden.';
     for (const w of wege) {
       const li = document.createElement('li');
       li.dataset.weg = w.id;
-      li.innerHTML = '<span class="zeichen">🥾</span><span class="was">' + R.esc(w.name) + '<small>' + R.esc(R.wegText(w)) + '</small></span>' +
+      w.art = art;
+      li.innerHTML = '<span class="zeichen">' + A.zeichen + '</span><span class="was">' + R.esc(w.name) + '<small>' + R.esc(R.wegText(w)) + '</small></span>' +
         '<button class="knopf" title="Als Tour unter „Geplant“ speichern">＋ Tour</button>';
       li.onclick = () => wegZeigen(w, false);
       li.querySelector('button').onclick = ev => { ev.stopPropagation(); wegZeigen(w, true); };
       $('wegeListe').appendChild(li);
     }
   } catch (err) {
-    if (nr === wegeLauf) $('wegeStatus').textContent = 'Wanderwege nicht abrufbar: ' + err.message + (/Zeit/.test(err.message) && radius > 2000 ? '. Mit kleinerem Umkreis noch einmal versuchen.' : '');
+    if (nr === wegeLauf) $('wegeStatus').textContent = A.wort + ' nicht abrufbar: ' + err.message + (/Zeit/.test(err.message) && radius > 2000 ? '. Mit kleinerem Umkreis noch einmal versuchen.' : '');
   } finally { $('bWege').disabled = false; }
 };
 const wegeCache = new Map();
@@ -440,7 +452,7 @@ async function wegZeigen(w, uebernehmen) {
     const spur = pts.map(p => Object.assign({ lat: p.lat, lon: p.lon, ele: null }, p.luecke ? { luecke: true } : {}));
     melde('Höhen für „' + w.name + '“ werden ergänzt …');
     await hoehenFuellen(spur);
-    const id = spurAlsTour(w.name, spur, 'spur', { profil: 'wandern', quelle: 'OpenStreetMap' });
+    const id = spurAlsTour(w.name, spur, 'spur', { profil: (WEGE_ART[w.art] || WEGE_ART.wandern).profil, quelle: 'OpenStreetMap' });
     if (!id) return;
     ebeneWeg.clearLayers();
     tourAnsehen(id);

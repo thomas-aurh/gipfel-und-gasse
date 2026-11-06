@@ -680,6 +680,11 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('Web-Mercator: Walchensee in Metern', bb[0] > 1250000 && bb[0] < 1260000 && bb[1] > 6030000 && bb[3] < 6050000, bb);
   const w = R.wegeAusWmt({ results: [{ type: 'relation', id: 1, name: 'Fern', group: 'NAT' }, { type: 'relation', id: 2, ref: '7', group: 'LOC' }, { type: 'way', id: 3, name: 'x' }, { id: 'kaputt', name: 'y' }] });
   pruef('Waymarked Trails: Relationen, Nummer als Name, Fernweg zuletzt', w.map(x => x.name + '/' + x.netz).join() === 'Weg 7/örtlich,Fern/Fernwanderweg', w);
+  const m = R.wegeAusWmt({ results: [{ type: 'relation', id: 4, name: 'Bike-Transalp', group: 'NAT' }, { type: 'relation', id: 5, name: 'MTB-Runde 3', group: 'LOC' }] }, null, 'mtb');
+  pruef('Waymarked Trails MTB: „national“ statt Fernwanderweg, zuletzt', m.map(x => x.name + '/' + x.netz).join() === 'MTB-Runde 3/örtlich,Bike-Transalp/national', m);
+  pruef('MTB-Routen: Overpass fragt route=mtb', /rel\(bw\)\["route"~"\^mtb\$"\];out tags 80;$/.test(R.wegeAbfrage(47.6, 11.3, 5000, 'mtb')), R.wegeAbfrage(47.6, 11.3, 5000, 'mtb'));
+  const mo = R.wegeLesen({ elements: [{ type: 'relation', id: 6, tags: { name: 'Isartrail', route: 'mtb', network: 'lcn' } }] });
+  pruef('MTB-Routen: Netz der Radrouten gelesen', mo.length === 1 && mo[0].netz === 'örtlich', mo);
 }
 
 // Fotos: neueste zuerst, mit Reise und der zeitlich nächsten gegangenen Tour desselben Tages

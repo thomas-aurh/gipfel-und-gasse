@@ -62,6 +62,7 @@
     </div>
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
+    <label><input type="checkbox" id="lageMtb"> MTB-Routen (beschildert)</label>
     <label><input type="checkbox" id="lageSehens"> Sehenswürdigkeiten (ab Zoomstufe 14)</label>
     <label><input type="checkbox" id="lageTouren"> Meine Touren (geplant und gegangen)</label>
     <label><input type="checkbox" id="lageTagebuch"> Reisetagebuch (Einträge mit Ort)</label>
@@ -268,8 +269,9 @@
           <ul id="stadtListe" class="liste"></ul>
         </div>
         <div id="wegeBox">
-          <h3>🥾 Wanderwege in der Nähe</h3>
+          <h3>🥾 Wege in der Nähe</h3>
           <div class="zeile">
+            <label>Art<select id="wegeArt"><option value="wandern" selected>🥾 Wanderwege</option><option value="mtb">🚵 MTB-Routen</option></select></label>
             <label>Umkreis<select id="wegeUmkreis"><option value="2000">2 km</option><option value="5000" selected>5 km</option><option value="10000">10 km</option></select></label>
             <button class="knopf haupt" id="bWege">Wanderwege suchen</button>
           </div>
@@ -600,7 +602,7 @@
         <ul class="klein">
           <li>Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a> (ODbL)</li>
           <li>Topografische Karte: <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA), Höhen SRTM</li>
-          <li>Wanderwege und Radrouten: <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">Waymarked Trails</a> (CC-BY-SA)</li>
+          <li>Wanderwege, Radrouten und MTB-Routen: <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">Waymarked Trails</a> (CC-BY-SA)</li>
           <li>Routen: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> (MIT), online und in der App ohne Netz mit den Routendaten aus dem Kartenpaket</li>
           <li>Suche: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a></li>
           <li>Orte: <a href="https://overpass-api.de" target="_blank" rel="noopener">Overpass API</a></li>

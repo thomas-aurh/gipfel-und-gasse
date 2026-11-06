@@ -1982,9 +1982,11 @@ var R = (function () {
     const dLat = radius / 111320, dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
     return [x(lon - dLon), y(lat - dLat), x(lon + dLon), y(lat + dLat)].map(v => Math.round(v));
   }
-  // Antwort von Waymarked Trails (list/by_area) im Format von wegeLesen; group: INT, NAT, REG, LOC
-  function wegeAusWmt(json, mitte) {
-    const netz = g => (/^int/i.test(g || '') ? 'international' : /^nat/i.test(g || '') ? 'Fernwanderweg' : /^reg/i.test(g || '') ? 'regional' : /^loc/i.test(g || '') ? 'örtlich' : '');
+  // Antwort von Waymarked Trails (list/by_area) im Format von wegeLesen; group: INT, NAT, REG, LOC.
+  // art 'mtb': MTB-Routen (mtb.waymarkedtrails.org), dort heißt NAT „national“ statt „Fernwanderweg“
+  function wegeAusWmt(json, mitte, art) {
+    const nat = art === 'mtb' ? 'national' : 'Fernwanderweg';
+    const netz = g => (/^int/i.test(g || '') ? 'international' : /^nat/i.test(g || '') ? nat : /^reg/i.test(g || '') ? 'regional' : /^loc/i.test(g || '') ? 'örtlich' : '');
     const out = [];
     for (const r of (json && json.results) || []) {
       if (r.type && r.type !== 'relation') continue;
@@ -1992,17 +1994,20 @@ var R = (function () {
       if (!name || !Number.isInteger(r.id)) continue;
       out.push({ id: r.id, name, ref: r.ref || '', netz: netz(r.group), rund: false, km: null, betreiber: '', abstand: null });
     }
-    const rang = w => (w.netz === 'Fernwanderweg' || w.netz === 'international' ? 1 : 0);
+    const rang = w => (/^(Fernwanderweg|international|national)$/.test(w.netz) ? 1 : 0);
     return out.sort((a, b) => rang(a) - rang(b));
   }
 
-  // ---------- Markierte Wanderwege (OSM-Routen route=hiking/foot) ----------
+  // ---------- Markierte Wanderwege (OSM-Routen route=hiking/foot) und MTB-Routen (route=mtb, art 'mtb') ----------
   // erst die Wege im Umkreis, dann die Routen, zu denen sie gehören: viel schneller als Routen direkt im Umkreis zu suchen
   // (das berechnet den ganzen Verlauf jeder Route, in den Bergen über das Zeitlimit von Overpass, Befund 04.11. am Walchensee)
-  function wegeAbfrage(lat, lon, radius) {
-    return '[out:json][timeout:25];way["highway"](around:' + radius + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ');rel(bw)["route"~"^(hiking|foot)$"];out tags 80;';
+  function wegeAbfrage(lat, lon, radius, art) {
+    const route = art === 'mtb' ? '^mtb$' : '^(hiking|foot)$';
+    return '[out:json][timeout:25];way["highway"](around:' + radius + ',' + lat.toFixed(5) + ',' + lon.toFixed(5) + ');rel(bw)["route"~"' + route + '"];out tags 80;';
   }
-  const WEG_NETZ = { iwn: 'international', nwn: 'Fernwanderweg', rwn: 'regional', lwn: 'örtlich' };
+  // Netze der Wanderwege (…wn) und der Radrouten (…cn, auch für MTB-Routen üblich)
+  const WEG_NETZ = { iwn: 'international', nwn: 'Fernwanderweg', rwn: 'regional', lwn: 'örtlich',
+    icn: 'international', ncn: 'national', rcn: 'regional', lcn: 'örtlich' };
   // Liste: Name (sonst Nummer oder Start–Ziel), Netz, Rundweg, Länge laut OSM, Abstand der Mitte; nach Abstand sortiert
   function wegeLesen(json, mitte) {
     const out = [];
@@ -2017,7 +2022,7 @@ var R = (function () {
         abstand: el.center && mitte ? abstand(mitte, { lat: el.center.lat, lon: el.center.lon }) : null });
     }
     // Fernwege zuletzt (sie laufen durch, sind aber selten das Ziel eines Tages), sonst nach Abstand
-    const rang = w => (w.netz === 'Fernwanderweg' || w.netz === 'international' ? 1 : 0);
+    const rang = w => (/^(Fernwanderweg|international|national)$/.test(w.netz) ? 1 : 0);
     return out.sort((a, b) => rang(a) - rang(b) || (a.abstand || 0) - (b.abstand || 0));
   }
   function wegText(w) {

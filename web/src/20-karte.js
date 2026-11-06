@@ -52,6 +52,10 @@ const LAGEN = {
   }),
   rad: L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png', {
     maxZoom: 18, opacity: 0.85, attribution: 'Radrouten © <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">waymarkedtrails.org</a> (CC-BY-SA)'
+  }),
+  // beschilderte MTB-Routen (route=mtb), keine einzelnen Singletrails
+  mtb: L.tileLayer('https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png', {
+    maxZoom: 18, opacity: 0.85, attribution: 'MTB-Routen © <a href="https://waymarkedtrails.org" target="_blank" rel="noopener">waymarkedtrails.org</a> (CC-BY-SA)'
   })
 };
 
@@ -95,7 +99,7 @@ const ebeneTouren = L.layerGroup();
 const ebeneTagebuch = L.layerGroup();
 const ebeneZiele = L.layerGroup();   // Reiseziele (67-ziele.js)
 // Grundkarten und Ebenen darüber; „offline“ und „relief“ kommen aus 58-offline.js dazu, wenn Kartenpakete da sind
-const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'hang', 'wander', 'rad'];
+const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'hang', 'wander', 'rad', 'mtb'];
 // Rahmen der installierten Kartenpakete (gefüllt in 58-offline.js), sichtbar bei gewählter Offline-Karte
 const ebenePaketRahmen = L.layerGroup();
 function lagenAnwenden() {
@@ -110,6 +114,7 @@ function lagenAnwenden() {
   $('offlineAussen').hidden = !(lagenWahl.basis === 'offline' && basis !== 'offline' && LAGEN.offline);
   $('lageWander').checked = !!lagenWahl.wander;
   $('lageRad').checked = !!lagenWahl.rad;
+  $('lageMtb').checked = !!lagenWahl.mtb;
   $('lageSehens').checked = !!lagenWahl.sehens;
   $('lageRelief').checked = !!lagenWahl.relief;
   $('lageHang').checked = !!lagenWahl.hang;
@@ -127,6 +132,7 @@ lagenAnwenden();
 document.querySelectorAll('input[name=basis]').forEach(r => r.addEventListener('change', () => { lagenWahl.basis = r.value; lagenAnwenden(); }));
 $('lageWander').addEventListener('change', e => { lagenWahl.wander = e.target.checked; lagenAnwenden(); });
 $('lageRad').addEventListener('change', e => { lagenWahl.rad = e.target.checked; lagenAnwenden(); });
+$('lageMtb').addEventListener('change', e => { lagenWahl.mtb = e.target.checked; lagenAnwenden(); });
 $('lageZiele').addEventListener('change', e => { lagenWahl.ziele = e.target.checked; lagenAnwenden(); });
 $('lageSehens').addEventListener('change', e => { lagenWahl.sehens = e.target.checked; lagenAnwenden(); });
 $('lageRelief').addEventListener('change', e => { lagenWahl.relief = e.target.checked; lagenAnwenden(); });
