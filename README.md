@@ -98,7 +98,9 @@ erscheint oben über der Karte das Logo, in dem ein kleiner Wanderer den Weg zum
 **Wanderwege in der Nähe:** In *Entdecken* „Wanderwege suchen“ (2, 5 oder 10 km um die Kartenmitte): markierte Wanderwege
 aus OpenStreetMap (über Waymarked Trails, sonst Overpass) mit Länge, Rundweg und Netz (örtlich, regional, Fernwanderweg zuletzt). Antippen zeigt den Verlauf auf
 der Karte, „＋ Tour“ legt ihn mit Höhen unter „Geplant“ ab („aus OpenStreetMap“). Es sind beschilderte Wege, keine
-ausgesuchten Touren mit Beschreibung; Stücke, die in OSM nicht zusammenhängen, bleiben getrennte Abschnitte. Braucht Netz.
+ausgesuchten Touren mit Beschreibung; Stücke, die in OSM nicht zusammenhängen, bleiben getrennte Abschnitte. Im Gebiet eines
+Kartenpakets kommen Liste und Verlauf aus dem Paket (ohne Netz, sofort, mit Länge; ohne Fernwege, Pakete ab dem 06.11.),
+sonst über Waymarked Trails (Verlauf als GPX, zuletzt Overpass).
 Unter „Art“ statt Wanderwegen **🚵 MTB-Routen** wählen: beschilderte Mountainbike-Routen aus OpenStreetMap (`route=mtb`, über
 Waymarked Trails, sonst Overpass), „＋ Tour“ speichert sie als Fahrrad-Tour. Einzelne Singletrails mit Schwierigkeit
 (S0–S5) gehören nicht dazu, sie sind in OSM keine Routen. Auf der Karte zeigt die Ebene „MTB-Routen (beschildert)“ dieselben

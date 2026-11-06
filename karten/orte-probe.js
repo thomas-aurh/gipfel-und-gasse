@@ -20,7 +20,9 @@ const PROBEN = {
     strecke: { pts: [[47.6176, 11.3194], [47.6150, 11.3140], [47.6122, 11.3117]], radius: 500, kat: ['gipfel', 'huette'] },
     stadt: { bbox: [48.130, 11.565, 48.145, 11.590], mindestens: 30, kat: ['museum', 'sehens'] },
     // MTB-Trails mit mtb:scale zwischen Kochelsee, Herzogstand und Walchensee
-    trails: { bbox: [47.55, 11.25, 47.70, 11.45], mindestens: 5 }
+    trails: { bbox: [47.55, 11.25, 47.70, 11.45], mindestens: 5 },
+    // beschilderte Wanderrouten in 5 km um Kochel am See (Tourvorschläge ohne Netz)
+    routen: { mitte: [47.6587, 11.3672], radius: 5000, mindestens: 5 }
   },
   'allgaeu-bodensee': {
     suche: [
@@ -44,6 +46,8 @@ for (const p of liste.pakete) {
   const datei = path.join(aus, path.basename(d.url));
   const t0 = Date.now();
   const j = JSON.parse(zlib.gunzipSync(fs.readFileSync(datei)).toString('utf8'));
+  const routen = j.routen || [], routenPunkte = routen.reduce((summe, r) => summe + r[6].reduce((m, f) => m + f.length / 2, 0), 0);
+  console.log(p.id + ': ' + routen.length + ' beschilderte Routen (' + routen.filter(r => r[1] === 'w').length + ' Wandern, ' + routen.filter(r => r[1] === 'm').length + ' MTB, ' + routenPunkte + ' Punkte)');
   const trails = j.trails || [], trailPunkte = trails.reduce((summe, t) => summe + t[2].length / 2, 0);
   console.log(p.id + ': ' + j.orte.length + ' Orte, ' + j.suche.length + ' Suchbegriffe, ' + trails.length + ' MTB-Trails (' + trailPunkte + ' Punkte), ' + (fs.statSync(datei).size / 1048576).toFixed(1) +
     ' MB gepackt, gelesen in ' + (Date.now() - t0) + ' ms');
@@ -63,6 +67,11 @@ for (const p of liste.pakete) {
   })() : null);
   const kats = new Set(orte.map(o => o.kat));
   pruef(pr.strecke.kat.every(k => kats.has(k)), 'Orte entlang der Strecke: ' + orte.length + ' (' + [...kats].join(', ') + ')');
+  }
+  if (pr.routen) {
+    const t = Date.now(), alle = R.routenEntpacken(routen);
+    const w = R.wegeAusPaket(alle, { lat: pr.routen.mitte[0], lon: pr.routen.mitte[1] }, pr.routen.radius, 'wandern');
+    pruef(w.length >= pr.routen.mindestens, 'Wanderrouten im Umkreis: ' + w.length + ' (z. B. ' + w.slice(0, 3).map(x => x.name + ' ' + x.km + ' km').join(', ') + '), ' + (Date.now() - t) + ' ms');
   }
   if (pr.trails) {
     const im = R.trailsImAusschnitt(R.trailsEntpacken(trails), pr.trails.bbox);

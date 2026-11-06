@@ -2110,6 +2110,38 @@ var R = (function () {
     const rang = w => (/^(Fernwanderweg|international|national)$/.test(w.netz) ? 1 : 0);
     return out.sort((a, b) => rang(a) - rang(b) || (a.abstand || 0) - (b.abstand || 0));
   }
+  // Routen aus dem Kartenpaket (karten/orte.py): [Relation, Art, Name, Nummer, Netz, Rundweg, [Teile]] →
+  // { id, art ('wandern'|'mtb'), name, ref, netz, rund, teile: [[[lat, lon], …], …], km, b }
+  function routenEntpacken(liste) {
+    const out = [];
+    for (const e of liste || []) {
+      if (!Array.isArray(e) || !Number.isInteger(e[0]) || !Array.isArray(e[6])) continue;
+      const teile = trailsEntpacken(e[6].map(f => [0, '', f])).map(t => t.pts).filter(t => t.length > 1);
+      if (!teile.length) continue;
+      let m = 0;
+      for (const t of teile) for (let i = 1; i < t.length; i++) m += abstand({ lat: t[i - 1][0], lon: t[i - 1][1] }, { lat: t[i][0], lon: t[i][1] });
+      out.push({ id: e[0], art: e[1] === 'm' ? 'mtb' : 'wandern', name: String(e[2] || ''), ref: String(e[3] || ''), netz: WEG_NETZ[e[4]] || '', rund: !!e[5],
+        teile, km: Math.round(m / 100) / 10, b: trailRahmen([].concat(...teile)) });
+    }
+    return out;
+  }
+  // Routen einer Art im Umkreis (nächster Punkt höchstens radius Meter von der Mitte), im Format von wegeLesen,
+  // dazu der Verlauf (pts mit luecke am Anfang jedes weiteren Teils)
+  function wegeAusPaket(routen, mitte, radius, art) {
+    const rand = radius / 111000, out = [];
+    for (const r of routen) {
+      if (r.art !== art) continue;
+      if (mitte.lat < r.b[0] - rand || mitte.lat > r.b[2] + rand || mitte.lon < r.b[1] - rand * 1.6 || mitte.lon > r.b[3] + rand * 1.6) continue;
+      let d = Infinity;
+      for (const t of r.teile) for (const q of t) { const x = abstand(mitte, { lat: q[0], lon: q[1] }); if (x < d) d = x; }
+      if (d > radius) continue;
+      const pts = [];
+      r.teile.forEach((t, i) => t.forEach((q, k) => pts.push(i && !k ? { lat: q[0], lon: q[1], luecke: true } : { lat: q[0], lon: q[1] })));
+      out.push({ id: r.id, name: r.name, ref: r.ref, netz: r.netz, rund: r.rund, km: r.km, betreiber: '', abstand: d, pts });
+    }
+    const rang = w => (/^(Fernwanderweg|international|national)$/.test(w.netz) ? 1 : 0);
+    return out.sort((a, b) => rang(a) - rang(b) || a.abstand - b.abstand);
+  }
   function wegText(w) {
     const z = [];
     if (w.km) z.push(String(w.km).replace('.', ',') + ' km');
@@ -2515,7 +2547,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

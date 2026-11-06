@@ -96,7 +96,10 @@ def orte():
         "suche": [["Probegipfel", 47.5852, 11.3505, "Gipfel", "", 73], ["Probehütte", 47.585, 11.35, "Berghütte", "Probedorf", 50],
                   ["Probeweg", 47.57, 11.32, "Straße", "Probedorf", 20]],
         # zwei MTB-Trails an der Probehütte (S1 mit Namen, S3 ohne), Format von karten/orte.py
-        "trails": [[1, "Probetrail", [4758500, 1135000, 100, 100, 100, 50]], [3, "", [4758400, 1134800, 50, 150]]]}
+        "trails": [[1, "Probetrail", [4758500, 1135000, 100, 100, 100, 50]], [3, "", [4758400, 1134800, 50, 150]]],
+        # eine Wanderroute (zwei Teile) und eine MTB-Route an der Probehütte, Format von karten/orte.py
+        "routen": [[700, "w", "Proberunde", "P1", "lwn", True, [[4758500, 1135000, 300, 300, 300, -300], [4759500, 1136000, 200, 0]]],
+                   [701, "m", "Probe-MTB", "", "", False, [[4758000, 1134000, 500, 500]]]]}
     with gzip.open(os.path.join(ZIEL, "orte.json.gz"), "wt", encoding="utf-8") as f:
         json.dump(daten, f, ensure_ascii=False)
 
