@@ -343,6 +343,7 @@
           <button class="knopf" id="bGpxOeffnen">📂 GPX laden</button>
           <input type="file" id="gpxDatei" accept=".gpx,application/gpx+xml,text/xml" multiple hidden>
         </div>
+        <div id="ordnerGeplant" class="chips ordner-chips" aria-label="Ordner"></div>
         <div class="tourfilter" data-liste="tourliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Geplante Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select><select class="tf-art" aria-label="Art"><option value="">Alle Arten</option><option value="wandern">🥾 Wandern</option><option value="laufen">🏃 Laufen</option><option value="rad">🚲 Rad</option><option value="stadt">🏛️ Stadt</option><option value="spur">📄 GPX</option></select><select class="tf-familie" aria-label="Familie: Länge und Höhenmeter begrenzen"><option value="">Jede Länge</option><option value="5-200">👨‍👩‍👧 bis 5 km, 200 Hm</option><option value="8-400">👨‍👩‍👧 bis 8 km, 400 Hm</option><option value="12-700">👨‍👩‍👧 bis 12 km, 700 Hm</option></select></div>
         <ul id="tourliste" class="liste"></ul>
       </section>
@@ -351,6 +352,7 @@
       <section data-reiter="tour">
         <h2 id="tourName" class="tour-name"></h2>
         <div id="tourArt" class="klein"></div>
+        <label id="tourOrdnerZeile" class="klein ordner-wahl" hidden>📁 Ordner <select id="tourOrdner" aria-label="Ordner der Tour"></select></label>
         <div id="tourZahlen" class="zahlen"></div>
         <div class="knopfreihe tour-knoepfe">
           <button class="knopf haupt" id="tLos">▶ Los</button>
@@ -404,6 +406,7 @@
         <div id="gangStatistik" class="zahlen"></div>
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
+        <div id="ordnerGegangen" class="chips ordner-chips" aria-label="Ordner"></div>
         <div class="tourfilter" data-liste="gangliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Gegangene Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select></div>
         <ul id="gangliste" class="liste"></ul>
       </section>

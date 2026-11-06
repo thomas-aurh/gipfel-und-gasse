@@ -60,6 +60,11 @@ sich unten mit „↶ Rückgängig“ in der Meldung (7 s). Am PC ist das Blatt 
 *Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
 Rad, Stadt, GPX).
 
+**Ordner:** Über den Listen unter Ich › Touren (Geplant und Gegangen) stehen „Alle“, die Ordner mit der Zahl ihrer Touren und
+„＋ Ordner“. Ein Ordner zeigt nur seine Touren; ist einer gewählt, benennt ✏️ ihn um und 🗑 löscht ihn (die Touren bleiben,
+dann ohne Ordner). Einsortiert wird auf der Tourseite unter „📁 Ordner“ (auch „＋ Neuer Ordner …“). Eine Tour liegt in
+höchstens einem Ordner, ein Ordner gilt für geplante und gegangene Touren. Ordner kommen mit in die Sicherung.
+
 **GPX laden:** Menü ☰ › „📂 GPX-Dateien laden“ (oder unter Ich › Touren „📂 GPX laden“), auch mehrere Dateien auf einmal:
 jede kommt gleich als Tour unter „Geplant“, bei einer Datei geht ihre Tourseite auf. Fehlen Höhen, ergänzt die App sie.
 Aus der Datei übernimmt die App außerdem die Wegpunkte (z. B. Highlights aus komoot: Hütten 🏠, Gipfel ⛰️, sonst 📍; auf der

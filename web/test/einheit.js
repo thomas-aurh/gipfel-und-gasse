@@ -687,6 +687,15 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('MTB-Routen: Netz der Radrouten gelesen', mo.length === 1 && mo[0].netz === 'örtlich', mo);
 }
 
+// Ordner der Touren
+{
+  pruef('Ordner: Name gekürzt, Steuerzeichen weg, kein Text → leer', R.ordnerName('  Karwendel\n  Nord ') === 'Karwendel Nord' && R.ordnerName('x'.repeat(80)).length === 60 && R.ordnerName(5) === '');
+  const ol = R.ordnerListe([{ ordner: 'Mit Kind' }, { ordner: 'Karwendel' }, { ordner: 'Karwendel' }, {}], ['Leer', 'Karwendel']);
+  pruef('Ordner: aus Touren und leeren Ordnern, nach Name, mit Zahl', ol.map(o => o.name + ':' + o.zahl).join() === 'Karwendel:2,Leer:0,Mit Kind:1', ol);
+  const tp = R.sicherungLesen({ app: 'gipfel-und-gasse', touren: [{ id: 't1', name: 'A', spur: [[47.6, 11.3, 600]], kurz: { laenge: 1 }, ordner: ' Karwendel ' }, { id: 't2', name: 'B', spur: [[47.6, 11.3, 600]], kurz: { laenge: 1 }, ordner: 7 }] });
+  pruef('Ordner: Sicherung behält ihn, ungültiger fällt weg', tp[0].ordner === 'Karwendel' && !('ordner' in tp[1]), tp);
+}
+
 // MTB-Trails nach Schwierigkeit (mtb:scale): Overpass und Format von karten/orte.py
 {
   pruef('MTB-Skala: erste Ziffer, sonst nichts', [R.mtbSkala('2+'), R.mtbSkala('1-'), R.mtbSkala('3;4'), R.mtbSkala('0'), R.mtbSkala('x'), R.mtbSkala(null), R.mtbSkala('7')].join() === '2,1,3,0,,,', [R.mtbSkala('2+'), R.mtbSkala('x')]);

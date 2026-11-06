@@ -5,6 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Ordner für Touren (06.11.):** nur im Klicktest geprüft (anlegen, einsortieren, filtern, umbenennen, löschen) und in den
+  Einheitstests (Sicherung behält den Ordner). Am Pixel offen: ob die Eingabefenster (prompt/confirm) im WebView gut gehen,
+  ob die Leiste mit vielen Ordnern zu voll wird.
 - **MTB-Routen (06.11., Stufe 1 von 2):** Liste in *Entdecken* (Art „🚵 MTB-Routen“) und Kartenebene „MTB-Routen
   (beschildert)“, beide von Waymarked Trails (`mtb.waymarkedtrails.org`, `tile.waymarkedtrails.org/mtb`), sonst Overpass
   `route=mtb`. Nur im Klicktest mit nachgebildetem Dienst geprüft; Antwortformat wie bei den Wanderwegen angenommen
@@ -143,6 +146,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Ordner als Feld der Tour** (06.11., Thomas' Wahl „Touren in Ordner“): je Tour höchstens ein Ordner (`ordner`), leere
+  Ordner in `gug.ordner`; gilt für geplante und gegangene. Verworfen: Ordner auch für Fotos und Tagebuch (anders
+  gespeichert, viel Umbau), echte Dateiordner auf dem Handy (Android erlaubt das nur eingeschränkt).
 - **MTB-Trails aus Paket und Overpass** (06.11., Thomas' Wahl): wie die Hüttensuche erst das Kartenpaket, außerhalb
   Overpass nur für den sichtbaren Ausschnitt (eine leichte Abfrage, nicht der Umkreis von 10 km). Die Trails liegen in der
   Orte-Datei statt in einer eigenen Datei (kein neuer Download-Weg, alte Apps übergehen den Schlüssel).
