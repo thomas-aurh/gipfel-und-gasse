@@ -60,6 +60,9 @@
       <small>Grob aus dem Höhenmodell (10–30 m): kleine Steilstufen und Rinnen fehlen. Keine Lawinenbeurteilung: vor Touren
         im Winter den <a href="https://www.avalanches.org" target="_blank" rel="noopener">Lawinenlagebericht</a> lesen.</small>
     </div>
+    <label><input type="checkbox" id="lageSteigung"> Route nach Steigung färben</label>
+    <div id="steigLegende" hidden><span class="hang-stufen"><i style="--f:#2e9d3a"></i>bis 5 % <i style="--f:#e6c200"></i>5–10 % <i style="--f:#f08c00"></i>10–15 %
+      <i style="--f:#e0301e"></i>15–20 % <i style="--f:#8e2bb0"></i>über 20 %</span><small>Steilheit bergauf wie bergab, gemittelt über 50 m; grau ohne Höhen.</small></div>
     <label><input type="checkbox" id="lageWander"> Markierte Wanderwege</label>
     <label><input type="checkbox" id="lageRad"> Radrouten</label>
     <label><input type="checkbox" id="lageMtb"> MTB-Routen (beschildert)</label>
@@ -330,6 +333,9 @@
         </div>
         <div id="aBewegung" class="klein"></div>
         <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
+        <label class="klein ankreuzen">🔔 Punkt-Alarm <select id="punktAlarm" aria-label="Punkt-Alarm: wie weit vorher"><option value="0">aus</option><option value="150">150 m vorher</option>
+          <option value="300">300 m vorher</option><option value="500">500 m vorher</option></select></label>
+        <div class="klein" id="punktAlarmText">Meldet benannte Wegpunkte, Wegpunkte aus GPX-Dateien und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“ (bis 150 m neben der Route).</div>
         <div class="knopfreihe">
           <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
           <button class="knopf" id="bAufzSpeichern" disabled>💾 Als Tour speichern</button>

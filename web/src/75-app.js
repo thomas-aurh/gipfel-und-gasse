@@ -29,6 +29,13 @@ if (NATIV) {
       if (text) s.text = text;
       out.push(s);
     });
+    // Punkt-Alarm: Wegpunkte der GPX-Datei, Hütten/Gipfel/Brunnen (benannte Wegpunkte sind oben schon dabei)
+    if (punktAlarmAbstand()) {
+      for (const p of R.alarmPunkte(e.pts, alarmQuellen(false), 150)) {
+        if (!out.some(s => s.name === p.name && Math.abs(s.d - p.d) < 50)) out.push({ d: p.d, name: p.name, min: 0, lat: p.lat, lon: p.lon });
+      }
+      out.sort((a, b) => a.d - b.d);
+    }
     return out;
   }
 
@@ -40,7 +47,7 @@ if (NATIV) {
     if (mitRoute && e) app.plan = planKennung();
     // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen
     const opt = { tempo: tempoAktuell(), rad: artAktuell() === 'rad', lauf: artAktuell() === 'lauf', kmAnsage: $('kmAnsage').checked,
-      ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz };
+      ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
@@ -138,6 +145,8 @@ if (NATIV) {
   Navi.addListener('position', anzeigen);
   // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
   $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  // anderer Abstand oder aus: Stopps samt Punkten neu an den Dienst
+  $('punktAlarm').addEventListener('change', () => { if (app.folgen) senden(true).catch(() => {}); });
   // Art gewechselt (z. B. auf Laufen, das die Kilometer-Ansage einschaltet) während einer Aufzeichnung ohne Routenführung:
   // Einstellungen gleich an den Dienst; mit Routenführung schickt die Neuberechnung sie mit
   $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });

@@ -687,6 +687,25 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('MTB-Routen: Netz der Radrouten gelesen', mo.length === 1 && mo[0].netz === 'örtlich', mo);
 }
 
+// Steigung einfärben und Punkt-Alarm
+{
+  const pts = [];
+  for (let i = 0; i <= 40; i++) pts.push({ lat: 47.6 + i * 0.0002, lon: 11.3, d: i * 22, ele: i < 20 ? 600 : 600 + (i - 20) * 2.2 });
+  const st = R.steigungen(pts);
+  pruef('Steigung: flach 0 %, danach 10 %, gemittelt über 50 m', Math.abs(st[5]) < 0.01 && Math.abs(st[30] - 10) < 0.01, [st[5], st[30]]);
+  const teile = R.steigungStuecke(pts);
+  pruef('Steigung: Stücke grün, dann orange (10–15 %), lückenlos aneinander', teile[0].farbe === '#2e9d3a' && teile[teile.length - 1].farbe === '#f08c00' &&
+    teile.every((t, i) => !i || t.ll[0].join() === teile[i - 1].ll[teile[i - 1].ll.length - 1].join()), teile.map(t => t.farbe + ':' + t.ll.length));
+  const ohne = R.steigungStuecke(pts.map(p => Object.assign({}, p, { ele: null })));
+  const duenn = [0, 1, 2, 3].map(i => ({ lat: 47.6 + i * 0.001, lon: 11.3, d: i * 110, ele: 600 + i * 11 }));
+  pruef('Steigung: dünne Route (110 m zwischen den Punkten) über die Nachbarn, 10 %', R.steigungen(duenn).every(s => Math.abs(s - 10) < 0.01), R.steigungen(duenn));
+  pruef('Steigung: ohne Höhen grau', ohne.length === 1 && ohne[0].farbe === '#9aa0a6');
+  const lu = pts.map((p, i) => (i === 20 ? Object.assign({}, p, { luecke: true }) : p));
+  pruef('Steigung: Lücke trennt die Stücke', R.steigungStuecke(lu).every(t => !t.ll.some(q => q[0] === lu[19].lat) || !t.ll.some(q => q[0] === lu[20].lat)));
+  const al = R.alarmPunkte(pts, [{ lat: 47.604, lon: 11.3008, name: 'Hütte' }, { lat: 47.6041, lon: 11.3008, name: 'Hütte' }, { lat: 47.61, lon: 11.32, name: 'weit weg' }, { lat: 47.6002, lon: 11.3, name: 'Brunnen' }, { lat: 47.6, lon: 11.3 }], 150);
+  pruef('Punkt-Alarm: nah an der Route, nach Meter, doppelte und namenlose weg', al.map(p => p.name).join() === 'Brunnen,Hütte' && al[1].d > 400 && al[1].d < 460, al);
+}
+
 // Routen aus dem Kartenpaket (Tourvorschläge ohne Netz)
 {
   const r = R.routenEntpacken([[700, 'w', 'Proberunde', 'P1', 'lwn', true, [[4760000, 1130000, 1000, 0], [4762000, 1130000, 1000, 0]]], [701, 'm', 'MTB', '', '', false, [[4760000, 1130000, 0, 1000]]], ['kaputt']]);

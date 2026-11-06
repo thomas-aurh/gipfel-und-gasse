@@ -160,7 +160,9 @@ function zeichenRoute() {
   const ll = [[]];
   e.pts.forEach(p => { if (p.luecke && ll[ll.length - 1].length) ll.push([]); ll[ll.length - 1].push([p.lat, p.lon]); });
   L.polyline(ll, { color: '#fff', weight: 9, opacity: 0.9, interactive: false }).addTo(ebeneRoute);
-  // gerade Linien (Fallback oder weglos) gestrichelt
+  // nach Steigung: Teilstücke in der Farbe ihrer Stufe unter den (dann durchsichtigen) Linien, die Antippen behalten
+  const steil = !!lagenWahl.steigung;
+  if (steil) for (const s of R.steigungStuecke(e.pts)) L.polyline(s.ll, { color: s.farbe, weight: 5, opacity: 0.95, interactive: false }).addTo(ebeneRoute);  // gerade Linien (Fallback oder weglos) gestrichelt
   let d0 = 0;
   S.stuecke.forEach((s, k) => {
     const d1 = e.stueckEnde[k];
@@ -168,7 +170,7 @@ function zeichenRoute() {
     const teil = [[]];
     e.pts.filter(p => p.d >= d0 - 0.01 && p.d <= d1 + 0.01).forEach(p => { if (p.luecke && teil[teil.length - 1].length) teil.push([]); teil[teil.length - 1].push([p.lat, p.lon]); });
     const blass = tagFokus != null && !S.fest && stueckTag(k) !== tagFokus;
-    const linie = L.polyline(teil, { color: farbe(k), weight: blass ? 4 : 5, opacity: blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
+    const linie = L.polyline(teil, { color: farbe(k), weight: blass ? 4 : 5, opacity: steil ? 0.01 : blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }

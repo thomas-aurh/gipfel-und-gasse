@@ -174,7 +174,7 @@ $('bNavi').onclick = () => {
   if (U.navi) { U.navi = false; fuehrungAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); gpsFreigeben(); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
   if (!gpsFuer()) return;
-  U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); U.vorgelesen = new Set(); $('bOrt').classList.add('an');
+  U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); U.vorgelesen = new Set(); U.alarmPunkte = null; $('bOrt').classList.add('an');
   fuehrungLaden();
   $('bNavi').textContent = '■ Folgen beenden';
   wachHalten(true);
@@ -381,6 +381,7 @@ function naviNeu() {
       U.gewarnt = true;
     }
   } else { U.abseitsSeit = 0; U.gewarnt = false; $('abseits').hidden = true; }
+  punktAlarmPruefen(e, lage);
   // Führung: am Stopp (30 m) einmal die Kurzinfo vorlesen
   if (FUEHRUNG.size && lage.abw < 40 && e.stueckEnde && !S.fest) plan.wps.forEach((w, i) => {
     const k = fuehrungSchluessel(w), text = i > 0 && FUEHRUNG.get(k), d = e.stueckEnde[i - 1];
@@ -536,6 +537,36 @@ setInterval(() => {
   if (!a || !a.laeuft || !a.pause) return;
   if (a.pause.takt(Date.now())) { sagenBrowser('Pause.', true); aufzZahlen(); }
 }, 5000);
+// ---------- Punkt-Alarm ----------
+$('punktAlarm').value = String(SPEICHER.lesen('punktAlarm', 300));
+if (!$('punktAlarm').value) $('punktAlarm').value = '300';
+$('punktAlarm').addEventListener('change', e => { SPEICHER.schreiben('punktAlarm', +e.target.value); U.alarmPunkte = null; });
+const punktAlarmAbstand = () => +$('punktAlarm').value || 0;
+// Punkte für den Alarm: benannte Wegpunkte (ohne Start), Wegpunkte der GPX-Datei, Hütten/Gipfel/Brunnen der Orte-Liste
+function alarmQuellen(mitWegpunkten) {
+  const plan = naviPlan(), out = [];
+  if (mitWegpunkten && !S.fest) plan.wps.forEach((w, i) => { if (i && w.name) out.push({ lat: w.lat, lon: w.lon, name: w.name }); });
+  const t = S.tourId && tourenLesen().find(x => x.id === S.tourId);
+  for (const p of (t && t.punkte) || []) out.push({ lat: p[0], lon: p[1], name: p[2] || 'Wegpunkt' });
+  for (const o of orte || []) if (['huette', 'gipfel', 'wasser'].includes(o.kat) && o.name) out.push({ lat: o.lat, lon: o.lon, name: o.name });
+  return out;
+}
+// im Browser: einmal je Punkt melden (Text, Sprache, Vibration), sobald er höchstens den gewählten Abstand vor einem liegt
+function punktAlarmPruefen(e, lage) {
+  const weit = punktAlarmAbstand();
+  if (!weit || NATIV || lage.abw > 80) return;
+  if (!U.alarmPunkte || U.alarmPlan !== e) { U.alarmPlan = e; U.alarmPunkte = R.alarmPunkte(e.pts, alarmQuellen(true), 150); U.alarmGemeldet = new Set(); }
+  for (const p of U.alarmPunkte) {
+    const bis = p.d - lage.d, k = p.name + '@' + p.d;
+    if (bis > 30 && bis <= weit && !U.alarmGemeldet.has(k)) {
+      U.alarmGemeldet.add(k);
+      const text = 'In ' + R.kmText(bis) + ': ' + p.name + '.';
+      melde('🔔 ' + text, 8); sagenBrowser(text);
+      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+    }
+  }
+}
+
 $('kmAnsage').onchange = e => { SPEICHER.schreiben('kmAnsage', e.target.checked); SPEICHER.schreiben('kmAnsageGewaehlt', true); };
 
 function aufzZahlen() {
