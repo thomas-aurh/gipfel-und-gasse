@@ -1702,6 +1702,24 @@ function pruef(name, bed, info) {
     await ph.check('#lageMtb');
     pruef('MTB-Routen: Ebene lädt Kacheln von Waymarked Trails und bleibt gewählt', !!(await mtbKachel) &&
       await ph.evaluate(() => JSON.parse(localStorage.getItem('gug.lagen')).mtb === true));
+    // MTB-Trails nach Schwierigkeit im Browser (ohne Kartenpaket): Overpass fragt nur den Ausschnitt
+    let trailAnfrage = '';
+    await ph.route(/overpass-api\.de/, r => {
+      trailAnfrage = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+      r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+        { type: 'way', id: 7, tags: { highway: 'path', 'mtb:scale': '2', name: 'Testtrail' }, geometry: [{ lat: 47.42, lon: 10.99 }, { lat: 47.42, lon: 11.01 }] }] }) });
+    });
+    await ph.check('#lageTrails');
+    await ph.waitForFunction(() => /Trails im Ausschnitt/.test(document.getElementById('trailZahl').textContent), null, { timeout: 8000 }).catch(() => {});
+    pruef('MTB-Trails im Browser: über Overpass, nur mtb:scale im Ausschnitt', (await ph.textContent('#trailZahl')) === '1 Trails im Ausschnitt (aus OpenStreetMap über Overpass).' &&
+      /way\["mtb:scale"\]\["highway"\]\(47\.\d+,1[01]\.\d+,47\.\d+,11\.\d+\);out geom 4000;/.test(trailAnfrage), [await ph.textContent('#trailZahl'), trailAnfrage]);
+    // Tipp auf den Trail: Name und Stufe (Mitte des Kartenausschnitts liegt auf der Linie)
+    await ph.evaluate(() => { document.getElementById('lagenwahl').hidden = true; });
+    const box = await ph.locator('#karte').boundingBox();
+    await ph.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await ph.waitForTimeout(300);
+    await ph.screenshot({ path: path.join(OUT, '40-trails.png') });
+    pruef('MTB-Trails: Antippen zeigt Name und Stufe, setzt keinen Punkt', (await ph.textContent('#meldung')).includes('Testtrail · S2: größere Hindernisse') && (await ph.$$('.wp')).length === 0, await ph.textContent('#meldung'));
     await hctx.close();
   }
 
@@ -1907,6 +1925,18 @@ function pruef(name, bed, info) {
   await po.waitForFunction(() => /Probehütte/.test(document.getElementById('etappen').textContent), null, { timeout: 8000 }).catch(() => {});
   pruef('Hütten aus dem Kartenpaket: Übernachtung auf der Probehütte, ohne Overpass', (await po.textContent('#etappen')).includes('bis Probehütte') && zaehler.overpass === vorOverpassH,
     [zaehler.overpass - vorOverpassH, (await po.textContent('#etappen')).slice(0, 160), await po.textContent('#meldung')]);
+  // MTB-Trails nach Schwierigkeit aus dem Kartenpaket: ohne Overpass, Zahl und Quelle in der Legende
+  await po.fill('#suchfeld', 'Probehütte');
+  await po.waitForFunction(() => [...document.querySelectorAll('#treffer button')].some(b => b.textContent.includes('Probehütte')), null, { timeout: 8000 }).catch(() => {});
+  await po.click('#treffer button:has-text("Probehütte")').catch(() => {});
+  await po.waitForTimeout(800);
+  const vorOverpassT = zaehler.overpass;
+  await po.click('#bLagen'); await po.check('#lageTrails');
+  await po.waitForFunction(() => /Trails im Ausschnitt/.test(document.getElementById('trailZahl').textContent), null, { timeout: 8000 }).catch(() => {});
+  pruef('MTB-Trails aus dem Kartenpaket: beide Probetrails, ohne Overpass', (await po.textContent('#trailZahl')) === '2 Trails im Ausschnitt (aus dem Kartenpaket).' &&
+    zaehler.overpass === vorOverpassT && await po.isVisible('#trailLegende'), [await po.textContent('#trailZahl'), zaehler.overpass - vorOverpassT, await po.evaluate(() => document.querySelector('#karte') && 0)]);
+  await po.uncheck('#lageTrails');
+  await po.click('#bLagen');
   await po.selectOption('#profilwahl', 'wandern');
   await po.waitForTimeout(500);
   await po.fill('#suchfeld', 'Teststadt');

@@ -8,7 +8,9 @@ Ausgabe (gzip-JSON):
   {"v": 1, "bbox": [w, s, o, n],
    "orte":  [[lat, lon, "n123", {Merkmale}], …]   dieselbe Auswahl, die die App sonst bei Overpass abfragt
                                                    (Orte entlang der Route und Sehenswürdigkeiten in der Stadt)
-   "suche": [[Name, lat, lon, Art, bei Ort, Rang], …]  Orte, Gipfel, Seen, Straßen und benannte Orte von oben}
+   "suche": [[Name, lat, lon, Art, bei Ort, Rang], …]  Orte, Gipfel, Seen, Straßen und benannte Orte von oben
+   "trails": [[Skala, Name, [lat, lon, dlat, dlon, …]], …]  Wege mit mtb:scale (Skala 0–6 = S0–S6), Verlauf vereinfacht
+                                                   (Douglas-Peucker, 3 m), in 1e-5 Grad, ab dem zweiten Punkt als Differenz}
 Mehrere Auszüge dürfen sich überlappen (z. B. Bayern und Österreich); doppelte Objekte zählen einmal.
 """
 import gzip
@@ -151,9 +153,58 @@ def mitte(obj):
     return n.location.lat, n.location.lon
 
 
+# ---------- MTB-Trails (Wege mit mtb:scale) ----------
+def mtb_skala(wert):
+    """Erste Ziffer von mtb:scale („2+“, „1-“, „3;4“), sonst None. Skala S0–S6."""
+    m = re.match(r"\s*([0-6])", wert or "")
+    return int(m.group(1)) if m else None
+
+
+def vereinfachen(pts, toleranz=3.0):
+    """Douglas-Peucker in Metern (lokal eben gerechnet), Anfang und Ende bleiben."""
+    if len(pts) < 3:
+        return pts
+    kx = math.cos(math.radians(pts[0][0])) * 111320
+    xy = [((p[1] - pts[0][1]) * kx, (p[0] - pts[0][0]) * 110540) for p in pts]
+    behalten = [False] * len(pts)
+    behalten[0] = behalten[-1] = True
+    stapel = [(0, len(pts) - 1)]
+    while stapel:
+        a, b = stapel.pop()
+        (ax, ay), (bx, by) = xy[a], xy[b]
+        dx, dy = bx - ax, by - ay
+        lang = math.hypot(dx, dy)
+        best, weit = -1, toleranz
+        for i in range(a + 1, b):
+            px, py = xy[i]
+            d = abs(dy * (px - ax) - dx * (py - ay)) / lang if lang else math.hypot(px - ax, py - ay)
+            if d > weit:
+                best, weit = i, d
+        if best >= 0:
+            behalten[best] = True
+            stapel += [(a, best), (best, b)]
+    return [p for p, k in zip(pts, behalten) if k]
+
+
+def trail_eintrag(skala, name, pts):
+    """[Skala, Name, [lat, lon, dlat, dlon, …]] in 1e-5 Grad."""
+    flach, vorher = [], None
+    for lat, lon in pts:
+        q = (round(lat * 1e5), round(lon * 1e5))
+        if vorher is None:
+            flach += [q[0], q[1]]
+        elif q != vorher:
+            flach += [q[0] - vorher[0], q[1] - vorher[1]]
+        else:
+            continue
+        vorher = q
+    return [skala, name, flach]
+
+
 def lesen(dateien, bbox):
     w, s, o, n = bbox
     orte, suche, orte_ids, gesehen = [], [], set(), set()
+    trails, trail_ids = [], set()
     schluessel = ("place", "tourism", "amenity", "natural", "leisure", "historic", "waterway", "highway", "railway", "aerialway")
     for datei in dateien:
         fp = (osmium.FileProcessor(datei)
@@ -169,6 +220,15 @@ def lesen(dateien, bbox):
             else:
                 kennung = "n" + str(obj.id)
             t = {tag.k: tag.v for tag in obj.tags}
+            if isinstance(obj, osmium.osm.Way) and "mtb:scale" in t and "highway" in t and obj.id not in trail_ids:
+                skala = mtb_skala(t["mtb:scale"])
+                try:
+                    pts = [(n_.location.lat, n_.location.lon) for n_ in obj.nodes]
+                except osmium.InvalidLocationError:
+                    pts = []
+                if skala is not None and len(pts) > 1 and any(w <= p[1] <= o and s <= p[0] <= n for p in pts):
+                    trail_ids.add(obj.id)
+                    trails.append(trail_eintrag(skala, t.get("name:de") or t.get("name") or "", vereinfachen(pts)))
             strasse = isinstance(obj, osmium.osm.Way) and t.get("highway") in STRASSEN and "name" in t
             # geschlossene Wege kommen als Fläche (gleiche Kennung), offene Wege als Straße oder als Ort (z. B. eine
             # Stadtmauer mit historic=citywalls und Namen); die Mitte ist dann ihr mittlerer Punkt
@@ -210,7 +270,7 @@ def lesen(dateien, bbox):
                 except ValueError:
                     pass
             suche.append([name, lat, lon, art, "", rang, t.get("place")])
-    return orte, suche
+    return orte, suche, trails
 
 
 def bei_ort(suche):
@@ -252,13 +312,13 @@ def main():
         sys.exit(__doc__)
     bbox = [float(x) for x in sys.argv[1:5]]
     ziel, dateien = sys.argv[5], sys.argv[6:]
-    orte, suche = lesen(dateien, bbox)
+    orte, suche, trails = lesen(dateien, bbox)
     bei_ort(suche)
     suche = zusammenfassen(suche)
-    daten = {"v": 1, "bbox": bbox, "orte": orte, "suche": suche}
+    daten = {"v": 1, "bbox": bbox, "orte": orte, "suche": suche, "trails": trails}
     with gzip.open(ziel, "wt", encoding="utf-8", compresslevel=9) as f:
         json.dump(daten, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"  Orte: {len(orte)}, Suchbegriffe: {len(suche)}", flush=True)
+    print(f"  Orte: {len(orte)}, Suchbegriffe: {len(suche)}, MTB-Trails: {len(trails)}", flush=True)
 
 
 if __name__ == "__main__":

@@ -391,6 +391,7 @@ const WEGE_ART = {
 const wegeArt = () => (WEGE_ART[$('wegeArt').value] ? $('wegeArt').value : 'wandern');
 $('wegeArt').addEventListener('change', () => {
   $('bWege').textContent = WEGE_ART[wegeArt()].wort + ' suchen';
+  $('wegeZeichen').textContent = WEGE_ART[wegeArt()].zeichen;
   $('wegeListe').innerHTML = ''; ebeneWeg.clearLayers();
   $('wegeStatus').textContent = wegeArt() === 'mtb' ? 'Beschilderte MTB-Routen aus OpenStreetMap rund um die Kartenmitte (keine einzelnen Singletrails).' : 'Markierte Wege aus OpenStreetMap rund um die Kartenmitte, mit „Als Tour übernehmen“.';
 });

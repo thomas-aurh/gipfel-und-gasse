@@ -1998,6 +1998,62 @@ var R = (function () {
     return out.sort((a, b) => rang(a) - rang(b));
   }
 
+  // ---------- MTB-Trails: einzelne Wege mit mtb:scale (Singletrail-Skala S0–S6) ----------
+  // Farben wie auf MTB-Karten üblich: S0 grün, S1 blau, S2 rot, S3 schwarz, ab S4 violett
+  const TRAIL_FARBE = ['#2e9d3a', '#1f6fd1', '#e0301e', '#1a1a1a', '#8e2bb0', '#8e2bb0', '#8e2bb0'];
+  const TRAIL_TEXT = ['ohne Schwierigkeiten', 'kleine Hindernisse, Wurzeln, lose Steine', 'größere Hindernisse, Stufen, flache Kehren',
+    'verblockt, hohe Stufen, enge Kehren', 'steil, sehr enge Kehren', 'extrem schwer', 'kaum fahrbar'];
+  // erste Ziffer von mtb:scale („2+“, „1-“, „3;4“), sonst null
+  function mtbSkala(v) {
+    const m = /^\s*([0-6])/.exec(v == null ? '' : String(v));
+    return m ? +m[1] : null;
+  }
+  // Ausschnitt [süd, west, nord, ost]: nur Wege mit mtb:scale, mit Verlauf (out geom), höchstens 4000
+  function trailsAbfrage(b) {
+    return '[out:json][timeout:25];way["mtb:scale"]["highway"](' + b.map(x => (+x).toFixed(4)).join(',') + ');out geom 4000;';
+  }
+  function trailRahmen(pts) {
+    let s = 90, w = 180, n = -90, o = -180;
+    for (const [la, lo] of pts) { if (la < s) s = la; if (la > n) n = la; if (lo < w) w = lo; if (lo > o) o = lo; }
+    return [s, w, n, o];
+  }
+  // Overpass-Antwort → [{ s, name, pts: [[lat, lon], …], b }]
+  function trailsAusOverpass(json) {
+    const out = [];
+    for (const el of (json && json.elements) || []) {
+      if (el.type !== 'way' || !el.tags || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
+      const sk = mtbSkala(el.tags['mtb:scale']);
+      if (sk == null) continue;
+      const pts = el.geometry.map(g => [g.lat, g.lon]);
+      out.push({ s: sk, name: el.tags['name:de'] || el.tags.name || '', pts, b: trailRahmen(pts) });
+    }
+    return out;
+  }
+  // Format von karten/orte.py: [Skala, Name, [lat, lon, dlat, dlon, …]] in 1e-5 Grad → wie trailsAusOverpass
+  function trailsEntpacken(liste) {
+    const out = [];
+    for (const e of liste || []) {
+      if (!Array.isArray(e) || !Array.isArray(e[2]) || e[2].length < 4) continue;
+      const f = e[2], pts = [];
+      let la = 0, lo = 0;
+      for (let i = 0; i + 1 < f.length; i += 2) { la += f[i]; lo += f[i + 1]; pts.push([la / 1e5, lo / 1e5]); }
+      out.push({ s: e[0], name: e[1] || '', pts, b: trailRahmen(pts) });
+    }
+    return out;
+  }
+  // Trails, deren Rahmen den Ausschnitt [süd, west, nord, ost] schneidet, höchstens max
+  function trailsImAusschnitt(liste, b, max) {
+    const out = [];
+    for (const t of liste) {
+      if (t.b[0] <= b[2] && t.b[2] >= b[0] && t.b[1] <= b[3] && t.b[3] >= b[1]) out.push(t);
+      if (max && out.length >= max) break;
+    }
+    return out;
+  }
+  function trailText(t) {
+    return (t.name || 'Weg ohne Namen') + ' · S' + t.s + ': ' + (TRAIL_TEXT[t.s] || '');
+  }
+
   // ---------- Markierte Wanderwege (OSM-Routen route=hiking/foot) und MTB-Routen (route=mtb, art 'mtb') ----------
   // erst die Wege im Umkreis, dann die Routen, zu denen sie gehören: viel schneller als Routen direkt im Umkreis zu suchen
   // (das berechnet den ganzen Verlauf jeder Route, in den Bergen über das Zeitlimit von Overpass, Befund 04.11. am Walchensee)
@@ -2430,7 +2486,7 @@ var R = (function () {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
-    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
+    FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,

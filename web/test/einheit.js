@@ -687,6 +687,22 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('MTB-Routen: Netz der Radrouten gelesen', mo.length === 1 && mo[0].netz === 'örtlich', mo);
 }
 
+// MTB-Trails nach Schwierigkeit (mtb:scale): Overpass und Format von karten/orte.py
+{
+  pruef('MTB-Skala: erste Ziffer, sonst nichts', [R.mtbSkala('2+'), R.mtbSkala('1-'), R.mtbSkala('3;4'), R.mtbSkala('0'), R.mtbSkala('x'), R.mtbSkala(null), R.mtbSkala('7')].join() === '2,1,3,0,,,', [R.mtbSkala('2+'), R.mtbSkala('x')]);
+  pruef('MTB-Trails: Abfrage nur Wege mit mtb:scale im Ausschnitt', R.trailsAbfrage([47.5, 11.2, 47.6, 11.4]) === '[out:json][timeout:25];way["mtb:scale"]["highway"](47.5000,11.2000,47.6000,11.4000);out geom 4000;', R.trailsAbfrage([47.5, 11.2, 47.6, 11.4]));
+  const o = R.trailsAusOverpass({ elements: [
+    { type: 'way', id: 1, tags: { highway: 'path', 'mtb:scale': '2+', name: 'Jochberg-Trail' }, geometry: [{ lat: 47.6, lon: 11.3 }, { lat: 47.61, lon: 11.31 }] },
+    { type: 'way', id: 2, tags: { highway: 'path', 'mtb:scale': 'unbekannt' }, geometry: [{ lat: 47.6, lon: 11.3 }, { lat: 47.61, lon: 11.31 }] },
+    { type: 'way', id: 3, tags: { highway: 'path', 'mtb:scale': '1' }, geometry: [{ lat: 47.6, lon: 11.3 }] }] });
+  pruef('MTB-Trails aus Overpass: Stufe, Name, Verlauf, Rahmen; ohne Stufe oder Verlauf weg', o.length === 1 && o[0].s === 2 && o[0].name === 'Jochberg-Trail' && o[0].pts.length === 2 && o[0].b.join() === '47.6,11.3,47.61,11.31', o);
+  const p = R.trailsEntpacken([[1, 'A', [4760000, 1130000, 0, 100, 100, 100]], [4, '', [4800000, 1200000, 10, 10]], [2, 'kaputt', [1]]]);
+  pruef('MTB-Trails aus dem Paket: Differenzen in 1e-5 Grad entpackt', p.length === 2 && p[0].pts.map(q => q.join('/')).join() === '47.6/11.3,47.6/11.301,47.601/11.302' && p[1].s === 4, p);
+  const im = R.trailsImAusschnitt(p, [47.59, 11.29, 47.605, 11.31]);
+  pruef('MTB-Trails: nur die im Ausschnitt', im.length === 1 && im[0].name === 'A', im);
+  pruef('MTB-Trails: Text mit Stufe und Erklärung', R.trailText(p[1]) === 'Weg ohne Namen · S4: steil, sehr enge Kehren' && R.TRAIL_FARBE[2] === '#e0301e', R.trailText(p[1]));
+}
+
 // Fotos: neueste zuerst, mit Reise und der zeitlich nächsten gegangenen Tour desselben Tages
 {
   const t0 = Date.parse('2026-08-01T10:00:00Z');

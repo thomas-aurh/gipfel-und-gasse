@@ -680,3 +680,76 @@ if (Karten) {
   OFF.bereit = paketeLaden(false);
   OFF.bereit.then(() => { statusFragen(); return paketeLaden(true); });
 }
+
+// ---------- MTB-Trails nach Schwierigkeit (mtb:scale): aus dem Kartenpaket, sonst Overpass für den Ausschnitt ----------
+// Nur bei gewählter Ebene und ab Zoomstufe 13; geladen wird der Ausschnitt mit Rand, erst beim Verlassen neu
+const ebeneTrails = L.layerGroup();
+const trailsMaler = L.canvas({ padding: 0.3 });
+const trailsEntpackt = new WeakMap();   // gelesene Orte-Datei → entpackte Trails
+let trailsLauf = 0, trailsRahmen = null, trailsUhr = null;
+async function trailsAusPaketen(b) {
+  const ps = await ortePakete([{ lat: b[0], lon: b[1] }, { lat: b[2], lon: b[3] }, { lat: b[0], lon: b[3] }, { lat: b[2], lon: b[1] }], 0);
+  if (!ps) return null;
+  const out = [];
+  let alt = false;
+  for (const p of ps) {
+    const j = await orteLaden(p);
+    if (!Array.isArray(j.trails)) { alt = true; continue; }   // Paket von vor den Trails
+    if (!trailsEntpackt.has(j)) trailsEntpackt.set(j, R.trailsEntpacken(j.trails));
+    out.push(...R.trailsImAusschnitt(trailsEntpackt.get(j), b, 6000 - out.length));
+  }
+  if (alt && navigator.onLine !== false) return null;
+  return { trails: out, alt };
+}
+function trailsZeichnen(liste) {
+  ebeneTrails.clearLayers();
+  for (const t of liste) {
+    L.polyline(t.pts, { renderer: trailsMaler, color: '#fff', weight: 6, opacity: 0.8, interactive: false }).addTo(ebeneTrails);
+  }
+  for (const t of liste) {
+    const l = L.polyline(t.pts, { renderer: trailsMaler, color: R.TRAIL_FARBE[t.s] || '#8e2bb0', weight: 3.5, opacity: 0.95, bubblingMouseEvents: false });
+    l.on('click', () => melde('🚵 ' + R.trailText(t), 6));
+    l.addTo(ebeneTrails);
+  }
+}
+async function trailsLaden() {
+  if (!lagenWahl.trails || karte.getZoom() < 13) return;
+  const g = karte.getBounds(), b = [g.getSouth(), g.getWest(), g.getNorth(), g.getEast()];
+  if (trailsRahmen && b[0] >= trailsRahmen[0] && b[1] >= trailsRahmen[1] && b[2] <= trailsRahmen[2] && b[3] <= trailsRahmen[3]) return;
+  const dh = (b[2] - b[0]) * 0.3, dw = (b[3] - b[1]) * 0.3, gross = [b[0] - dh, b[1] - dw, b[2] + dh, b[3] + dw];
+  const nr = ++trailsLauf;
+  let liste, quelle = 'Kartenpaket';
+  try {
+    const off = await trailsAusPaketen(gross).catch(() => null);
+    if (nr !== trailsLauf) return;
+    if (off) {
+      liste = off.trails;
+      if (off.alt) melde('Ohne Netz: Das Kartenpaket ist älter als die MTB-Trails. Mit Netz das Paket neu laden.', 6);
+    } else if (navigator.onLine === false) {
+      melde('Ohne Netz: MTB-Trails nur aus einem Kartenpaket, hier keins.', 5); return;
+    } else {
+      quelle = 'Overpass';
+      liste = R.trailsAusOverpass(await overpassHolen(R.trailsAbfrage(gross), 30));
+    }
+  } catch (e) {
+    if (nr === trailsLauf) melde('MTB-Trails nicht abrufbar: ' + e.message, 6);
+    return;
+  }
+  if (nr !== trailsLauf || !lagenWahl.trails) return;
+  trailsRahmen = gross;
+  trailsZeichnen(liste);
+  $('trailZahl').textContent = liste.length + ' Trails im Ausschnitt (aus ' + (quelle === 'Overpass' ? 'OpenStreetMap über Overpass' : 'dem Kartenpaket') + ').';
+  if (!liste.length) melde('Hier sind in OpenStreetMap keine MTB-Trails mit Schwierigkeit eingetragen.', 4);
+}
+trailsAnwenden = () => {
+  if (!lagenWahl.trails || karte.getZoom() < 13) {
+    ebeneTrails.remove();
+    if (!lagenWahl.trails) { ebeneTrails.clearLayers(); trailsRahmen = null; trailsLauf++; }
+    return;
+  }
+  ebeneTrails.addTo(karte);
+  clearTimeout(trailsUhr);
+  trailsUhr = setTimeout(trailsLaden, 300);
+};
+karte.on('moveend', () => { if (lagenWahl.trails) trailsAnwenden(); });
+trailsAnwenden();

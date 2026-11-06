@@ -100,6 +100,12 @@ Waymarked Trails, sonst Overpass), „＋ Tour“ speichert sie als Fahrrad-Tour
 Routen (Kacheln von Waymarked Trails). Trailforks-Daten sind nicht eingebaut: deren Nutzung ist nur über eine freigeschaltete
 Schnittstelle mit Schlüssel erlaubt.
 
+**MTB-Trails nach Schwierigkeit:** Karte › Ebenen › „MTB-Trails nach Schwierigkeit“ zeigt ab Zoomstufe 13 die einzelnen Wege
+mit Singletrail-Skala aus OpenStreetMap (`mtb:scale`), gefärbt S0 grün, S1 blau, S2 rot, S3 schwarz, ab S4 violett.
+Antippen zeigt Name und Stufe mit kurzer Erklärung. Im Gebiet eines Kartenpakets kommen sie aus dem Paket (ohne Netz,
+sofort; Pakete von vor dem 06.11. haben sie noch nicht, dann einmal neu laden), sonst holt die App den Ausschnitt mit Rand
+bei Overpass. Die Legende nennt Zahl und Quelle. Erfasst ist nur, was Freiwillige in OSM eingetragen haben.
+
 **Familie:** In *Planen* „👨‍👩‍👧 Familien-Check“: passt die Tour zur gewählten Grenze (bis 5 km und 200 Hm, 8 km und 400 Hm
 oder 12 km und 700 Hm; gewählt unter *Touren* in der Liste, sonst 8 km und 400 Hm), und gibt es auf halber Strecke (30 bis
 70 % der Länge, bis 250 m neben der Route) einen Spielplatz oder eine Einkehr? Die geplanten Touren lassen sich mit
