@@ -355,6 +355,7 @@ function zeigen() {
   if (!e) profilWeg();   // ohne Route keine Marke vom Höhenprofil
   $('ergebnisRoute').hidden = !e;
   $('nameZeile').hidden = !e;
+  if (e) planOrdnerZeigen();
   planReiterZeigen();
   einstellTextSetzen(); planDetailsTextSetzen();
   if (seite === 'tour') tourSeiteZeigen();   // Kennzahlen einer eben geöffneten Tour kommen nach dem Rechnen
@@ -1006,6 +1007,7 @@ $('bNeu').onclick = () => {
   ebeneFotos.clearLayers();
   if (S.wps.length) merken();
   S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null);
+  delete $('planOrdner').dataset.neu;
   ebeneOrte.clearLayers();
   neuBerechnen();
 };
