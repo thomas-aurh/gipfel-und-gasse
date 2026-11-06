@@ -103,6 +103,7 @@ const BASIS = ['topo', 'osm', 'offline'], DARUEBER = ['relief', 'hang', 'wander'
 // Rahmen der installierten Kartenpakete (gefüllt in 58-offline.js), sichtbar bei gewählter Offline-Karte
 const ebenePaketRahmen = L.layerGroup();
 let trailsAnwenden = null;   // MTB-Trails nach Schwierigkeit, gesetzt in 58-offline.js
+let trailAntippen = null;    // Tipp auf einen Trail (58-offline.js): true, wenn er Name und Stufe zeigt
 function lagenAnwenden() {
   // gewählte Grundkarte noch nicht da (Offline-Pakete werden erst gelesen) oder Offline-Karte außerhalb jedes Pakets:
   // solange topografisch zeigen, Wahl behalten (zurück im Paketgebiet erscheint wieder die Offline-Karte)

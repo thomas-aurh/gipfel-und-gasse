@@ -700,6 +700,10 @@ pruef('Dienstfehler: Überlast kurz', R.dienstFehler(502, '# 502 Gateway Timeout
   pruef('MTB-Trails aus dem Paket: Differenzen in 1e-5 Grad entpackt', p.length === 2 && p[0].pts.map(q => q.join('/')).join() === '47.6/11.3,47.6/11.301,47.601/11.302' && p[1].s === 4, p);
   const im = R.trailsImAusschnitt(p, [47.59, 11.29, 47.605, 11.31]);
   pruef('MTB-Trails: nur die im Ausschnitt', im.length === 1 && im[0].name === 'A', im);
+  const [mx, my] = R.mercatorPixel(0, 0, 0), [kx, ky] = R.mercatorPixel(47.6, 11.3, 14);
+  pruef('Web-Mercator in Pixeln: 0/0 in der Mitte, Kochel auf Kachel 8706/5815 (z14)', mx === 128 && Math.abs(my - 128) < 1e-9 && Math.floor(kx / 256) === 8706 && Math.floor(ky / 256) === 5815, [mx, my, kx / 256, ky / 256]);
+  const nah = R.naechsterTrail(p, { lat: 47.6001, lon: 11.3005 }, 30), weit = R.naechsterTrail(p, { lat: 47.61, lon: 11.3005 }, 30);
+  pruef('MTB-Trails: Antippen findet den Trail bis zum Abstand, weiter weg keinen', nah && nah.name === 'A' && weit === null, [nah, weit]);
   pruef('MTB-Trails: Text mit Stufe und Erklärung', R.trailText(p[1]) === 'Weg ohne Namen · S4: steil, sehr enge Kehren' && R.TRAIL_FARBE[2] === '#e0301e', R.trailText(p[1]));
 }
 
