@@ -5,6 +5,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Ort-Link (07.11., Bau 267):** geprüft in Einheitstests und im Klicktest (GitHub Actions grün). Nicht geprüft: auf der
+  veröffentlichten Web-App (GitHub Pages) aus Zenithora heraus und am Handy; ein Link öffnet die Web-App im Browser,
+  nicht die Android-App (die App fängt keine Links ab).
 - **Steigung einfärben und Punkt-Alarm (06.11., Bau 261):** geprüft in Einheitstests und im Klicktest (Farben an und aus,
   Vorgabe 300 m, App schickt `alarm` an den Dienst); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf
   dem Pixel (Ansage bei gesperrtem Bildschirm), im Browser nicht mit echter Bewegung; ob die Steigungsfarben zum Gelände
@@ -303,7 +306,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **07.11. (Ort-Link)** `#ort-<lat>_<lon>~<Name>` öffnet die Karte an einem Ort mit Markierung (`ortLinkLesen`,
+- **07.11. (Ort-Link, PR #105, Bau 267)** `#ort-<lat>_<lon>~<Name>` öffnet die Karte an einem Ort mit Markierung (`ortLinkLesen`,
   `ortLinkSchreiben` in 00-rechnen.js, Start und `hashchange` in 80-start.js), Einheits- und Klicktest; Zenithora
   verlinkt bei jeder Idee hierher.
 
