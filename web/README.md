@@ -66,6 +66,10 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
   längster Eintrag und fängt den Tipp auf die Zeile ab.
 - Tempo erst messen, dann bauen (Skript mit gedrosselter CPU und Long Tasks wie bei Hangneigung und MTB-Trails): die
   naheliegende Verbesserung bringt oft nichts.
+- Neue Blöcke im Klicktest mit eigenen Variablennamen (Präfix je Block): alles läuft in einer Funktion, ein doppeltes
+  `const` (07.11.: `po`) ist ein SyntaxError, und der ganze Test startet nicht.
+- In der Cloud brechen die App-Schritte („App: Hinweis für gesperrten Bildschirm“ und folgende) ab, auch auf `main`
+  ohne Änderung: vor einer Fehlersuche mit `git stash` gegen `main` vergleichen; verbindlich ist der Job `klicktest`.
 - Gerätetest `test/emulator.js` nur in GitHub Actions (Job `emulator`, kein Android in der Cloud): die WebView über das
   DevTools-Protokoll ansprechen, nicht mit Playwright (`connectOverCDP` scheitert an fehlenden Browser-Kontexten).
 
