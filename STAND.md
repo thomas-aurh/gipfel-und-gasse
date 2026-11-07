@@ -150,6 +150,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Ort-Link für Zenithora** (07.11., Thomas: Verknüpfung mit dem Urlaubsplaner Zenithora im Repo other-projects):
+  `#ort-<lat>_<lon>~<Name>` zeigt den Ort wie einen Suchtreffer (Markierung, Name, „Als Start/Ziel“); Entwurf und Tour
+  bleiben unberührt, die Adresse verliert das `#ort` danach. Verworfen: den Tour-Link mit einem Punkt mitbenutzen (setzt
+  den Start, schiebt aber die Karte nicht hin und ersetzt die Planung).
+
 - **Kartenebenen mit vielen Linien als Kacheln** (06.11.): MTB-Trails wie die Hangneigung als `L.GridLayer`, je Kachel
   einmal gemalt; Antippen sucht den Trail selbst. Verworfen: eine Leaflet-Linie je Trail (Leinwand bei jedem Verschieben
   neu gemalt, 3,5 s blockiert bei 3000 Trails) und eine Linie je Stufe (brachte nichts: gemessen, bevor gebaut wurde).
@@ -297,6 +302,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **07.11. (Ort-Link)** `#ort-<lat>_<lon>~<Name>` öffnet die Karte an einem Ort mit Markierung (`ortLinkLesen`,
+  `ortLinkSchreiben` in 00-rechnen.js, Start und `hashchange` in 80-start.js), Einheits- und Klicktest; Zenithora
+  verlinkt bei jeder Idee hierher.
 
 - **06.11. (PRs #96 bis #103, Bau 249 bis 263, Kartenpakete neu)** MTB-Routen von Waymarked Trails als Liste und Ebene
   (#96); MTB-Trails nach Schwierigkeit aus dem Kartenpaket oder Overpass (#97), als Kacheln flüssig (#98); Ordner für

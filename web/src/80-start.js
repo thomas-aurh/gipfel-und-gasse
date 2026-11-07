@@ -183,7 +183,15 @@ function ausLink() {
   try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* egal */ }
   return true;
 }
-window.addEventListener('hashchange', ausLink);
+// Ort-Link (#ort-<lat>_<lon>~<Name>): Karte dort öffnen wie bei einem Suchtreffer, die Planung bleibt unberührt
+function ausOrtLink() {
+  const o = R.ortLinkLesen(location.hash);
+  if (!o) return false;
+  trefferWaehlen({ name: o.name || 'Ort aus dem Link', wo: o.name ? 'aus einem Link geöffnet' : o.lat.toFixed(4) + ', ' + o.lon.toFixed(4), lat: o.lat, lon: o.lon });
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* egal */ }
+  return true;
+}
+window.addEventListener('hashchange', () => { if (!ausLink()) ausOrtLink(); });
 
 if (!ausLink()) {
   const ent = SPEICHER.lesen('entwurf', null);
@@ -204,3 +212,5 @@ aufzWiederholen();
 $('ladeZeichen').querySelector('.lade-logo').innerHTML = $('logo').innerHTML.replace(/gugRund/g, 'gugRundL').replace(/gugHimmel/g, 'gugHimmelL').replace(/role="img"[^>]*?aria-label="[^"]*"/, 'aria-hidden="true"');
 // Telefon ohne Route: Start mit der reinen Karte (Thomas, 04.11.); Planen mit den Einstiegen ist einen Tipp entfernt
 if (window.innerWidth <= 760 && !S.wps.length && !S.fest) reiter('karte');
+// ein Ort-Link nach dem Entwurf: der Entwurf bleibt, die Karte zeigt den Ort
+if (!R.linkLesen(location.hash)) ausOrtLink();

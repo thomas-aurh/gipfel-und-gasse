@@ -1393,6 +1393,27 @@ function pruef(name, bed, info) {
   pruef('Alte Touren übernommen', (await pa.textContent('#tourliste')).includes('Alte Murmel-Tour'));
   await alt.close();
 
+  // ---------- Ort-Link (z. B. aus Zenithora): Karte am Ort öffnen, Markierung mit Namen, als Start übernehmen ----------
+  const olCtx = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+  await dienste(olCtx);
+  const pol = await olCtx.newPage();
+  const olFehler = [];
+  pol.on('pageerror', e => olFehler.push(e.message));
+  await pol.goto(url + '#ort-47.60000_11.34000~Kochelsee%20%2B%20Walchensee');
+  await pol.waitForFunction(() => /Kochelsee \+ Walchensee/.test((document.querySelector('.leaflet-popup-content') || {}).textContent || ''), null, { timeout: 8000 }).catch(() => {});
+  const olPop = await pol.evaluate(() => (document.querySelector('.leaflet-popup-content') || {}).textContent || '');
+  pruef('Ort-Link: Markierung mit Namen und „Als Start“', olPop.includes('Kochelsee + Walchensee') && olPop.includes('Als Start'), olPop);
+  pruef('Ort-Link: Adresse danach ohne #ort', !(await pol.evaluate(() => location.hash)));
+  await pol.evaluate(() => [...document.querySelectorAll('.leaflet-popup-content .popup-knopf')].find(b => b.textContent === 'Als Start').click());
+  await pol.waitForFunction(() => document.querySelectorAll('.wp').length === 1, null, { timeout: 5000 }).catch(() => {});
+  pruef('Ort-Link: Ort als Start übernommen', (await pol.$$('.wp')).length === 1);
+  await pol.evaluate(() => { location.hash = '#ort-47.70000_11.40000'; });
+  await pol.waitForFunction(() => /47\.7000/.test((document.querySelector('.leaflet-popup-content') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
+  const olPopOhne = await pol.evaluate(() => (document.querySelector('.leaflet-popup-content') || {}).textContent || '');
+  pruef('Ort-Link ohne Namen bei geöffneter Seite: Koordinaten und „Als Ziel“', olPopOhne.includes('47.7000') && olPopOhne.includes('Als Ziel'), olPopOhne);
+  pruef('Ort-Link: keine Fehler', olFehler.length === 0, olFehler);
+  await olCtx.close();
+
   // ---------- Android-App: Oberfläche mit nachgebildetem Navi-Plugin ----------
   const bruecke = require('./bruecke');
   const UA_ANDROID = v => 'Mozilla/5.0 (Linux; Android ' + v + '; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36';
