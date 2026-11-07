@@ -22,6 +22,7 @@ HTML-Datei, ohne Konto und ohne eigenen Server. Die Idee kommt von Apps wie komo
 | **Suche** | Orte, Gipfel, Hütten (während des Tippens). Treffer als Start oder nächster Punkt übernehmen. |
 | **Unterwegs** | Standort, Route folgen (Rest in km, Restzeit, noch bergauf, Ankunft, Warnung mit Vibration, wenn man mehr als 50 m abseits ist), Aufzeichnen und als Tour speichern. Hält den Bildschirm wach. |
 | **Touren** | speichern im Browser, öffnen, löschen (zweimal tippen), GPX herunterladen und öffnen, alle als GPX sichern, Link teilen. |
+| **Ort-Link** | `…/gipfel-und-gasse/#ort-<Breite>_<Länge>~<Name>` öffnet die Karte an diesem Ort mit Markierung und Namen wie ein Suchtreffer („Als Start“ bzw. „Als Ziel“); eine offene Planung bleibt. Der Name ist URL-kodiert und darf fehlen. Zenithora (Repo other-projects) verlinkt so bei jeder Urlaubsidee hierher. |
 | **Karten** | OpenTopoMap (topografisch) oder Stadtplan (OpenStreetMap Standard), darüber markierte Wanderwege, Radrouten (Waymarked Trails) oder die Sehenswürdigkeiten, die Gipfel & Gasse selbst aus OSM-Daten zeichnet. |
 
 Eine offene Planung übersteht das Neuladen der Seite, samt berechneter Abschnitte (es wird nichts neu angefragt).
@@ -76,7 +77,7 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 | `src/symbol.svg` | vereinfachte Fassung für das Browser-Symbol (16 bis 32 px): Berg, Zwiebelturm, roter Gipfelpunkt |
 | `src/head.html` | Gestaltung (CSS); unter 760 px Breite wird die Seitenleiste zum Blatt unten |
 | `src/body.html` | Gerüst: Karte, Suche, Kartenknöpfe, Reiter Planen, Entdecken, Unterwegs, Touren, Info |
-| `src/00-rechnen.js` | reine Rechnungen ohne DOM und Netz: Abstand, Höhenmeter mit Schwelle, Gehzeit DIN 33466, Fahrzeit, SAC-Skala, Wegtyp und Untergrund aus OSM-Merkmalen, Kinderwagen-Urteil, BRouter-Antwort lesen, Strecke auswerten, Position auf der Strecke, GPX lesen und schreiben, Teilen-Link, Overpass-Abfrage und Orte, Wettercodes, Höhendaten (Terrarium, Schummerung, Höhenlinien), Abbiegehinweise und Übergänge an Zwischenzielen |
+| `src/00-rechnen.js` | reine Rechnungen ohne DOM und Netz: Abstand, Höhenmeter mit Schwelle, Gehzeit DIN 33466, Fahrzeit, SAC-Skala, Wegtyp und Untergrund aus OSM-Merkmalen, Kinderwagen-Urteil, BRouter-Antwort lesen, Strecke auswerten, Position auf der Strecke, GPX lesen und schreiben, Teilen-Link und Ort-Link, Overpass-Abfrage und Orte, Wettercodes, Höhendaten (Terrarium, Schummerung, Höhenlinien), Abbiegehinweise und Übergänge an Zwischenzielen |
 | `src/10-dienste.js` | Anfragen an BRouter (in der App zuerst offline, sonst brouter.de mit Abbiegehinweisen), Photon, Overpass, Open-Meteo; Profile (Wandern → `hiking-mountain`, Fahrrad → `trekking`, kürzester Weg → `shortest`) |
 | `src/20-karte.js` | Karte, Kartenarten, Meldungen, Speicher im Browser |
 | `src/30-planen.js` | Wegpunkte, Teilstücke (zwischengespeichert, damit Ziehen nur das betroffene Stück neu anfragt), Route zeichnen, Kennzahlen, Hervorhebung |

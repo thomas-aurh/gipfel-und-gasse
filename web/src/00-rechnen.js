@@ -816,6 +816,21 @@ var R = (function () {
     return { profil: m[1], wps };
   }
 
+  // Ort-Link: Karte an einem Ort öffnen, mit Markierung und Namen (z. B. aus Zenithora)
+  // #ort-<lat>_<lon> oder #ort-<lat>_<lon>~<Name, URL-kodiert>
+  function ortLinkSchreiben(lat, lon, name) {
+    return 'ort-' + lat.toFixed(5) + '_' + lon.toFixed(5) + (name ? '~' + encodeURIComponent(name) : '');
+  }
+  function ortLinkLesen(hash) {
+    const m = /^#?ort-(-?\d{1,2}(?:\.\d+)?)_(-?\d{1,3}(?:\.\d+)?)(?:~(.{1,300}))?$/.exec(hash || '');
+    if (!m) return null;
+    const lat = +m[1], lon = +m[2];
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    let name = '';
+    if (m[3]) { try { name = decodeURIComponent(m[3]).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 120); } catch (e) { name = ''; } }
+    return { lat, lon, name };
+  }
+
   // ---------- Familie: Grenzen für Länge und Aufstieg (Tourliste und Familien-Check) ----------
   const FAMILIE = {
     '5-200': { meter: 5000, hm: 200, text: 'bis 5 km und 200 Hm' },
@@ -2614,7 +2629,7 @@ var R = (function () {
   return {
     abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
-    hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
+    hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ortLinkSchreiben, ortLinkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,

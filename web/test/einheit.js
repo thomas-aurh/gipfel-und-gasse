@@ -106,6 +106,12 @@ const link = R.linkSchreiben('hiking-mountain', [{ lat: 47.7535, lon: 11.3747 },
 const zl = R.linkLesen('#' + link);
 pruef('Link hin und zurück', zl && zl.profil === 'hiking-mountain' && zl.wps.length === 2 && zl.wps[1].lon === -70.25, zl);
 pruef('Link Unsinn', R.linkLesen('#abc') === null && R.linkLesen('#tour-x-99_1') === null);
+const ol = R.ortLinkSchreiben(46.28, 13.88, 'Bohinj + Soča-Tal');
+const olz = R.ortLinkLesen('#' + ol);
+pruef('Ort-Link hin und zurück', ol === 'ort-46.28000_13.88000~Bohinj%20%2B%20So%C4%8Da-Tal' && olz && olz.lat === 46.28 && olz.lon === 13.88 && olz.name === 'Bohinj + Soča-Tal', [ol, olz]);
+pruef('Ort-Link ohne Namen', JSON.stringify(R.ortLinkLesen('#ort-47.75_11.37')) === JSON.stringify({ lat: 47.75, lon: 11.37, name: '' }));
+pruef('Ort-Link Unsinn', R.ortLinkLesen('#ort-99_1') === null && R.ortLinkLesen('#ort-47_200') === null && R.ortLinkLesen('#ort-abc') === null &&
+  R.ortLinkLesen('#tour-wandern-47_11') === null && R.ortLinkLesen('#ort-47.7_11.3~%E0%A4%A') !== null && R.ortLinkLesen('#ort-47.7_11.3~%E0%A4%A').name === '');
 
 // Overpass
 const q = R.overpassAbfrage(ges.pts, 300);
