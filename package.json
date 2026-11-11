@@ -2,6 +2,7 @@
   "name": "gipfel-und-gasse",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Gipfel & Gasse: Tourenplaner für Berg und Stadt, Web und Android",
   "scripts": {
     "web": "sh web/build.sh && mkdir -p www && cp web/dist/Gipfel-und-Gasse.html www/index.html",
