@@ -258,4 +258,5 @@ Claude ist es schon da). Er bildet die Kartendienste nach und prüft auch die An
   Lizenztexte stehen in der fertigen HTML-Datei. Kartendaten der Pakete © OpenStreetMap-Mitwirkende (ODbL), Kacheln
   Protomaps; Höhen: Mapzen/Tilezen Terrain Tiles (u. a. SRTM, GMTED2010, EU-DEM: produziert mit Copernicus-Daten,
   finanziert von der EU).
-- Code, Gestaltung, Logo und Symbole sind selbst gemacht.
+- Code, Gestaltung, Logo und Symbole sind selbst gemacht und stehen unter der [MIT-Lizenz](LICENSE) (© thomas-aurh).
+  Fremde Inhalte oben behalten ihre eigenen Lizenzen; der Skill `grill-me` folgt Matt Pococks `grill-me` (MIT).

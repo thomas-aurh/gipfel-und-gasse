@@ -153,6 +153,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **MIT-Lizenz** (11.11., Thomas' Wahl): `LICENSE` mit Inhaber `thomas-aurh` (kein voller Name, das Repo ist öffentlich).
+  Gilt für eigenen Code, Gestaltung, Logo und Symbole; OSM-Daten (ODbL) und Bibliotheken behalten ihre Lizenzen.
+  Verworfen: GPL-3.0 (strenger, für ein Privatprojekt unnötig), keine Lizenz (nur Ansehen erlaubt, rechtlich unklar).
 - **Ort-Link für Zenithora** (07.11., Thomas: Verknüpfung mit dem Urlaubsplaner Zenithora im Repo other-projects):
   `#ort-<lat>_<lon>~<Name>` zeigt den Ort wie einen Suchtreffer (Markierung, Name, „Als Start/Ziel“); Entwurf und Tour
   bleiben unberührt, die Adresse verliert das `#ort` danach. Verworfen: den Tour-Link mit einem Punkt mitbenutzen (setzt
