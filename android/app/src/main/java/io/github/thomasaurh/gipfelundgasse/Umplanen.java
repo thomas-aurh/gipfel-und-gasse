@@ -43,6 +43,20 @@ public final class Umplanen {
             .append("&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1").toString();
     }
 
+    /**
+     * Punkt des Punkt-Alarms (Wegpunkt der GPX-Datei, Hütte, Gipfel, Brunnen) auf der neuen Strecke: Meter ab Start, wenn
+     * er höchstens {@code maxAbstand} neben ihr liegt, sonst NaN. ort ist der Schlüssel „Breite,Länge“ des Stopps.
+     */
+    public static double aufNeu(NaviRechnen.Strecke s, String ort, double maxAbstand) {
+        if (s == null || ort == null || s.groesse() < 2) return Double.NaN;
+        String[] t = ort.split(",");
+        if (t.length != 2) return Double.NaN;
+        double lat, lon;
+        try { lat = Double.parseDouble(t[0]); lon = Double.parseDouble(t[1]); } catch (NumberFormatException e) { return Double.NaN; }
+        NaviRechnen.Lage l = NaviRechnen.aufStrecke(s, lat, lon, Double.NaN);
+        return l.abw <= maxAbstand ? l.d : Double.NaN;
+    }
+
     /** Neue Route: Strecke, Abbiegehinweise {Meter, Befehl, Ausfahrt} und die Meter der offenen Ziele darauf. */
     public static final class Neu {
         public final NaviRechnen.Strecke strecke;
