@@ -66,7 +66,12 @@ function spurAlsTour(name, pts, art, extra) {
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
   melde('Gespeichert: ' + name);
-  if (art === 'aufzeichnung') gipfelNachTour(liste[0]);   // Gipfelbuch (im Hintergrund, braucht Paket oder Netz)
+  if (art === 'aufzeichnung') {
+    // Reiseziele an der Spur abhaken (sofort, mit Rückgängig); danach das Gipfelbuch (im Hintergrund, braucht Paket oder Netz)
+    const ab = zieleAbhaken(e.pts, 'tour', pts[0] && pts[0].t);
+    if (ab) melde(ab.text, 8, { tun: ab.zurueck });
+    gipfelNachTour(liste[0], ab);
+  }
   return liste[0].id;
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }

@@ -522,8 +522,9 @@ async function eintragSpeichern() {
   // Fotos zuerst ablegen: scheitert das, bleibt der Eintrag ungespeichert und nichts zeigt ins Leere
   try { for (const n of TB.neu) await FOTOS.ablegen(n.id, n.blob); } catch (err) { melde('Fotos nicht gespeichert: ' + err.message, 6); return; }
   const d = tagebuchLesen();
-  let e = TB.eintrag && d.eintraege.find(x => x.id === TB.eintrag);
+  let e = TB.eintrag && d.eintraege.find(x => x.id === TB.eintrag), neuMitOrt = null;
   if (!e) {
+    neuMitOrt = TB.ort;
     e = { id: 'e' + tbId(), reise: TB.reise, zeit: Date.now(), text: '', fotos: [] };
     if (TB.ort) e.ort = TB.ort;
     if (TB.wetter) e.wetter = TB.wetter;
@@ -541,7 +542,10 @@ async function eintragSpeichern() {
   for (const f of TB.weg) await FOTOS.weg(f).catch(() => {});
   TB.neu = []; TB.weg = []; TB.eintrag = null; TB.entwurf++;
   reiseZeigen(TB.reise);
-  melde('Eintrag gespeichert.');
+  // neuer Eintrag mit Ort: ein Reiseziel bis 300 m daneben gilt als besucht
+  const ab = neuMitOrt ? zieleAbhaken([neuMitOrt], 'tagebuch', e.zeit) : null;
+  if (ab) melde('Eintrag gespeichert. ' + ab.text, 8, { tun: ab.zurueck });
+  else melde('Eintrag gespeichert.');
 }
 
 async function eintragLoeschen(id, knopf) {
