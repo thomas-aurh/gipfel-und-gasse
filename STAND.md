@@ -135,7 +135,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Routendaten geteilt (15.11.):** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit. Seit 15.11.
   übernimmt ein zweites Paket gleiche Dateien (Name und Prüfsumme) per hartem Verweis aus dem ersten, statt sie zu laden;
   nur im Klicktest (Anzeige) geprüft, Java nur in GitHub Actions gebaut. Wurden die Pakete zu verschiedenen Zeiten gebaut
-  (andere Prüfsumme), lädt die App wie bisher. Bereits doppelt geladene Kacheln bleiben doppelt bis zum nächsten Update.
+  (andere Prüfsumme), lädt die App wie bisher. Schon doppelt geladene Kacheln bleiben doppelt, bis eines der Pakete gelöscht und neu geladen wird (ein Update übernimmt zuerst die eigene Kopie).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
