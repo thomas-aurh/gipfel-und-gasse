@@ -169,7 +169,7 @@ Sturmböen (ab 60 km/h) und Frost. Ohne Startzeit rechnet die App ab 9 Uhr; bis 
 **Reiseziele:** Menü ☰ › *Reiseziele*: Listen mit Zielen (Ort per Suche, Notiz, Link, Stichworte, Stand Idee/geplant/
 besucht), als ⭐ auf der Karte; Fenster mit Anreise, Wetter dort und „Als Stopp“. „📂 Datei laden“ liest Text (eine Zeile
 je Ziel, die App sucht den Ort), CSV (`Name;Ort;Notiz;Link`, auch mit `lat;lon`), GPX-Wegpunkte, KML aus Google My Maps
-und GeoJSON; „📋 Liste einfügen“ nimmt dieselben Zeilen aus einer Notiz oder Nachricht. „⬇ Als GPX“ gibt eine Liste weiter. Im Info-Fenster merkt „⭐ Merken“ einen Ort. Kommt eine gespeicherte Aufzeichnung oder ein neuer Tagebuch-Eintrag mit Ort bis auf 300 m an ein offenes Ziel, ist es von selbst „besucht“ (mit Datum, „↶ Rückgängig“ in der Meldung). Kommt mit in die Sicherung.
+und GeoJSON; „📋 Liste einfügen“ nimmt dieselben Zeilen aus einer Notiz oder Nachricht. „⬇ Als GPX“ gibt eine Liste weiter. Im Info-Fenster merkt „⭐ Merken“ einen Ort. Kommt eine gespeicherte Aufzeichnung oder ein neuer Tagebuch-Eintrag mit Ort bis auf 300 m an ein offenes Ziel, ist es von selbst „besucht“ (mit Datum, „↶ Rückgängig“ in der Meldung); „🔍 Gegangene Touren durchsuchen“ holt das für ältere Touren und Tagebuch-Orte nach (erster Besuch zählt). Kommt mit in die Sicherung.
 
 **Gipfelbuch:** Menü ☰ › *Gipfelbuch*: Kommt eine gespeicherte Aufzeichnung bis auf 50 m an einen Gipfel aus OpenStreetMap,
 steht er hier mit Höhe, Tag und Zahl der Besuche (ohne Netz aus dem Kartenpaket). „🔍 Gegangene Touren durchsuchen“ holt das

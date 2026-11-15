@@ -10,24 +10,44 @@ function zieleSchreibenSp(d) {
 // Reiseziele von selbst abhaken: kommt eine gespeicherte Aufzeichnung oder ein Tagebuch-Eintrag mit Ort bis auf 300 m an
 // ein Ziel, gilt es als besucht (mit Datum und wodurch). Liefert den Text für die Meldung und wie es sich zurücknehmen lässt
 const ZIEL_NAEHE = 300;
-function zieleAbhaken(pts, wie, zeit) {
-  const d = zieleLesenSp();
-  const treffer = R.zieleBesucht(d.ziele, pts, ZIEL_NAEHE);
-  if (!treffer.length) return null;
-  const vorher = treffer.map(z => ({ id: z.id, stand: z.stand }));
-  const am = new Date(zeit || Date.now()).toISOString();
-  for (const z of treffer) { z.stand = 'besucht'; z.besuchtAm = am; z.besuchtWie = wie; }
-  if (!zieleSchreibenSp(d)) return null;
+function zieleAbhaken(pts, wie, zeit) { return zieleAbhakenAus([{ pts, wie, zeit }]); }
+// quellen: [{ pts, wie, zeit }], die älteste zuerst (so zählt der erste Besuch); null, wenn nichts dazukam
+function zieleAbhakenAus(quellen) {
+  const d = zieleLesenSp(), vorher = [];
+  for (const q of quellen) {
+    const am = new Date(q.zeit || Date.now()).toISOString();
+    for (const z of R.zieleBesucht(d.ziele, q.pts, ZIEL_NAEHE)) {
+      vorher.push({ id: z.id, stand: z.stand, am, name: z.name });
+      z.stand = 'besucht'; z.besuchtAm = am; z.besuchtWie = q.wie;
+    }
+  }
+  if (!vorher.length || !zieleSchreibenSp(d)) return null;
   if (typeof seite !== 'undefined' && seite === 'ziele') zieleZeigen();
   return {
-    text: '✅ Reiseziel besucht: ' + treffer.map(z => z.name).join(', '),
+    anzahl: vorher.length,
+    text: '✅ Reiseziel' + (vorher.length > 1 ? 'e' : '') + ' besucht: ' + vorher.map(v => v.name).join(', '),
+    // nur zurücknehmen, was seitdem niemand geändert hat (gleiches „besucht am“)
     zurueck: () => {
       const d2 = zieleLesenSp();
-      for (const v of vorher) { const z = d2.ziele.find(x => x.id === v.id); if (z && z.besuchtAm === am) { z.stand = v.stand; z.besuchtAm = ''; z.besuchtWie = ''; } }
+      for (const v of vorher) { const z = d2.ziele.find(x => x.id === v.id); if (z && z.besuchtAm === v.am) { z.stand = v.stand; z.besuchtAm = ''; z.besuchtWie = ''; } }
       if (zieleSchreibenSp(d2)) { if (seite === 'ziele') zieleZeigen(); melde('Reiseziele wieder offen.'); }
     }
   };
 }
+// alle gegangenen Touren und Tagebuch-Einträge mit Ort durchsuchen (z. B. für Ziele, die erst nach der Tour dazukamen)
+function zieleNachtragen() {
+  const quellen = [];
+  for (const t of tourenLesen()) {
+    if (t.art !== 'aufzeichnung' || !Array.isArray(t.spur) || !t.spur.length) continue;
+    quellen.push({ pts: t.spur.map(x => ({ lat: x[0], lon: x[1] })), wie: 'tour', zeit: (t.spur[0][3] || new Date(t.datum).getTime()) });
+  }
+  for (const e of tagebuchLesen().eintraege || []) if (e.ort && isFinite(e.ort.lat) && isFinite(e.ort.lon)) quellen.push({ pts: [e.ort], wie: 'tagebuch', zeit: e.zeit });
+  quellen.sort((a, b) => (a.zeit || 0) - (b.zeit || 0));
+  const ab = zieleAbhakenAus(quellen);
+  if (ab) melde(ab.text, 10, { tun: ab.zurueck });
+  else melde(quellen.length ? 'Keine weiteren Reiseziele an deinen ' + quellen.length + ' gegangenen Touren und Tagebuch-Orten.' : 'Noch keine gegangenen Touren oder Tagebuch-Einträge mit Ort.', 5);
+}
+$('zlSuchen').onclick = zieleNachtragen;
 const ZL = { liste: SPEICHER.lesen('zielListe', ''), stich: new Set(), bearbeiten: null, ort: null, import: null };
 const zlId = () => 'z' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 

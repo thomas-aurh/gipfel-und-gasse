@@ -141,7 +141,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
   aus Google My Maps nur mit einem nachgebauten Beispiel. „Automatisch besucht“ seit 15.11.: gespeicherte
   Aufzeichnung oder neuer Tagebuch-Eintrag mit Ort bis 300 m am Ziel (mit Rückgängig); nur im Klicktest geprüft. Ob 300 m
-  bei Städten oder großen Orten reichen (Ziel ist ein Punkt, meist die Ortsmitte), ist offen; ältere Touren zählen nicht nach.
+  bei Städten oder großen Orten reichen (Ziel ist ein Punkt, meist die Ortsmitte), ist offen; ältere Touren und Tagebuch-Orte
+  über „🔍 Gegangene Touren durchsuchen“ (seit 15.11.).
 - **Info auf der Karte (#27):** auf dem Pixel am 02.11. „zu viele Anfragen“ (429) vom Overpass-Hauptserver; seit #31
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
