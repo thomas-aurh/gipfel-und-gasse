@@ -200,7 +200,8 @@ function tourOeffnen(id) {
   S.verlauf = []; S.tourId = t.id; S.name = t.name; $('tourname').value = t.name; zeitplanSetzen(t.zeit);
   S.profil = t.profil || 'wandern'; $('profilwahl').value = S.profil;
   // Tempo der Tour wiederherstellen, damit Geh- und Restzeit stimmen
-  if (t.tempo && [...$('tempowahl').options].some(o => +o.value === +t.tempo)) { S.tempo = +t.tempo; $('tempowahl').value = String(S.tempo); }
+  const tempoOpt = t.tempo && [...$('tempowahl').options].find(o => +o.value === +t.tempo);
+  if (tempoOpt) { S.tempo = +t.tempo; $('tempowahl').value = tempoOpt.value; }
   if (t.pace && [...$('pacewahl').options].some(o => +o.value === +t.pace)) { S.pace = +t.pace; $('pacewahl').value = String(S.pace); }
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
@@ -435,8 +436,22 @@ function tourOrdnerWahl(t) {
   };
 }
 
+// Tempo-Wahl: „Eigenes“ aus den gegangenen Aufzeichnungen (ab drei passenden). War es gewählt und ändert sich der Faktor
+// (neue Aufzeichnung), wandert die Wahl mit
+function tempoEigenZeigen(liste) {
+  const sel = $('tempowahl'), e = R.eigenesTempo(liste || tourenLesen(), 10);
+  let opt = $('tempoEigen');
+  const warEigen = !!opt && sel.value === opt.value && sel.selectedOptions[0] === opt;
+  if (!e) { if (opt) { opt.remove(); if (warEigen) { S.tempo = 1; sel.value = '1'; SPEICHER.schreiben('tempo', 1); SPEICHER.schreiben('tempoEigen', false); } } return; }
+  if (!opt) { opt = document.createElement('option'); opt.id = 'tempoEigen'; sel.insertBefore(opt, sel.firstChild); }
+  opt.value = e.faktor.toFixed(2);
+  opt.textContent = 'Eigenes (×' + e.faktor.toFixed(2).replace('.', ',') + ' aus ' + e.anzahl + ' Touren)';
+  if (warEigen) { opt.selected = true; S.tempo = +opt.value; SPEICHER.schreiben('tempo', S.tempo); }
+}
+
 function tourenZeigen() {
   const liste = tourenLesen();
+  tempoEigenZeigen(liste);
   tourenPunkte(liste);
   const gegangen = liste.filter(t => t.art === 'aufzeichnung'), geplant = liste.filter(t => t.art !== 'aufzeichnung');
   ordnerLeiste($('ordnerGeplant'), liste, geplant);
