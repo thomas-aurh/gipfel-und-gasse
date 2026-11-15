@@ -1561,8 +1561,8 @@ function pruef(name, bed, info) {
   // Spur der Aufzeichnung auf der Karte: erst ab Punkt 0, dann nur die neuen (hier keine mehr), Linie mit allen Punkten
   await pa2.waitForTimeout(150);
   const spurAbrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'aufzeichnungHolen' && x[1].ab != null).map(x => x[1].ab)));
-  const spurLinien = await pa2.evaluate(() => document.querySelectorAll('path.aufz-spur').length);   // Leaflet schneidet außerhalb des Ausschnitts ab: nur die Linie zählen
-  pruef('App: Spur der Aufzeichnung als Linie auf der Karte, neue Punkte ab dem letzten', spurLinien === 1 && spurAbrufe[0] === 0 && spurAbrufe.slice(1).every(n => n === 3), [spurLinien, spurAbrufe]);
+  const appSpurLinie = await pa2.evaluate(() => document.querySelectorAll('path.aufz-spur').length);   // Leaflet schneidet außerhalb des Ausschnitts ab: nur die Linie zählen
+  pruef('App: Spur der Aufzeichnung als Linie auf der Karte, neue Punkte ab dem letzten', appSpurLinie === 1 && spurAbrufe[0] === 0 && spurAbrufe.slice(1).every(n => n === 3), [appSpurLinie, spurAbrufe]);
   pruef('App: Dauer bis zum Ende der Aufzeichnung', (await pa2.textContent('#aDauer')) === '20 min', await pa2.textContent('#aDauer'));
   pruef('App: Ø Tempo der Aufzeichnung (20 min auf 820 m)', (await pa2.textContent('#aTempo')) === '24:23 min/km', await pa2.textContent('#aTempo'));
   // Auto-Pause: Tempo aus der Bewegungszeit, Pause sichtbar
