@@ -27,6 +27,11 @@ public final class Routing {
      * @param maxMs    Rechenzeit höchstens (0 = unbegrenzt)
      */
     public static String route(File segmente, File profil, double[][] punkte, long maxMs) throws Exception {
+        return route(segmente, profil, java.util.Collections.<String, String>emptyMap(), punkte, maxMs);
+    }
+
+    /** Wie oben, dazu Werte, die das Profil überschreiben (wie „profile:Name=Wert“ bei brouter.de), siehe Profile. */
+    public static String route(File segmente, File profil, java.util.Map<String, String> werte, double[][] punkte, long maxMs) throws Exception {
         if (punkte.length < 2) throw new IllegalArgumentException("mindestens zwei Punkte");
         RoutingContext rc = new RoutingContext();
         rc.localFunction = profil.getAbsolutePath();
@@ -34,6 +39,7 @@ public final class Routing {
         // Kreisverkehre mit Ausfahrt ansagen; das Wanderprofil schaltet das sonst ab (zu Fuß: 0)
         rc.keyValues = new java.util.HashMap<>();
         rc.keyValues.put("turnInstructionRoundabouts", "1");
+        rc.keyValues.putAll(werte);
         List<OsmNodeNamed> wps = new ArrayList<>();
         for (int i = 0; i < punkte.length; i++) {
             OsmNodeNamed n = new OsmNodeNamed();

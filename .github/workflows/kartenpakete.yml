@@ -20,6 +20,7 @@ on:
       - "web/vendor/offline/**"
       - "werkzeuge/brouter-holen.sh"
       - "android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Routing.java"
+      - "android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Profile.java"
       - ".github/workflows/kartenpakete.yml"
 
 permissions:
@@ -55,7 +56,7 @@ jobs:
           if [ "${{ github.event_name }}" != "pull_request" ]; then echo "neu=true" >> "$GITHUB_OUTPUT"; echo "Lauf: neu bauen"; exit 0; fi
           git diff --name-only "origin/${{ github.base_ref }}...HEAD" > /tmp/geaendert.txt
           cat /tmp/geaendert.txt
-          if grep -Eq '^(karten/|\.github/workflows/kartenpakete\.yml|werkzeuge/brouter-holen\.sh|android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Routing\.java)' /tmp/geaendert.txt; then
+          if grep -Eq '^(karten/|\.github/workflows/kartenpakete\.yml|werkzeuge/brouter-holen\.sh|android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/(Routing|Profile)\.java)' /tmp/geaendert.txt; then
             echo "neu=true" >> "$GITHUB_OUTPUT"; echo "Lauf: Kartenpakete betroffen, neu bauen"
           else
             echo "neu=false" >> "$GITHUB_OUTPUT"; echo "Lauf: nur die App betroffen, veröffentlichte Pakete prüfen"

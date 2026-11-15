@@ -18,11 +18,23 @@ const PROFILE = {
   wandern: { brouter: 'hiking-mountain', art: 'fuss', name: 'Wandern' },
   mehrtag: { brouter: 'hiking-mountain', art: 'fuss', name: 'Mehrtagestour' },
   stadt: { brouter: 'hiking-mountain', art: 'fuss', name: 'Stadtspaziergang' },
-  laufen: { brouter: 'hiking-mountain', art: 'lauf', name: 'Laufen' },
+  laufen: { brouter: 'laufen-trail', art: 'lauf', name: 'Laufen' },
   rad: { brouter: 'trekking', art: 'rad', name: 'Fahrrad' },
   kurz: { brouter: 'shortest', art: 'fuss', name: 'Kürzester Weg' },
   linie: { brouter: null, art: 'fuss', name: 'Gerade Linie' }
 };
+
+// eigene Profile: Profildatei von BRouter und Werte, die darin überschrieben werden (online als „profile:Name=Wert“,
+// in der App ohne Netz und beim Umplanen genauso: android/…/Profile.java, beide Tabellen müssen übereinstimmen).
+// Trail-Laufen: Pfade und Forstwege vor Asphalt, höchstens SAC T2, markierte Wanderwege ohne Vorzug
+const PROFIL_WERTE = {
+  'laufen-trail': { datei: 'hiking-mountain', werte: { SAC_scale_limit: 2, SAC_scale_preferred: 1, hiking_routes_preference: 0, path_preference: 2 } }
+};
+function brouterProfil(name) {
+  const e = PROFIL_WERTE[name];
+  if (!e) return '&profile=' + name;
+  return '&profile=' + e.datei + Object.entries(e.werte).map(([k, v]) => '&profile:' + k + '=' + v).join('');
+}
 
 // Ladeanzeige (Logo mit Wanderer): zählt laufende Anfragen; kurze Anfragen zeigen nichts, damit nichts flackert
 let ladend = 0, ladeUhr = null;
@@ -73,7 +85,7 @@ async function teilstueck(a, b, profilKey) {
   if (offline) return offline;
   // timode=2: Abbiegehinweise (voicehints) für die Ansagen unterwegs
   const url = DIENST.brouter + '?lonlats=' + a.lon.toFixed(6) + ',' + a.lat.toFixed(6) + '|' + b.lon.toFixed(6) + ',' + b.lat.toFixed(6) +
-    '&profile=' + p.brouter + '&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1';
+    brouterProfil(p.brouter) + '&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1';
   await brouterPlatz();
   let s;
   try { s = R.brouterLesen(await holen(url, null, 30)); } finally { brouterFrei(); }

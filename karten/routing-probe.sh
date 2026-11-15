@@ -18,10 +18,11 @@ ls -la "$T/seg"
 find android/brouter/brouter-util/src/main android/brouter/brouter-codec/src/main android/brouter/brouter-expressions/src/main \
   android/brouter/brouter-mapaccess/src/main android/brouter/brouter-core/src/main -name '*.java' > "$T/quellen.txt"
 echo android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Routing.java >> "$T/quellen.txt"
+echo android/app/src/main/java/io/github/thomasaurh/gipfelundgasse/Profile.java >> "$T/quellen.txt"
 echo karten/RoutingProbe.java >> "$T/quellen.txt"
 javac -nowarn -d "$T/klassen" -cp "$T/json.jar" @"$T/quellen.txt"
 if [ $# -eq 0 ]; then
-  # Penzberg → Herzogstand (Bergwege), Marienplatz → Englischer Garten (Stadt), Murnau → Kochel (Rad)
-  set -- "11.3747,47.7535;11.3170,47.6290;hiking-mountain" "11.5755,48.1374;11.5925,48.1590;hiking-mountain" "11.2005,47.6781;11.3784,47.6532;trekking"
+  # Penzberg → Herzogstand (Bergwege, auch als Trail-Lauf), Marienplatz → Englischer Garten (Stadt), Murnau → Kochel (Rad)
+  set -- "11.3747,47.7535;11.3170,47.6290;hiking-mountain" "11.3747,47.7535;11.3170,47.6290;laufen-trail" "11.5755,48.1374;11.5925,48.1590;hiking-mountain" "11.2005,47.6781;11.3784,47.6532;trekking"
 fi
 java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "$T/klassen:$T/json.jar" RoutingProbe "$T/seg" android/app/src/main/assets/brouter "$@"

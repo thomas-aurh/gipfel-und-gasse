@@ -20,7 +20,7 @@ final class BRouterDateien {
 
     // Berechnungen nacheinander: Verweis-Ordner und Profile werden je Aufruf neu aufgebaut und dürfen sich nicht überschneiden
     static final Object SPERRE = new Object();
-    static final Set<String> PROFILE = new HashSet<>(java.util.Arrays.asList("hiking-mountain", "trekking", "shortest"));
+    static final Set<String> PROFILE = Profile.NAMEN;   // Namen samt eigener (laufen-trail), siehe Profile
     private static final String TAG = "GipfelGasseRouting";
 
     private static File basis(Context c) { return new File(c.getFilesDir(), "brouter"); }
@@ -95,7 +95,7 @@ final class BRouterDateien {
             Set<String> k = new HashSet<>();
             File seg = segmente(c, k);
             for (double[] q : punkte) if (!k.contains(Routing.kachel(q[0], q[1]))) return null;
-            return Routing.route(seg, new File(profile(c), profil + ".brf"), punkte, maxMs);
+            return Routing.route(seg, new File(profile(c), Profile.datei(profil) + ".brf"), Profile.werte(profil), punkte, maxMs);
         }
     }
 }

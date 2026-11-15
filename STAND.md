@@ -90,7 +90,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Pfeil in Blickrichtung (#15) nicht auf dem Handy geprüft:** Kompass im WebView der App und Querformat nur im
   Klicktest nachgebildet.
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
-  der Zeit je km bei schwachem GPS. Routen fürs Laufen nutzen das Wanderprofil von BRouter (eigenes Laufprofil fehlt).
+  der Zeit je km bei schwachem GPS. Routen fürs Laufen: Trail-Profil (15.11., Wanderprofil mit eigenen Werten), nur
+  nachgebildet geprüft; ob es auf echten Wegen Pfade statt Asphalt wählt, ist am Pixel bzw. mit echtem BRouter offen.
 - **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
   die Kamera nicht; nach #18 und #19 am 02.11. von Thomas geprüft: Kamera öffnet, Original liegt in der Galerie.
   Capacitor legt das Kamerafoto zusätzlich im App-Ordner (Android/data/…/Pictures) ab und räumt es nicht weg. Offen:
