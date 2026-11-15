@@ -1945,8 +1945,20 @@ var R = (function () {
     const ziele = (d && Array.isArray(d.ziele) ? d.ziele : []).filter(z => z && zielOrt(z.lat, z.lon) && ids.has(z.liste) && text(z.id, 64) && text(z.name, 200)).map(z => ({
       id: text(z.id, 64), liste: z.liste, name: text(z.name, 200), wo: text(z.wo, 200), lat: z.lat, lon: z.lon, notiz: text(z.notiz, 2000), link: zielLink(z.link),
       stich: Array.isArray(z.stich) ? z.stich.filter(s => ZIEL_STICHWORTE.includes(s)) : [], stand: ZIEL_STAND[z.stand] ? z.stand : 'idee',
-      wikipedia: text(z.wikipedia, 300), wikidata: /^Q\d+$/.test(z.wikidata || '') ? z.wikidata : '', neu: text(z.neu, 40) }));
+      wikipedia: text(z.wikipedia, 300), wikidata: /^Q\d+$/.test(z.wikidata || '') ? z.wikidata : '', neu: text(z.neu, 40),
+      // von selbst abgehakt: wann und wodurch (Aufzeichnung oder Tagebuch); von Hand gesetzt bleibt beides leer
+      besuchtAm: z.stand === 'besucht' ? text(z.besuchtAm, 40) : '', besuchtWie: z.stand === 'besucht' && ['tour', 'tagebuch'].includes(z.besuchtWie) ? z.besuchtWie : '' }));
     return { listen, ziele };
+  }
+  // Reiseziele, an denen eine Spur oder ein Ort vorbeikam (bis maxM Meter): nur die noch nicht besuchten.
+  // Erst grob über den Rahmen der Punkte, dann Punkt für Punkt
+  function zieleBesucht(ziele, pts, maxM) {
+    const offen = (ziele || []).filter(z => z.stand !== 'besucht');
+    if (!offen.length || !pts || !pts.length) return [];
+    let s = 90, n = -90, w = 180, o = -180;
+    for (const p of pts) { s = Math.min(s, p.lat); n = Math.max(n, p.lat); w = Math.min(w, p.lon); o = Math.max(o, p.lon); }
+    const rb = maxM / 111000, rl = maxM / (111000 * Math.max(0.1, Math.cos((s + n) / 2 * Math.PI / 180)));
+    return offen.filter(z => z.lat >= s - rb && z.lat <= n + rb && z.lon >= w - rl && z.lon <= o + rl && pts.some(p => abstand(p, z) <= maxM));
   }
   // Liste als GPX-Wegpunkte (öffnet in anderen Karten-Apps, lädt hier wieder)
   function zieleGpx(name, ziele) {
@@ -2634,7 +2646,7 @@ var R = (function () {
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
-    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleGpx, googleSuche
+    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleBesucht, zieleGpx, googleSuche
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

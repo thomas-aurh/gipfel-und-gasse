@@ -926,8 +926,22 @@ function pruef(name, bed, info) {
   pruef('Notfall: 112 als Telefon-Link', (await page.getAttribute('#bNotruf', 'href')) === 'tel:112');
   await zuSeite(page, 'unterwegs');
   await page.screenshot({ path: path.join(OUT, '4-unterwegs.png') });
+  // Reiseziele: eines an der Spur (rund 100 m daneben), eines weit weg; nach dem Speichern ist nur das nahe besucht
+  const zieleVorher = await page.evaluate(() => {
+    const alt = localStorage.getItem('gug.ziele');
+    localStorage.setItem('gug.ziele', JSON.stringify({ listen: [{ id: 'lt', name: 'Test' }], ziele: [
+      { id: 'zn', liste: 'lt', name: 'Bank am Weg', lat: 47.7635, lon: 11.3920, stich: [], stand: 'idee' },
+      { id: 'zw', liste: 'lt', name: 'Weit weg', lat: 47.80, lon: 11.45, stich: [], stand: 'idee' }] }));
+    return alt;
+  });
   await page.click('#bAufzSpeichern');
   await page.waitForTimeout(300);
+  const zieleNach = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.map(z => [z.id, z.stand, z.besuchtWie]));
+  pruef('Reiseziel an der Aufzeichnung von selbst besucht, das ferne nicht, mit Meldung', JSON.stringify(zieleNach) === JSON.stringify([['zn', 'besucht', 'tour'], ['zw', 'idee', '']]) &&
+    (await page.textContent('#meldung')).includes('Reiseziel besucht: Bank am Weg'), [zieleNach, await page.textContent('#meldung')]);
+  await page.click('#meldung button');
+  pruef('Reiseziel: Rückgängig in der Meldung macht es wieder offen', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele[0].stand)) === 'idee');
+  await page.evaluate(alt => { if (alt == null) localStorage.removeItem('gug.ziele'); else localStorage.setItem('gug.ziele', alt); }, zieleVorher);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
   // GPS kam mit „Route folgen“ und geht mit dem Ende von Folgen und Aufzeichnen wieder aus (📍 nie angetippt)

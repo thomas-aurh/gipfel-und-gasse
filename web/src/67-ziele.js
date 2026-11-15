@@ -7,6 +7,27 @@ function zieleSchreibenSp(d) {
   melde('Speichern ging nicht: Speicher voll? Eine Sicherung speichern und Altes löschen.', 7);
   return false;
 }
+// Reiseziele von selbst abhaken: kommt eine gespeicherte Aufzeichnung oder ein Tagebuch-Eintrag mit Ort bis auf 300 m an
+// ein Ziel, gilt es als besucht (mit Datum und wodurch). Liefert den Text für die Meldung und wie es sich zurücknehmen lässt
+const ZIEL_NAEHE = 300;
+function zieleAbhaken(pts, wie, zeit) {
+  const d = zieleLesenSp();
+  const treffer = R.zieleBesucht(d.ziele, pts, ZIEL_NAEHE);
+  if (!treffer.length) return null;
+  const vorher = treffer.map(z => ({ id: z.id, stand: z.stand }));
+  const am = new Date(zeit || Date.now()).toISOString();
+  for (const z of treffer) { z.stand = 'besucht'; z.besuchtAm = am; z.besuchtWie = wie; }
+  if (!zieleSchreibenSp(d)) return null;
+  if (typeof seite !== 'undefined' && seite === 'ziele') zieleZeigen();
+  return {
+    text: '✅ Reiseziel besucht: ' + treffer.map(z => z.name).join(', '),
+    zurueck: () => {
+      const d2 = zieleLesenSp();
+      for (const v of vorher) { const z = d2.ziele.find(x => x.id === v.id); if (z && z.besuchtAm === am) { z.stand = v.stand; z.besuchtAm = ''; z.besuchtWie = ''; } }
+      if (zieleSchreibenSp(d2)) { if (seite === 'ziele') zieleZeigen(); melde('Reiseziele wieder offen.'); }
+    }
+  };
+}
 const ZL = { liste: SPEICHER.lesen('zielListe', ''), stich: new Set(), bearbeiten: null, ort: null, import: null };
 const zlId = () => 'z' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -59,7 +80,7 @@ function zieleZeigen() {
   for (const z of liste) {
     const li = document.createElement('li');
     li.innerHTML = '<span class="zeichen">' + (z.stand === 'besucht' ? '✅' : '⭐') + '</span><span class="was">' + R.esc(z.name) + '<small>' +
-      R.esc([z.wo, R.kmText(z.d), R.ZIEL_STAND[z.stand]].concat(z.stich, ZL.liste ? [] : [listen[z.liste]]).filter(Boolean).join(' · ')) + '</small></span>' +
+      R.esc([z.wo, R.kmText(z.d), R.ZIEL_STAND[z.stand] + (z.besuchtAm ? ' am ' + new Date(z.besuchtAm).toLocaleDateString('de-DE') + (z.besuchtWie === 'tagebuch' ? ' (Tagebuch)' : ' (Aufzeichnung)') : '')].concat(z.stich, ZL.liste ? [] : [listen[z.liste]]).filter(Boolean).join(' · ')) + '</small></span>' +
       '<span class="aktionen"><button type="button" title="Bearbeiten">✏️</button><button type="button" title="Löschen">🗑</button></span>';
     li.onclick = () => zielAufKarte(z.id);
     const [bb, bl] = li.querySelectorAll('button');
