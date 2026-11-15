@@ -35,12 +35,13 @@ async function gipfelFuerTour(t) {
 }
 
 // gleich nach dem Speichern einer Aufzeichnung; ohne Netz und ohne Paket still (später „Touren durchsuchen“)
-async function gipfelNachTour(t) {
+// ziele: abgehakte Reiseziele derselben Tour (zieleAbhaken); ihre Meldung bleibt mit Rückgängig neben dem Gipfel stehen
+async function gipfelNachTour(t, ziele) {
   try {
     const { gefunden, neu } = await gipfelFuerTour(t);
     if (!gefunden.length) return;
     const namen = gefunden.map(g => g.name + (g.ele != null ? ' (' + g.ele + ' m)' : '')).join(', ');
-    melde('⛰️ ' + (neu.length ? 'Neu im Gipfelbuch: ' : 'Wieder oben: ') + namen, 8);
+    melde('⛰️ ' + (neu.length ? 'Neu im Gipfelbuch: ' : 'Wieder oben: ') + namen + (ziele ? ' · ' + ziele.text : ''), 8, ziele ? { tun: ziele.zurueck } : undefined);
     if (seite === 'gipfelbuch') gipfelbuchZeigen();
   } catch (e) { /* ohne Netz: über „Gegangene Touren durchsuchen“ nachholen */ }
 }

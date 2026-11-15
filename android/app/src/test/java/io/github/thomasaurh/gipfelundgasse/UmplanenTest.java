@@ -46,6 +46,16 @@ public class UmplanenTest {
         assertTrue(Profile.werte("hiking-mountain").isEmpty());
     }
 
+    @Test public void punktAufNeuerStrecke() {
+        // Strecke nach Norden (gut 2,2 km); Hütte 40 m daneben bei rund 1,1 km, Brunnen 500 m daneben fällt weg
+        NaviRechnen.Strecke s = new NaviRechnen.Strecke(new double[] { 47.76, 47.77, 47.78 }, new double[] { 11.385, 11.385, 11.385 }, new double[3]);
+        double d = Umplanen.aufNeu(s, "47.7700,11.3855", 150);
+        assertEquals(1112, d, 5);
+        assertTrue(Double.isNaN(Umplanen.aufNeu(s, "47.7700,11.3920", 150)));
+        assertTrue(Double.isNaN(Umplanen.aufNeu(s, "", 150)));
+        assertTrue(Double.isNaN(Umplanen.aufNeu(s, "kein,ort", 150)));
+    }
+
     @Test public void antwortLesen() throws Exception {
         // vier Punkte nach Norden, Ziel A liegt auf Punkt 2, Ende auf Punkt 3; Hinweis „links“ an Punkt 1, Kreisverkehr links an Punkt 2
         String gj = "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{\"voicehints\":"

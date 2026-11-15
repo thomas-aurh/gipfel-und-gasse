@@ -452,6 +452,19 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.hinweise = n.hinweise;
             Z.hinweisVorab = new boolean[n.hinweise.size()];
             Z.hinweisJetzt = new boolean[n.hinweise.size()];
+            // Punkte des Punkt-Alarms (keine Ziele: GPX-Wegpunkte, Hütten, Gipfel, Brunnen), die noch nicht erreicht sind:
+            // auf die neue Strecke übernehmen, wenn sie höchstens 150 m daneben liegen (wie in der App beim Planen)
+            java.util.Set<String> zielOrte = new java.util.HashSet<>();
+            for (double[] z : offen) zielOrte.add(ortSchluessel(z[0], z[1]));
+            for (double[] z : Z.ziele) zielOrte.add(ortSchluessel(z[0], z[1]));
+            List<double[]> punktStopp = new ArrayList<>(); List<String> punktName = new ArrayList<>(), punktOrt = new ArrayList<>();
+            for (int i = 0; i < Z.stopps.size(); i++) {
+                String ort = Z.stoppOrte.get(i);
+                if (ort.isEmpty() || zielOrte.contains(ort) || (i < Z.stoppErreicht.length && Z.stoppErreicht[i])) continue;
+                double d = Umplanen.aufNeu(n.strecke, ort, 150);
+                if (Double.isNaN(d)) continue;
+                punktStopp.add(new double[] { d, Z.stopps.get(i)[1] }); punktName.add(Z.stoppNamen.get(i)); punktOrt.add(ort);
+            }
             Z.ziele = new ArrayList<>(); Z.zielNamen = new ArrayList<>();
             Z.stopps = new ArrayList<>(); Z.stoppNamen = new ArrayList<>(); Z.stoppOrte = new ArrayList<>();
             for (int k = 0; k < offen.size(); k++) {
@@ -460,6 +473,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.ziele.add(z);
                 Z.zielNamen.add(namen.get(k));
                 if (!namen.get(k).isEmpty()) { Z.stopps.add(new double[] { z[2], z[3] }); Z.stoppNamen.add(namen.get(k)); Z.stoppOrte.add(ortSchluessel(z[0], z[1])); }
+            }
+            // Punkte dazu und alles nach Metern ordnen (Ankündigung und „erreicht“ gehen der Reihe nach)
+            for (int k = 0; k < punktStopp.size(); k++) {
+                int an = 0;
+                while (an < Z.stopps.size() && Z.stopps.get(an)[0] <= punktStopp.get(k)[0]) an++;
+                Z.stopps.add(an, punktStopp.get(k)); Z.stoppNamen.add(an, punktName.get(k)); Z.stoppOrte.add(an, punktOrt.get(k));
             }
             Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
             Z.stoppErreicht = new boolean[Z.stopps.size()];

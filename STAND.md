@@ -12,7 +12,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Vorgabe 300 m, App schickt `alarm` an den Dienst); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf
   dem Pixel (Ansage bei gesperrtem Bildschirm), im Browser nicht mit echter Bewegung; ob die Steigungsfarben zum Gelände
   passen. Hütten, Gipfel und Brunnen kommen nur dazu, wenn „Orte entlang der Route“ geladen ist. Nach dem Umplanen
-  unterwegs fehlen die Punkte aus GPX und Orte-Liste bis zum nächsten Start (der Dienst baut die Stopps aus den Zielen neu).
+  unterwegs übernimmt der Dienst seit 15.11. die noch nicht erreichten Punkte aus GPX und Orte-Liste auf die neue Strecke
+  (höchstens 150 m daneben; Java-Test `UmplanenTest`), am Pixel nicht geprüft.
 - **Tourvorschläge aus dem Kartenpaket (06.11., Bau 261, Pakete vom 06.11. 13:59 UTC):** gemessen im Ablauf
   „Kartenpakete“: Oberbayern 3670 Routen (3020 Wandern, 650 MTB), Orte-Datei 8,3 MB; um Kochel 9 Wanderrouten in 62 ms.
   Nicht geprüft: auf dem Pixel im Flugmodus; der Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`,
@@ -137,8 +138,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Info ohne Netz kennt keine Läden** (`karten/orte.py` nimmt keine Geschäfte auf); mit Netz findet Info sie über
   Overpass. Läden ins Paket: von Thomas am 02.11. verworfen, er schaut über den Google-Maps-Link nach.
 - **Reiseziele (#28) nicht auf dem Handy geprüft:** Dateiwahl und Namensdialog (prompt) im WebView der App, KML-Export
-  aus Google My Maps nur mit einem nachgebauten Beispiel. Nicht gebaut: „automatisch besucht“ (Tour oder Tagebuch in
-  der Nähe).
+  aus Google My Maps nur mit einem nachgebauten Beispiel. „Automatisch besucht“ seit 15.11.: gespeicherte
+  Aufzeichnung oder neuer Tagebuch-Eintrag mit Ort bis 300 m am Ziel (mit Rückgängig); nur im Klicktest geprüft. Ob 300 m
+  bei Städten oder großen Orten reichen (Ziel ist ein Punkt, meist die Ortsmitte), ist offen; ältere Touren zählen nicht nach.
 - **Info auf der Karte (#27):** auf dem Pixel am 02.11. „zu viele Anfragen“ (429) vom Overpass-Hauptserver; seit #31
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.

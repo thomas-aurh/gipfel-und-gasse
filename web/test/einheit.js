@@ -431,6 +431,15 @@ const zk = R.zieleLesen('<kml><Placemark><name>Burg</name><description><![CDATA[
 pruef('Ziele aus KML (Google My Maps): Punkte, Link aus der Beschreibung, Linien nicht', zk.ziele.length === 1 && zk.ziele[0].lat === 48.1 && zk.ziele[0].link === 'https://x.y/z');
 const zj = R.zieleLesen(JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [11, 47] }, properties: { name: 'A', url: 'javascript:x' } }] }), 'c.geojson');
 pruef('Ziele aus GeoJSON: Punkte, nur http-Links', zj.ziele.length === 1 && zj.ziele[0].lat === 47 && zj.ziele[0].link === '');
+// Reiseziele von selbst abhaken: nur offene, bis 300 m an einem Punkt der Spur
+const zb = R.zieleBesucht([{ id: 'a', lat: 47.7635, lon: 11.392, stand: 'idee' }, { id: 'b', lat: 47.7635, lon: 11.392, stand: 'besucht' },
+  { id: 'c', lat: 47.80, lon: 11.45, stand: 'geplant' }, { id: 'd', lat: 47.7680, lon: 11.392, stand: 'geplant' }],
+  [{ lat: 47.7624, lon: 11.3899 }, { lat: 47.7636, lon: 11.3911 }], 300);
+pruef('Reiseziele besucht: nahe offen ja, schon besucht und weit weg nicht', zb.map(z => z.id).join() === 'a', zb.map(z => z.id));
+pruef('Reiseziele besucht: ohne Punkte nichts', R.zieleBesucht([{ id: 'a', lat: 47, lon: 11, stand: 'idee' }], [], 300).length === 0);
+const zbp = R.zielePruefen({ listen: [{ id: 'l', name: 'L' }], ziele: [{ id: 'x', liste: 'l', name: 'X', lat: 47, lon: 11, stand: 'besucht', besuchtAm: '2026-11-15T10:00:00.000Z', besuchtWie: 'tour' },
+  { id: 'y', liste: 'l', name: 'Y', lat: 47, lon: 11, stand: 'idee', besuchtAm: '2026-11-15T10:00:00.000Z', besuchtWie: 'tour' }] });
+pruef('Reiseziele: „besucht am“ bleibt nur bei besuchten', zbp.ziele[0].besuchtWie === 'tour' && zbp.ziele[0].besuchtAm && !zbp.ziele[1].besuchtAm && !zbp.ziele[1].besuchtWie);
 let zFehler = '';
 try { R.zieleLesen('{kaputt', 'd.geojson'); } catch (e) { zFehler = e.message; }
 pruef('Ziele: kaputte Datei mit Meldung', zFehler.includes('GeoJSON'));
