@@ -12,7 +12,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Vorgabe 300 m, App schickt `alarm` an den Dienst); Java nur in GitHub Actions gebaut. Nicht geprüft: Alarm unterwegs auf
   dem Pixel (Ansage bei gesperrtem Bildschirm), im Browser nicht mit echter Bewegung; ob die Steigungsfarben zum Gelände
   passen. Hütten, Gipfel und Brunnen kommen nur dazu, wenn „Orte entlang der Route“ geladen ist. Nach dem Umplanen
-  unterwegs fehlen die Punkte aus GPX und Orte-Liste bis zum nächsten Start (der Dienst baut die Stopps aus den Zielen neu).
+  unterwegs übernimmt der Dienst seit 15.11. die noch nicht erreichten Punkte aus GPX und Orte-Liste auf die neue Strecke
+  (höchstens 150 m daneben; Java-Test `UmplanenTest`), am Pixel nicht geprüft.
 - **Tourvorschläge aus dem Kartenpaket (06.11., Bau 261, Pakete vom 06.11. 13:59 UTC):** gemessen im Ablauf
   „Kartenpakete“: Oberbayern 3670 Routen (3020 Wandern, 650 MTB), Orte-Datei 8,3 MB; um Kochel 9 Wanderrouten in 62 ms.
   Nicht geprüft: auf dem Pixel im Flugmodus; der Verlauf als GPX von Waymarked Trails (`details/relation/<id>/geometry/gpx`,
