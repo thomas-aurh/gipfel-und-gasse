@@ -2461,6 +2461,26 @@ function pruef(name, bed, info) {
     (await pv2.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.id === 'g1').plan)) === 'p1', vText);
   await vc.close();
 
+  // ---------- Eigenes Tempo aus Aufzeichnungen: „Eigenes“ in der Tempo-Wahl, gewählt bleibt es nach dem Neuladen ----------
+  const tc = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await dienste(tc);
+  await tc.addInitScript(() => {
+    if (localStorage.getItem('gug.touren')) return;
+    const aufz = (id, tage) => { const t0 = Date.now() - tage * 864e5, spur = [];
+      for (let i = 0; i <= 150; i++) spur.push([47.70 + i * 4e-4, 11.40, 600, t0 + i * 30000]);   // 75 min in Bewegung
+      return { id, name: 'Aufzeichnung ' + id, datum: new Date(t0).toISOString(), profil: 'wandern', art: 'aufzeichnung', wps: null, stuecke: null, spur, kurz: { laenge: 6000, auf: 0, ab: 0, zeit: 1.5 } }; };
+    localStorage.setItem('gug.touren', JSON.stringify([aufz('a', 1), aufz('b', 2), aufz('c', 3)]));
+  });
+  const pe = await tc.newPage();
+  await pe.goto(url);
+  const eigenText = await pe.evaluate(() => { const o = document.getElementById('tempoEigen'); return o ? [o.value, o.textContent] : null; });
+  pruef('Eigenes Tempo: in der Tempo-Wahl aus drei Aufzeichnungen (6 km in 75 min = ×1,20)', eigenText && eigenText[0] === '1.20' && eigenText[1] === 'Eigenes (×1,20 aus 3 Touren)', eigenText);
+  await pe.selectOption('#tempowahl', '1.20');
+  await pe.reload();
+  const nachLaden = await pe.evaluate(() => [document.querySelector('#tempowahl').selectedOptions[0].id, localStorage.getItem('gug.tempo')]);
+  pruef('Eigenes Tempo: gewählt bleibt es nach dem Neuladen (nicht „Zügig“ mit gleichem Wert)', nachLaden[0] === 'tempoEigen' && nachLaden[1] === '1.2', nachLaden);
+  await tc.close();
+
   await browser.close();
   srv.close();
   console.log('Klicktest: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen · Anfragen ' + JSON.stringify(zaehler));

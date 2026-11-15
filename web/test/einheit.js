@@ -430,6 +430,18 @@ const pk = R.planKandidaten([{ id: 'n', art: 'plan', spur: [[47.7005, 11.40]] },
   { id: 'm', art: 'spur', spur: [[47.703, 11.40]] }], { spur: [[47.70, 11.40, 600, 1]] }, 1000);
 pruef('Plan gegen gegangen: Kandidaten nahe am Start, nächste zuerst, ohne Aufzeichnungen', pk.map(t => t.id).join() === 'n,m', pk.map(t => t.id));
 
+// Eigenes Tempo: 6 km flach, Formel 1,5 h; gegangen in 1,25 h Bewegung (Punkte alle 30 s, eine Pause von 10 min zählt nicht)
+const aufzTour = (id, km, auf, stunden, profil) => {
+  const n = Math.round(stunden * 120), t0 = Date.UTC(2026, 10, 1, 8), spur = [];
+  for (let i = 0; i <= n; i++) spur.push([47 + i * 1e-5, 11, 600, t0 + i * 30000 + (i > n / 2 ? 600000 : 0)]);
+  return { id, art: 'aufzeichnung', profil, spur, kurz: { laenge: km * 1000, auf, ab: auf } };
+};
+const eTempo = R.eigenesTempo([aufzTour('a', 6, 0, 1.25), aufzTour('b', 6, 0, 1.25), aufzTour('c', 6, 0, 1.25)], 10);
+pruef('Eigenes Tempo: Formelzeit durch Bewegungszeit (1,5 h / 1,25 h = 1,2), Pause zählt nicht', eTempo && eTempo.anzahl === 3 && Math.abs(eTempo.faktor - 1.5 / (149 * 30 / 3600)) < 1e-9, eTempo);
+pruef('Eigenes Tempo: unter drei passenden keins', R.eigenesTempo([aufzTour('a', 6, 0, 1.25), aufzTour('b', 6, 0, 1.25)], 10) === null);
+const eTempo2 = R.eigenesTempo([aufzTour('l', 10, 0, 1, 'laufen'), aufzTour('s', 12, 0, 1.25), aufzTour('k', 1, 0, 1), aufzTour('a', 6, 0, 1.25), aufzTour('b', 6, 0, 1.25), aufzTour('c', 6, 0, 1.25)], 10);
+pruef('Eigenes Tempo: Laufen, über 7 km/h und unter 2 km zählen nicht', eTempo2 && eTempo2.anzahl === 3, eTempo2);
+
 // Reiseziele: Dateien lesen, prüfen, als GPX
 const zt = R.zieleLesen('# Ideen\nHerzogstand\nLindau, Bodensee https://lindau.de\n\nKloster Andechs', 'x.txt');
 pruef('Ziele aus Text: Zeile je Ziel, Komma bleibt im Namen, Link abgetrennt, Kommentar weg', zt.art === 'Text' && zt.ziele.length === 3 && zt.ziele[1].name === 'Lindau, Bodensee' &&
