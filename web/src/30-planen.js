@@ -1036,7 +1036,9 @@ $('bMehr').onclick = () => {
   $('bMehr').innerHTML = offen ? '▴<span class="txt"> Weniger</span>' : '⋯<span class="txt"> Mehr</span>';
   $('bMehr').setAttribute('aria-label', offen ? 'Weniger' : 'Mehr');
 };
-$('tempowahl').onchange = e => { S.tempo = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('tempo', S.tempo); if (S.stuecke.length) auswertenUndZeigen(); };
+// „Eigenes“ (aus den Aufzeichnungen) kann denselben Wert wie Zügig haben: welche Zeile gewählt ist, steht in tempoEigen
+$('tempowahl').onchange = e => { S.tempo = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('tempo', S.tempo);
+  SPEICHER.schreiben('tempoEigen', !!e.target.selectedOptions[0] && e.target.selectedOptions[0].id === 'tempoEigen'); if (S.stuecke.length) auswertenUndZeigen(); };
 $('tourname').oninput = e => { S.name = e.target.value; entwurfSichern(); planDetailsTextSetzen(); };
 
 // Aufklappbare Zeilen im Planen (am Telefon; am PC ist der Inhalt immer offen, die Kopfzeile versteckt)

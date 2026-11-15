@@ -55,6 +55,30 @@ var R = (function () {
     return (Math.max(h, v) + Math.min(h, v) / 2) / (tempo || 1);
   }
 
+  // Eigenes Gehtempo aus Aufzeichnungen, als Faktor wie die Tempo-Wahl (1 = Formel, 1,2 = 20 % schneller): Formelzeit
+  // durch Bewegungszeit, über die neuesten max passenden Aufzeichnungen zusammen. Bewegungszeit aus den Zeitstempeln der
+  // Spur, Abstände über 90 s und Lücken zählen als Pause. Passend: zu Fuß (nicht als Laufen oder Rad gespeichert), mindestens
+  // 2 km und 30 min in Bewegung, im Schnitt höchstens 7 km/h (schneller war gelaufen oder gefahren). Ab mindestens 3, sonst null
+  function eigenesTempo(touren, max) {
+    let formel = 0, ist = 0, anzahl = 0;
+    for (const t of touren || []) {
+      if (anzahl >= (max || 10)) break;
+      if (!t || t.art !== 'aufzeichnung' || !Array.isArray(t.spur) || t.spur.length < 10 || ['laufen', 'rad'].includes(t.profil) || !t.kurz) continue;
+      let ms = 0;
+      for (let i = 1; i < t.spur.length; i++) {
+        const a = t.spur[i - 1][3], b = t.spur[i][3], dt = b - a;
+        if (a && b && !t.spur[i][4] && dt > 0 && dt <= 90000) ms += dt;
+      }
+      const h = ms / 3600e3, m = +t.kurz.laenge || 0;
+      if (m < 2000 || h < 0.5 || m / 1000 / h > 7) continue;
+      formel += gehzeit(m, +t.kurz.auf || 0, +t.kurz.ab || 0, 1);
+      ist += h;
+      anzahl++;
+    }
+    if (anzahl < 3 || !ist) return null;
+    return { faktor: Math.min(1.6, Math.max(0.5, formel / ist)), anzahl };
+  }
+
   // Schätzungen auf 5 Minuten gerundet, gemessene Dauer (genau = true) minutengenau
   function zeitText(stunden, genau) {
     if (!isFinite(stunden)) return '–';
@@ -2639,7 +2663,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, eigenesTempo, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ortLinkSchreiben, ortLinkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,
