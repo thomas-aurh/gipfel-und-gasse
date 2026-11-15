@@ -5,6 +5,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Aufzeichnung, Tempo, Plan gegen gegangen (15.11., Bau 292):** nur im Klicktest geprüft. Nicht geprüft auf dem Pixel:
+  ob die blaue Spur in der App mitwächst (Oberfläche holt alle 5 s neue Punkte vom Dienst) und nach dem Speichern als
+  Linie unter „Meine Touren“ bleibt; ob 90 s als Pausengrenze für „Eigenes Tempo“ zum Takt des Dienstes passen; wie der
+  Vergleich mit der Planung bei echten Abweichungen aussieht. Ältere Aufzeichnungen haben keine Art gespeichert (Läufe
+  filtert nur die 7-km/h-Grenze).
 - **Ort-Link (07.11., Bau 267):** geprüft in Einheitstests und im Klicktest (GitHub Actions grün). Nicht geprüft: auf der
   veröffentlichten Web-App (GitHub Pages) aus Zenithora heraus und am Handy; ein Link öffnet die Web-App im Browser,
   nicht die Android-App (die App fängt keine Links ab).
@@ -91,8 +96,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 - **Pfeil in Blickrichtung (#15) nicht auf dem Handy geprüft:** Kompass im WebView der App und Querformat nur im
   Klicktest nachgebildet.
 - **Laufen (#17) nicht auf dem Handy geprüft:** Kilometer-Ansage aus dem Dienst bei gesperrtem Bildschirm, Genauigkeit
-  der Zeit je km bei schwachem GPS. Routen fürs Laufen: Trail-Profil (15.11., Wanderprofil mit eigenen Werten), nur
-  nachgebildet geprüft; ob es auf echten Wegen Pfade statt Asphalt wählt, ist am Pixel bzw. mit echtem BRouter offen.
+  der Zeit je km bei schwachem GPS. Routen fürs Laufen: Trail-Profil (15.11., Wanderprofil mit eigenen Werten); gemessen in
+  der Routing-Probe auf den echten Routendaten (Penzberg → Herzogstand 22,1 statt 21,6 km als Wandern). Offen: ob es auf
+  Thomas' Laufstrecken Pfade statt Asphalt wählt (am Pixel), Anfrage an brouter.de selbst aus der Cloud gesperrt.
 - **Reisetagebuch (#16):** von Thomas am 02.11. auf dem Pixel benutzt (Eintrag, Ort, Wetter). „Foto aufnehmen“ öffnete
   die Kamera nicht; nach #18 und #19 am 02.11. von Thomas geprüft: Kamera öffnet, Original liegt in der Galerie.
   Capacitor legt das Kamerafoto zusätzlich im App-Ordner (Android/data/…/Pictures) ab und räumt es nicht weg. Offen:
@@ -159,6 +165,21 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Laufprofil als Werte statt eigener Datei** (15.11., Thomas' Wahl „Trail“): `laufen-trail` = `hiking-mountain` mit
+  `SAC_scale_limit=2`, `hiking_routes_preference=0`, `path_preference=2`; online als `profile:Name=Wert`, ohne Netz über
+  die keyValues, beim Umplanen genauso (Tabelle in `Profile.java` und `PROFIL_WERTE`, müssen gleich bleiben). Verworfen:
+  Profil bei brouter.de hochladen (`custom_…`, der Server räumt es weg), eigene .brf-Datei (doppelte Pflege), zwei
+  Profile Trail/Straße (Thomas: Trail).
+- **Live-Spur der App per Nachfrage** (15.11.): die Oberfläche holt höchstens alle 5 s nur die neuen Punkte
+  (`aufzeichnungHolen({ ab })` mit `anzahl`). Verworfen: die ganze Spur in jedem Positions-Ereignis (wächst mit der Tour).
+- **Gleiche Kartendateien per hartem Verweis teilen** (15.11.): ein Paket übernimmt eine Datei mit gleichem Namen und
+  gleicher Prüfsumme aus einem anderen installierten Paket (derselbe Weg wie beim Update). Verworfen: gemeinsamer Ordner
+  für Routendaten (größerer Umbau von Laden, Löschen und Kartenserver).
+- **Eigenes Tempo als Wahl, nicht von selbst** (15.11., Thomas' Wahl): Faktor Formelzeit durch Bewegungszeit über die
+  neuesten zehn passenden Aufzeichnungen, ab drei als „Eigenes“ in der Tempo-Wahl; gewählt wird es von Thomas.
+- **Reiseziele von selbst besucht** (15.11.): bis 300 m an Aufzeichnung oder Tagebuch-Ort, mit Rückgängig; nachträglich
+  über „🔍 Gegangene Touren durchsuchen“ (erster Besuch zählt). Plan gegen gegangen: Verknüpfung beim Speichern, sonst
+  Vorschlag bis 1 km vom Start, auf der Planung heißt bis 50 m daneben.
 - **MIT-Lizenz** (11.11., Thomas' Wahl): `LICENSE` mit Inhaber `thomas-aurh` (kein voller Name, das Repo ist öffentlich).
   Gilt für eigenen Code, Gestaltung, Logo und Symbole; OSM-Daten (ODbL) und Bibliotheken behalten ihre Lizenzen.
   Verworfen: GPL-3.0 (strenger, für ein Privatprojekt unnötig), keine Lizenz (nur Ansehen erlaubt, rechtlich unklar).
@@ -314,6 +335,12 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **15.11. (PRs #108 bis #115, Bau 292, Kartenpakete neu)** Aufzeichnungen auf der Karte: Spur live in der App,
+  gespeicherte als Linie (#108); eigenes Laufprofil „Trail“, Routing-Probe auf echten Daten 22,1 statt 21,6 km (#109);
+  Punkt-Alarm bleibt nach dem Umplanen (#110); Reiseziele von selbst besucht (#111) und nachträglich (#114);
+  Routendaten-Kachel nur einmal auf dem Handy (#112); eigenes Tempo aus Aufzeichnungen (#113); Plan gegen gegangen auf
+  der Tourseite (#115). Einheitstests 348, Klicktest 465.
 
 - **07.11. (Ort-Link, PR #105, Bau 267)** `#ort-<lat>_<lon>~<Name>` öffnet die Karte an einem Ort mit Markierung (`ortLinkLesen`,
   `ortLinkSchreiben` in 00-rechnen.js, Start und `hashchange` in 80-start.js), Einheits- und Klicktest; Zenithora
