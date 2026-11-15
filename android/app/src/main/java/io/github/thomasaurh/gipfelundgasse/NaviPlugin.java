@@ -40,7 +40,8 @@ import org.json.JSONObject;
  *   Navi.starten({ pts, stopps, hinweise, ziele, profil, tempo, rad, folgen, aufzeichnen, ansagen })  startet oder ändert die Sitzung
  *   Navi.route()                     → { pts, laenge, umgeplant }: Strecke, der der Dienst folgt (nach dem Umplanen die neue)
  *   Navi.status()                    → Zustand (auch nach einem Neustart der Oberfläche)
- *   Navi.aufzeichnungHolen({ leeren }) → { start, spur: [[lat, lon, ele, zeit], …] }
+ *   Navi.aufzeichnungHolen({ leeren, ab }) → { start, anzahl, spur: [[lat, lon, ele, zeit], …] }: ab n nur die Punkte ab
+ *                                      Nummer n (für die Linie auf der Karte), anzahl alle Punkte der Aufzeichnung
  *   Navi.teilen({ name, text, mime }) → Datei über das Teilen-Menü von Android weitergeben (z. B. GPX an CoMaps)
  *   Navi.textTeilen({ text })        → Text über das Teilen-Menü (Standort im Notfall)
  *   Navi.drucken({ name })           → Druckdialog von Android für die aktuelle Seite
@@ -262,6 +263,8 @@ public class NaviPlugin extends Plugin {
         JSObject o = new JSObject();
         JSArray a = new JSArray();
         long start;
+        int ab = Math.max(0, call.getInt("ab", 0));
+        int anzahl = 0;
         synchronized (z) {
             List<double[]> spur = z.spur;
             start = z.aufzStart;
@@ -273,11 +276,13 @@ public class NaviPlugin extends Plugin {
                         JSONObject g = new JSONObject(NaviService.dateiLesen(f));
                         start = g.optLong("start", 0);
                         JSONArray s = g.optJSONArray("spur");
-                        if (s != null) for (int i = 0; i < s.length(); i++) a.put(s.optJSONArray(i));
+                        if (s != null) { anzahl = s.length(); for (int i = ab; i < s.length(); i++) a.put(s.optJSONArray(i)); }
                     }
                 } catch (Exception e) { /* nichts gesichert */ }
             } else {
-                for (double[] p : spur) {
+                anzahl = spur.size();
+                for (int i = ab; i < spur.size(); i++) {
+                    double[] p = spur.get(i);
                     JSONArray q = new JSONArray();
                     try { q.put(p[0]); q.put(p[1]); q.put(Double.isNaN(p[2]) ? JSONObject.NULL : p[2]); q.put((long) p[3]); } catch (Exception e) { continue; }
                     a.put(q);
@@ -289,6 +294,7 @@ public class NaviPlugin extends Plugin {
             }
         }
         o.put("start", start);
+        o.put("anzahl", anzahl);
         o.put("spur", a);
         call.resolve(o);
     }

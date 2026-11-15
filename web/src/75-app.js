@@ -95,6 +95,30 @@ if (NATIV) {
     } catch (err) { /* Anzeige ist Beiwerk, die Ansagen kommen vom Dienst */ }
   }
 
+  // Spur der Aufzeichnung auf der Karte: der Dienst zeichnet auf, die Oberfläche holt nur die neuen Punkte (ab der
+  // Nummer des letzten geholten), solange sie läuft höchstens alle 5 s; eine neue Aufzeichnung (anderer Start) beginnt
+  // eine neue Linie. Die Linie bleibt nach dem Speichern bis zur nächsten Aufzeichnung (wie im Browser)
+  const spur = { start: 0, n: 0, holt: false, zuletzt: 0 };
+  function spurLinieNeu() {
+    if (aufzLinie) aufzLinie.remove();
+    aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
+  }
+  async function spurNachladen(a) {
+    if (a.start && a.start !== spur.start) { spur.start = a.start; spur.n = 0; spurLinieNeu(); }
+    if (spur.holt || !(a.punkte > spur.n) || (app.aufz && Date.now() - spur.zuletzt < 5000)) return;
+    spur.holt = true; spur.zuletzt = Date.now();
+    const start = spur.start, ab = spur.n;
+    try {
+      const r = await Navi.aufzeichnungHolen({ leeren: false, ab });
+      if (spur.start !== start || spur.n !== ab || !aufzLinie) return;   // inzwischen neue Aufzeichnung
+      const pts = r.spur || [];
+      // ohne anzahl (App kennt „ab“ nicht): die ganze Spur kam, nur den neuen Teil zeichnen
+      const neu = r.anzahl == null ? pts.slice(ab) : pts;
+      for (const p of neu) aufzLinie.addLatLng([p[0], p[1]]);
+      spur.n = r.anzahl == null ? pts.length : r.anzahl;
+    } catch (e) { /* Linie ist Beiwerk, die Aufzeichnung läuft im Dienst */ } finally { spur.holt = false; }
+  }
+
   // Stand aus dem Dienst in die Oberfläche (beim Ereignis „position“ und nach jedem Aufruf)
   function anzeigen(st) {
     if (!st) return;
@@ -132,6 +156,7 @@ if (NATIV) {
     if (ausfall && ausfall !== app.ausfall) melde(ausfall, 10);
     app.ausfall = ausfall;
     if (st.aufz) {
+      spurNachladen(st.aufz);
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
       // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt
       $('aDauer').textContent = R.zeitText(((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3, true);
@@ -280,6 +305,11 @@ if (NATIV) {
     if (!st.aufzeichnen) {
       Navi.aufzeichnungHolen({ leeren: false }).then(r => {
         if (r.spur && r.spur.length > 1) {
+          // nach einem Neustart des Dienstes kommt die Spur aus seiner Datei: auch auf die Karte
+          if (!aufzLinie || !aufzLinie.getLatLngs().length) {
+            spur.start = r.start || spur.start; spur.n = r.spur.length; spurLinieNeu();
+            aufzLinie.setLatLngs(r.spur.map(p => [p[0], p[1]]));
+          }
           $('bAufzSpeichern').disabled = false;
           melde('Eine Aufzeichnung wartet noch aufs Speichern (Reiter Unterwegs).', 6);
         }

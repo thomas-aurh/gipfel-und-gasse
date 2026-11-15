@@ -199,7 +199,9 @@ Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
 
 **Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Im Browser sichert die
 Seite die Aufzeichnung laufend; wird der Tab neu geladen oder vom Browser verworfen, zeichnet sie danach weiter (über 12 h
-alt: nur noch speichern). Danach darf der Bildschirm aus:
+alt: nur noch speichern). Die Spur erscheint dabei blau auf der Karte (in der App holt die Oberfläche alle 5 s die neuen
+Punkte aus dem Dienst); gespeicherte Aufzeichnungen zeigt die Ebene „Meine Touren“ als grüne Linie (in der Farbe des
+Ordners); Antippen zeigt Länge und Höhenmeter mit „Öffnen“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links
 abbiegen“, „Jetzt links abbiegen“, Kreisverkehr mit Ausfahrt), jeden Kilometer Rest und Zeit, kündigt Stopps an (🔔 Punkt-Alarm: 150, 300 oder 500 m vorher, Vorgabe 300 m; dazu
 Wegpunkte aus der GPX-Datei und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“, bis 150 m neben der Route; im Browser
