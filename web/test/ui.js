@@ -1851,11 +1851,14 @@ function pruef(name, bed, info) {
   await offCtx.route(/api\.open-meteo\.com\/v1\/elevation/, r => r.fulfill({ status: 503, body: 'kein Netz' }));
   await offCtx.addInitScript(bruecke.mit(() => {
     const paket = { id: 'probe', name: 'Probegebiet', bbox: [11.30, 47.55, 11.40, 47.62], maxzoom: 14, hoehe_maxzoom: 12, stand: '2026-10-31',
-      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000 }, { name: 'orte.json.gz', groesse: 400 }] };
+      dateien: [{ name: 'karte.pmtiles', groesse: 538 }, { name: 'hoehe.pmtiles', groesse: 281086 }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000, sha256: 'ab12' }, { name: 'orte.json.gz', groesse: 400 }] };
+    // Nachbarpaket mit derselben Routendaten-Kachel (Name und Prüfsumme gleich): die App übernimmt sie aus „probe“
+    const nachbar = { id: 'nachbar', name: 'Nachbargebiet', bbox: [11.40, 47.55, 11.50, 47.62], maxzoom: 14, stand: '2026-11-30',
+      dateien: [{ name: 'karte.pmtiles', groesse: 2 * 1048576, sha256: 'cd34' }, { name: 'routing-e10-n45.rd5', kachel: 'E10_N45', groesse: 1000, sha256: 'ab12' }] };
     window.__routing = []; window.__naviStart = [];
     window.__bruecke({
       Karten: {
-        liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30', name: 'Probegebiet mit Gipfel' })] }, frei: 5e9 }),
+        liste: async () => ({ installiert: [paket], verfuegbar: { pakete: [Object.assign({}, paket, { stand: '2026-11-30', name: 'Probegebiet mit Gipfel' }), nachbar] }, frei: 5e9 }),
         status: async () => ({ laufend: [] }), laden: async () => {}, loeschen: async () => {}, addListener: () => {},
         // wie KartenPlugin.lesen: Stück der Datei als Base64
         lesen: async o => window.paketStueck(o.id, o.datei, o.von, o.laenge)
@@ -1887,6 +1890,8 @@ function pruef(name, bed, info) {
   await po.waitForFunction(() => !document.querySelector('.nur-offline').hidden, null, { timeout: 8000 });
   pruef('Offline: Auswahl erscheint mit installiertem Paket', true);
   await zuSeite(po, 'touren');
+  pruef('Offline: Nachbarpaket nennt die geteilte Routendaten-Kachel (schon auf dem Handy)', /Nachbargebiet.*davon 0 MB schon auf dem Handy \(lädt 2 MB\)/.test(await po.textContent('#paketliste')),
+    await po.textContent('#paketliste'));
   pruef('Offline: Paket in der Liste, neuere Daten gemeldet', (await po.textContent('#paketliste')).includes('auf dem Handy') && (await po.textContent('#paketliste')).includes('neuere Daten'));
   // Prüfung auf dem Gerät: Lesen in Teilen, Kopf, Kachel an der Kartenmitte
   await po.evaluate(() => document.querySelector('#bOfflinePruefen').click());
