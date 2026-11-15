@@ -27,7 +27,7 @@ und Gegangen samt Statistik, Reisetagebuch, Reiseziele, Gipfelbuch), links oben 
 Sicherung und Info. Eine Tour in der Liste antippen öffnet ihre Seite mit „▶ Los“ (folgen mit Ansagen), „✏️ Bearbeiten“,
 Link, GPX und Drucken; läuft Folgen oder Aufzeichnen, zeigt ein Balken über der Leiste das an (Antippen öffnet Unterwegs). Am Telefon lässt sich das Blatt unten am Kopf hoch- und herunterziehen, oder
 im Inhalt nach unten wischen, wenn er ganz oben steht. *Planen* hat oben die Aktionsleiste („▶ Los“ folgt der Route sofort, 💾 Speichern, ↶ Rückgängig, ✕ Neu,
-⋯ Mehr) und, sobald eine Route steht, drei Reiter: **📍 Route** (Art und Tempo als Zeile zum Aufklappen, Punkte und
+⋯ Mehr) und, sobald eine Route steht, drei Reiter: **📍 Route** (Art und Tempo als Zeile zum Aufklappen; ab drei gegangenen Aufzeichnungen steht dort „Eigenes (×1,12 aus 6 Touren)“: Formelzeit durch deine Bewegungszeit, ohne Läufe und Pausen; Punkte und
 Stopps, Etappen), **📊 Überblick** (Kennzahlen, Höhenprofil, Kinderwagen, Wegtypen, Untergrund) und **🎒 Vorbereiten**
 (Tag, Startzeit, Pausen und Name, Zeitplan, Wetter für die Tour, Packliste, Familien-Check, Anreise). Ein Punkt am Reiter
 „Vorbereiten“ zeigt eine Warnung des Zeitplans an. Strecke, Zeit und Aufstieg stehen immer im Kopf des Blatts. Die App startet am Telefon mit der reinen Karte; mit dem Ziel der ersten Route geht *Planen* auf. Ohne Route bietet *Planen* „⭕ Runde mit Länge“, „🏛️ Stadtrundgang“

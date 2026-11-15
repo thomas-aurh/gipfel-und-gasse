@@ -157,8 +157,12 @@ S.profil = SPEICHER.lesen('profil', 'wandern');
 if (!PROFILE[S.profil]) S.profil = 'wandern';
 S.tempo = SPEICHER.lesen('tempo', 1);
 $('profilwahl').value = S.profil;
+tempoEigenZeigen();   // „Eigenes“ aus den Aufzeichnungen, bevor die gespeicherte Wahl gesetzt wird
 $('tempowahl').value = String(S.tempo);
-if ($('tempowahl').value !== String(S.tempo)) { S.tempo = 1; $('tempowahl').value = '1'; }
+// „Eigenes“ war gewählt: wieder „Eigenes“, mit dem Faktor von jetzt (neue Aufzeichnungen verschieben ihn)
+if (SPEICHER.lesen('tempoEigen', false) && $('tempoEigen')) { S.tempo = +$('tempoEigen').value; $('tempoEigen').selected = true; SPEICHER.schreiben('tempo', S.tempo); }
+else if (+$('tempowahl').value !== +S.tempo && $('tempoEigen') && +$('tempoEigen').value === +S.tempo) $('tempoEigen').selected = true;
+if (+$('tempowahl').value !== +S.tempo) { S.tempo = 1; $('tempowahl').value = '1'; }
 S.pace = SPEICHER.lesen('pace', 6);
 $('pacewahl').value = String(S.pace);
 if ($('pacewahl').value !== String(S.pace)) { S.pace = 6; $('pacewahl').value = '6'; }
