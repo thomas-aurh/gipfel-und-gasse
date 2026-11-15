@@ -68,8 +68,13 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
   naheliegende Verbesserung bringt oft nichts.
 - Neue Blöcke im Klicktest mit eigenen Variablennamen (Präfix je Block): alles läuft in einer Funktion, ein doppeltes
   `const` (07.11.: `po`) ist ein SyntaxError, und der ganze Test startet nicht.
-- In der Cloud brechen die App-Schritte („App: Hinweis für gesperrten Bildschirm“ und folgende) ab, auch auf `main`
-  ohne Änderung: vor einer Fehlersuche mit `git stash` gegen `main` vergleichen; verbindlich ist der Job `klicktest`.
+- In der Cloud brechen die App-Schritte („App: Hinweis für gesperrten Bildschirm“ und folgende) ab, wenn das
+  Offline-Bündel oder die Python-Pakete fehlen: erst `npm ci` im Hauptordner und `pip install mapbox-vector-tile==2.2.0
+  pmtiles==3.8.1 pillow==12.3.0` (wie `app.yml`), dann läuft der ganze Klicktest auch dort grün (15.11. gemessen).
+- Nach jeder Änderung, auch einer Umbenennung per `sed`, vor dem Push noch einmal `sh pruefen.sh` und den Klicktest:
+  15.11. nach dem letzten Lauf umbenannt, der neue Name war im selben Test schon vergeben, Job `klicktest` rot.
+- Mehrere Pull Requests gleichzeitig: neue Klicktest-Blöcke nicht alle an dieselbe Stelle (vor `await fc.close()`)
+  hängen, sonst gibt jeder Merge einen Konflikt im nächsten (15.11. dreimal); lieber neben den Schritt des Bereichs.
 - Gerätetest `test/emulator.js` nur in GitHub Actions (Job `emulator`, kein Android in der Cloud): die WebView über das
   DevTools-Protokoll ansprechen, nicht mit Playwright (`connectOverCDP` scheitert an fehlenden Browser-Kontexten).
 
