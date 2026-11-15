@@ -446,7 +446,7 @@ $('bAufz').onclick = () => {
   aufzSichern(true);
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
   if (aufzLinie) aufzLinie.remove();
-  aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
+  aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
   U.folgen = true; $('bOrt').classList.add('an');
   $('bAufz').textContent = '■ Aufzeichnung beenden';
   $('bAufzSpeichern').disabled = true;
@@ -497,7 +497,7 @@ function aufzWiederholen() {
   U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0 };
   U.aufz.pause = R.autoPause(s.start, (s.pauseMs || 0) + (weiter ? Math.max(0, Date.now() - (s.gesichert || Date.now())) : 0));
   if (aufzLinie) aufzLinie.remove();
-  aufzLinie = L.polyline(s.pts.map(p => [p.lat, p.lon]), { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false }).addTo(karte);
+  aufzLinie = L.polyline(s.pts.map(p => [p.lat, p.lon]), { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
   const uhrzeit = new Date(s.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   if (weiter && gpsFuer()) {
     U.folgen = true; $('bOrt').classList.add('an');

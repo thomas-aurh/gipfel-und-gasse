@@ -954,6 +954,9 @@ function pruef(name, bed, info) {
   await zuSeite(page, 'touren');
   pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
+  const spurLinien = (await page.$$('path.tour-spur')).length;
+  const gegangenMitSpur = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung' && t.spur && t.spur.length > 1).length);
+  pruef('Gegangene Tour als Linie auf der Karte (Ebene „Meine Touren“), geplante ohne', spurLinien >= 1 && spurLinien === gegangenMitSpur, [spurLinien, gegangenMitSpur]);
   pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Aufzeichnung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
     (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
   // Statistik je Woche und Monat: Zeilen und 12 Säulen, aktueller Monat mit Zahl und Wert beim Antippen
@@ -1428,7 +1431,12 @@ function pruef(name, bed, info) {
       Navi: {
         starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
-        aufzeichnungHolen: async o => { aufrufe.push(['aufzeichnungHolen', o]); return { start: Date.now() - 600000, spur: [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]] }; },
+        aufzeichnungHolen: async o => {
+          aufrufe.push(['aufzeichnungHolen', o]);
+          const spur = [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]];
+          // mit „ab“: nur die Punkte ab dieser Nummer, dazu die Anzahl (wie NaviPlugin)
+          return o && o.ab != null ? { start: Date.now() - 600000, anzahl: spur.length, spur: spur.slice(o.ab) } : { start: Date.now() - 600000, spur };
+        },
         teilen: async o => { aufrufe.push(['teilen', { name: o.name, laenge: (o.text || '').length, gpx: (o.text || '').startsWith('<?xml'), daten: o.daten ? o.daten.length : 0, mime: o.mime, entwurf: !!o.entwurf }]); },
         dateiStueck: async o => { aufrufe.push(['dateiStueck', { name: o.name, laenge: o.daten.length, erstes: !!o.erstes, pk: o.daten.startsWith('UEsDB') }]); },
         drucken: async o => { aufrufe.push(['drucken', { name: o.name, druck: document.body.classList.contains('druck') }]); },
@@ -1550,6 +1558,11 @@ function pruef(name, bed, info) {
   await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, aufz: { meter: 800, start: t - 1800000, punkte: 40, auf: 30 } }), t0);
   await pa2.evaluate(t => window.__navi.melden({ laeuft: false, folgen: false, aufzeichnen: false, aufz: { meter: 820, start: t - 1800000, ende: t - 600000, punkte: 41, auf: 30 } }), t0);
   pruef('App: nach „Beenden“ in der Mitteilung speicherbar', !(await pa2.isDisabled('#bAufzSpeichern')));
+  // Spur der Aufzeichnung auf der Karte: erst ab Punkt 0, dann nur die neuen (hier keine mehr), Linie mit allen Punkten
+  await pa2.waitForTimeout(150);
+  const spurAbrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'aufzeichnungHolen' && x[1].ab != null).map(x => x[1].ab)));
+  const appSpurLinie = await pa2.evaluate(() => document.querySelectorAll('path.aufz-spur').length);   // Leaflet schneidet außerhalb des Ausschnitts ab: nur die Linie zählen
+  pruef('App: Spur der Aufzeichnung als Linie auf der Karte, neue Punkte ab dem letzten', appSpurLinie === 1 && spurAbrufe[0] === 0 && spurAbrufe.slice(1).every(n => n === 3), [appSpurLinie, spurAbrufe]);
   pruef('App: Dauer bis zum Ende der Aufzeichnung', (await pa2.textContent('#aDauer')) === '20 min', await pa2.textContent('#aDauer'));
   pruef('App: Ø Tempo der Aufzeichnung (20 min auf 820 m)', (await pa2.textContent('#aTempo')) === '24:23 min/km', await pa2.textContent('#aTempo'));
   // Auto-Pause: Tempo aus der Bewegungszeit, Pause sichtbar
@@ -1583,6 +1596,7 @@ function pruef(name, bed, info) {
   pruef('App: Aufzeichnung geholt und danach geleert', a2.length >= 2 && a2[a2.length - 1][1].leeren === true && a2[a2.length - 2][1].leeren === false, a2);
   await zuSeite(pa2, 'gegangen');
   pruef('App: Aufzeichnung bei den gegangenen Touren', (await pa2.textContent('#gangliste')).includes('Aufzeichnung'));
+  pruef('App: gespeicherte Aufzeichnung als Linie unter „Meine Touren“', (await pa2.$$('path.tour-spur')).length >= 1);
   await pa2.click('[data-reiter=planen]');
   // Telefon: Kennzahlen und Profil zuerst; Art und Tempo sowie Name und Zeitplan je eine Zeile zum Aufklappen
   pruef('Telefon: Art und Tempo als eine Zeile', await pa2.isHidden('#profilwahl') && /^🥾 Wandern · /.test(await pa2.textContent('#einstellText')), await pa2.textContent('#einstellText'));
