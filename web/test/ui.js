@@ -2437,6 +2437,32 @@ function pruef(name, bed, info) {
   pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
   await fc.close();
 
+  // ---------- Reiseziele nachträglich: „Gegangene Touren durchsuchen“ hakt Ziele an alten Aufzeichnungen ab ----------
+  const zc = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await dienste(zc);
+  await zc.addInitScript(() => {
+    if (localStorage.getItem('gug.touren')) return;
+    const spur = [], t0 = Date.UTC(2026, 9, 3, 9);
+    for (let i = 0; i <= 40; i++) spur.push([47.70 + i * 5e-4, 11.40, 600, t0 + i * 30000]);
+    localStorage.setItem('gug.touren', JSON.stringify([{ id: 'alt', name: 'Alte Runde', datum: new Date(t0).toISOString(), profil: 'wandern', art: 'aufzeichnung',
+      wps: null, stuecke: null, spur, kurz: { laenge: 2200, auf: 0, ab: 0, zeit: 0.6 } }]));
+    localStorage.setItem('gug.ziele', JSON.stringify({ listen: [{ id: 'l', name: 'Ideen' }], ziele: [
+      { id: 'an', liste: 'l', name: 'Kapelle am Weg', lat: 47.71, lon: 11.4015, stich: [], stand: 'geplant' },
+      { id: 'weg', liste: 'l', name: 'Ganz woanders', lat: 48.1, lon: 11.6, stich: [], stand: 'idee' }] }));
+  });
+  const pz2 = await zc.newPage();
+  await pz2.goto(url);
+  await zuSeite(pz2, 'ziele');
+  await pz2.click('#zlSuchen');
+  await pz2.waitForTimeout(200);
+  const nachgetragen = await pz2.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.map(z => [z.id, z.stand, (z.besuchtAm || '').slice(0, 10)]));
+  pruef('Reiseziele nachträglich: Ziel an alter Aufzeichnung besucht, mit deren Datum; fernes nicht', JSON.stringify(nachgetragen) === JSON.stringify([['an', 'besucht', '2026-10-03'], ['weg', 'idee', '']]) &&
+    (await pz2.textContent('#meldung')).includes('Kapelle am Weg') && (await pz2.textContent('#zlZiele')).includes('besucht am 3.10.2026 (Aufzeichnung)'), [nachgetragen, await pz2.textContent('#meldung')]);
+  await pz2.click('#zlSuchen');
+  await pz2.waitForTimeout(200);
+  pruef('Reiseziele nachträglich: zweimal suchen findet nichts Neues', (await pz2.textContent('#meldung')).startsWith('Keine weiteren Reiseziele'), await pz2.textContent('#meldung'));
+  await zc.close();
+
   await browser.close();
   srv.close();
   console.log('Klicktest: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen · Anfragen ' + JSON.stringify(zaehler));
