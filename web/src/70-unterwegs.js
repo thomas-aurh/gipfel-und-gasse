@@ -595,7 +595,7 @@ $('bAufzSpeichern').onclick = async () => {
   // GPS-Höhen schwanken stark; wo sie fehlen, das Höhenmodell nehmen
   if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
   const name = 'Aufzeichnung ' + new Date(a.start).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
+  if (!spurAlsTour(name, pts, 'aufzeichnung', { plan: offenePlanung() })) return;
   if (!a.laeuft) SPEICHER.schreiben('aufzSicherung', null);   // gespeichert: die Sicherung wird nicht mehr gebraucht
   $('bAufzSpeichern').disabled = true;
   $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';

@@ -2437,6 +2437,30 @@ function pruef(name, bed, info) {
   pruef('Tourliste und Stopps: keine Fehler', pfFehler.length === 0, pfFehler);
   await fc.close();
 
+  // ---------- Plan gegen gegangen: Tourseite einer Aufzeichnung mit ihrer Planung ----------
+  const vc = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await dienste(vc);
+  await vc.addInitScript(() => {
+    if (localStorage.getItem('gug.touren')) return;
+    const t0 = Date.UTC(2026, 9, 10, 8), plan = [], gang = [];
+    for (let i = 0; i <= 20; i++) { plan.push([+(47.70 + i * 0.001).toFixed(5), 11.40, 600]); gang.push([+(47.70 + i * 0.001).toFixed(5), i < 15 ? 11.40 : 11.4027, 600, t0 + i * 60000]); }
+    localStorage.setItem('gug.touren', JSON.stringify([
+      { id: 'g1', name: 'Aufzeichnung 10.10.', datum: new Date(t0).toISOString(), profil: 'wandern', art: 'aufzeichnung', wps: null, stuecke: null, spur: gang, kurz: { laenge: 2250, auf: 0, ab: 0, zeit: 0.5 } },
+      { id: 'p1', name: 'Geplante Runde', datum: new Date(t0 - 864e5).toISOString(), profil: 'wandern', tempo: 1, art: 'plan', wps: [[47.70, 11.40], [47.72, 11.40]], stuecke: null, spur: plan, kurz: { laenge: 2220, auf: 0, ab: 0, zeit: 0.6 } }]));
+  });
+  const pv2 = await vc.newPage();
+  await pv2.goto(url);
+  await zuSeite(pv2, 'gegangen');
+  await pv2.click('#gangliste li .oeffnen'); await pv2.waitForTimeout(400);
+  pruef('Plan gegen gegangen: Planung nahe am Start vorgeschlagen, noch nicht verglichen', await pv2.isVisible('#tourVergleich') &&
+    (await pv2.$$eval('#tourVergleichWahl option', o => o.map(x => x.value))).join() === ',p1' && (await pv2.inputValue('#tourVergleichWahl')) === '');
+  await pv2.selectOption('#tourVergleichWahl', 'p1'); await pv2.waitForTimeout(200);
+  const vText = await pv2.textContent('#tourVergleichErgebnis');
+  pruef('Plan gegen gegangen: Strecke, Zeit geplant gegen Bewegung, Anteil und Abweichung, Planung gestrichelt', vText.includes('Strecke2,2 km2,3 km') && vText.includes('35 min') && vText.includes('20 min in Bewegung') &&
+    /7\d % auf der Planung/.test(vText) && vText.includes('weiteste Abweichung 202 m') && (await pv2.$$('path.plan-vergleich')).length === 1 &&
+    (await pv2.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.id === 'g1').plan)) === 'p1', vText);
+  await vc.close();
+
   await browser.close();
   srv.close();
   console.log('Klicktest: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen · Anfragen ' + JSON.stringify(zaehler));

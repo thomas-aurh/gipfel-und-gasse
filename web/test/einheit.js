@@ -419,6 +419,17 @@ pruef('Info: Burg mit Wikipedia vor der näheren Bäckerei, doppelte einmal mit 
 pruef('Info: Umkreis aus Maßstab, begrenzt', R.infoRadius(0.3) === 15 && R.infoRadius(2) === 60 && R.infoRadius(50) === 150);
 pruef('Info: Abfrage ohne Straßen und Grenzen', /around:40,47\.000000,11\.000000\)\["name"\]\[!"highway"\]\[!"boundary"\]/.test(R.infoAbfrage(47, 11, 40)));
 
+// Plan gegen gegangen: Planung nach Norden; gegangen erst darauf, dann 200 m östlich daneben
+const vPlan = Array.from({ length: 21 }, (_, i) => ({ lat: 47.70 + i * 0.001, lon: 11.40 }));
+const vGang = Array.from({ length: 21 }, (_, i) => ({ lat: 47.70 + i * 0.001, lon: i < 15 ? 11.40 : 11.4027 }));
+const pv = R.planVergleich(vPlan, vGang, 50);
+pruef('Plan gegen gegangen: Anteil auf der Planung und weiteste Abweichung', pv && Math.abs(pv.anteil - 15 / 21) < 0.01 && Math.abs(pv.maxAbw - 202) < 5, pv);
+pruef('Bewegungszeit: Abstände über 90 s und Lücken zählen nicht, ohne Zeit null', Math.abs(R.bewegungStunden([[0, 0, 0, 0 + 1], [0, 0, 0, 60001], [0, 0, 0, 260001], [0, 0, 0, 290001, 1], [0, 0, 0, 320001]]) - 90000 / 3600e3) < 1e-12 &&
+  R.bewegungStunden([[0, 0, 0], [0, 0, 0]]) === null);
+const pk = R.planKandidaten([{ id: 'n', art: 'plan', spur: [[47.7005, 11.40]] }, { id: 'w', art: 'plan', spur: [[47.80, 11.40]] }, { id: 'g', art: 'aufzeichnung', spur: [[47.70, 11.40]] },
+  { id: 'm', art: 'spur', spur: [[47.703, 11.40]] }], { spur: [[47.70, 11.40, 600, 1]] }, 1000);
+pruef('Plan gegen gegangen: Kandidaten nahe am Start, nächste zuerst, ohne Aufzeichnungen', pk.map(t => t.id).join() === 'n,m', pk.map(t => t.id));
+
 // Reiseziele: Dateien lesen, prüfen, als GPX
 const zt = R.zieleLesen('# Ideen\nHerzogstand\nLindau, Bodensee https://lindau.de\n\nKloster Andechs', 'x.txt');
 pruef('Ziele aus Text: Zeile je Ziel, Komma bleibt im Namen, Link abgetrennt, Kommentar weg', zt.art === 'Text' && zt.ziele.length === 3 && zt.ziele[1].name === 'Lindau, Bodensee' &&

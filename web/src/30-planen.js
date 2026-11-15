@@ -1004,6 +1004,7 @@ function spurUmkehren(pts) {
 }
 $('bNeu').onclick = () => {
   ebeneDateiPunkte.clearLayers();   // Wegpunkte einer geöffneten GPX-Tour (60-touren.js)
+  ebeneVergleich.clearLayers();
   ebeneFotos.clearLayers();
   if (S.wps.length) merken();
   S.wps = []; S.fest = null; S.tourId = null; S.name = ''; $('tourname').value = ''; zeitplanSetzen(null);

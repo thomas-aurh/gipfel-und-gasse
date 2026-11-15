@@ -215,7 +215,7 @@ if (NATIV) {
       if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
       if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
       const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-      if (!spurAlsTour(name, pts, 'aufzeichnung')) return;
+      if (!spurAlsTour(name, pts, 'aufzeichnung', { plan: offenePlanung() })) return;
       fertig = true;
       await Navi.aufzeichnungHolen({ leeren: true });
       knopf.textContent = '✓ In „Gegangene Touren“';

@@ -420,6 +420,41 @@ var R = (function () {
     return out.sort((a, b) => a.d - b.d);
   }
 
+  // Bewegungszeit einer gepackten Spur ([lat, lon, ele, zeit, lücke]) in Stunden: Abstände über 90 s und Lücken zählen als
+  // Pause; null ohne Zeitstempel
+  function bewegungStunden(spur) {
+    let ms = 0, mitZeit = false;
+    for (let i = 1; i < (spur || []).length; i++) {
+      const a = spur[i - 1][3], b = spur[i][3], dt = b - a;
+      if (a && b) mitZeit = true;
+      if (a && b && !spur[i][4] && dt > 0 && dt <= 90000) ms += dt;
+    }
+    return mitZeit ? ms / 3600e3 : null;
+  }
+  // Plan gegen gegangen: wie viel der gegangenen Spur (Punkte alle gut 25 m) höchstens grenze Meter neben der Planung lag,
+  // und die weiteste Abweichung
+  function planVergleich(planPts, gangPts, grenze) {
+    if (!planPts || planPts.length < 2 || !gangPts || gangPts.length < 2) return null;
+    let auf = 0, alle = 0, maxAbw = 0, letzt = null;
+    for (const p of gangPts) {
+      if (letzt && abstand(letzt, p) < 25) continue;
+      letzt = p;
+      const l = aufStrecke(planPts, p);
+      alle++;
+      if (l.abw <= (grenze || 50)) auf++;
+      if (l.abw > maxAbw) maxAbw = l.abw;
+    }
+    return { anteil: alle ? auf / alle : 0, maxAbw };
+  }
+  // geplante Touren, die höchstens maxM Meter vom Start einer Aufzeichnung beginnen, die nächste zuerst
+  function planKandidaten(touren, gang, maxM) {
+    const s = gang && gang.spur && gang.spur[0];
+    if (!s) return [];
+    return (touren || []).filter(t => t.art !== 'aufzeichnung' && t.spur && t.spur[0])
+      .map(t => ({ t, d: abstand({ lat: s[0], lon: s[1] }, { lat: t.spur[0][0], lon: t.spur[0][1] }) }))
+      .filter(x => x.d <= maxM).sort((a, b) => a.d - b.d).map(x => x.t);
+  }
+
   function aufStrecke(pts, pos, vorher) {
     const kx = Math.cos(pos.lat * RAD) * 111320, ky = 110540;
     const suche = (von, bis) => {
@@ -2639,7 +2674,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, bewegungStunden, planVergleich, planKandidaten, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ortLinkSchreiben, ortLinkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,

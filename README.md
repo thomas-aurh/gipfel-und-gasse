@@ -64,6 +64,11 @@ sich unten mit „↶ Rückgängig“ in der Meldung (7 s). Am PC ist das Blatt 
 *Touren* durchsuchen und sortieren (neueste, älteste, Name, Länge, Höhenmeter), geplante auch nach Art filtern (Wandern, Laufen,
 Rad, Stadt, GPX).
 
+**Plan gegen gegangen:** Eine Aufzeichnung merkt sich die geplante Tour, die beim Gehen offen war. Auf ihrer Tourseite stehen
+dann geplant und gegangen nebeneinander (Strecke, Aufstieg, Zeit gegen Bewegungszeit), dazu wie viel der Strecke auf der
+Planung lag (bis 50 m daneben) und die weiteste Abweichung; die Planung liegt gestrichelt auf der Karte. Ohne Verknüpfung
+schlägt die Seite Planungen vor, die bis 1 km vom Start beginnen.
+
 **Ordner:** Über den Listen unter Ich › Touren (Geplant und Gegangen) stehen „Alle“, die Ordner mit der Zahl ihrer Touren und
 „＋ Ordner“. Ein Ordner zeigt nur seine Touren; ist einer gewählt, benennt ✏️ ihn um und 🗑 löscht ihn (die Touren bleiben,
 dann ohne Ordner). Einsortiert wird mit 📁 an jeder Tour in der Liste, in *Planen* mit „Ordner“ neben dem Namen (💾 Speichern
