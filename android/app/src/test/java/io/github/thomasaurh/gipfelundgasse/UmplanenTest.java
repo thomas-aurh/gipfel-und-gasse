@@ -35,6 +35,17 @@ public class UmplanenTest {
             + "&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1", u);
     }
 
+    @Test public void laufprofilMitWerten() {
+        // Trail-Laufen: Datei des Wanderprofils, Werte als profile:… (dieselben wie PROFIL_WERTE in web/src/10-dienste.js)
+        String u = Umplanen.url("https://brouter.de/brouter", new double[][] { { 11.385, 47.761 }, { 11.39, 47.77 } }, "laufen-trail");
+        assertEquals("https://brouter.de/brouter?lonlats=11.385000,47.761000|11.390000,47.770000&profile=hiking-mountain"
+            + "&profile:SAC_scale_limit=2&profile:SAC_scale_preferred=1&profile:hiking_routes_preference=0&profile:path_preference=2"
+            + "&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1", u);
+        assertTrue(Profile.bekannt("laufen-trail"));
+        assertEquals("hiking-mountain", Profile.datei("laufen-trail"));
+        assertTrue(Profile.werte("hiking-mountain").isEmpty());
+    }
+
     @Test public void punktAufNeuerStrecke() {
         // Strecke nach Norden (gut 2,2 km); Hütte 40 m daneben bei rund 1,1 km, Brunnen 500 m daneben fällt weg
         NaviRechnen.Strecke s = new NaviRechnen.Strecke(new double[] { 47.76, 47.77, 47.78 }, new double[] { 11.385, 11.385, 11.385 }, new double[3]);

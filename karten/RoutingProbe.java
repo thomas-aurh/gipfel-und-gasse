@@ -1,9 +1,10 @@
+import io.github.thomasaurh.gipfelundgasse.Profile;
 import io.github.thomasaurh.gipfelundgasse.Routing;
 import java.io.File;
 import org.json.JSONObject;
 
 /**
- * Probe-Routing auf den gebauten Routendaten mit der App-eigenen Routing-Klasse und den App-Profilen.
+ * Probe-Routing auf den gebauten Routendaten mit der App-eigenen Routing-Klasse und den App-Profilen (auch eigene wie laufen-trail, siehe Profile).
  * Aufruf: java RoutingProbe <ordner mit E10_N45.rd5 …> <profilordner> <lon,lat;lon,lat;profil> …
  * Schlägt fehl, wenn eine Route fehlt, zu kurz ist oder keine Abbiegehinweise hat.
  */
@@ -16,7 +17,7 @@ public class RoutingProbe {
             double[][] pts = { { Double.parseDouble(p0[0]), Double.parseDouble(p0[1]) }, { Double.parseDouble(p1[0]), Double.parseDouble(p1[1]) } };
             long start = System.currentTimeMillis();
             try {
-                JSONObject f = new JSONObject(Routing.route(new File(a[0]), new File(a[1], t[2] + ".brf"), pts, 120000)).getJSONArray("features").getJSONObject(0);
+                JSONObject f = new JSONObject(Routing.route(new File(a[0]), new File(a[1], Profile.datei(t[2]) + ".brf"), Profile.werte(t[2]), pts, 120000)).getJSONArray("features").getJSONObject(0);
                 JSONObject pr = f.getJSONObject("properties");
                 int laenge = Integer.parseInt(pr.getString("track-length"));
                 int hinweise = pr.has("voicehints") ? pr.getJSONArray("voicehints").length() : 0;

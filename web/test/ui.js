@@ -22,8 +22,10 @@ function abstand(a, b) {
 const zaehler = { brouter: 0, photon: 0, overpass: 0, wetter: 0, hoehe: 0 };
 
 // BRouter nachbilden: Linie mit leichtem Knick, Höhe als Welle, drei Wegarten
+const brouterAdressen = [];   // zuletzt gefragte Adressen (Profil und Werte prüfen)
 function brouter(url) {
   zaehler.brouter++;
+  brouterAdressen.push(url); if (brouterAdressen.length > 50) brouterAdressen.shift();
   const ll = new URL(url).searchParams.get('lonlats').split('|').map(s => s.split(',').map(Number));
   const [a, b] = ll;
   const n = 40, coords = [];
@@ -374,6 +376,10 @@ function pruef(name, bed, info) {
   await page.waitForSelector('#ergebnis:not([hidden])', { state: 'attached' });
   await page.waitForTimeout(300);
   pruef('Laufen: Lauftempo statt Gehtempo', await page.isVisible('#pacewahl') && await page.isHidden('#tempowahl'));
+  // eigenes Laufprofil: Wanderprofil von BRouter mit überschriebenen Werten (Trail, höchstens SAC T2, Pfade vor Asphalt)
+  const laufUrl = new URL(brouterAdressen[brouterAdressen.length - 1]).searchParams;
+  pruef('Laufen: Trail-Profil an brouter.de (Wanderprofil mit eigenen Werten)', laufUrl.get('profile') === 'hiking-mountain' && laufUrl.get('profile:SAC_scale_limit') === '2' &&
+    laufUrl.get('profile:path_preference') === '2' && laufUrl.get('profile:hiking_routes_preference') === '0' && laufUrl.get('profile:turnInstructionRoundabouts') === '1', [...laufUrl.entries()].filter(([k]) => k.startsWith('profile')));
   const lauf6 = await page.evaluate(() => [document.querySelector('#zZeit').textContent, document.querySelector('#zZeitText').textContent, document.querySelector('#zLaenge').textContent, document.querySelector('#zAuf').textContent]);
   pruef('Laufen: Laufzeit beim gewählten Tempo', lauf6[1] === 'Laufzeit bei 6:00 min/km', lauf6);
   await planReiter(page, 'route'); await page.selectOption('#pacewahl', '5');

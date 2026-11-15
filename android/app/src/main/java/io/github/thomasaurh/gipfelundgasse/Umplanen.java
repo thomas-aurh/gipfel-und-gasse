@@ -39,7 +39,7 @@ public final class Umplanen {
             if (i > 0) s.append('|');
             s.append(String.format(Locale.ROOT, "%.6f,%.6f", punkte[i][0], punkte[i][1]));
         }
-        return s.append("&profile=").append(profil)
+        return s.append(Profile.anfrage(profil))
             .append("&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1").toString();
     }
 
