@@ -603,9 +603,16 @@ function paketListe() {
     li.style.cursor = 'default';
     const stand = p.stand ? new Date(p.stand + 'T12:00').toLocaleDateString('de-DE') : '';
     let text = '<b>' + R.esc(p.name || id) + '</b><small>' + mb(groesse) + (stand ? ' · Daten vom ' + R.esc(stand) : '');
+    // gleiche Datei (Name, Prüfsumme, Größe) in einem installierten Paket: die App übernimmt sie, statt sie zu laden
+    const gleichIn = (q, d) => (q.dateien || []).some(x => x.name === d.name && x.sha256 && x.sha256 === d.sha256 && x.groesse === d.groesse);
+    const ausAnderem = d => OFF.installiert.some(q => q.id !== id && gleichIn(q, d));
+    if (!da && neu && NATIV) {
+      const geteilt = (neu.dateien || []).filter(ausAnderem).reduce((s, d) => s + (d.groesse || 0), 0);
+      if (geteilt) text += ' · davon ' + mb(geteilt) + ' schon auf dem Handy (lädt ' + mb(groesse - geteilt) + ')';
+    }
     if (da) {
-      // ein Update lädt nur Dateien mit anderer Prüfsumme (der Rest kommt aus dem installierten Paket)
-      const gleich = d => (da.dateien || []).some(x => x.name === d.name && x.sha256 && x.sha256 === d.sha256 && x.groesse === d.groesse);
+      // ein Update lädt nur Dateien mit anderer Prüfsumme (der Rest kommt aus dem installierten oder einem anderen Paket)
+      const gleich = d => gleichIn(da, d) || ausAnderem(d);
       const update = neu ? (neu.dateien || []).filter(d => !gleich(d)).reduce((s, d) => s + (d.groesse || 0), 0) : 0;
       text += ' · <b>auf dem Handy</b>' + (neuerAls(neu, da) ? ' · neuere Daten verfügbar (Update ' + mb(update) + ')' : '');
     }

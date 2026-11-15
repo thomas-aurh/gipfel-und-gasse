@@ -191,6 +191,15 @@ public class KartenPlugin extends Plugin {
             // installiertes Paket: unveränderte Dateien (gleiche Prüfsumme) werden übernommen statt neu geladen
             JSONObject installiert = null;
             try { installiert = new JSONObject(NaviService.dateiLesen(new File(paketOrdner(id), "paket.json"))); } catch (Exception e) { /* noch keins */ }
+            // andere installierte Pakete: eine gleiche Datei (Name und Prüfsumme, z. B. die Routendaten-Kachel E10_N45, die
+            // Oberbayern und Allgäu beide haben) wird von dort per hartem Verweis übernommen statt ein zweites Mal geladen
+            List<String> andereIds = new ArrayList<>();
+            KartenServer.pakete(getContext(), andereIds);
+            andereIds.remove(id);
+            List<JSONObject> andere = new ArrayList<>();
+            for (String a : andereIds) {
+                try { andere.add(new JSONObject(NaviService.dateiLesen(new File(paketOrdner(a), "paket.json"))).put("_id", a)); } catch (Exception e) { /* unlesbar: nicht teilen */ }
+            }
             // Platz für alle Dateien: übernommene werden zwar meist nur verknüpft, ohne harte Verweise aber kopiert
             long noetig = 0;
             for (int i = 0; i < dateien.length(); i++) { JSONObject d = dateien.optJSONObject(i); if (d != null) noetig += d.optLong("groesse", 0); }
@@ -212,6 +221,16 @@ public class KartenPlugin extends Plugin {
                         && new File(paketOrdner(id), name).isFile()) {
                         JSONObject a = new JSONObject();
                         a.put("dl", -1); a.put("uebernehmen", true); a.put("name", name); a.put("sha256", d.optString("sha256", "")); a.put("groesse", d.optLong("groesse", 0));
+                        auftraege.put(a);
+                        continue;
+                    }
+                    String vonPaket = null;
+                    for (JSONObject o : andere) {
+                        if (Bereich.gleicheDatei(o, name, d.optString("sha256", ""), d.optLong("groesse", 0)) && new File(paketOrdner(o.optString("_id")), name).isFile()) { vonPaket = o.optString("_id"); break; }
+                    }
+                    if (vonPaket != null) {
+                        JSONObject a = new JSONObject();
+                        a.put("dl", -1); a.put("uebernehmen", true); a.put("vonPaket", vonPaket); a.put("name", name); a.put("sha256", d.optString("sha256", "")); a.put("groesse", d.optLong("groesse", 0));
                         auftraege.put(a);
                         continue;
                     }
@@ -306,7 +325,8 @@ public class KartenPlugin extends Plugin {
                     if (jetzt == null || !gen.equals(new JSONObject(jetzt).optString("gen", ""))) return;
                     for (int i = 0; i < auftraege.length(); i++) {
                         JSONObject a = auftraege.getJSONObject(i);
-                        if (a.optBoolean("uebernehmen")) uebernehmen(new File(paketOrdner(id), a.getString("name")), new File(dir, a.getString("name")));
+                        // aus dem eigenen installierten Stand oder (vonPaket) aus einem anderen Paket mit derselben Datei
+                        if (a.optBoolean("uebernehmen")) uebernehmen(new File(paketOrdner(a.optString("vonPaket", id)), a.getString("name")), new File(dir, a.getString("name")));
                     }
                 }
                 for (int i = 0; i < auftraege.length(); i++) {
