@@ -62,6 +62,7 @@ function spurAlsTour(name, pts, art, extra) {
   if (extra.punkte && extra.punkte.length) tour.punkte = extra.punkte;
   if (extra.quelle) tour.quelle = extra.quelle;
   if (extra.dateiDauer) tour.dateiDauer = extra.dateiDauer;
+  if (extra.plan) tour.plan = extra.plan;   // Aufzeichnung: die geplante Tour, die beim Gehen offen war (Plan gegen gegangen)
   liste.unshift(tour);
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
@@ -73,6 +74,11 @@ function spurAlsTour(name, pts, art, extra) {
     gipfelNachTour(liste[0], ab);
   }
   return liste[0].id;
+}
+// beim Speichern einer Aufzeichnung: die geöffnete Planung (nicht selbst eine Aufzeichnung), sonst null
+function offenePlanung() {
+  const t = S.tourId && S.ergebnis && tourenLesen().find(x => x.id === S.tourId);
+  return t && t.art !== 'aufzeichnung' ? t.id : null;
 }
 function tagsText(t) { return Object.entries(t).map(([k, v]) => k + '=' + v).join(' '); }
 
@@ -103,6 +109,7 @@ function tourSeiteZeigen() {
     zahl('zAb', 'Abstieg') + zahl('zHoch', 'Höchster Punkt') + zahl('zSchwer', 'Schwierigkeit') +
     (t && t.dateiDauer ? '<div class="zahl"><b>' + R.esc(R.zeitText(t.dateiDauer, true)) + '</b><span>Dauer laut Datei</span></div>' : '') : '';
   tourOrdnerWahl(t);
+  planVergleichZeigen(t);
   dateiPunkteZeigen(t);
   tourFotosZeigen(t);
   packlisteNeu();
@@ -112,6 +119,40 @@ function tourSeiteZeigen() {
   $('tGpx').disabled = $('bGpx').disabled; $('tDrucken').disabled = $('bDrucken').disabled;
   tourAnreiseZeigen();
 }
+// Plan gegen gegangen (nur bei Aufzeichnungen): die verknüpfte Planung oder eine, die nahe am Start beginnt (bis 1 km);
+// Strecke, Aufstieg, Zeit geplant gegen Bewegungszeit, Anteil auf der Planung (bis 50 m) und weiteste Abweichung.
+// Die Planung liegt dabei gestrichelt auf der Karte
+function aufzeichnungsPlan(gang) { return (gang.plan && tourenLesen().find(x => x.id === gang.plan && x.art !== 'aufzeichnung')) || null; }
+function planVergleichZeigen(gang) {
+  const box = $('tourVergleich'), sel = $('tourVergleichWahl');
+  ebeneVergleich.clearLayers();
+  if (!gang || gang.art !== 'aufzeichnung') { box.hidden = true; return; }
+  const alle = tourenLesen(), plan = aufzeichnungsPlan(gang);
+  const kandidaten = R.planKandidaten(alle, gang, 1000).filter(t => !plan || t.id !== plan.id).slice(0, 8);
+  if (!plan && !kandidaten.length) { box.hidden = true; return; }
+  box.hidden = false;
+  sel.innerHTML = '<option value="">– nicht vergleichen –</option>' + (plan ? [plan] : []).concat(kandidaten)
+    .map(t => '<option value="' + R.esc(t.id) + '">' + R.esc(t.name) + '</option>').join('');
+  sel.value = plan ? plan.id : '';
+  sel.onchange = () => {
+    const liste = tourenLesen(), g = liste.find(x => x.id === gang.id);
+    if (!g) return;
+    if (sel.value) g.plan = sel.value; else delete g.plan;
+    if (tourenSchreiben(liste)) planVergleichZeigen(g);
+  };
+  const erg = $('tourVergleichErgebnis');
+  if (!plan) { erg.innerHTML = '<span class="klein">Eine Planung wählen, die zu dieser Tour gehört (beginnt bis 1 km vom Start).</span>'; return; }
+  const pPts = spurEntpacken(plan.spur || []), gPts = spurEntpacken(gang.spur || []);
+  const v = R.planVergleich(pPts, gPts, 50), h = R.bewegungStunden(gang.spur);
+  const zeile = (was, geplant, gegangen) => '<tr><th>' + was + '</th><td>' + R.esc(geplant) + '</td><td>' + R.esc(gegangen) + '</td></tr>';
+  erg.innerHTML = '<table class="vergleich"><tr><th></th><th>geplant</th><th>gegangen</th></tr>' +
+    zeile('Strecke', R.kmText(plan.kurz.laenge), R.kmText(gang.kurz.laenge)) +
+    zeile('Aufstieg', Math.round(+plan.kurz.auf || 0) + ' m', Math.round(+gang.kurz.auf || 0) + ' m') +
+    zeile('Zeit', R.zeitText(plan.kurz.zeit), h != null ? R.zeitText(h, true) + ' in Bewegung' : '–') + '</table>' +
+    (v ? '<p class="klein">' + Math.round(v.anteil * 100) + ' % auf der Planung (bis 50 m daneben)' + (v.maxAbw > 50 ? ', weiteste Abweichung ' + R.kmText(v.maxAbw) : '') + '.</p>' : '');
+  if (pPts.length > 1) L.polyline(pPts.map(p => [p.lat, p.lon]), { color: '#555', weight: 3, opacity: 0.8, dashArray: '6 6', interactive: false, className: 'plan-vergleich' }).addTo(ebeneVergleich);
+}
+
 // Wegpunkte aus der GPX-Datei (z. B. Highlights aus komoot): auf der Karte und als Liste mit Lage an der Strecke
 const PUNKT_ZEICHEN = { gipfel: '⛰️', einkehr: '🏠', parken: '🅿️', punkt: '📍' };
 function dateiPunkteZeigen(t) {
@@ -189,6 +230,7 @@ function tourOeffnen(id) {
   const t = tourenLesen().find(x => x.id === id);
   if (!t) return;
   ebeneDateiPunkte.clearLayers();
+  ebeneVergleich.clearLayers();
   ebeneFotos.clearLayers();
   // Fotos einer gegangenen Tour bleiben auf der Karte, solange die Tour offen ist (auch ohne die Tourseite)
   if (t.art === 'aufzeichnung') setTimeout(() => { if (S.tourId === t.id) tourFotosZeigen(t); }, 0);
