@@ -5,6 +5,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Langes Drücken und Notizen an Punkten (16.11., PRs #118, #119):** nur im Klicktest geprüft (Berührung über CDP
+  nachgebildet). Nicht geprüft auf dem Pixel: ob 550 ms sich richtig anfühlen, ob das Vibrieren im WebView ankommt, ob
+  der Browser beim Halten ein eigenes Menü zeigt; Textfeld der Notiz mit Bildschirmtastatur; Vorlesen der Notiz am Punkt
+  (Dienst, gesperrter Bildschirm; im Browser braucht es echtes GPS). Punkte ohne Namen, aber mit Notiz, gehen als
+  „Stopp n“ an den Dienst und werden darum auch vom Punkt-Alarm angesagt.
 - **Aufzeichnung, Tempo, Plan gegen gegangen (15.11., Bau 292):** nur im Klicktest geprüft. Nicht geprüft auf dem Pixel:
   ob die blaue Spur in der App mitwächst (Oberfläche holt alle 5 s neue Punkte vom Dienst) und nach dem Speichern als
   Linie unter „Meine Touren“ bleibt; ob 90 s als Pausengrenze für „Eigenes Tempo“ zum Takt des Dienstes passen; wie der
@@ -135,8 +140,6 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   seinen Ort hat oder zur Zeit der Aufzeichnung entstand.
 - **Mehrtagestour:** seit 04.11. Startzeit je Tag, Folgen je Etappe (Browser und Dienst der App) und Etappen im Druck;
   nur im Klicktest geprüft (in der App nur die Übergabe an den Dienst nachgebildet, kein echtes Folgen auf dem Pixel).
-  Die Startzeiten je Tag hängen an der Nummer des Tages: wer eine
-  Übernachtung davor einfügt oder streicht, verschiebt sie.
 - **Packliste (04.11.) nur im Klicktest geprüft:** ob die Dinge und Mengen auf echten Touren passen (Thomas' Urteil steht
   aus); Wetter kommt nur, wenn „Wetter für die Tour“ für denselben Plan geladen ist.
 - **Routendaten geteilt (15.11.):** Oberbayern und Allgäu bringen beide die Kachel E10_N45 (190 MB) mit. Seit 15.11.
@@ -154,8 +157,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   fragt die App dann overpass.private.coffee (aus der Cloud nicht erreichbar, also ungeprüft). Ungeprüft: Antwortzeit von Overpass beim Antippen, ob der Umkreis
   (etwa 30 Bildpunkte) das Gemeinte trifft. Große Flächen (Schlosspark) findet Overpass nur über ihren Rand.
 - **Orte-Infos (#26) nicht mit den echten Diensten geprüft:** Wikipedia (CORS, Antwortzeit), Wikidata, Vorlesen mit der Android-Sprachausgabe; Öffnungszeiten nur mit Testeinträgen.
-- **Ideen, nicht gebaut:** Notizen an Punkten der Tour;
-  kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket).
+- **Ideen, nicht gebaut:** kleines Offline-Paket um ein Reiseziel bzw. eigene zugeschnittene Routendaten (kleineres Paket).
 - **Tourwetter (#44) nur nachgebildet geprüft:** Antwortform der echten Open-Meteo-Schnittstelle per curl gemessen
   (Liste je Punkt, UTC-Stunden, `elevation=nan`), im Browser und in der App aber nur mit nachgebildeter Antwort.
 - **Prüfdatum der Öffnungszeiten ohne Netz (#47):** in den Kartenpaketen seit dem Bau vom 03.11. abends (von Hand
@@ -165,6 +167,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Punkt erst nach langem Drücken, nur mit dem Finger** (16.11., Thomas: „geht zu schnell“): 550 ms ruhig (12 px), der
+  Punkt kommt beim Halten, nicht beim Loslassen; Maus klickt wie bisher, Info, Fadenkreuz und Trails bleiben beim kurzen Tipp.
+  Verworfen: das `contextmenu` des Browsers (Dauer je Gerät verschieden), Loslassen nach der Zeit (man weiß nicht, wann genug ist).
+- **Startzeit je Tag an der Übernachtung** (16.11.): `w.start` am Wegpunkt; gespeichert weiter als `zeit.tage`, beim Laden
+  zurück auf die Übernachtungen. Verworfen: die Liste bei jedem Einfügen und Streichen mitschieben (viele Stellen).
+- **Notiz als siebter Wert des Wegpunkts** (16.11.): davor `Info|0` und `Übernachtung 1|0` als Platzhalter; vorgelesen über
+  den vorhandenen Stopp-Text des Dienstes, ohne Java-Änderung.
 - **Laufprofil als Werte statt eigener Datei** (15.11., Thomas' Wahl „Trail“): `laufen-trail` = `hiking-mountain` mit
   `SAC_scale_limit=2`, `hiking_routes_preference=0`, `path_preference=2`; online als `profile:Name=Wert`, ohne Netz über
   die keyValues, beim Umplanen genauso (Tabelle in `Profile.java` und `PROFIL_WERTE`, müssen gleich bleiben). Verworfen:
@@ -335,6 +344,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **16.11. (PRs #117 bis #119)** Startzeit je Tag wandert mit der Übernachtung (#117); am Telefon setzt erst langes Drücken
+  einen Punkt (#118); Notizen an Punkten der Tour, dazu behoben: eine geöffnete Mehrtagestour zeigte keine Punkte in den
+  Tageskarten (#119). Einheitstests 350, Klicktest 475.
 
 - **15.11. (PRs #108 bis #115, Bau 292, Kartenpakete neu)** Aufzeichnungen auf der Karte: Spur live in der App,
   gespeicherte als Linie (#108); eigenes Laufprofil „Trail“, Routing-Probe auf echten Daten 22,1 statt 21,6 km (#109);

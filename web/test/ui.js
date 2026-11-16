@@ -2262,8 +2262,15 @@ function pruef(name, bed, info) {
   pruef('Telefon: Start auf der reinen Karte (lange gedrückt) wird gemeldet', (await pt.$$('.wp')).length === 1 && (await pt.textContent('#meldung')).includes('Start gesetzt'), await pt.textContent('#meldung'));
   await halten(kk.width * 0.6, kk.height * 0.3, 800);
   await pt.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
-  pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(() => !document.body.classList.contains('ohneBlatt') &&
-    document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#planReiter') && (await pt.textContent('#kopfZahlen')).includes('km'));
+  // das Blatt öffnet sich animiert (in GitHub Actions langsamer): auf den Zustand warten, nicht auf einen Zeitpunkt
+  const planOffen = () => !document.body.classList.contains('ohneBlatt') && document.querySelector('section[data-reiter=planen]').classList.contains('an') &&
+    document.getElementById('kopfZahlen').textContent.includes('km');
+  await pt.waitForFunction(planOffen, null, { timeout: 8000 }).catch(() => {});
+  await pt.waitForSelector('#planReiter', { state: 'visible', timeout: 5000 }).catch(() => {});
+  pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(planOffen) && await pt.isVisible('#planReiter'),
+    await pt.evaluate(() => ({ ohneBlatt: document.body.classList.contains('ohneBlatt'), wps: document.querySelectorAll('.wp').length,
+      planen: document.querySelector('section[data-reiter=planen]').classList.contains('an'), kopf: document.getElementById('kopfZahlen').textContent,
+      blatt: document.getElementById('panel').className })));
   // Tourseite am Telefon: speichern, in der Liste antippen
   await klick('#bSpeichern'); await zuSeite(pt, 'touren');
   await pt.tap('#tourliste li >> nth=0'); await pt.waitForTimeout(400);

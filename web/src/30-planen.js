@@ -250,8 +250,9 @@ async function neuBerechnen() {
     S.rechnet = false;
     S.stuecke = []; S.ergebnis = null;
     zeichenRoute(); zeigen();
-    $('status').textContent = S.wps.length === 1 ? 'Start gesetzt. Jetzt das Ziel antippen.' : '';
-    if (seite === 'karte' && S.wps.length === 1) melde('Start gesetzt. Jetzt das Ziel antippen.', 4);   // ohne Blatt sähe man den Status nicht
+    const weiter = 'Start gesetzt. Jetzt das Ziel ' + (FINGER ? 'lange drücken.' : 'antippen.');
+    $('status').textContent = S.wps.length === 1 ? weiter : '';
+    if (seite === 'karte' && S.wps.length === 1) melde(weiter, 4);   // ohne Blatt sähe man den Status nicht
     entwurfSichern();
     return;
   }
