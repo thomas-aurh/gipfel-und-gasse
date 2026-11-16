@@ -153,7 +153,8 @@ function zeichenWegpunkte() {
       draggable: true, autoPan: true, zIndexOffset: i === 0 ? 1000 : 0,
       icon: L.divIcon({ className: '', html: '<div class="wp ' + art + '">' + text + '</div>', iconSize: [26, 26], iconAnchor: rund ? [-2, 30] : [13, 13] })
     });
-    if (w.name || w.nacht) m.bindTooltip((w.nacht ? '🛏 ' : '') + R.esc(w.name || 'Übernachtung') + (w.nacht ? ' · Tag ' + (stueckTag(i) + 1) + ' ab hier' : ''), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
+    if (w.name || w.nacht) m.bindTooltip((w.nacht ? '🛏 ' : '') + R.esc(w.name || 'Übernachtung') + (w.nacht ? ' · Tag ' + (stueckTag(i) + 1) + ' ab hier' : '') + (w.notiz ? ' 📝' : ''), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
+    else if (w.notiz) m.bindTooltip('📝 ' + R.esc(w.notiz.length > 28 ? w.notiz.slice(0, 27) + '…' : w.notiz), { permanent: true, direction: 'right', offset: [14, 0], className: 'wp-name' });
     m.on('dragend', () => {
       const p = m.getLatLng();
       merken();
@@ -165,7 +166,12 @@ function zeichenWegpunkte() {
     });
     m.on('click', () => {
       const box = document.createElement('div');
-      box.innerHTML = '<b>' + (w.name ? R.esc(w.name) : i === 0 ? 'Start' : art === 'ziel' ? 'Ziel' : 'Stopp ' + i) + '</b><br>';
+      box.innerHTML = '<b>' + (w.name ? R.esc(w.name) : i === 0 ? 'Start' : art === 'ziel' ? 'Ziel' : 'Stopp ' + i) + '</b><br>' +
+        (w.notiz ? '<div class="klein wp-notiz">📝 ' + R.esc(w.notiz) + '</div>' : '');
+      const nz = document.createElement('button');
+      nz.className = 'popup-knopf'; nz.textContent = w.notiz ? '📝 Notiz ändern' : '📝 Notiz';
+      nz.onclick = () => notizFenster(i);
+      box.appendChild(nz); box.appendChild(document.createTextNode(' '));
       const k = document.createElement('button');
       k.className = 'popup-knopf'; k.textContent = 'Punkt entfernen';
       k.onclick = () => { karte.closePopup(); wegpunktWeg(i); };
@@ -444,6 +450,8 @@ function zeigen() {
   balken($('wege'), e.wege, FARBE_WEG, R.wegtyp);
   balken($('boden'), e.boden, FARBE_BODEN, R.untergrund);
   zeitplanZeigen();
+  // die Etappen sind eben neu gezeichnet: ihre Punkte (oben schon in die alten Karten gelegt) noch einmal hinein
+  if (!$('etappen').hidden) stoppsZeigen();
   profilZeichnen();
 }
 
@@ -712,6 +720,45 @@ function nachtUmschalten(i) {
   zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern();
   melde(w.nacht ? 'Übernachtung eingetragen: Tag ' + (stueckTag(i) + 1) + ' beginnt hier (siehe Reiter Route).' : 'Übernachtung entfernt.', 5);
 }
+// ---------- Notizen an Punkten der Tour ----------
+// Freier Text je Wegpunkt (w.notiz), z. B. „Wasser auffüllen“ oder „Abzweig leicht zu übersehen“. Steht an der Karte, in
+// der Liste der Stopps und im Druck, geht als <desc> in die GPX-Datei und wird unterwegs am Punkt vorgelesen.
+const NOTIZ_MAX = 300;
+function notizSetzen(w, text) {
+  const i = S.wps.indexOf(w);
+  if (i < 0) { melde('Der Punkt hat sich inzwischen geändert, die Notiz ist nicht gespeichert.', 6); return; }
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, NOTIZ_MAX);
+  if ((w.notiz || '') === t) return;
+  merken();
+  const neu = Object.assign({}, w);
+  if (t) neu.notiz = t; else delete neu.notiz;
+  S.wps[i] = neu;
+  zeichenWegpunkte(); stoppsZeigen(); entwurfSichern();
+  melde(t ? 'Notiz gespeichert.' : 'Notiz gelöscht.', 4, RUECK);
+}
+function notizFenster(i) {
+  const w = S.wps[i];
+  if (!w || S.fest) return;
+  const box = document.createElement('div');
+  box.className = 'notiz-fenster';
+  box.innerHTML = '<b>📝 Notiz zu ' + R.esc(w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Stopp ' + i)) + '</b>';
+  const ta = document.createElement('textarea');
+  ta.id = 'notizText'; ta.rows = 3; ta.maxLength = NOTIZ_MAX; ta.value = w.notiz || '';
+  ta.placeholder = 'z. B. Wasser auffüllen, Abzweig leicht zu übersehen';
+  ta.setAttribute('aria-label', 'Notiz zum Punkt');
+  const ok = document.createElement('button');
+  ok.className = 'popup-knopf'; ok.id = 'notizOk'; ok.textContent = 'Speichern';
+  ok.onclick = () => { karte.closePopup(); notizSetzen(w, ta.value); };
+  box.appendChild(ta); box.appendChild(ok);
+  if (w.notiz) {
+    const weg = document.createElement('button');
+    weg.className = 'popup-knopf'; weg.textContent = 'Löschen';
+    weg.onclick = () => { karte.closePopup(); notizSetzen(w, ''); };
+    box.appendChild(document.createTextNode(' ')); box.appendChild(weg);
+  }
+  L.popup({ offset: [0, -8], maxWidth: 280 }).setLatLng([w.lat, w.lon]).setContent(box).openOn(karte);
+  setTimeout(() => ta.focus(), 50);
+}
 // passt der Tag ins Tageslicht? Spätester Start vor 5 Uhr (oder am Vortag) heißt: länger als das Tageslicht
 function zuLangFuerTag(spaetestens, d) { return !!spaetestens && spaetestens < new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5, 0); }
 // je Tag: Strecke, Höhenmeter, Gehzeit, Ziel; mit Startzeit Ankunft gegen den Sonnenuntergang am Etappenziel
@@ -876,7 +923,7 @@ function stoppsZeigen() {
   const box = $('stopps');
   box.innerHTML = '';
   // Liste in der Stadt, mit benannten Stopps oder ab einem Zwischenpunkt (dann lässt sich umsortieren)
-  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.length >= 3 || S.wps.some(w => w.name || w.nacht))) return;
+  if (S.fest || S.wps.length < 2 || !(S.modus === 'stadt' || S.wps.length >= 3 || S.wps.some(w => w.name || w.nacht || w.notiz))) return;
   const n = S.wps.length, ankunft = stoppAnkunft();
   // verschiebbar ist alles außer dem Start und, bei einer Rundtour, dem Schluss (der Start bleibt, „⇄ Umkehren“ dreht die Tour)
   const rundTour = n > 2 && R.abstand(S.wps[n - 1], S.wps[0]) < 30, letzter = rundTour ? n - 2 : n - 1;
@@ -891,7 +938,7 @@ function stoppsZeigen() {
     if (mehrtags) d.dataset.tag = i === 0 ? 0 : stueckTag(i - 1);
     const nr = i === 0 ? 'S' : rund ? 'S' : i === n - 1 ? 'Z' : String(i);
     d.innerHTML = '<span class="nr' + (nr === 'S' ? ' s' : '') + '">' + nr + '</span><span class="name">' +
-      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : w.nacht ? 'Übernachtung' : 'Stopp ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + '</span>';
+      R.esc(w.name || (i === 0 ? 'Start' : rund ? 'zurück zum Start' : i === n - 1 ? 'Ziel' : w.nacht ? 'Übernachtung' : 'Stopp ' + i)) + (w.nacht ? ' 🛏' : '') + besuchHtml(w, ankunft[i]) + (w.notiz ? '<span class="klein stopp-notiz">📝 ' + R.esc(w.notiz) + '</span>' : '') + '</span>';
     if (!rund) {
       const sel = document.createElement('select');
       sel.title = 'Besichtigungszeit';
@@ -925,6 +972,11 @@ function stoppsZeigen() {
       b.onclick = () => nachtUmschalten(i);
       d.appendChild(b);
     }
+    const nb = document.createElement('button');
+    nb.type = 'button'; nb.className = 'notiz-knopf' + (w.notiz ? ' an' : ''); nb.textContent = '📝';
+    nb.title = w.notiz ? 'Notiz ändern' : 'Notiz zum Punkt'; nb.setAttribute('aria-label', nb.title);
+    nb.onclick = () => notizFenster(i);
+    d.appendChild(nb);
     const x = document.createElement('button');
     x.title = 'Entfernen'; x.textContent = '✕';
     x.onclick = () => wegpunktWeg(i);

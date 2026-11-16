@@ -870,14 +870,38 @@ function pruef(name, bed, info) {
   await page.click('#bNavi');
   await page.click('#naviTage button >> nth=0');
   await page.click('[data-reiter=planen]');
+  // Notiz an der Hütte: im Fenster an der Karte schreiben; steht in der Liste, am Punkt, im Druck und bleibt beim Speichern
+  await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Notiz")', { timeout: 5000 }).catch(() => {});
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Notiz')); if (b) b.click(); });
+  await page.waitForSelector('#notizText', { timeout: 5000 }).catch(() => {});
+  await page.fill('#notizText', '  Wasser   auffüllen ');
+  await page.evaluate(() => document.getElementById('notizOk').click());
+  await planReiter(page, 'route');
+  const notizListe = await page.$$eval('.stopp-notiz', l => l.map(x => x.textContent));
+  const notizMarke = await page.$$eval('.wp-name', l => l.map(x => x.textContent));
+  pruef('Notiz: steht in der Liste (Leerraum bereinigt) und am Punkt', JSON.stringify(notizListe) === '["📝 Wasser auffüllen"]' && notizMarke.some(t => t.includes('📝')) &&
+    (await page.$$('.stopp .notiz-knopf.an')).length === 1, [notizListe, notizMarke]);
+  await page.evaluate(() => { window.__altPrint = window.print; window.__notizDruck = false; window.print = () => { window.__notizDruck = true; }; });
+  await page.click('#bDrucken').catch(() => {});
+  await page.waitForFunction(() => window.__notizDruck, null, { timeout: 8000 }).catch(() => {});
+  const druckNotiz = await page.$$eval('#druckkopf .druck-notizen li', l => l.map(x => x.textContent));
+  await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); window.print = window.__altPrint; });
+  pruef('Notiz: im Druck mit dem Namen des Punkts', druckNotiz.length === 1 && druckNotiz[0].includes('Wasser auffüllen'), druckNotiz);
+  await page.waitForFunction(() => !document.body.classList.contains('druck'), null, { timeout: 3000 }).catch(() => {});
   await planReiter(page, 'vorbereiten'); await page.fill('#tourname', 'Hüttentour');
   await page.click('#bSpeichern');
+  const notizGespeichert = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.name === 'Hüttentour').wps[1]);
+  pruef('Notiz: als siebter Wert der Tour gespeichert, Übernachtung bleibt', notizGespeichert[5] === 1 && notizGespeichert[6] === 'Wasser auffüllen', notizGespeichert);
   await page.click('#bNeu');
   await zuSeite(page, 'touren');
   await page.click('#tourliste li:has-text("Hüttentour") .was');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
   await planReiter(page, 'route'); await page.waitForSelector('#etappen:not([hidden])', { timeout: 8000 });
   pruef('Etappen: gespeicherte Tour behält die Übernachtung und die Startzeit an Tag 2', (await page.textContent('#etappen')).includes('Tag 2') && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30');
+  pruef('Notiz: geöffnete Tour hat sie wieder', (await page.$$eval('.stopp-notiz', l => l.map(x => x.textContent))).join() === '📝 Wasser auffüllen',
+    await page.$$eval('.stopp', l => l.map(x => x.textContent)));
+  pruef('Etappen: geöffnete Mehrtagestour zeigt die Punkte in den Tageskarten', (await page.$$('#etappen .etappe-punkte .stopp')).length === 3);
   await page.click('#bEtappenReise');
   pruef('Etappen: als Reise ins Tagebuch (zwei Tage)', (await page.textContent('#seitenTitel')) === 'Reisetagebuch' && (await page.textContent('#tbTitel')).includes('Hüttentour'), await page.textContent('#tbTitel'));
   const reiseEt = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.tagebuch')).reisen.find(r => r.name === 'Hüttentour').etappen);

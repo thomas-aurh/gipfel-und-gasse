@@ -15,6 +15,8 @@ $('bDrucken').onclick = async () => {
   if (e.tief != null) teile.push('↑ ' + e.auf + ' m', '↓ ' + e.ab + ' m', 'höchster Punkt ' + e.hoch + ' m');
   if (e.sac) teile.push(e.sac.text);
   const stopps = S.wps.filter(w => w.name).map(w => w.name + (w.min ? ' (' + w.min + ' min)' : ''));
+  // Notizen an den Punkten, mit dem Namen des Punkts
+  const notizen = S.fest ? [] : S.wps.map((w, i) => w.notiz ? (w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Stopp ' + i)) + ': ' + w.notiz : '').filter(Boolean);
   // ohne den Wanderer der Ladeanzeige: als Bild gilt das CSS der Seite nicht, er wäre sonst mitten im Logo zu sehen
   const logo = $('logo').querySelector('svg') && $('logo').querySelector('svg').cloneNode(true);
   if (logo) logo.querySelectorAll('.wanderer').forEach(w => w.remove());
@@ -32,6 +34,7 @@ $('bDrucken').onclick = async () => {
   }) : [];
   $('druckkopf').innerHTML = logoBild + '<h1>' + R.esc((S.name || '').trim() || 'Tour') + '</h1><div>' + R.esc(teile.join(' · ')) + '</div>' +
     (stopps.length ? '<div class="stopps">Stopps: ' + R.esc(stopps.join(' → ')) + '</div>' : '') +
+    (notizen.length ? '<ul class="druck-notizen">' + notizen.map(n => '<li>📝 ' + R.esc(n) + '</li>').join('') + '</ul>' : '') +
     (etZeilen.length ? '<ol class="druck-etappen">' + etZeilen.join('') + '</ol>' : '');
   const c = $('profil');
   const bild = !$('profilbox').hidden && c.width ? '<img alt="Höhenprofil" src="' + c.toDataURL('image/png') + '">' : '';

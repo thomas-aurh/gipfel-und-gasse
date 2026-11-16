@@ -21,11 +21,12 @@ if (NATIV) {
     if (!e || S.fest) return [];
     const out = [];
     plan.wps.forEach((w, i) => {
-      if (i === 0 || !w.name) return;
+      if (i === 0 || (!w.name && !w.notiz)) return;
       // text: Führung, liest der Dienst am Stopp statt „… erreicht“ vor (auch bei gesperrtem Bildschirm)
       // lat/lon: daran erkennt der Dienst den Stopp für die Führung (auch nach dem Umplanen und bei gleichen Namen)
-      const s = { d: e.stueckEnde[i - 1], name: w.name, min: +w.min || 0, lat: w.lat, lon: w.lon };
-      const text = FUEHRUNG.get(fuehrungSchluessel(w));
+      const s = { d: e.stueckEnde[i - 1], name: w.name || (i === plan.wps.length - 1 ? 'Ziel' : 'Stopp ' + i), min: +w.min || 0, lat: w.lat, lon: w.lon };
+      // Notiz und Führung liest der Dienst am Stopp statt „… erreicht“ vor
+      const text = stoppVorlesen(w);
       if (text) s.text = text;
       out.push(s);
     });
