@@ -50,8 +50,51 @@ karte.on('click', e => {
   // Info-Modus (52-info.js): Antippen zeigt, was dort ist, statt einen Punkt zu setzen
   if (infoAn) { infoZeigen(e.latlng); return; }
   if (trailAntippen && trailAntippen(e.latlng)) return;
+  // mit dem Finger setzt erst langes Drücken einen Punkt (siehe unten), ein kurzer Tipp nicht
+  if (beruehrt()) { langTippHinweis(); return; }
   wegpunktDazu(e.latlng.lat, e.latlng.lng);
 });
+
+// ---------- Langes Drücken setzt am Telefon einen Punkt ----------
+// Ein kurzer Tipp (etwa beim Schieben der Karte) setzte zu leicht ungewollt einen Punkt. Mit dem Finger braucht es darum
+// LANG_MS ruhiges Drücken; dann vibriert das Handy kurz und der Punkt steht, ohne loszulassen. Die Maus klickt wie bisher.
+const LANG_MS = 550, LANG_WACKEL = 12;
+const FINGER = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);   // für die Hinweistexte
+let langDruck = null, langGesetzt = 0, letzteArt = '', langHinweisSeit = 0;
+const routenLinie = new WeakMap();   // Pfad der Routenlinie → Nummer des Teilstücks (Zwischenziel einfügen)
+// kam der Tipp gerade vom Finger? (Leaflets click trägt die Art nicht mit)
+function beruehrt() { return letzteArt === 'touch'; }
+function langTippHinweis() {
+  if (Date.now() - langGesetzt < 1000) return;   // der Tipp gehörte zum langen Drücken
+  if (Date.now() - langHinweisSeit < 20000) return;
+  langHinweisSeit = Date.now();
+  melde('Für einen Punkt etwas länger auf die Karte drücken.', 3);
+}
+function langAbbruch() { if (langDruck) { clearTimeout(langDruck.t); langDruck = null; } }
+$('karte').addEventListener('pointerdown', ev => {
+  letzteArt = ev.pointerType;
+  langAbbruch();
+  if (ev.pointerType !== 'touch' || !ev.isPrimary) return;   // zweiter Finger (Zoomen) bricht ab
+  if (ev.target.closest('.leaflet-marker-icon, .leaflet-popup, .leaflet-control')) return;
+  const k = routenLinie.has(ev.target) ? routenLinie.get(ev.target) : null;
+  const x = ev.clientX, y = ev.clientY;
+  langDruck = { x, y, t: setTimeout(() => {
+    langDruck = null;
+    if (Date.now() - popupZuSeit < 400 || !$('lagenwahl').hidden || kreuzAn || infoAn) return;
+    if (k != null && S.fest) return;
+    const ll = karte.mouseEventToLatLng({ clientX: x, clientY: y });
+    langGesetzt = Date.now();
+    if (navigator.vibrate) navigator.vibrate(30);
+    if (k != null) wegpunktDazu(ll.lat, ll.lng, k + 1); else wegpunktDazu(ll.lat, ll.lng);
+  }, LANG_MS) };
+}, true);
+$('karte').addEventListener('pointermove', ev => {
+  if (langDruck && ev.isPrimary && Math.hypot(ev.clientX - langDruck.x, ev.clientY - langDruck.y) > LANG_WACKEL) langAbbruch();
+}, true);
+['pointerup', 'pointercancel'].forEach(art => $('karte').addEventListener(art, langAbbruch, true));
+karte.on('movestart zoomstart', langAbbruch);
+// kein Menü des Browsers beim langen Drücken auf die Karte
+$('karte').addEventListener('contextmenu', ev => { if (beruehrt()) ev.preventDefault(); });
 
 // Fadenkreuz wie in Locus: steht in der Mitte des sichtbaren Kartenteils (am Telefon über dem Blatt)
 let kreuzAn = false;
@@ -176,9 +219,11 @@ function zeichenRoute() {
       if (kreuzAn) { kreuzHin(ev.latlng); return; }
       if (infoAn) { infoZeigen(ev.latlng); return; }
       if (S.fest) return;
+      if (beruehrt()) { langTippHinweis(); return; }   // mit dem Finger: langes Drücken (oben)
       wegpunktDazu(ev.latlng.lat, ev.latlng.lng, k + 1);
     });
     linie.addTo(ebeneRoute);
+    if (linie.getElement()) routenLinie.set(linie.getElement(), k);
     d0 = d1;
   });
   if (S.fest) {
@@ -374,7 +419,7 @@ function zeigen() {
   $('bTeilen').disabled = !e || !!S.fest || !!S.rechnet;
   // Kopfzeile: Kennzahlen, sonst der nächste Schritt (am Telefon ist anfangs nur der Kopf zu sehen)
   $('kopfZahlen').textContent = e ? R.kmText(e.laenge) + ' · ' + R.zeitText(e.zeit + besichtigung() / 60) + (e.tief != null ? ' · ↑ ' + e.auf + ' m' : '')
-    : S.wps.length === 1 ? 'Jetzt das Ziel antippen' : 'Auf die Karte tippen: Start';
+    : S.wps.length === 1 ? (FINGER ? 'Jetzt das Ziel lange drücken' : 'Jetzt das Ziel antippen') : FINGER ? 'Auf die Karte lange drücken: Start' : 'Auf die Karte tippen: Start';
   stoppsZeigen();
   if (typeof unterwegsKarte === 'function') unterwegsKarte();
   if (!e) { profilZeichnen(); return; }
