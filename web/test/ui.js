@@ -2270,7 +2270,9 @@ function pruef(name, bed, info) {
   pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(planOffen) && await pt.isVisible('#planReiter'),
     await pt.evaluate(() => ({ ohneBlatt: document.body.classList.contains('ohneBlatt'), wps: document.querySelectorAll('.wp').length,
       planen: document.querySelector('section[data-reiter=planen]').classList.contains('an'), kopf: document.getElementById('kopfZahlen').textContent,
-      blatt: document.getElementById('panel').className })));
+      blatt: document.getElementById('panel').className, reiterHidden: document.getElementById('planReiter').hidden,
+      reiterRect: JSON.stringify(document.getElementById('planReiter').getBoundingClientRect()), reiterDisplay: getComputedStyle(document.getElementById('planReiter')).display,
+      panelRect: JSON.stringify(document.getElementById('panel').getBoundingClientRect()), seiten: [...document.querySelectorAll('.inhalt>section.an')].map(s => s.dataset.reiter).join() })));
   // Tourseite am Telefon: speichern, in der Liste antippen
   await klick('#bSpeichern'); await zuSeite(pt, 'touren');
   await pt.tap('#tourliste li >> nth=0'); await pt.waitForTimeout(400);
