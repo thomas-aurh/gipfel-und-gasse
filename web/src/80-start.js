@@ -202,6 +202,8 @@ if (!ausLink()) {
   if (ent && ent.wps && ent.wps.length) {
     if (ent.modus) modusSetzen(ent.modus);
     S.wps = ent.wps; S.name = ent.name || ''; S.tourId = ent.tourId || null; $('tourname').value = S.name; zeitplanSetzen(ent.zeit);
+    // Entwürfe von vor dem 16.11. haben die Startzeiten je Tag nur in zeit.tage
+    if (ent.zeit && ent.zeit.tage && !S.wps.some(w => w.start)) tagesStartAnwenden(ent.zeit.tage);
     // eine gespeicherte Tour füllt den Speicher der Teilstücke, dann muss nichts neu angefragt werden
     if (ent.spur && ent.stuecke && ent.stuecke.length === S.wps.length - 1) {
       S.profil = PROFILE[ent.profil] ? ent.profil : S.profil; $('profilwahl').value = S.profil;

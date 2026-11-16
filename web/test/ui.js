@@ -814,6 +814,27 @@ function pruef(name, bed, info) {
   await planReiter(page, 'route'); await page.fill('#etappen input[data-tag="1"]', '07:30'); await page.dispatchEvent('#etappen input[data-tag="1"]', 'change');
   const etPlan2 = await page.textContent('#etappen');
   pruef('Etappen: eigene Startzeit an Tag 2', /Start 0?9:00, Ankunft/.test(etPlan2) && /Start 0?7:30, Ankunft/.test(etPlan2) && (await page.inputValue('#etappen input[data-tag="1"]')) === '07:30', etPlan2);
+  // Übernachtung davor einfügen: die 7:30 gehört zur Hütte, also jetzt zu Tag 3 (nicht mehr zu Tag 2); streichen holt sie zurück
+  // Tipp auf das erste Teilstück (Start → Hütte) setzt dort ein Zwischenziel, 🛏 im Fenster macht es zur Übernachtung
+  const ersteMitte = await page.evaluate(() => {
+    for (const p of document.querySelectorAll('.leaflet-overlay-pane path.leaflet-interactive')) {
+      const q = p.getPointAtLength(p.getTotalLength() / 2), m = p.getScreenCTM(), x = q.x * m.a + m.e, y = q.y * m.d + m.f;
+      if (document.elementFromPoint(x, y) === p) return [x, y];
+    }
+    return null;
+  });
+  if (ersteMitte) await page.mouse.click(ersteMitte[0], ersteMitte[1]);
+  await page.waitForFunction(() => document.querySelectorAll('.wp').length === 4, null, { timeout: 8000 }).catch(() => {});
+  await page.evaluate(() => document.querySelectorAll('.wp')[1].click());
+  await page.waitForSelector('.leaflet-popup button:has-text("Hier übernachten")', { timeout: 5000 }).catch(() => {});
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.leaflet-popup button')].find(b => b.textContent.includes('Hier übernachten')); if (b) b.click(); });
+  await page.waitForSelector('#etappen input[data-tag="2"]', { timeout: 8000 }).catch(() => {});
+  const startNachEinfuegen = await page.$$eval('#etappen input[type=time]', l => l.map(x => x.dataset.tag + '=' + x.value));
+  pruef('Etappen: Startzeit wandert mit der Übernachtung (neue davor: Tag 3 statt Tag 2)', JSON.stringify(startNachEinfuegen) === '["1=","2=07:30"]', [ersteMitte, startNachEinfuegen]);
+  await page.click('#bZurueck'); await page.click('#bZurueck');   // Übernachtung und Zwischenziel zurücknehmen
+  await page.waitForFunction(() => !document.querySelector('#etappen input[data-tag="2"]') && document.querySelector('#etappen input[data-tag="1"]'), null, { timeout: 8000 }).catch(() => {});
+  const startNachStreichen = await page.$$eval('#etappen input[type=time]', l => l.map(x => x.dataset.tag + '=' + x.value));
+  pruef('Etappen: Übernachtung davor gestrichen, 7:30 wieder an Tag 2', JSON.stringify(startNachStreichen) === '["1=07:30"]', startNachStreichen);
   await (await page.$('#etappen')).screenshot({ path: path.join(OUT, '9d-etappen.png') });
   // Tag-Chips: nur Tag 2 zeigen (eine Etappenkarte, die Linie von Tag 1 blass), dann wieder alle
   const chips = await page.$$eval('#etappen .tag-chips .chip', l => l.map(c => c.textContent + '=' + c.getAttribute('aria-pressed')));
