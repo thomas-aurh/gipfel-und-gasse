@@ -29,7 +29,9 @@ function tourSpeichern() {
     // erneutes Speichern behält das ursprüngliche Datum (Statistik je Jahr)
     name, datum: ((liste.find(t => t.id === (S.tourId || '')) || {}).datum) || new Date().toISOString(),
     profil: S.profil, tempo: S.tempo, pace: S.pace,
-    wps: S.fest ? null : S.wps.map(w => (w.name || w.min || w.info || w.nacht) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0].concat(w.info || w.nacht ? [w.info || 0] : [], w.nacht ? [1] : []) : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
+    // [lat, lon, Name, Minuten, Info|0, Übernachtung 1|0, Notiz]: hintere Werte nur, wenn sie oder spätere gesetzt sind
+    wps: S.fest ? null : S.wps.map(w => (w.name || w.min || w.info || w.nacht || w.notiz) ? [+w.lat.toFixed(6), +w.lon.toFixed(6), w.name || '', +w.min || 0]
+      .concat(w.info || w.nacht || w.notiz ? [w.info || 0] : [], w.nacht || w.notiz ? [w.nacht ? 1 : 0] : [], w.notiz ? [w.notiz] : []) : [+w.lat.toFixed(6), +w.lon.toFixed(6)]),
     modus: S.modus,
     zeit: S.fest ? null : zeitplanLesen(),
     spur: spurPacken(e.pts),
@@ -248,7 +250,7 @@ function tourOeffnen(id) {
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
     S.fest = null;
-    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}, w[5] === 1 ? { nacht: true } : {}) : { lat: w[0], lon: w[1] });
+    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}, w[5] === 1 ? { nacht: true } : {}, typeof w[6] === 'string' && w[6] ? { notiz: w[6] } : {}) : { lat: w[0], lon: w[1] });
     tagesStartAnwenden(t.zeit && t.zeit.tage);
     if (t.modus) modusSetzen(t.modus, { karte: true });
     S.stuecke = planEntpacken(S.wps, S.profil, t.spur, t.stuecke);
@@ -567,7 +569,7 @@ function listeZeigen(ul, liste, leer) {
       '<span class="aktionen"><select class="ordner-knopf" title="In einen Ordner legen" aria-label="Ordner für „' + R.esc(t.name) + '“"></select><button title="Als GPX herunterladen">⬇</button><button title="Löschen">🗑</button></span>';
     li.onclick = () => tourAnsehen(t.id);
     const [bG, bL] = li.querySelectorAll('.aktionen button');
-    bG.onclick = ev => { ev.stopPropagation(); gpxHerunter(t.name, spurEntpacken(t.spur), t.wps ? t.wps.map((w, i) => ({ lat: w[0], lon: w[1], name: w[2] || (i === 0 ? 'Start' : 'Punkt ' + (i + 1)) })) : []); };
+    bG.onclick = ev => { ev.stopPropagation(); gpxHerunter(t.name, spurEntpacken(t.spur), t.wps ? t.wps.map((w, i) => ({ lat: w[0], lon: w[1], name: w[2] || (i === 0 ? 'Start' : 'Punkt ' + (i + 1)), notiz: typeof w[6] === 'string' ? w[6] : '' })) : []); };
     bL.onclick = ev => { ev.stopPropagation(); tourLoeschen(t.id); };
     const ok = li.querySelector('.ordner-knopf');
     ordnerOptionen(ok, t.ordner || '');
@@ -675,7 +677,7 @@ $('bSpeichern').onclick = tourSpeichern;
 $('bGpx').onclick = () => {
   if (!S.ergebnis) return;
   const n = (S.name || '').trim() || 'Gipfel-und-Gasse-Tour';
-  gpxHerunter(n, S.ergebnis.pts, S.wps.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Punkt ' + (i + 1)) })));
+  gpxHerunter(n, S.ergebnis.pts, S.wps.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name || (i === 0 ? 'Start' : i === S.wps.length - 1 ? 'Ziel' : 'Punkt ' + (i + 1)), notiz: w.notiz || '' })));
 };
 // nicht still scheitern: wer sich auf die Sicherung verlässt, muss wissen, dass keine Datei entstand
 $('bSichern').onclick = () => sicherungSpeichern().catch(e => melde('Sicherung fehlgeschlagen: ' + (e && e.message || e) + '. Es wurde keine Datei gespeichert.', 10));

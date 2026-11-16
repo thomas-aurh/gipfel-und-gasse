@@ -382,9 +382,9 @@ function naviNeu() {
     }
   } else { U.abseitsSeit = 0; U.gewarnt = false; $('abseits').hidden = true; }
   punktAlarmPruefen(e, lage);
-  // Führung: am Stopp (30 m) einmal die Kurzinfo vorlesen
-  if (FUEHRUNG.size && lage.abw < 40 && e.stueckEnde && !S.fest) plan.wps.forEach((w, i) => {
-    const k = fuehrungSchluessel(w), text = i > 0 && FUEHRUNG.get(k), d = e.stueckEnde[i - 1];
+  // Führung und Notizen: am Stopp (30 m) einmal die Kurzinfo bzw. die Notiz vorlesen
+  if ((FUEHRUNG.size || plan.wps.some(w => w.notiz)) && lage.abw < 40 && e.stueckEnde && !S.fest) plan.wps.forEach((w, i) => {
+    const k = fuehrungSchluessel(w), text = i > 0 && stoppVorlesen(w), d = e.stueckEnde[i - 1];
     if (text && d != null && !U.vorgelesen.has(k) && Math.abs(d - lage.d) <= 30) { U.vorgelesen.add(k); sagenBrowser(text); }
   });
   if (rest.meter < 30 && lage.abw < 40 && lage.d > e.laenge / 2 && Date.now() - U.naviStart > 60000) { melde(plan.tag != null && plan.tag < etappenAktuell().length - 1 ? 'Etappe ' + (plan.tag + 1) + ' geschafft. Gute Nacht!' : 'Ziel erreicht. Schön war’s!', 6); $('bNavi').click(); }
@@ -396,6 +396,12 @@ function naviNeu() {
 // umsortierter oder verschobener Stopp seinen Text behält und kein anderer ihn bekommt.
 const FUEHRUNG = new Map();
 const fuehrungSchluessel = w => (w.name || '') + '@' + w.lat.toFixed(4) + ',' + w.lon.toFixed(4);
+// was am Stopp vorgelesen wird: Notiz (mit Namen) und Kurzinfo der Führung; '' ohne beides
+function stoppVorlesen(w) {
+  const info = FUEHRUNG.get(fuehrungSchluessel(w)) || '';
+  if (!w.notiz) return info;
+  return ((w.name ? w.name + '. ' : '') + 'Notiz: ' + w.notiz.replace(/[.!?]?$/, '.') + (info ? ' ' + info : '')).trim();
+}
 $('fuehrung').checked = SPEICHER.lesen('fuehrung', false);
 $('fuehrung').onchange = e => { SPEICHER.schreiben('fuehrung', e.target.checked); if (!e.target.checked) fuehrungAus(); };
 let fuehrungNr = 0;   // jedes Laden zählt: eine späte Antwort eines früheren Ladens schreibt nicht mehr hinein

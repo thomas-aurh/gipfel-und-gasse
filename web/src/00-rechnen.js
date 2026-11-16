@@ -772,7 +772,7 @@ var R = (function () {
     z.push('<?xml version="1.0" encoding="UTF-8"?>');
     z.push('<gpx version="1.1" creator="Gipfel und Gasse" xmlns="http://www.topografix.com/GPX/1/1">');
     z.push('<metadata><name>' + esc(name) + '</name><copyright author="OpenStreetMap-Mitwirkende"><license>https://opendatacommons.org/licenses/odbl/</license></copyright></metadata>');
-    (wegpunkte || []).forEach((w, i) => z.push('<wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '"><name>' + esc(w.name || ('Punkt ' + (i + 1))) + '</name></wpt>'));
+    (wegpunkte || []).forEach((w, i) => z.push('<wpt lat="' + w.lat.toFixed(6) + '" lon="' + w.lon.toFixed(6) + '"><name>' + esc(w.name || ('Punkt ' + (i + 1))) + '</name>' + (w.notiz ? '<desc>' + esc(w.notiz) + '</desc>' : '') + '</wpt>'));
     z.push('<trk><name>' + esc(name) + '</name><trkseg>');
     for (const p of pts) {
       if (p.luecke) z.push('</trkseg><trkseg>');
@@ -1123,8 +1123,10 @@ var R = (function () {
         const p = [w[0], w[1], text(w[2], 120) || '', Math.max(0, zahl(w[3]) || 0)];
         // fünfter Wert: Öffnungszeiten und Wikipedia des Stopps aus OSM (nur bekannte Felder, geprüft)
         const info = w[4] && typeof w[4] === 'object' && !Array.isArray(w[4]) ? infoPruefen(w[4]) : null;
-        if (info || w[5] === 1) p.push(info || 0);
-        if (w[5] === 1) p.push(1);   // sechster Wert: Übernachtung (Mehrtagestour)
+        const notiz = (text(w[6], 300) || '').trim();   // siebter Wert: Notiz zum Punkt
+        if (info || w[5] === 1 || notiz) p.push(info || 0);
+        if (w[5] === 1 || notiz) p.push(w[5] === 1 ? 1 : 0);   // sechster Wert: Übernachtung (Mehrtagestour)
+        if (notiz) p.push(notiz);
         wps.push(p);
       }
     }

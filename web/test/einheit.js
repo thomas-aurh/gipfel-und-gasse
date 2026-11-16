@@ -269,6 +269,13 @@ pruef('Sicherung: HTML in Kennzahlen wird zur Zahl, Datum bleibt', geprueft[0].k
 pruef('Sicherung: kaputte Spur fällt weg', !geprueft.some(t => t.id === 'y'));
 pruef('Sicherung: passende Teilstücke bleiben (Planung)', geprueft.find(t => t.id === 'z').stuecke.length === 1 && geprueft.find(t => t.id === 'z').art === 'plan');
 pruef('Sicherung: unpassende Teilstücke → Tour als Spur', geprueft.find(t => t.id === 'w').stuecke === null && geprueft.find(t => t.id === 'w').art === 'spur');
+// Notiz am Punkt: siebter Wert; ohne Übernachtung steht davor 0, kein Text wird nicht mitgenommen
+const mitNotiz = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'n', name: 'N', spur: [[47, 11, null], [47.01, 11.01, null]],
+  wps: [[47, 11, 'Start', 0, 0, 0, '  Wasser auffüllen '], [47.005, 11.005, 'Hütte', 0, 0, 1, 'Frühstück ab 7'], [47.01, 11.01, '', 0, 0, 0, 42]],
+  stuecke: [{ n: 2, q: 'linie', a: [] }, { n: 2, q: 'linie', a: [] }], spur: [[47, 11, null], [47.005, 11.005, null], [47.01, 11.01, null]], art: 'plan', kurz: { laenge: 1 } }] }))[0];
+pruef('Sicherung: Notizen an Punkten bleiben, Übernachtung daneben', JSON.stringify(mitNotiz.wps) === JSON.stringify([[47, 11, 'Start', 0, 0, 0, 'Wasser auffüllen'], [47.005, 11.005, 'Hütte', 0, 0, 1, 'Frühstück ab 7'], [47.01, 11.01, '', 0]]), mitNotiz.wps);
+const gpxNotiz = R.gpxSchreiben('N', pts, [{ lat: 47.75, lon: 11.37, name: 'Brunnen', notiz: 'Wasser <frisch>' }, { lat: 47.76, lon: 11.38, name: 'Ziel' }]);
+pruef('GPX: Notiz als desc des Wegpunkts', gpxNotiz.includes('<name>Brunnen</name><desc>Wasser &lt;frisch&gt;</desc></wpt>') && !gpxNotiz.includes('<name>Ziel</name><desc>'));
 let sichFehler = ''; try { R.sicherungLesen('{"app":"anders","touren":[]}'); } catch (e) { sichFehler = e.message; }
 pruef('Sicherung lesen: fremde Datei abgelehnt', sichFehler.includes('keine Sicherung'));
 
