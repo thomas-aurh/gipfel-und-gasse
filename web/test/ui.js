@@ -2221,9 +2221,22 @@ function pruef(name, bed, info) {
   await pt.reload(); await pt.waitForTimeout(500);
   // auf der reinen Karte planen: Start antippen meldet sich, mit dem Ziel geht es zum Planen mit dem Ergebnis
   const kk = await (await pt.$('#karte')).boundingBox();
+  // mit dem Finger setzt erst langes Drücken einen Punkt (ein kurzer Tipp nur den Hinweis)
+  const cdp = await tel.newCDPSession(pt);
+  const halten = async (x, y, ms) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: kk.x + x, y: kk.y + y }] });
+    await pt.waitForTimeout(ms);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await pt.waitForTimeout(250);
+  };
+  pruef('Telefon: Hinweis nennt langes Drücken', (await pt.textContent('#leerHinweis')).includes('Lange auf die Karte drücken'), await pt.textContent('#leerHinweis'));
   await pt.tap('#karte', { position: { x: kk.width * 0.35, y: kk.height * 0.45 } }); await pt.waitForTimeout(250);
-  pruef('Telefon: Start auf der reinen Karte wird gemeldet', (await pt.textContent('#meldung')).includes('Start gesetzt'));
-  await pt.tap('#karte', { position: { x: kk.width * 0.6, y: kk.height * 0.3 } });
+  pruef('Telefon: kurzer Tipp setzt keinen Punkt, sagt, wie es geht', (await pt.$$('.wp')).length === 0 && (await pt.textContent('#meldung')).includes('länger'), await pt.textContent('#meldung'));
+  await halten(kk.width * 0.35, kk.height * 0.45, 250);
+  pruef('Telefon: zu kurz gedrückt setzt keinen Punkt', (await pt.$$('.wp')).length === 0);
+  await halten(kk.width * 0.35, kk.height * 0.45, 800);
+  pruef('Telefon: Start auf der reinen Karte (lange gedrückt) wird gemeldet', (await pt.$$('.wp')).length === 1 && (await pt.textContent('#meldung')).includes('Start gesetzt'), await pt.textContent('#meldung'));
+  await halten(kk.width * 0.6, kk.height * 0.3, 800);
   await pt.waitForSelector('#ergebnis:not([hidden])', { state: 'attached', timeout: 8000 });
   pruef('Telefon: erste Route auf der Karte öffnet Planen', await pt.evaluate(() => !document.body.classList.contains('ohneBlatt') &&
     document.querySelector('section[data-reiter=planen]').classList.contains('an')) && await pt.isVisible('#planReiter') && (await pt.textContent('#kopfZahlen')).includes('km'));

@@ -35,10 +35,10 @@ function infoModus(an) {
   $('bInfo').classList.toggle('an', an);
   $('bInfo').setAttribute('aria-pressed', String(an));
   $('infoHinweis').hidden = !an;
-  $('leerHinweis').textContent = an ? 'ℹ️ Info ist an: Antippen zeigt, was dort ist. Zum Planen ✏️ tippen oder ℹ️ rechts ausschalten.' : '👆 Tippe auf die Karte, um den Start zu setzen.';
+  $('leerHinweis').textContent = an ? 'ℹ️ Info ist an: Antippen zeigt, was dort ist. Zum Planen ✏️ tippen oder ℹ️ rechts ausschalten.' : (FINGER ? '👆 Lange auf die Karte drücken, um den Start zu setzen.' : '👆 Tippe auf die Karte, um den Start zu setzen.');
 }
-$('bInfo').onclick = () => { infoModus(!infoAn); melde(infoAn ? 'Info: Antippen zeigt, was dort ist.' : 'Planen: Antippen setzt Punkte.'); };
-$('bInfoAus').onclick = () => { infoModus(false); melde('Planen: Antippen setzt Punkte.'); };
+$('bInfo').onclick = () => { infoModus(!infoAn); melde(infoAn ? 'Info: Antippen zeigt, was dort ist.' : FINGER ? 'Planen: langes Drücken setzt Punkte.' : 'Planen: Antippen setzt Punkte.'); };
+$('bInfoAus').onclick = () => { infoModus(false); melde(FINGER ? 'Planen: langes Drücken setzt Punkte.' : 'Planen: Antippen setzt Punkte.'); };
 infoModus(infoAn);
 
 // benannte Orte aus dem Kartenpaket um einen Punkt; [] ohne Paket
