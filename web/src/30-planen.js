@@ -458,16 +458,43 @@ function zeitplanZeigen() {
 // Zeitplan der Planung (Tag, Startzeit, Pausen): gehört zu Entwurf und Tour
 function zeitplanLesen() {
   const z = { tag: $('startTag').value || '', start: $('startZeit').value || '', pause: +$('pausewahl').value || 0 };
-  const tage = (S.tagesStart || []).slice();
+  const tage = tagesStartListe();
   while (tage.length && !tage[tage.length - 1]) tage.pop();
   if (tage.length) z.tage = tage;
   return z.tag || z.start || z.pause || z.tage ? z : null;
 }
+// Eigene Startzeit eines Tages der Mehrtagestour: hängt an der Übernachtung davor (w.start), nicht an der Nummer des
+// Tages. Wer davor eine Übernachtung einfügt oder streicht, verschiebt sie so nicht auf einen anderen Tag.
+// Gespeichert wird weiter die Liste zeit.tage (Index = Tag − 1), beim Laden kommt sie zurück an die Übernachtungen.
+// Index der Übernachtung vor Tag k+1 (k ≥ 1: die k-te zwischen Start und Ziel), sonst −1
+function nachtVorTag(k) {
+  let n = 0;
+  for (let i = 1; i < S.wps.length - 1; i++) if (S.wps[i] && S.wps[i].nacht && ++n === k) return i;
+  return -1;
+}
+function eigenerStart(k) { const i = k > 0 ? nachtVorTag(k) : -1; return (i > 0 && S.wps[i].start) || ''; }
+// Liste wie zeit.tage: [Tag 1 (immer leer), Tag 2, …]
+function tagesStartListe() {
+  const tage = [''];
+  for (let i = 1; i < S.wps.length - 1; i++) if (S.wps[i] && S.wps[i].nacht) tage.push(S.wps[i].start || '');
+  return tage;
+}
+// zeit.tage auf die Übernachtungen der geladenen Wegpunkte legen
+function tagesStartAnwenden(tage) {
+  if (!Array.isArray(tage)) return;
+  let k = 0;
+  for (let i = 1; i < S.wps.length - 1; i++) {
+    if (!S.wps[i] || !S.wps[i].nacht) continue;
+    k++;
+    const w = Object.assign({}, S.wps[i]);
+    if (/^\d{2}:\d{2}$/.test(tage[k] || '')) w.start = tage[k]; else delete w.start;
+    S.wps[i] = w;
+  }
+}
 // Startzeit an Tag k+1 einer Mehrtagestour ('HH:MM'): eigene, sonst die von Tag 1; '' ohne Startzeit
-function tagStart(k) { return (k > 0 && S.tagesStart && S.tagesStart[k]) || $('startZeit').value || ''; }
+function tagStart(k) { return eigenerStart(k) || $('startZeit').value || ''; }
 const minutenAus = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 function zeitplanSetzen(z) {
-  S.tagesStart = z && Array.isArray(z.tage) ? z.tage.slice() : [];
   $('startTag').value = (z && z.tag) || '';
   $('startZeit').value = (z && z.start) || '';
   $('pausewahl').value = String((z && z.pause) || 0);
@@ -592,7 +619,7 @@ function tageTeilen(z) {
   const auf = z > 1 ? R.tagesAufteilung(e.pts, e.stueckEnde, S.wps, z, tempoAktuell(), artAktuell()) : { nacht: [], neu: [] };
   const nacht = new Set(auf.nacht);
   // automatisch gesetzte Punkte, die nicht mehr gebraucht werden, fallen weg; benannte und eigene Punkte bleiben
-  let wps = S.wps.map((w, i) => { const x = Object.assign({}, w); delete x.nacht; if (nacht.has(i)) x.nacht = true; x._i = i; return x; });
+  let wps = S.wps.map((w, i) => { const x = Object.assign({}, w); delete x.nacht; if (nacht.has(i)) x.nacht = true; else delete x.start; x._i = i; return x; });
   for (const p of auf.neu.slice().sort((a, b) => b.vor - a.vor)) wps.splice(wps.findIndex(w => w._i === p.vor), 0, { lat: p.lat, lon: p.lon, nacht: true, auto: true });
   wps = wps.filter((w, i) => !(w.auto && !w.nacht && i > 0 && i < wps.length - 1));
   wps.forEach(w => delete w._i);
@@ -627,7 +654,7 @@ function nachtAnRaendernWeg() {
   const n = S.wps.length;
   for (const i of n ? [0, n - 1] : []) {
     if (!S.wps[i] || !S.wps[i].nacht) continue;
-    const w = Object.assign({}, S.wps[i]); delete w.nacht; S.wps[i] = w;
+    const w = Object.assign({}, S.wps[i]); delete w.nacht; delete w.start; S.wps[i] = w;
     melde('Die Übernachtung lag jetzt am ' + (i === 0 ? 'Start' : 'Ziel') + ' und ist entfernt.', 5);
   }
 }
@@ -635,7 +662,7 @@ function nachtUmschalten(i) {
   if (i <= 0 || i >= S.wps.length - 1) return;
   merken();
   const w = Object.assign({}, S.wps[i]);
-  if (w.nacht) delete w.nacht; else w.nacht = true;
+  if (w.nacht) { delete w.nacht; delete w.start; } else w.nacht = true;
   S.wps[i] = w;
   zeichenWegpunkte(); zeichenRoute(); zeigen(); entwurfSichern();
   melde(w.nacht ? 'Übernachtung eingetragen: Tag ' + (stueckTag(i) + 1) + ' beginnt hier (siehe Reiter Route).' : 'Übernachtung entfernt.', 5);
@@ -667,7 +694,7 @@ function etappenZeigen(et, tag, startZeit, pause) {
     for (let i = k === 0 ? 0 : s.von + 1; i <= s.bis; i++) besicht += +S.wps[i].min || 0;   // Tag 1 mit der Besichtigung am Start
     const zeit = s.zeit + besicht / 60;
     const unter = s.ziel ? R.sonnenuntergang(d, s.ziel.lat, s.ziel.lon) : null;
-    const sz = k && S.tagesStart && S.tagesStart[k] ? S.tagesStart[k].split(':').map(Number) : startZeit;
+    const sz = eigenerStart(k) ? eigenerStart(k).split(':').map(Number) : startZeit;
     const start = sz ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), sz[0], sz[1]) : null;
     const z = R.zeitplan(start, zeit, pause, unter);
     const zuLang = unter && zuLangFuerTag(z.spaetestens, d);
@@ -701,14 +728,16 @@ function etappenZeigen(et, tag, startZeit, pause) {
       lab.className = 'klein etappe-start';
       lab.textContent = 'Start an Tag ' + (k + 1) + ' ';
       const inp = document.createElement('input');
-      inp.type = 'time'; inp.step = 300; inp.value = (S.tagesStart && S.tagesStart[k]) || ''; inp.dataset.tag = k;
+      inp.type = 'time'; inp.step = 300; inp.value = eigenerStart(k); inp.dataset.tag = k;
       const leer = document.createElement('small');
       leer.textContent = inp.value ? '' : ' leer: wie Tag 1' + ($('startZeit').value ? ' (' + $('startZeit').value + ')' : '');
       inp.title = 'leer: wie an Tag 1' + ($('startZeit').value ? ' (' + $('startZeit').value + ')' : '');
       inp.onchange = () => {
-        S.tagesStart = (S.tagesStart || []).slice();
-        while (S.tagesStart.length <= k) S.tagesStart.push('');
-        S.tagesStart[k] = /^\d{2}:\d{2}$/.test(inp.value) ? inp.value : '';
+        const i = nachtVorTag(k);
+        if (i < 0) return;
+        const w = Object.assign({}, S.wps[i]);
+        if (/^\d{2}:\d{2}$/.test(inp.value)) w.start = inp.value; else delete w.start;
+        S.wps[i] = w;
         entwurfSichern(); zeitplanZeigen();
         if (typeof stoppsZeigen === 'function') stoppsZeigen();
       };
@@ -1018,7 +1047,7 @@ $('profilwahl').onchange = e => {
   // weg von der Mehrtagestour: Übernachtungen und gesetzte Punkte zurück (Rückgängig holt sie wieder)
   if (vorher === 'mehrtag' && S.profil !== 'mehrtag' && S.wps.some(w => w.nacht)) {
     merken();
-    S.wps = S.wps.filter((w, i) => !(w.auto && i > 0 && i < S.wps.length - 1)).map(w => { const x = Object.assign({}, w); delete x.nacht; delete x.auto; return x; });
+    S.wps = S.wps.filter((w, i) => !(w.auto && i > 0 && i < S.wps.length - 1)).map(w => { const x = Object.assign({}, w); delete x.nacht; delete x.auto; delete x.start; return x; });
     melde('Wieder eine Tagestour.', 7, RUECK);
   }
   if (S.profil === 'mehrtag') mehrtagGeteilt.clear();
