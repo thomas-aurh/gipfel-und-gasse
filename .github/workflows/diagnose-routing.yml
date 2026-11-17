@@ -1,0 +1,25 @@
+name: Diagnose Routing (vorübergehend)
+on:
+  push:
+    branches: [claude/vibrant-babbage-vqsega]
+    paths: [".github/workflows/diagnose-routing.yml"]
+permissions:
+  contents: read
+jobs:
+  brouter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Anfragen wie die App an brouter.de
+        run: |
+          B="https://brouter.de/brouter"
+          L="lonlats=11.383000,47.760000|11.385000,47.753000"
+          E="&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1"
+          for P in "profile=hiking-mountain" \
+                   "profile=hiking-mountain&profile:SAC_scale_limit=2&profile:SAC_scale_preferred=1&profile:hiking_routes_preference=0&profile:path_preference=2" \
+                   "profile=trekking"; do
+            echo "=== $P"
+            curl -sS -m 40 -o antwort.txt -w "HTTP %{http_code} in %{time_total}s\n" "$B?$L&$P$E" || echo "curl-Fehler $?"
+            head -c 400 antwort.txt; echo
+          done
+          echo "=== Höhen Open-Meteo"
+          curl -sS -m 20 -w "\nHTTP %{http_code} in %{time_total}s\n" "https://api.open-meteo.com/v1/elevation?latitude=47.76&longitude=11.383" | head -c 300
