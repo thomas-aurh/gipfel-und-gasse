@@ -376,7 +376,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
-- **17.11. (PR folgt)** Schatten: Waldanteil der Route mit längstem offenem Stück und offenen Stücken auf der Karte;
+- **17.11. (PR #124)** Schatten: Waldanteil der Route mit längstem offenem Stück und offenen Stücken auf der Karte;
   Jahreskarte unter Gegangen mit Summen, Rekorden und Gipfeln. Einheitstests 388, Klicktest 490.
 
 - **17.11. (PR #122, Bau 310)** Umkehrzeit im Zeitplan und unterwegs (Warnung 15 min vorher, bei der Umkehrzeit und bei Ankunft
