@@ -60,7 +60,15 @@ if (NATIV) {
       const prof = (PROFILE[S.profil] || PROFILE.wandern).brouter;
       opt.profil = S.fest || !prof ? null : prof;
       opt.ziele = S.fest ? [] : plan.wps.slice(1).map((w, i) => [w.lat, w.lon, e.stueckEnde[i], +w.min || 0, w.name || '']);
+      // Umkehrzeit und Dunkelgrenze für heute (ms; 0 = aus): der Dienst warnt und sagt an, auch bei gesperrtem Bildschirm
+      const dk = dunkelFuer(plan);
+      opt.dunkelAb = dk.dunkelAb; opt.untergang = dk.untergang ? dk.untergang.valueOf() : 0; opt.umkehrD = dk.umkehrD; opt.umkehrZeit = dk.umkehrZeit;
+      // Ort des Umkehrpunkts: nach dem Umplanen legt der Dienst ihn auf die neue Strecke
+      if (dk.umkehrOrt) { opt.umkehrLat = dk.umkehrOrt.lat; opt.umkehrLon = dk.umkehrOrt.lon; }
     }
+    // Ausstiege [Meter ab Start, Name, Breite, Länge] für die Warnungen; kommen sie erst nach dem Start, schickt ausstiegeGeladen sie nach
+    const aus = e && ausstiegeFuerPlan(plan);
+    if (aus) opt.ausstiege = aus.map(a => [a.d, a.name, a.lat, a.lon]);
     try {
       const st = await Navi.starten(opt);
       anzeigen(st);
@@ -76,7 +84,7 @@ if (NATIV) {
   function knoepfe() {
     $('bNavi').textContent = app.folgen ? '■ Folgen beenden' : '▶ Route folgen';
     $('bAufz').textContent = app.aufz ? '■ Aufzeichnung beenden' : '⏺ Aufzeichnung starten';
-    if (!app.folgen) { $('abseits').hidden = true; ebeneUmplan.clearLayers(); app.umgeplant = 0; }
+    if (!app.folgen) { $('abseits').hidden = true; ebeneUmplan.clearLayers(); app.umgeplant = 0; sicherAus(); }
   }
 
   // der Dienst hat unterwegs neu geplant: neue Strecke holen und zeigen
@@ -148,6 +156,8 @@ if (NATIV) {
       if (!st.umgeplant && app.umgeplant) { ebeneUmplan.clearLayers(); app.umgeplant = 0; }   // neue Route aus der App
       umplanZeigen(st);
       if (st.abseits) $('abseits').textContent = R.abseitsText(st.abw, start);
+      // Ausstieg, Umkehrzeit (die Ansage macht der Dienst), Akku aus dem Dienst
+      if (app.folgen && ne) sicherZeigen({ d: Math.max(0, ne.laenge - st.rest.meter), rest: st.rest.stunden, akku: st.akku || null });
     }
     if (warFolgen && !app.folgen && st.rest && st.rest.meter < 50) melde('Ziel erreicht. Schön war’s!', 6);
     gewitterZeigen(st.gewitter || null);
@@ -169,6 +179,8 @@ if (NATIV) {
     }
   }
   Navi.addListener('position', anzeigen);
+  // Ausstiege kamen nach dem Start: an den Dienst (für die Warnungen)
+  ausstiegeGeladen = () => { if (app.folgen) senden(false).catch(() => {}); };
   // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
   $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
   // anderer Abstand oder aus: Stopps samt Punkten neu an den Dienst
@@ -185,6 +197,7 @@ if (NATIV) {
     try {
       if ($('fuehrung').checked) $('bNavi').textContent = '… Führung wird geladen';
       await fuehrungLaden();   // Texte vorher holen: unterwegs ist oft kein Netz
+      sicherStart();
       app.folgen = true;
       U.folgen = true; $('bOrt').classList.add('an');
       await senden(true).catch(() => {});

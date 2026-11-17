@@ -238,6 +238,7 @@
             <div class="knopfreihe"><button class="knopf" id="bBescheidPlan">📣 Bescheid geben</button></div>
             <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
             <div class="pack-box"><button class="knopf" data-pack="planen" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
+            <div id="ausstiegBox"><button class="knopf" id="bAusstiege">🚪 Ausstiege entlang der Route</button><div id="ausstiegStatus" class="klein"></div><ul id="ausstiegListe" class="liste"></ul></div>
             <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
             <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           </div>
@@ -324,6 +325,9 @@
           <div class="zahl"><b id="uAuf">–</b><span>noch bergauf</span></div>
         </div>
         <div id="uAnkunft" class="klein"></div>
+        <div id="uAusstieg" class="klein" hidden></div>
+        <div id="uAkku" class="klein" hidden></div>
+        <div id="uSicher" class="hinweis warnung" style="white-space:pre-line" hidden></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
         <h3>Aufzeichnen</h3>
         <div class="zahlen unterwegs-zahlen">
@@ -582,6 +586,15 @@
           <dt>📔 Reisetagebuch</dt><dd>Für Urlaub und Ausflüge: je Reise Einträge mit Text und Fotos, Ort und Wetter kommen von selbst dazu.
             Alles bleibt auf diesem Gerät; „Sicherung speichern“ nimmt es mit.</dd>
           <dt>⭐ Reiseziele</dt><dd>Ideen fürs nächste Mal sammeln: Gipfel, Städte, Seen, Hütten. Je Liste beliebig viele Ziele; sie stehen als ⭐ auf der Karte.</dd>
+          <dt>⛰️ Umkehrzeit</dt><dd>Im Zeitplan (Planen › Vorbereiten): bis wann du am höchsten Punkt sein solltest, damit du 30 min vor
+            Sonnenuntergang am Ziel bist (mit Pausen und Besichtigungen danach). Unterwegs kommt eine Warnung 15 min vorher, bei der
+            Umkehrzeit und wenn die Ankunft nach der Dunkelheit läge; die App sagt sie auch bei gesperrtem Bildschirm an. Nur am Berg,
+            gerechnet mit deinem gewählten Tempo.</dd>
+          <dt>🚪 Ausstiege</dt><dd>Wo du eine Tour abbrechen kannst: Bus und Bahn, Bergbahn (nur zu ihren Betriebszeiten), Parkplatz und Hütten
+            bis 400 m neben der Route, aus OpenStreetMap (ohne Netz aus dem Kartenpaket). Unterwegs steht der nächste vorn und zurück;
+            die Warnungen zur Umkehrzeit nennen ihn.</dd>
+          <dt>🔋 Akku</dt><dd>Beim Folgen misst die App den Verbrauch über die letzte Stunde und schätzt, wie lange der Akku reicht. Reicht er nicht
+            bis zum Ziel plus 30 min, oder sind es nur noch 15 %, warnt sie einmal. Die Schätzung steht nach etwa 10 min.</dd>
           <dt>⛰️ Gipfelbuch</dt><dd>Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
             aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</dd>
         </dl>

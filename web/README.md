@@ -20,7 +20,7 @@ HTML-Datei, ohne Konto und ohne eigenen Server. Die Idee kommt von Apps wie komo
 | **Kinderwagen** | Einschätzung ja, mit Mühe, eher nicht oder unklar, mit Gründen (Treppen, Bergwege, Pfade, Naturboden, Steigung). |
 | **Entdecken** | Wetter für drei Tage am Start mit Gewitterwarnung und Sonnenuntergang. Orte entlang der Route: Hütten und Einkehr, Gipfel und Aussicht, Trinkwasser, Spielplätze, Baden, Rastplätze, Wasserfälle, Bus und Bahn, Toiletten, Parkplätze. Ohne Route rund um die Kartenmitte. |
 | **Suche** | Orte, Gipfel, Hütten (während des Tippens). Treffer als Start oder nächster Punkt übernehmen. |
-| **Unterwegs** | Standort, Route folgen (Rest in km, Restzeit, noch bergauf, Ankunft, Warnung mit Vibration, wenn man mehr als 50 m abseits ist), Aufzeichnen und als Tour speichern. Hält den Bildschirm wach. |
+| **Unterwegs** | Standort, Route folgen (Rest in km, Restzeit, noch bergauf, Ankunft, Warnung mit Vibration, wenn man mehr als 50 m abseits ist), Aufzeichnen und als Tour speichern. Hält den Bildschirm wach. Nächster Ausstieg vorn und zurück, Warnung vor der Umkehrzeit und vor Dunkelheit, Akku-Schätzung gegen die Restzeit. |
 | **Touren** | speichern im Browser, öffnen, löschen (zweimal tippen), GPX herunterladen und öffnen, alle als GPX sichern, Link teilen. |
 | **Ort-Link** | `…/gipfel-und-gasse/#ort-<Breite>_<Länge>~<Name>` öffnet die Karte an diesem Ort mit Markierung und Namen wie ein Suchtreffer („Als Start“ bzw. „Als Ziel“); eine offene Planung bleibt. Der Name ist URL-kodiert und darf fehlen. Zenithora (Repo other-projects) verlinkt so bei jeder Urlaubsidee hierher. |
 | **Karten** | OpenTopoMap (topografisch) oder Stadtplan (OpenStreetMap Standard), darüber markierte Wanderwege, Radrouten (Waymarked Trails) oder die Sehenswürdigkeiten, die Gipfel & Gasse selbst aus OSM-Daten zeichnet. |
@@ -100,6 +100,7 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 | `src/65-tagebuch.js` | Reisetagebuch: Reisen, Einträge mit Fotos, Ort und Wetter, Heft (PDF) |
 | `src/67-ziele.js` | Reiseziele: Listen, ⭐-Ebene, eintippen, Liste einfügen, Datei laden (Text, CSV, GPX, KML, GeoJSON), als GPX |
 | `src/70-unterwegs.js` | GPS, Route folgen, Aufzeichnen, Bildschirm wach halten |
+| `src/72-sicherheit.js` | Ausstiege entlang der Route (Planen und Unterwegs), Warnungen zu Umkehrzeit und Dunkelheit, Akku-Schätzung; in der App sagt der Dienst die Warnungen an |
 | `src/75-app.js` | in der App: Route folgen und Aufzeichnen über den Navigationsdienst, GPX über Teilen, Drucken über Android |
 | `src/80-start.js` | Reiter, Blatt unten, Entwurf und Link beim Start |
 | `vendor/leaflet/` | Leaflet 1.9.4 (unverändert aus npm) |
@@ -119,6 +120,11 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 - **Rundgang:** Reihenfolge nach Luftlinie, erst „nächster Nachbar“, dann 2-opt (Teilstücke umdrehen, solange die Runde
   kürzer wird). Für bis zu zehn Orte reicht das; die Wege selbst rechnet danach BRouter.
 - **Besichtigungszeit:** Vorschlag je Art (Museum 60, Sehenswürdigkeit 20, bekannte 30, Park 20, Aussicht 15, Kunst 5 min).
+- **Umkehrzeit:** höchster Punkt der Route (nur wenn danach noch mindestens 500 m bzw. 10 % kommen und er mindestens 100 m
+  über dem tiefsten liegt); Umkehrzeit = Sonnenuntergang am Ziel − 30 min − Zeit vom höchsten Punkt bis zum Ziel (samt
+  Besichtigungen danach und anteiligen Pausen). Unterwegs: Ankunft = jetzt + Restzeit, Warnung, wenn sie hinter
+  Sonnenuntergang − 30 min liegt.
+- **Akku:** Verbrauch je Stunde über die letzte Stunde (erst ab 10 min und 2 % Verbrauch), Rest geteilt durch Verbrauch.
 - **Abseits der Route:** mehr als 50 m (oder 1,5 × GPS-Ungenauigkeit) für mindestens 15 Sekunden.
 
 ## Grenzen

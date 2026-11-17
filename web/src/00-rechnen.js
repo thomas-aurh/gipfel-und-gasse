@@ -997,6 +997,109 @@ var R = (function () {
     return out;
   }
 
+  // ---------- Umkehrzeit ----------
+  // Umkehrpunkt: der höchste Punkt der Route (meist der Gipfel), an dem man spätestens umdrehen sollte. null ohne Höhen,
+  // oder wenn danach kaum noch etwas kommt (Gipfel ist das Ziel) bzw. davor kaum etwas lag (Tour geht nur bergab):
+  // dann hat eine Umkehrzeit keinen Sinn. { d (Meter ab Start), ele, lat, lon }
+  function umkehrPunkt(pts) {
+    if (!pts || pts.length < 2) return null;
+    const ges = pts[pts.length - 1].d;
+    let best = null;
+    for (const p of pts) if (p.ele != null && isFinite(p.ele) && (!best || p.ele > best.ele)) best = p;
+    if (!best || ges < 1000 || best.d < Math.max(300, ges * 0.05) || ges - best.d < Math.max(500, ges * 0.1)) return null;
+    // ebene Tour: kein Gipfel, an dem man umdreht (höchster Punkt kaum über dem Start)
+    const tief = Math.min(...pts.filter(p => p.ele != null && isFinite(p.ele)).map(p => p.ele));
+    if (best.ele - tief < 100) return null;
+    return { d: best.d, ele: Math.round(best.ele), lat: best.lat, lon: best.lon };
+  }
+  // spätestens dort sein: Dunkelgrenze (Sonnenuntergang minus Reserve) minus der Zeit vom Umkehrpunkt bis zum Ziel
+  // (Stunden, samt Pausen und Besichtigungen danach). null ohne Sonnenuntergang.
+  function umkehrZeit(untergang, restStunden, reserveMin) {
+    if (!untergang) return null;
+    return new Date(untergang.valueOf() - (reserveMin == null ? 30 : reserveMin) * 60000 - restStunden * 3600e3);
+  }
+  // Unterwegs: welche Warnungen jetzt fällig sind (jede einmal je Navigation, die Merker hält der Aufrufer).
+  // o: { jetzt, ankunft (ms), dunkelAb (ms, Untergang − Reserve; 0 = aus), umkehrD, umkehrZeit (ms; 0 = keine), d (Fortschritt) }
+  // 'umkehrBald': noch vor dem Umkehrpunkt und höchstens 15 min bis zur Umkehrzeit; 'umkehr': Umkehrzeit vorbei, Punkt
+  // noch nicht erreicht; 'knapp': Ankunft nach der Dunkelgrenze. Gleich gerechnet im Dienst der App (NaviRechnen.dunkelLage).
+  function dunkelLage(o) {
+    const out = [];
+    if (!o.dunkelAb) return out;
+    const vorUmkehr = o.umkehrZeit && o.umkehrD > 0 && o.d != null && o.d < o.umkehrD - 50;
+    if (vorUmkehr && o.jetzt >= o.umkehrZeit) out.push('umkehr');
+    else if (vorUmkehr && o.jetzt >= o.umkehrZeit - 15 * 60000) out.push('umkehrBald');
+    if (o.ankunft > o.dunkelAb) out.push('knapp');
+    return out;
+  }
+  // Text zur Warnung (Anzeige und Ansage). untergang: Date; ausstieg: Text „Bushaltestelle X in 1,2 km“ oder ''
+  function dunkelText(art, o) {
+    const dazu = o.ausstieg ? ' Nächster Ausstieg: ' + o.ausstieg + '.' : '';
+    if (art === 'umkehrBald') return 'In ' + Math.max(1, Math.round((o.umkehrZeit - o.jetzt) / 60000)) + ' Minuten ist Umkehrzeit (' + uhr(new Date(o.umkehrZeit)) + ' Uhr). Bis dahin solltest du am höchsten Punkt sein.';
+    if (art === 'umkehr') return 'Umkehrzeit erreicht. Über den höchsten Punkt kommst du erst nach Sonnenuntergang (' + uhr(o.untergang) + ' Uhr) an. Umkehren oder einen Ausstieg nehmen.' + dazu;
+    return 'Es wird knapp: Ankunft etwa ' + uhr(new Date(o.ankunft)) + ' Uhr, Sonnenuntergang ' + uhr(o.untergang) + ' Uhr. Stirnlampe bereithalten oder abkürzen.' + dazu;
+  }
+
+  // ---------- Ausstiege entlang der Route ----------
+  // Wo man eine Tour abbrechen kann: Bus und Bahn, Bergbahn (Talfahrt, Betriebszeit prüfen), Parkplatz (Straße) und
+  // Hütten (Schutz, oft Telefon). Aus den Orten entlang der Route (orteLesen); nicht am Start oder Ziel selbst
+  // (die ersten und letzten 500 m), je Art höchstens einer pro Kilometer (der nächste zur Route).
+  const AUSSTIEG = [
+    { k: 'bahn', zeichen: '🚆', name: 'Bahnhof', test: t => /^(station|halt)$/.test(t.railway) },
+    { k: 'bergbahn', zeichen: '🚡', name: 'Bergbahn', test: t => t.aerialway === 'station' },
+    { k: 'bus', zeichen: '🚌', name: 'Bushaltestelle', test: t => t.highway === 'bus_stop' },
+    { k: 'parken', zeichen: '🅿️', name: 'Parkplatz', test: t => t.amenity === 'parking' && t.access !== 'private' },
+    { k: 'huette', zeichen: '🏠', name: 'Hütte', test: t => /^(alpine_hut|wilderness_hut)$/.test(t.tourism) }
+  ];
+  function ausstiege(orte, laenge, maxAbw) {
+    const grenze = maxAbw == null ? 400 : maxAbw, roh = [];
+    for (const o of orte || []) {
+      if (o.d == null || o.abw == null || o.abw > grenze || o.d < 500 || o.d > laenge - 500) continue;
+      const art = AUSSTIEG.find(a => a.test(o.tags || {}));
+      if (!art) continue;
+      const eigen = o.tags && (o.tags.name || o.tags['name:de']);
+      roh.push({ d: Math.round(o.d), abw: Math.round(o.abw), art: art.k, zeichen: art.zeichen, name: eigen ? art.name + ' ' + eigen : (o.name || art.name), lat: o.lat, lon: o.lon });
+    }
+    roh.sort((a, b) => a.abw - b.abw);
+    const out = [];
+    for (const a of roh) if (!out.some(b => b.art === a.art && Math.abs(b.d - a.d) < 1000)) out.push(a);
+    return out.sort((a, b) => a.d - b.d);
+  }
+  // nächster Ausstieg vor und hinter dem Fortschritt d (Meter ab Start): { vorn, zurueck } mit bis (Meter längs der Route)
+  function naechsteAusstiege(liste, d) {
+    let vorn = null, zurueck = null;
+    for (const a of liste || []) {
+      if (a.d >= d) { if (!vorn) vorn = Object.assign({ bis: a.d - d }, a); }
+      else zurueck = Object.assign({ bis: d - a.d }, a);
+    }
+    return { vorn, zurueck };
+  }
+  // „Bushaltestelle X in 1,2 km“ (vorn) bzw. „… 800 m zurück“
+  function ausstiegText(a, zurueck) { return a ? a.name + (zurueck ? ' ' + kmText(a.bis) + ' zurück' : ' in ' + kmText(a.bis)) : ''; }
+
+  // ---------- Akku ----------
+  // Wie lange der Akku beim gemessenen Verbrauch noch reicht. proben: [{ t (ms), l (0…1) }] in zeitlicher Folge, seit
+  // dem letzten Laden. Gerechnet über die letzte Stunde (frühere Proben nur, wenn die Stunde noch keine 10 min hat);
+  // erst ab 10 min und 2 % Verbrauch, sonst stunden = null. Gleich gerechnet im Dienst (NaviRechnen.akkuStunden).
+  function akkuSchaetzung(proben) {
+    if (!proben || !proben.length) return null;
+    const letzte = proben[proben.length - 1];
+    let basis = proben.find(p => p.t >= letzte.t - 3600e3);
+    if (letzte.t - basis.t < 600e3) basis = proben[0];
+    const dauer = (letzte.t - basis.t) / 3600e3, verbrauch = basis.l - letzte.l;
+    const stunden = dauer >= 600e3 / 3600e3 && verbrauch >= 0.02 ? letzte.l / (verbrauch / dauer) : null;
+    return { prozent: Math.round(letzte.l * 100), stunden };
+  }
+  // Warnung: 'knapp', wenn der Akku nicht bis zum Ziel plus 30 min reicht; 'leer' ab 15 % (ohne Schätzung); sonst ''
+  function akkuWarnung(s, restStunden) {
+    if (!s) return '';
+    if (s.stunden != null && restStunden != null && s.stunden < restStunden + 0.5) return 'knapp';
+    return s.prozent <= 15 ? 'leer' : '';
+  }
+  function akkuText(art, s, restStunden) {
+    if (art === 'knapp') return 'Achtung: Der Akku reicht bei diesem Verbrauch noch etwa ' + zeitText(s.stunden) + ', bis zum Ziel sind es etwa ' + zeitText(restStunden) + '. Bildschirm aus lassen, die Ansagen kommen trotzdem.';
+    return 'Akku nur noch ' + s.prozent + ' Prozent. Bildschirm aus lassen und Strom sparen.';
+  }
+
   // ---------- Notfall ----------
   function gradMinSek(x, pos, neg) {
     // erst auf Zehntelsekunden runden, dann zerlegen: sonst entsteht „59′ 60,0″“ statt des Übertrags
@@ -2708,7 +2811,8 @@ var R = (function () {
     terrarium, terrariumGitter, meterJePixel, randGitter, randKacheln, aufziehen, lesbarerWinkel, schummerung, warteschlange, hangneigung, hangFarbe, HANG_STUFEN, linienAbstand, hoehenlinien, kachelPixel,
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
-    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleBesucht, zieleGpx, googleSuche
+    ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleBesucht, zieleGpx, googleSuche,
+    umkehrPunkt, umkehrZeit, dunkelLage, dunkelText, AUSSTIEG, ausstiege, naechsteAusstiege, ausstiegText, akkuSchaetzung, akkuWarnung, akkuText
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

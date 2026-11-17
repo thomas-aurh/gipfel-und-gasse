@@ -486,6 +486,12 @@ function zeitplanZeigen() {
     text = sonne && zuLangFuerTag(z.spaetestens, tag) ? '⚠️ Länger als das Tageslicht (' + sonne + '): als Mehrtagestour planen (Art „Mehrtagestour“).'
       : sonne ? sonne + ': spätestens um ' + R.uhr(z.spaetestens) + ' Uhr' + amTag(z.spaetestens) + ' losgehen' + (pause ? ' (mit ' + R.zeitText(pause / 60) + ' Pause)' : '') + ', mit 30 min Reserve. Startzeit eintragen zeigt die Ankunft.' : '';
   }
+  // Umkehrzeit: spätestens dann am höchsten Punkt, sonst wird es vor der Ankunft dunkel
+  const uk = umkehrFuer(e, S.wps, tag);
+  if (uk && text && !/^⚠️ Länger/.test(text)) {
+    text += ' ⛰️ Umkehrzeit: spätestens ' + R.uhr(uk.zeit) + ' Uhr' + amTag(uk.zeit) + ' am höchsten Punkt (' + uk.punkt.ele + ' m, bei ' + R.kmText(uk.punkt.d) + '), sonst wird es vor der Ankunft dunkel' +
+      (start ? '; geplant dort etwa ' + R.uhr(new Date(z.ankunft - uk.rest * 3600e3)) + ' Uhr.' : '.');
+  }
   // Mehrtagestour: Zeitplan je Tag in den Etappen statt eines Tages
   const et = etappenAktuell();
   let etKnapp = false;
@@ -506,10 +512,28 @@ function zeitplanZeigen() {
   else if (!start && S.wps.some(w => w.info && w.info.oh)) text += (text ? ' ' : '') + 'Mit Startzeit prüft die App, ob die Stopps bei Ankunft geöffnet sind.';
   if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
   if (typeof packlisteNeu === 'function') packlisteNeu();   // offene Packliste folgt Zeitplan und Route
+  if (typeof ausstiegePruefen === 'function') ausstiegePruefen();   // alte Ausstiege gehören nicht zur neuen Route
   planReiterZeigen();
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
   box.hidden = !text;
+}
+// Umkehrzeit einer Route (ganze Tour oder Etappe, mit ihren Wegpunkten) an einem Tag: { punkt, rest (Stunden vom
+// Umkehrpunkt bis zum Ziel, mit Besichtigungen danach und dem Anteil der Pausen), untergang, zeit }; null in der Stadt,
+// ohne Höhen, ohne Gipfel unterwegs oder ohne Sonnenuntergang
+function umkehrFuer(e, wps, tag) {
+  if (!e || S.modus === 'stadt' || !e.pts || e.pts.length < 2) return null;
+  const p = R.umkehrPunkt(e.pts);
+  if (!p) return null;
+  const ziel = e.pts[e.pts.length - 1];
+  const untergang = R.sonnenuntergang(tag, ziel.lat, ziel.lon);
+  if (!untergang) return null;
+  const r = R.rest(e.pts, p.d, tempoAktuell(), artAktuell());
+  let min = 0;
+  if (!S.fest && e.stueckEnde) wps.forEach((w, i) => { if (i > 0 && e.stueckEnde[i - 1] > p.d + 20 && !(i === wps.length - 1 && wps.length > 2 && R.abstand(w, wps[0]) < 30)) min += +w.min || 0; });
+  const pause = (+$('pausewahl').value || 0) / 60 * (e.zeit ? Math.min(1, r.zeit / e.zeit) : 0);
+  const rest = r.zeit + min / 60 + pause;
+  return { punkt: p, rest, untergang, zeit: R.umkehrZeit(untergang, rest) };
 }
 // Startzeit und Pausen verschieben auch die Ankunft an den Stopps (Öffnungszeiten)
 ['startTag', 'startZeit', 'pausewahl'].forEach(id => $(id).addEventListener('change', () => { zeitplanZeigen(); stoppsZeigen(); entwurfSichern(); planDetailsTextSetzen(); }));

@@ -5,6 +5,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Umkehrzeit, Ausstiege, Akku (17.11.):** geprüft in Einheitstests (Web und Java `NaviRechnenTest`) und im Klicktest
+  (Umkehrzeit im Zeitplan, Ausstiege mit nachgebildetem Overpass, Werte an den Dienst, Akku-Anzeige aus dem Dienst);
+  `NaviService` und `NaviPlugin` nur in GitHub Actions gebaut. Nicht geprüft auf dem Pixel: Ansagen bei gesperrtem
+  Bildschirm, ob `BatteryManager` den Stand im Dienst liefert und ob die Schätzung beim Gehen (Bildschirm meist aus)
+  brauchbar ist; im Browser nur, wo `navigator.getBattery` geht (Chrome, nicht Firefox/Safari). Ausstiege kommen
+  aus OSM: Bushaltestellen ohne Fahrplan (Busse am Wochenende, im Winter?), Bergbahnen ohne Betriebszeit, Parkplatz heißt nur
+  „Straße“. Die Umkehrzeit rechnet mit dem gewählten Tempo, nicht mit dem gemessenen.
 - **Routing nur Luftlinie (17.11., behoben in #121):** Ursache „datafile W345_N45.rd5 not found“: Karte und gespeicherter
   Ausschnitt standen in einer Welt-Kopie von Leaflet (Länge −348,6° statt 11,4°), jeder neue Punkt bekam diese Länge.
   Gemessen vorher: brouter.de liefert die Penzberg-Runde mit allen Profilen, auch Laufen. Nach #121 am Pixel nachprüfen:
@@ -171,6 +178,17 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Umkehrzeit am höchsten Punkt, Warnungen im Dienst** (17.11., Thomas: „Mache 1, 2 und 3“): Umkehrpunkt ist der
+  höchste Punkt der Route, Grenze wie im Zeitplan 30 min vor Sonnenuntergang am Ziel; nur am Berg (in der Stadt aus).
+  Jede Warnung einmal je Navigation, im Dienst der App (gesperrter Bildschirm), im Browser über Meldung, Vibration und
+  Vorlesen. Verworfen: Umkehrzeit aus dem gemessenen Tempo (zu wackelig in den ersten Kilometern; die Warnung „Ankunft nach
+  Dunkelheit“ rechnet ohnehin ab dem Standort).
+- **Ausstiege aus den Orten entlang der Route** (17.11.): dieselbe Abfrage wie „Orte entlang der Route“ (Kartenpaket,
+  sonst Overpass), Bus/Bahn, Bergbahn, Parkplatz und Hütte bis 400 m, nicht in den ersten und letzten 500 m, je Art einer
+  pro Kilometer. Beim Start der Navigation von selbst geladen (eine Abfrage, ohne Netz aus dem Paket). Verworfen:
+  Fahrpläne (kein stabiles offenes Format, siehe Anreise), Talwege als Ausstieg (nicht sicher erkennbar).
+- **Akku über den gemessenen Verbrauch** (17.11.): Dienst liest `BatteryManager` höchstens jede Minute (keine Erlaubnis
+  nötig), Schätzung über die letzte Stunde; Laden setzt sie zurück. Verworfen: feste Verbrauchswerte je Gerät (unbekannt).
 - **Punkt erst nach langem Drücken, nur mit dem Finger** (16.11., Thomas: „geht zu schnell“): 550 ms ruhig (12 px), der
   Punkt kommt beim Halten, nicht beim Loslassen; Maus klickt wie bisher, Info, Fadenkreuz und Trails bleiben beim kurzen Tipp.
   Verworfen: das `contextmenu` des Browsers (Dauer je Gerät verschieden), Loslassen nach der Zeit (man weiß nicht, wann genug ist).

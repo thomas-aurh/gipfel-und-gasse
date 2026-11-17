@@ -103,4 +103,42 @@ public class NaviRechnenTest {
         assertEquals(jetzt + 7200000, NaviRechnen.gewitterAb(z, new int[] { 1, 3, 95, 96 }, jetzt, 3 * 3600000L));
         assertEquals(-1, NaviRechnen.gewitterAb(z, new int[] { 1, 3, 61, 95 }, jetzt, 2 * 3600000L));
     }
+
+    // ---------- Umkehrzeit, Ausstiege, Akku: gleiche Fälle wie web/test/einheit.js ----------
+    @Test public void dunkelLage() {
+        long t = 1_000_000_000_000L, umkehr = t + 3600000L, dunkel = t + 3 * 3600000L;
+        assertEquals(0, NaviRechnen.dunkelLage(t, t + 7200000L, dunkel, 5000, umkehr, 3000));
+        assertEquals(NaviRechnen.UMKEHR_BALD, NaviRechnen.dunkelLage(umkehr - 600000L, t, dunkel, 5000, umkehr, 3000));
+        assertEquals(NaviRechnen.UMKEHR | NaviRechnen.KNAPP, NaviRechnen.dunkelLage(umkehr + 60000L, dunkel + 600000L, dunkel, 5000, umkehr, 3000));
+        assertEquals(0, NaviRechnen.dunkelLage(umkehr + 60000L, t, dunkel, 5000, umkehr, 6000));
+        assertEquals(0, NaviRechnen.dunkelLage(umkehr + 60000L, dunkel + 1, 0, 5000, umkehr, 3000));
+    }
+
+    @Test public void dunkelTextMitAusstieg() {
+        java.util.TimeZone utc = java.util.TimeZone.getTimeZone("UTC");
+        long untergang = 1_763_393_400_000L;   // 2025-11-17 15:30 UTC
+        assertEquals("15 Uhr 30", NaviRechnen.uhrSprache(untergang, utc));
+        String s = NaviRechnen.dunkelText(NaviRechnen.UMKEHR, 0, 0, 0, untergang, "Bushaltestelle Au in 1,2 Kilometern", utc);
+        assertTrue(s, s.startsWith("Umkehrzeit erreicht.") && s.endsWith("Nächster Ausstieg: Bushaltestelle Au in 1,2 Kilometern."));
+    }
+
+    @Test public void naechsterAusstieg() {
+        java.util.List<Double> m = java.util.Arrays.asList(3000.0, 6000.0);
+        assertEquals(1, NaviRechnen.naechsterAusstieg(m, 4000));
+        assertEquals(-1, NaviRechnen.naechsterAusstieg(m, 7000));
+    }
+
+    @Test public void akku() {
+        long t0 = 1_000_000_000_000L;
+        long[] t = new long[4]; double[] l = new double[4];
+        for (int i = 0; i < 4; i++) { t[i] = t0 + i * 600000L; l[i] = 0.8 - i * 10 / 300.0; }
+        assertEquals(3.5, NaviRechnen.akkuStunden(t, l), 1e-6);
+        assertTrue(Double.isNaN(NaviRechnen.akkuStunden(new long[] { t0 }, new double[] { 0.8 })));
+        assertTrue(Double.isNaN(NaviRechnen.akkuStunden(new long[] { t0, t0 + 3600000L }, new double[] { 0.8, 0.79 })));
+        long[] lt = { t0, t0 + 1800000L, t0 + 5400000L, t0 + 9000000L };
+        assertEquals(0.7 / 0.05, NaviRechnen.akkuStunden(lt, new double[] { 1, 0.8, 0.75, 0.7 }), 1e-6);
+        assertEquals(2, NaviRechnen.akkuWarnung(40, 2, 1.8));
+        assertEquals(0, NaviRechnen.akkuWarnung(40, 4, 1.8));
+        assertEquals(1, NaviRechnen.akkuWarnung(12, Double.NaN, 1));
+    }
 }

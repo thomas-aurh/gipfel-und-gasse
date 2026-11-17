@@ -73,6 +73,20 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
         double alarm = 150;          // Punkt-Alarm: Stopps und Punkte so viele Meter vorher ankündigen
         String gewitter;             // Warnung „Gewitter möglich gegen …“ für die Anzeige, null = keine
+        // Umkehrzeit: Dunkelgrenze (Sonnenuntergang − 30 min) und Umkehrzeit am höchsten Punkt (ms, 0 = aus), von der App
+        // für heute gerechnet; Ausstiege entlang der Route (Meter ab Start, Name); gesagt: Bits der schon angesagten Warnungen
+        long dunkelAb, untergang, umkehrZeit;
+        double umkehrD, umkehrLat = Double.NaN, umkehrLon = Double.NaN;
+        List<Double> ausstiegMeter = new ArrayList<>();
+        List<String> ausstiegNamen = new ArrayList<>();
+        List<double[]> ausstiegOrte = new ArrayList<>();   // {Breite, Länge}, NaN = unbekannt (fürs Umplanen)
+        int dunkelGesagt;
+        // Akku: Proben {Zeit, Stand 0…1} seit dem letzten Laden, höchstens eine je Minute; Stand und Schätzung für die Anzeige
+        final List<double[]> akkuProben = new ArrayList<>();
+        int akkuProzent = -1;
+        boolean akkuLaedt;
+        double akkuStunden = Double.NaN;
+        int akkuGesagt;              // Bits: 1 = „nur noch 15 %“, 2 = „reicht nicht bis zum Ziel“
         long gewitterGemeldet;       // wann zuletzt angesagt (höchstens alle zwei Stunden)
         int aufzKm;                  // zuletzt angesagter Kilometer der Aufzeichnung
         long aufzKmZeit;             // Bewegungszeit (ms), als er erreicht war
@@ -307,6 +321,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.letzte = loc;
             if (Z.folgen && Z.strecke != null && Z.strecke.groesse() > 1) folgen(loc);
             if (Z.aufzeichnen) aufzeichnen(loc);
+            if (Z.aufzeichnen && !Z.folgen) akkuPruefen(System.currentTimeMillis());
         }
         benachrichtigungAktualisieren();
         if (Z.beiNeuem != null) Z.beiNeuem.run();
@@ -345,6 +360,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             Z.abseitsSeit = 0;
             Z.abseitsGemeldet = false;
         }
+        dunkelPruefen(d, jetzt);
+        akkuPruefen(jetzt);
         if (!Z.ansagen || lage.abw > 80) return;
         // Stopps (auch Punkte des Punkt-Alarms): Z.alarm Meter vorher ankündigen (Standard 150), bei 30 m „erreicht“
         for (int i = 0; i < Z.stopps.size(); i++) {
@@ -403,6 +420,78 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 sagenDannBeenden("Ziel erreicht. Schön war's!");
             }
         }
+    }
+
+    /** Umkehrzeit und Dunkelheit: jede Warnung einmal je Navigation ansagen, mit dem nächsten Ausstieg. Unter der Sperre von Z. */
+    private void dunkelPruefen(double d, long jetzt) {
+        if (Z.rest == null || Z.dunkelAb <= 0) return;
+        long ankunft = jetzt + (long) (Z.rest.stunden * 3600000);
+        int lage = NaviRechnen.dunkelLage(jetzt, ankunft, Z.dunkelAb, Z.umkehrD, Z.umkehrZeit, d);
+        int neu = lage & ~Z.dunkelGesagt;
+        // „bald“ ist überholt, wenn die Umkehrzeit schon da ist
+        if ((neu & NaviRechnen.UMKEHR) != 0) Z.dunkelGesagt |= NaviRechnen.UMKEHR_BALD;
+        if (neu == 0) return;
+        Z.dunkelGesagt |= neu;
+        int i = NaviRechnen.naechsterAusstieg(Z.ausstiegMeter, d);
+        String aus = i < 0 ? "" : Z.ausstiegNamen.get(i) + " in " + NaviRechnen.kmDativ(Z.ausstiegMeter.get(i) - d);
+        java.util.TimeZone zone = java.util.TimeZone.getDefault();
+        StringBuilder text = new StringBuilder();
+        for (int art : new int[] { NaviRechnen.UMKEHR, NaviRechnen.UMKEHR_BALD, NaviRechnen.KNAPP }) {
+            if ((neu & art) == 0) continue;
+            // der Ausstieg nur einmal, beim ersten Satz
+            text.append(text.length() > 0 ? " " : "").append(NaviRechnen.dunkelText(art, jetzt, ankunft, Z.umkehrZeit, Z.untergang, text.length() > 0 ? "" : aus, zone));
+        }
+        vibrieren();
+        if (Z.ansagen) sagen(text.toString());
+    }
+
+    /**
+     * Nach dem Umplanen beginnt die Strecke am Standort: Umkehrpunkt und Ausstiege über ihren Ort auf die neue Strecke legen.
+     * Umkehrpunkt schon vorbei oder nicht mehr auf der Strecke (über 150 m daneben): keine Umkehrzeit mehr; Ausstiege über
+     * 400 m daneben fallen weg. Unter der Sperre von Z, vor dem Zurücksetzen des Fortschritts.
+     */
+    private static void umkehrUndAusstiegeUmrechnen(NaviRechnen.Strecke neu) {
+        double alt = Double.isNaN(Z.fortschritt) ? 0 : Z.fortschritt;
+        if (Z.umkehrD > 0 && alt < Z.umkehrD - 50 && !Double.isNaN(Z.umkehrLat)) {
+            NaviRechnen.Lage l = NaviRechnen.aufStrecke(neu, Z.umkehrLat, Z.umkehrLon, Double.NaN);
+            Z.umkehrD = l.abw <= 150 ? l.d : 0;
+        } else Z.umkehrD = 0;
+        List<double[]> liste = new ArrayList<>();
+        for (int i = 0; i < Z.ausstiegMeter.size(); i++) {
+            double[] o = i < Z.ausstiegOrte.size() ? Z.ausstiegOrte.get(i) : null;
+            if (o == null || Double.isNaN(o[0])) continue;
+            NaviRechnen.Lage l = NaviRechnen.aufStrecke(neu, o[0], o[1], Double.NaN);
+            if (l.abw <= 400) liste.add(new double[] { l.d, i });
+        }
+        liste.sort((a, b) -> Double.compare(a[0], b[0]));
+        List<Double> m = new ArrayList<>(); List<String> n = new ArrayList<>(); List<double[]> o = new ArrayList<>();
+        for (double[] e : liste) { int i = (int) e[1]; m.add(e[0]); n.add(Z.ausstiegNamen.get(i)); o.add(Z.ausstiegOrte.get(i)); }
+        Z.ausstiegMeter = m; Z.ausstiegNamen = n; Z.ausstiegOrte = o;
+    }
+
+    /** Akku höchstens jede Minute messen (beim Folgen und Aufzeichnen); warnen, wenn er nicht bis zum Ziel reicht. */
+    private void akkuPruefen(long jetzt) {
+        if (!Z.akkuProben.isEmpty() && jetzt - (long) Z.akkuProben.get(Z.akkuProben.size() - 1)[0] < 60000) return;
+        android.os.BatteryManager bm = (android.os.BatteryManager) getSystemService(Context.BATTERY_SERVICE);
+        if (bm == null) return;
+        int prozent = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        if (prozent <= 0 || prozent > 100) return;   // Gerät kennt den Stand nicht
+        double l = prozent / 100.0;
+        Z.akkuProzent = prozent;
+        Z.akkuLaedt = bm.isCharging();
+        if (Z.akkuLaedt) { Z.akkuProben.clear(); Z.akkuStunden = Double.NaN; Z.akkuProben.add(new double[] { jetzt, l }); return; }
+        Z.akkuProben.add(new double[] { jetzt, l });
+        while (Z.akkuProben.size() > 200) Z.akkuProben.remove(0);
+        long[] t = new long[Z.akkuProben.size()];
+        double[] w = new double[t.length];
+        for (int i = 0; i < t.length; i++) { t[i] = (long) Z.akkuProben.get(i)[0]; w[i] = Z.akkuProben.get(i)[1]; }
+        Z.akkuStunden = NaviRechnen.akkuStunden(t, w);
+        double rest = Z.folgen && Z.rest != null ? Z.rest.stunden : Double.NaN;
+        int art = NaviRechnen.akkuWarnung(Z.akkuProzent, Z.akkuStunden, rest);
+        if (art == 0 || (Z.akkuGesagt & art) != 0) return;
+        Z.akkuGesagt |= art;
+        vibrieren();
+        if (Z.ansagen) sagen(NaviRechnen.akkuText(art, Z.akkuProzent, Z.akkuStunden, rest));
     }
 
     static final String BROUTER = "https://brouter.de/brouter";
@@ -482,6 +571,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
             Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
             Z.stoppErreicht = new boolean[Z.stopps.size()];
+            umkehrUndAusstiegeUmrechnen(n.strecke);
             Z.fortschritt = 0;   // die neue Strecke beginnt am Standort (nicht NaN: sonst ginge ein weiteres Umplanen zurück zu ihrem Anfang)
             Z.abseitsSeit = 0;
             Z.abseitsGemeldet = false;
@@ -590,10 +680,36 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 o.put("ziele", zl);
                 if (Z.profil != null) o.put("profil", Z.profil);
                 o.put("umgeplant", Z.umgeplant);
+                o.put("dunkelAb", Z.dunkelAb); o.put("untergang", Z.untergang); o.put("umkehrZeit", Z.umkehrZeit); o.put("umkehrD", Z.umkehrD);
+                if (!Double.isNaN(Z.umkehrLat)) { o.put("umkehrLat", Z.umkehrLat); o.put("umkehrLon", Z.umkehrLon); }
+                o.put("dunkelGesagt", Z.dunkelGesagt); o.put("akkuGesagt", Z.akkuGesagt);
+                JSONArray au = new JSONArray();
+                for (int i = 0; i < Z.ausstiegMeter.size(); i++) {
+                    JSONArray q = new JSONArray(); q.put((double) Z.ausstiegMeter.get(i)); q.put(Z.ausstiegNamen.get(i));
+                    double[] ort = i < Z.ausstiegOrte.size() ? Z.ausstiegOrte.get(i) : null;
+                    if (ort != null && !Double.isNaN(ort[0])) { q.put(ort[0]); q.put(ort[1]); }
+                    au.put(q);
+                }
+                o.put("ausstiege", au);
             }
             dateiSchreiben(new File(c.getFilesDir(), "sitzung.json"), o.toString().getBytes(StandardCharsets.UTF_8), nr);
         } catch (Exception e) {
             Log.e(TAG, "Sitzung nicht gesichert", e);
+        }
+    }
+
+    /** Ausstiege aus der App oder der Sitzung: [Meter ab Start, Name, Breite, Länge], nach Metern sortiert. Unter der Sperre von Z. */
+    static void ausstiegeLesen(JSONArray a) {
+        Z.ausstiegMeter = new ArrayList<>();
+        Z.ausstiegNamen = new ArrayList<>();
+        Z.ausstiegOrte = new ArrayList<>();
+        if (a == null) return;
+        for (int i = 0; i < a.length(); i++) {
+            JSONArray q = a.optJSONArray(i);
+            if (q == null || q.isNull(0)) continue;
+            Z.ausstiegMeter.add(q.optDouble(0));
+            Z.ausstiegNamen.add(q.optString(1, "Ausstieg"));
+            Z.ausstiegOrte.add(new double[] { q.optDouble(2, Double.NaN), q.optDouble(3, Double.NaN) });
         }
     }
 
@@ -696,6 +812,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 zieleLesen(o.optJSONArray("ziele"));
                 Z.profil = BRouterDateien.PROFILE.contains(o.optString("profil", "")) ? o.optString("profil") : null;
                 Z.umgeplant = o.optInt("umgeplant", 0);
+                Z.dunkelAb = o.optLong("dunkelAb", 0); Z.untergang = o.optLong("untergang", 0); Z.umkehrZeit = o.optLong("umkehrZeit", 0); Z.umkehrD = o.optDouble("umkehrD", 0);
+                Z.umkehrLat = o.optDouble("umkehrLat", Double.NaN); Z.umkehrLon = o.optDouble("umkehrLon", Double.NaN);
+                Z.dunkelGesagt = o.optInt("dunkelGesagt", 0); Z.akkuGesagt = o.optInt("akkuGesagt", 0);
+                ausstiegeLesen(o.optJSONArray("ausstiege"));
                 Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.alarm = o.optDouble("alarm", 150); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
