@@ -1470,6 +1470,35 @@ function pruef(name, bed, info) {
   pruef('Alte Touren übernommen', (await pa.textContent('#tourliste')).includes('Alte Murmel-Tour'));
   await alt.close();
 
+  // Karte in einer Welt-Kopie (Thomas 17.11.: „datafile W345_N45.rd5 not found“, nur Luftlinien): gespeicherter Ausschnitt
+  // und Entwurf mit Länge −348,6° statt 11,4°. Nach dem Start liegen Karte, Punkte und Anfragen wieder bei 11,x°
+  const welt = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+  await dienste(welt);
+  await welt.addInitScript(() => {
+    if (localStorage.getItem('gug.weltTest')) return;
+    localStorage.setItem('gug.weltTest', '1');
+    localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.755, lon: -348.62, z: 14 }));
+    localStorage.setItem('gug.entwurf', JSON.stringify({ wps: [{ lat: 47.7600, lon: -348.6170 }, { lat: 47.7530, lon: -348.6150 }], name: '', tourId: null, modus: 'berg', zeit: null }));
+  });
+  const pw = await welt.newPage();
+  const vorWelt = brouterAdressen.length;
+  await pw.goto(url);
+  await pw.waitForFunction(() => { const e = JSON.parse(localStorage.getItem('gug.entwurf') || 'null'); return e && e.spur; }, null, { timeout: 10000 }).catch(() => {});
+  const weltNeu = brouterAdressen.slice(vorWelt).map(u => new URL(u).searchParams.get('lonlats'));
+  const weltEnt = await pw.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lon));
+  pruef('Welt-Kopie: Entwurf zurück auf 11,x°, Router bekommt 11,x° (nicht −348°)', weltEnt.every(l => l > 11 && l < 12) && weltNeu.length > 0 && weltNeu.every(l => l.startsWith('11.')), [weltEnt, weltNeu]);
+  // Karte über die Datumsgrenze geschoben: springt zurück, ein Klick setzt den Punkt mit Länge in −180 … 180
+  await pw.evaluate(() => { localStorage.setItem('gug.blick', JSON.stringify({ lat: 47.755, lon: -348.62, z: 14 })); });
+  await pw.reload();
+  await pw.waitForTimeout(500);
+  const kbWelt = await (await pw.$("#karte")).boundingBox();
+  await pw.mouse.click(kbWelt.x + kbWelt.width * 0.5, kbWelt.y + kbWelt.height * 0.4);
+  await pw.waitForTimeout(600);
+  const weltKlick = await pw.evaluate(() => JSON.parse(localStorage.getItem('gug.entwurf')).wps.map(w => w.lon));
+  const weltBlick = await pw.evaluate(() => JSON.parse(localStorage.getItem('gug.blick')).lon);
+  pruef('Welt-Kopie: gespeicherter Ausschnitt korrigiert, neuer Punkt mit 11,x°', weltKlick.length === 3 && weltKlick.every(l => l > 11 && l < 12) && weltBlick > 11 && weltBlick < 12, [weltKlick, weltBlick]);
+  await welt.close();
+
   // ---------- Ort-Link (z. B. aus Zenithora): Karte am Ort öffnen, Markierung mit Namen, als Start übernehmen ----------
   const olCtx = await browser.newContext({ viewport: { width: 1280, height: 820 } });
   await dienste(olCtx);

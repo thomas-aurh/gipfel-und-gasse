@@ -5,11 +5,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Routing scheiterte auf dem Pixel (17.11. früh, Bau 303, Penzberg):** nur gerade graue Linien, „Lädt …“ blieb stehen;
-  4,8 km in 30 min deuten auf die Art Laufen (Trail-Profil, #109). Ursache offen: Profiltabelle (Java und Web) und
-  Online-Anfrage passen zum Quellcode von BRouter (`profile:` in `RoutingParamCollector`, alle vier Werte im Wanderprofil),
-  die echte Antwort von brouter.de ist aus der Cloud nicht gemessen. Seit #120 nennt eine Meldung über der Karte den Grund
-  („Abschnitt 1: …“); damit und mit „Wandern“ statt „Laufen“ am Pixel nachprüfen.
+- **Routing nur Luftlinie (17.11., behoben in #121):** Ursache „datafile W345_N45.rd5 not found“: Karte und gespeicherter
+  Ausschnitt standen in einer Welt-Kopie von Leaflet (Länge −348,6° statt 11,4°), jeder neue Punkt bekam diese Länge.
+  Gemessen vorher: brouter.de liefert die Penzberg-Runde mit allen Profilen, auch Laufen. Nach #121 am Pixel nachprüfen:
+  App öffnen (Ausschnitt und Entwurf werden korrigiert), Runde neu planen.
 - **Langes Drücken und Notizen an Punkten (16.11., PRs #118, #119):** nur im Klicktest geprüft (Berührung über CDP
   nachgebildet). Nicht geprüft auf dem Pixel: ob 550 ms sich richtig anfühlen, ob das Vibrieren im WebView ankommt, ob
   der Browser beim Halten ein eigenes Menü zeigt; Textfeld der Notiz mit Bildschirmtastatur; Vorlesen der Notiz am Punkt
@@ -349,6 +348,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **17.11. (PRs #120, #121)** Routing-Fehler als Meldung über der Karte, Luftlinie auch nach Steigung gestrichelt (#120);
+  Längen aus einer Welt-Kopie (−348°) zurück in −180 … 180: Karte, gespeicherter Ausschnitt, neue und gezogene Punkte,
+  Entwurf und geöffnete Touren (#121). Einheitstests 351, Klicktest 478.
 
 - **16.11. (PRs #117 bis #119)** Startzeit je Tag wandert mit der Übernachtung (#117); am Telefon setzt erst langes Drücken
   einen Punkt (#118); Notizen an Punkten der Tour, dazu behoben: eine geöffnete Mehrtagestour zeigte keine Punkte in den

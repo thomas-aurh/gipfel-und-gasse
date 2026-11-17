@@ -29,7 +29,7 @@ function merken() {
 function wegpunktDazu(lat, lon, index, extra) {
   if (S.fest) { melde('Das ist eine geöffnete Spur. Für eine neue Planung „✕ Neu“ tippen.'); return; }
   merken();
-  const w = Object.assign({ lat, lon }, extra || {});
+  const w = Object.assign({ lat, lon: R.laengeNorm(lon) }, extra || {});
   if (index == null) S.wps.push(w); else S.wps.splice(index, 0, w);
   neuBerechnen();
 }
@@ -160,8 +160,8 @@ function zeichenWegpunkte() {
       merken();
       // Rundtour: wer den Start verschiebt, verschiebt das Ziel mit
       const letzt = S.wps.length - 1;
-      if (i === 0 && letzt >= 2 && R.abstand(S.wps[0], S.wps[letzt]) < 30) S.wps[letzt] = Object.assign({}, S.wps[letzt], { lat: p.lat, lon: p.lng });
-      S.wps[i] = Object.assign({}, S.wps[i], { lat: p.lat, lon: p.lng });
+      if (i === 0 && letzt >= 2 && R.abstand(S.wps[0], S.wps[letzt]) < 30) S.wps[letzt] = Object.assign({}, S.wps[letzt], { lat: p.lat, lon: R.laengeNorm(p.lng) });
+      S.wps[i] = Object.assign({}, S.wps[i], { lat: p.lat, lon: R.laengeNorm(p.lng) });
       neuBerechnen();
     });
     m.on('click', () => {

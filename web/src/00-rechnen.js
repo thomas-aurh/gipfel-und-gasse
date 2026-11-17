@@ -5,6 +5,12 @@ var R = (function () {
   const RAD = Math.PI / 180;
 
   // Entfernung zweier Punkte in Metern (Haversine, Erdradius 6371 km)
+  // Länge in −180 … 180: Leaflet lässt die Karte seitlich endlos weiterschieben; in einer „Kopie“ der Welt liefert ein Tipp
+  // z. B. −348,6° statt 11,4°. Damit sucht BRouter die Kachel W345_N45 statt E10_N45 (Thomas 17.11.: nur Luftlinien)
+  function laengeNorm(lon) {
+    if (!isFinite(lon) || (lon >= -180 && lon <= 180)) return lon;
+    return ((lon + 180) % 360 + 360) % 360 - 180;
+  }
   function abstand(a, b) {
     const dLat = (b.lat - a.lat) * RAD, dLon = (b.lon - a.lon) * RAD;
     const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.sin(dLon / 2) ** 2;
@@ -2695,7 +2701,7 @@ var R = (function () {
   }
 
   return {
-    abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, eigenesTempo, bewegungStunden, planVergleich, planKandidaten, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    laengeNorm, abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, eigenesTempo, bewegungStunden, planVergleich, planKandidaten, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ortLinkSchreiben, ortLinkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,

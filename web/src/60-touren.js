@@ -250,7 +250,7 @@ function tourOeffnen(id) {
   if (t.wps && t.stuecke) {
     // geplante Tour: Teilstücke aus der Spur zurückbauen, damit nichts neu angefragt werden muss
     S.fest = null;
-    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: w[1], name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}, w[5] === 1 ? { nacht: true } : {}, typeof w[6] === 'string' && w[6] ? { notiz: w[6] } : {}) : { lat: w[0], lon: w[1] });
+    S.wps = t.wps.map(w => w.length > 2 ? Object.assign({ lat: w[0], lon: R.laengeNorm(w[1]), name: w[2] || undefined, min: w[3] || 0 }, w[4] ? { info: w[4] } : {}, w[5] === 1 ? { nacht: true } : {}, typeof w[6] === 'string' && w[6] ? { notiz: w[6] } : {}) : { lat: w[0], lon: R.laengeNorm(w[1]) });
     tagesStartAnwenden(t.zeit && t.zeit.tage);
     if (t.modus) modusSetzen(t.modus, { karte: true });
     S.stuecke = planEntpacken(S.wps, S.profil, t.spur, t.stuecke);

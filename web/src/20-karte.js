@@ -61,6 +61,10 @@ const LAGEN = {
 
 // Start: zuletzt gesehener Ausschnitt, sonst Penzberg und das Voralpenland
 const blick = SPEICHER.lesen('blick', { lat: 47.70, lon: 11.37, z: 11 });
+if (!(blick.lon >= -180 && blick.lon <= 180)) {   // ein Ausschnitt aus einer Welt-Kopie (−348°) zurück in die Hauptwelt
+  blick.lon = R.laengeNorm(+blick.lon) || 11.37;
+  SPEICHER.schreiben("blick", blick);
+}
 const karte = L.map('karte', { zoomControl: false, attributionControl: true, maxZoom: 19 }).setView([blick.lat, blick.lon], blick.z);
 // am Telefon links unten über dem Blatt, damit rechts die Kartenknöpfe frei bleiben
 if (window.innerWidth <= 760) karte.attributionControl.setPosition('bottomleft');
@@ -161,6 +165,8 @@ $('bMinus').addEventListener('click', () => karte.zoomOut());
 
 karte.on('moveend', () => {
   const c = karte.getCenter();
+  // weit über die Datumsgrenze geschoben: zurück in die Hauptwelt, sonst tragen Tipps auf die Karte falsche Längen
+  if (c.lng < -180 || c.lng > 180) { karte.setView([c.lat, R.laengeNorm(c.lng)], karte.getZoom(), { animate: false }); return; }
   SPEICHER.schreiben('blick', { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), z: karte.getZoom() });
 });
 
