@@ -939,6 +939,15 @@ function pruef(name, bed, info) {
   await page.screenshot({ path: path.join(OUT, '42-steigung.png') });
   const steilFarben = await page.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')));
   pruef('Steigung: Route in Stufenfarben, Legende da', steilFarben.some(f => ['#2e9d3a', '#e6c200', '#f08c00', '#e0301e', '#8e2bb0'].includes(f)) && await page.isVisible('#steigLegende'), [...new Set(steilFarben)]);
+  // Routing scheitert (Thomas 17.11.: graue Luftlinien sahen aus wie eine Route): Meldung über der Karte mit dem Grund,
+  // die Ersatzlinie bleibt auch nach Steigung gestrichelt
+  await page.route(/brouter\.de\/brouter/, r => r.fulfill({ status: 504, contentType: 'text/plain', body: 'Gateway Timeout' }));
+  await page.evaluate(() => { location.hash = '#tour-wandern-47.74100_11.36100~47.73600_11.38100'; });
+  await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Kein Weg gefunden'), null, { timeout: 15000 }).catch(() => {});
+  const fehlMeldung = await page.textContent('#meldung');
+  const gestrichelt = await page.$$eval('.leaflet-overlay-pane path', l => l.filter(p => p.getAttribute('stroke-dasharray') && +p.getAttribute('stroke-opacity') > 0.5).length);
+  pruef('Routing scheitert: Meldung über der Karte mit Grund, Luftlinie auch nach Steigung gestrichelt', fehlMeldung.includes('Kein Weg gefunden') && fehlMeldung.includes('Abschnitt 1') && gestrichelt >= 1, [fehlMeldung, gestrichelt]);
+  await page.unroute(/brouter\.de\/brouter/);
   await page.uncheck('#lageSteigung');
   const ohneSteil = await page.$$eval('.leaflet-overlay-pane path', l => l.map(p => p.getAttribute('stroke')));
   pruef('Steigung: aus, keine Stufenfarben mehr', !ohneSteil.some(f => ['#2e9d3a', '#e6c200', '#f08c00', '#8e2bb0'].includes(f)) && await page.isHidden('#steigLegende'), [...new Set(ohneSteil)]);

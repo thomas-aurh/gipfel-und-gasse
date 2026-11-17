@@ -5,6 +5,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Routing scheiterte auf dem Pixel (17.11. früh, Bau 303, Penzberg):** nur gerade graue Linien, „Lädt …“ blieb stehen;
+  4,8 km in 30 min deuten auf die Art Laufen (Trail-Profil, #109). Ursache offen: Profiltabelle (Java und Web) und
+  Online-Anfrage passen zum Quellcode von BRouter (`profile:` in `RoutingParamCollector`, alle vier Werte im Wanderprofil),
+  die echte Antwort von brouter.de ist aus der Cloud nicht gemessen. Seit #120 nennt eine Meldung über der Karte den Grund
+  („Abschnitt 1: …“); damit und mit „Wandern“ statt „Laufen“ am Pixel nachprüfen.
 - **Langes Drücken und Notizen an Punkten (16.11., PRs #118, #119):** nur im Klicktest geprüft (Berührung über CDP
   nachgebildet). Nicht geprüft auf dem Pixel: ob 550 ms sich richtig anfühlen, ob das Vibrieren im WebView ankommt, ob
   der Browser beim Halten ein eigenes Menü zeigt; Textfeld der Notiz mit Bildschirmtastatur; Vorlesen der Notiz am Punkt

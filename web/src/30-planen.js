@@ -219,7 +219,9 @@ function zeichenRoute() {
     const teil = [[]];
     e.pts.filter(p => p.d >= d0 - 0.01 && p.d <= d1 + 0.01).forEach(p => { if (p.luecke && teil[teil.length - 1].length) teil.push([]); teil[teil.length - 1].push([p.lat, p.lon]); });
     const blass = tagFokus != null && !S.fest && stueckTag(k) !== tagFokus;
-    const linie = L.polyline(teil, { color: farbe(k), weight: blass ? 4 : 5, opacity: steil ? 0.01 : blass ? 0.3 : 0.95, dashArray: s.quelle === 'linie' ? '8 8' : null });
+    // nach Steigung bleibt eine gerade Linie (Ersatz ohne Weg oder weglos) sichtbar gestrichelt, sonst sähe sie aus wie eine Route
+    const gerade = s.quelle === 'linie';
+    const linie = L.polyline(teil, { color: farbe(k), weight: blass ? 4 : 5, opacity: steil && !gerade ? 0.01 : blass ? 0.3 : 0.95, dashArray: gerade ? '8 8' : null });
     linie.on('click', ev => {
       L.DomEvent.stop(ev);
       if (kreuzAn) { kreuzHin(ev.latlng); return; }
@@ -292,6 +294,8 @@ async function neuBerechnen() {
   $('status').innerHTML = fehler.length
     ? '<div class="fehler">Kein Weg gefunden, dort gerade Linie (gestrichelt). ' + R.esc(fehler.join(' · ')) + '</div>'
     : '';
+  // auch als Meldung über der Karte: bei eingeklapptem Blatt sähe man den Status nicht und hielte die Luftlinie für die Route
+  if (fehler.length) melde('⚠️ Kein Weg gefunden, dort Luftlinie (gestrichelt). ' + fehler[0] + (fehler.length > 1 ? ' (und ' + (fehler.length - 1) + ' weitere)' : ''), 12);
   entwurfSichern();
 }
 
