@@ -725,6 +725,30 @@ function pruef(name, bed, info) {
   const tempoVorher = await page.inputValue('#tempowahl');
   await planReiter(page, 'route'); await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
   pruef('Familien-Check: neue Auswertung leert ihn', (await page.textContent('#familie')) === '');
+  // Umkehrzeit (die nachgebildete Route steigt je Abschnitt um rund 180 m an und fällt wieder): spätestens am höchsten Punkt
+  const zpU = await page.textContent('#zeitplan');
+  pruef('Umkehrzeit: im Zeitplan mit Uhrzeit und höchstem Punkt', /Umkehrzeit: spätestens \d\d:\d\d Uhr am höchsten Punkt \(\d+ m, bei [\d,]+ (k?m)\)/.test(zpU), zpU);
+  // Ausstiege: eine Bushaltestelle mitten an der Route, ein Brunnen (kein Ausstieg); nur für diese Abfrage nachgebildet
+  // die Abfrage nennt die Punkte der Route (around:400,lat,lon,lat,lon,…): Haltestelle am mittleren
+  const mitte = { laenge: 0 };
+  await page.route(/overpass-api\.de/, r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    const z = /around:\d+,([-\d.,]+)\)/.exec(q)[1].split(',').map(Number), k = Math.floor(z.length / 4) * 2;
+    let m = 0;
+    for (let i = 2; i < z.length; i += 2) m += abstand([z[i - 1], z[i - 2]], [z[i + 1], z[i]]);
+    mitte.laenge = m;
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [
+      { type: 'node', id: 61, lat: z[k] + 0.0003, lon: z[k + 1], tags: { highway: 'bus_stop', name: 'Testhalt' } },
+      { type: 'node', id: 62, lat: z[k], lon: z[k + 1] + 0.0002, tags: { amenity: 'drinking_water' } }
+    ] }) });
+  });
+  await planReiter(page, 'vorbereiten'); await page.click('#bAusstiege');
+  await page.waitForFunction(() => document.querySelectorAll('#ausstiegListe li').length > 0 || /nicht abrufbar|Keine/.test(document.getElementById('ausstiegStatus').textContent), null, { timeout: 8000 }).catch(() => {});
+  const ausT = await page.textContent('#ausstiegListe');
+  pruef('Ausstiege: Bushaltestelle mit Lage und Gehzeit, kein Brunnen', mitte.laenge > 1200 ? /🚌Bushaltestelle Testhalt.*bei [\d,]+ k?m · nach etwa/.test(ausT) && !ausT.includes('Trinkwasser') : true, [ausT, await page.textContent('#ausstiegStatus'), mitte.laenge]);
+  await page.unroute(/overpass-api\.de/);
+  await planReiter(page, 'route'); await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
+  pruef('Ausstiege: neue Auswertung leert die Liste', (await page.textContent('#ausstiegListe')) === '');
   await planReiter(page, 'vorbereiten'); await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // Mehrtagestour über den Schalter im Reiter Route: „Mehrere Tage“ teilt nach Gehzeit, 3 Tage, zurück zu 1 Tag
   await planReiter(page, 'route');
@@ -1590,6 +1614,14 @@ function pruef(name, bed, info) {
   pruef('App: Knopf zeigt „Folgen beenden“', (await pa2.textContent('#bNavi')).includes('beenden'));
   pruef('App: Route mit Abschnitts-Merker (4 Werte je Punkt)', st1[1].pts[0].length === 4 && st1[1].pts[0][3] === 0);
   pruef('App: „Link teilen“ ausgeblendet', await pa2.isHidden('#bTeilen'));
+  pruef('App: Dunkelgrenze und Umkehrzeit an den Dienst', typeof st1[1].dunkelAb === 'number' && typeof st1[1].umkehrZeit === 'number' && typeof st1[1].umkehrD === 'number' &&
+    (st1[1].dunkelAb === 0 || st1[1].untergang - st1[1].dunkelAb === 30 * 60000), [st1[1].dunkelAb, st1[1].untergang, st1[1].umkehrD]);
+  // Akku aus dem Dienst: reicht 30 min, bis zum Ziel 54 min ⇒ Warnung in der Anzeige (angesagt hat der Dienst)
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 10, abseits: false, akku: { prozent: 18, stunden: 0.5 } }));
+  pruef('App: Akku mit Schätzung und Restzeit', /🔋 18 % · reicht bei diesem Verbrauch etwa 30 min · bis zum Ziel 55 min/.test(await pa2.textContent('#uAkku')), await pa2.textContent('#uAkku'));
+  pruef('App: Akku reicht nicht ⇒ Warnung', !(await pa2.isHidden('#uSicher')) && (await pa2.textContent('#uSicher')).includes('Der Akku reicht'), await pa2.textContent('#uSicher'));
+  await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 10, abseits: false, akku: { prozent: 80, stunden: null, laedt: true } }));
+  pruef('App: Akku lädt ⇒ keine Warnung', (await pa2.textContent('#uAkku')).includes('lädt') && !(await pa2.textContent('#uSicher')).includes('Akku'), [await pa2.textContent('#uAkku'), await pa2.textContent('#uSicher')]);
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
   pruef('App: ohne Gewitter keine Warnung', await pa2.isHidden('#uWetter'));
   await pa2.evaluate(() => window.__navi.melden({ laeuft: true, folgen: true, aufzeichnen: false, lat: 47.76, lon: 11.385, gen: 6, t: Date.now(), gewitter: 'Gewitter möglich gegen 15 Uhr', rest: { meter: 2345, auf: 120, stunden: 0.9 }, abw: 72, abseits: true }));
@@ -2046,7 +2078,9 @@ function pruef(name, bed, info) {
   await po.click('#bNavi');
   await po.waitForTimeout(300);
   const naviStart = await po.evaluate(() => window.__naviStart);
-  const hw = naviStart.length ? naviStart[naviStart.length - 1].hinweise : null;
+  // der letzte Aufruf mit Route (danach schickt die App noch die Ausstiege nach, sobald sie geladen sind)
+  const mitRoute = naviStart.filter(o => o.pts);
+  const hw = mitRoute.length ? mitRoute[mitRoute.length - 1].hinweise : null;
   pruef('Abbiegehinweise an den Navigationsdienst', hw && hw.length === 2 && hw[0][1] === 2 && hw[1][1] === 6 && hw[0][0] < hw[1][0], hw);
   // Orte entlang der Route aus dem Paket: Overpass wird nicht gefragt
   await zuSeite(po, 'entdecken');

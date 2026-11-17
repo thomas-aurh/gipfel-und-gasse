@@ -171,11 +171,12 @@ function aufzLaeuft() { return !!(U.aufz && U.aufz.laeuft); }
 $('bNavi').onclick = () => {
   setTimeout(gewitterPruefen, 60000);
   setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);
-  if (U.navi) { U.navi = false; fuehrungAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); gpsFreigeben(); return; }
+  if (U.navi) { U.navi = false; fuehrungAus(); sicherAus(); $('bNavi').textContent = '▶ Route folgen'; $('abseits').hidden = true; if (!aufzLaeuft()) wachHalten(false); gpsFreigeben(); return; }
   if (!S.ergebnis) { melde('Erst eine Route planen oder eine Tour öffnen.'); return; }
   if (!gpsFuer()) return;
   U.navi = true; U.folgen = true; U.gewarnt = false; U.fortschritt = null; U.naviStart = Date.now(); U.vorgelesen = new Set(); U.alarmPunkte = null; $('bOrt').classList.add('an');
   fuehrungLaden();
+  sicherStart();
   $('bNavi').textContent = '■ Folgen beenden';
   wachHalten(true);
   if (U.pos) naviNeu();
@@ -382,6 +383,8 @@ function naviNeu() {
     }
   } else { U.abseitsSeit = 0; U.gewarnt = false; $('abseits').hidden = true; }
   punktAlarmPruefen(e, lage);
+  // Ausstieg, Umkehrzeit, Akku
+  sicherZeigen({ d: U.fortschritt != null ? U.fortschritt : lage.d, rest: rest.zeit });
   // Führung und Notizen: am Stopp (30 m) einmal die Kurzinfo bzw. die Notiz vorlesen
   if ((FUEHRUNG.size || plan.wps.some(w => w.notiz)) && lage.abw < 40 && e.stueckEnde && !S.fest) plan.wps.forEach((w, i) => {
     const k = fuehrungSchluessel(w), text = i > 0 && stoppVorlesen(w), d = e.stueckEnde[i - 1];

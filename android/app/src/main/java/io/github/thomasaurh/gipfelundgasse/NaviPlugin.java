@@ -168,9 +168,19 @@ public class NaviPlugin extends Plugin {
             z.kmAnsage = call.getBoolean("kmAnsage", z.kmAnsage);
             z.alarm = Math.max(50, Math.min(1000, call.getDouble("alarm", z.alarm)));
             z.ansagen = call.getBoolean("ansagen", z.ansagen);
+            // Umkehrzeit und Dunkelgrenze (kommen mit der Route), Ausstiege (auch später, sobald geladen)
+            JSObject daten = call.getData();
+            if (daten.has("dunkelAb")) {
+                z.dunkelAb = daten.optLong("dunkelAb", 0); z.untergang = daten.optLong("untergang", 0);
+                z.umkehrZeit = daten.optLong("umkehrZeit", 0); z.umkehrD = daten.optDouble("umkehrD", 0);
+                z.umkehrLat = daten.optDouble("umkehrLat", Double.NaN); z.umkehrLon = daten.optDouble("umkehrLon", Double.NaN);
+            }
+            if (daten.has("ausstiege")) NaviService.ausstiegeLesen(daten.optJSONArray("ausstiege"));
             boolean warFolgen = z.folgen;
             z.folgen = call.getBoolean("folgen", z.folgen) && z.strecke != null;
             if (!z.folgen || !warFolgen) z.folgenSeit = 0;   // neu gestartet: Begrüßung und Ansagen von vorn
+            // neue Navigation: Warnungen und Akku-Messung von vorn
+            if (z.folgen && !warFolgen) { z.dunkelGesagt = 0; z.akkuGesagt = 0; z.akkuProben.clear(); z.akkuStunden = Double.NaN; }
             else if (neueGeometrie) {
                 // Route während der Fahrt geändert: ohne neue Begrüßung weiter, Fortschritt und Stopps neu
                 z.fortschritt = Double.NaN;
@@ -571,6 +581,14 @@ public class NaviPlugin extends Plugin {
                     if (h[0] - d < 1000) { JSObject n = new JSObject(); n.put("bis", h[0] - d); n.put("text", t); o.put("naechster", n); }
                     break;
                 }
+            }
+            // Akku: Stand, lädt, Schätzung in Stunden (fehlt, solange zu kurz gemessen)
+            if (z.laeuft && z.akkuProzent >= 0 && (z.folgen || z.aufzeichnen)) {
+                JSObject k = new JSObject();
+                k.put("prozent", z.akkuProzent);
+                k.put("stunden", Double.isNaN(z.akkuStunden) || z.akkuLaedt ? null : z.akkuStunden);
+                if (z.akkuLaedt) k.put("laedt", true);
+                o.put("akku", k);
             }
             if (z.aufzStart != 0) {
                 JSObject a = new JSObject();

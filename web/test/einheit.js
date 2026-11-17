@@ -1010,6 +1010,57 @@ async function warteschlangePruefen() {
   for (let i = 0; i < 5; i++) await null;
   pruef('Warteschlange: nie mehr als drei, die wartende kommt vor der neuen dran', max === 3 && nachEinem === '2,3,4' && laeuft.has(5) && q.aktiv === 1, [max, nachEinem, [...laeuft], q.aktiv]);
 }
+// ---------- Umkehrzeit, Ausstiege, Akku ----------
+{
+  // 10 km hin und zurück: hoch auf 1500 m bis km 5, wieder runter; Punkte alle 500 m
+  const pts = [];
+  for (let i = 0; i <= 20; i++) { const d = i * 500; pts.push({ lat: 47.5 + d / 111195, lon: 11.3, d, ele: 700 + 800 * (1 - Math.abs(d - 5000) / 5000) }); }
+  const u = R.umkehrPunkt(pts);
+  pruef('Umkehrpunkt: höchster Punkt in der Mitte', u && u.d === 5000 && u.ele === 1500, u);
+  pruef('Umkehrpunkt: Gipfel als Ziel zählt nicht', R.umkehrPunkt(pts.slice(0, 11)) === null);
+  pruef('Umkehrpunkt: ebene Tour ohne', R.umkehrPunkt(pts.map(p => Object.assign({}, p, { ele: 600 + (p.d === 5000 ? 50 : 0) }))) === null);
+  pruef('Umkehrpunkt: ohne Höhen keiner', R.umkehrPunkt(pts.map(p => ({ lat: p.lat, lon: p.lon, d: p.d }))) === null);
+  const unter = new Date(Date.UTC(2026, 10, 17, 15, 30));
+  const uz = R.umkehrZeit(unter, 2);
+  pruef('Umkehrzeit: Untergang − 30 min − Rest', uz.valueOf() === Date.UTC(2026, 10, 17, 13, 0), uz);
+  pruef('Umkehrzeit: ohne Untergang keine', R.umkehrZeit(null, 2) === null);
+  const T = Date.UTC(2026, 10, 17, 12, 0), basis = { dunkelAb: Date.UTC(2026, 10, 17, 15, 0), umkehrD: 5000, umkehrZeit: Date.UTC(2026, 10, 17, 13, 0), d: 3000 };
+  pruef('Dunkel: früh alles gut', R.dunkelLage(Object.assign({ jetzt: T, ankunft: T + 2 * 3600e3 }, basis)).length === 0);
+  pruef('Dunkel: 10 min vor Umkehrzeit', R.dunkelLage(Object.assign({}, basis, { jetzt: basis.umkehrZeit - 600e3, ankunft: T })).join() === 'umkehrBald');
+  pruef('Dunkel: Umkehrzeit vorbei, Ankunft zu spät', R.dunkelLage(Object.assign({}, basis, { jetzt: basis.umkehrZeit + 60e3, ankunft: basis.dunkelAb + 600e3 })).join() === 'umkehr,knapp');
+  pruef('Dunkel: hinter dem Umkehrpunkt keine Umkehr-Warnung', R.dunkelLage(Object.assign({}, basis, { d: 6000, jetzt: basis.umkehrZeit + 60e3, ankunft: T })).length === 0);
+  pruef('Dunkel: aus ohne Grenze', R.dunkelLage(Object.assign({}, basis, { dunkelAb: 0, jetzt: basis.umkehrZeit + 60e3, ankunft: basis.dunkelAb + 1 })).length === 0);
+  const txt = R.dunkelText('umkehr', { untergang: new Date(basis.dunkelAb + 1800e3), ausstieg: 'Bushaltestelle Au in 1,2 km' });
+  pruef('Dunkel: Text nennt Ausstieg', /Umkehrzeit erreicht/.test(txt) && /Nächster Ausstieg: Bushaltestelle Au in 1,2 km\./.test(txt), txt);
+  // Ausstiege: Bus an der Route, zweiter Bus 300 m weiter (gleiche Art, fällt weg), Parkplatz zu weit weg, Bahnhof am Start
+  const o = [
+    { d: 3000, abw: 50, lat: 1, lon: 1, name: 'Au', tags: { highway: 'bus_stop', name: 'Au' } },
+    { d: 3300, abw: 120, lat: 1, lon: 1, name: 'Au Nord', tags: { highway: 'bus_stop', name: 'Au Nord' } },
+    { d: 4000, abw: 900, lat: 1, lon: 1, name: 'Parkplatz', tags: { amenity: 'parking' } },
+    { d: 200, abw: 10, lat: 1, lon: 1, name: 'Bf', tags: { railway: 'station', name: 'Bf' } },
+    { d: 6000, abw: 30, lat: 1, lon: 1, name: 'Berghütte', tags: { tourism: 'alpine_hut' } },
+    { d: 5000, abw: 10, lat: 1, lon: 1, name: 'Brunnen', tags: { amenity: 'drinking_water' } }
+  ];
+  const a = R.ausstiege(o, 10000);
+  pruef('Ausstiege: Auswahl und Reihenfolge', a.map(x => x.name).join('|') === 'Bushaltestelle Au|Berghütte', a.map(x => x.name));
+  const n = R.naechsteAusstiege(a, 4000);
+  pruef('Ausstiege: vorn und zurück', n.vorn.name === 'Berghütte' && n.vorn.bis === 2000 && n.zurueck.bis === 1000, n);
+  pruef('Ausstiege: Text', R.ausstiegText(n.vorn) === 'Berghütte in 2,0 km' && R.ausstiegText(n.zurueck, true) === 'Bushaltestelle Au 1,0 km zurück', [R.ausstiegText(n.vorn), R.ausstiegText(n.zurueck, true)]);
+  // Akku: 80 % → 70 % in 30 min = 20 %/h → 70 % reichen 3,5 h
+  const t0 = Date.UTC(2026, 10, 17, 10, 0);
+  const proben = [0, 10, 20, 30].map(m => ({ t: t0 + m * 60e3, l: 0.8 - m / 300 }));
+  const s = R.akkuSchaetzung(proben);
+  pruef('Akku: Schätzung', s.prozent === 70 && nahe(s.stunden, 3.5, 1e-6), s);
+  pruef('Akku: zu kurz gemessen', R.akkuSchaetzung(proben.slice(0, 1)).stunden === null);
+  pruef('Akku: kaum Verbrauch', R.akkuSchaetzung([{ t: t0, l: 0.8 }, { t: t0 + 3600e3, l: 0.79 }]).stunden === null);
+  // nach über einer Stunde zählt nur die letzte Stunde: erst schnell (Bildschirm an), dann langsam
+  const lang = [{ t: t0, l: 1 }, { t: t0 + 30 * 60e3, l: 0.8 }, { t: t0 + 90 * 60e3, l: 0.75 }, { t: t0 + 150 * 60e3, l: 0.7 }];
+  pruef('Akku: letzte Stunde zählt', nahe(R.akkuSchaetzung(lang).stunden, 0.7 / 0.05, 1e-6), R.akkuSchaetzung(lang));
+  pruef('Akku: reicht nicht', R.akkuWarnung({ prozent: 40, stunden: 2 }, 1.8) === 'knapp');
+  pruef('Akku: reicht', R.akkuWarnung({ prozent: 40, stunden: 4 }, 1.8) === '');
+  pruef('Akku: leer ohne Schätzung', R.akkuWarnung({ prozent: 12, stunden: null }, 1) === 'leer');
+}
+
 warteschlangePruefen().then(() => {
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

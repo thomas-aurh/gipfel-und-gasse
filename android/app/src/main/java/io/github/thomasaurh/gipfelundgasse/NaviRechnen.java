@@ -236,4 +236,71 @@ public final class NaviRechnen {
         String sh = h == 1 ? "eine Stunde" : h + " Stunden";
         return m == 0 ? sh : sh + " " + m + " Minuten";
     }
+
+    // ---------- Umkehrzeit, Ausstiege, Akku (gleich wie in web/src/00-rechnen.js) ----------
+    public static final int UMKEHR_BALD = 1, UMKEHR = 2, KNAPP = 4;
+
+    /**
+     * Welche Warnungen jetzt fällig sind (Bits UMKEHR_BALD, UMKEHR, KNAPP; wie R.dunkelLage): Umkehrzeit naht (15 min) oder
+     * ist vorbei, solange der Umkehrpunkt noch vor einem liegt; Ankunft nach der Dunkelgrenze. dunkelAb 0 = aus,
+     * umkehrZeit 0 = keine Umkehrzeit. Zeiten in ms, d und umkehrD in Metern ab Start.
+     */
+    public static int dunkelLage(long jetzt, long ankunft, long dunkelAb, double umkehrD, long umkehrZeit, double d) {
+        if (dunkelAb <= 0) return 0;
+        int out = 0;
+        boolean vorUmkehr = umkehrZeit > 0 && umkehrD > 0 && !Double.isNaN(d) && d < umkehrD - 50;
+        if (vorUmkehr && jetzt >= umkehrZeit) out |= UMKEHR;
+        else if (vorUmkehr && jetzt >= umkehrZeit - 15 * 60000L) out |= UMKEHR_BALD;
+        if (ankunft > dunkelAb) out |= KNAPP;
+        return out;
+    }
+
+    /** Uhrzeit zum Vorlesen: „13 Uhr 40“, „14 Uhr“. */
+    public static String uhrSprache(long ms, java.util.TimeZone zone) {
+        java.util.Calendar c = java.util.Calendar.getInstance(zone, Locale.GERMANY);
+        c.setTimeInMillis(ms);
+        int h = c.get(java.util.Calendar.HOUR_OF_DAY), m = c.get(java.util.Calendar.MINUTE);
+        return h + " Uhr" + (m == 0 ? "" : " " + m);
+    }
+
+    /** Ansage zur Warnung (wie R.dunkelText); ausstieg z. B. „Bushaltestelle Au in 1,2 Kilometern“ oder "". */
+    public static String dunkelText(int art, long jetzt, long ankunft, long umkehrZeit, long untergang, String ausstieg, java.util.TimeZone zone) {
+        String dazu = ausstieg == null || ausstieg.isEmpty() ? "" : " Nächster Ausstieg: " + ausstieg + ".";
+        if (art == UMKEHR_BALD) return "In " + Math.max(1, Math.round((umkehrZeit - jetzt) / 60000.0)) + " Minuten ist Umkehrzeit, " + uhrSprache(umkehrZeit, zone) + ". Bis dahin solltest du am höchsten Punkt sein.";
+        if (art == UMKEHR) return "Umkehrzeit erreicht. Über den höchsten Punkt kommst du erst nach Sonnenuntergang an, der ist um " + uhrSprache(untergang, zone) + ". Umkehren oder einen Ausstieg nehmen." + dazu;
+        return "Es wird knapp: Ankunft etwa " + uhrSprache(ankunft, zone) + ", Sonnenuntergang " + uhrSprache(untergang, zone) + ". Stirnlampe bereithalten oder abkürzen." + dazu;
+    }
+
+    /** Nächster Ausstieg ab Meter d (Liste nach Metern sortiert): Index, -1 = keiner mehr vorn. */
+    public static int naechsterAusstieg(java.util.List<Double> meter, double d) {
+        for (int i = 0; i < meter.size(); i++) if (meter.get(i) >= d) return i;
+        return -1;
+    }
+
+    /**
+     * Wie lange der Akku beim gemessenen Verbrauch noch reicht (Stunden; wie R.akkuSchaetzung): über die letzte Stunde,
+     * frühere Proben nur, wenn die Stunde noch keine 10 min hat; erst ab 10 min und 2 % Verbrauch, sonst NaN.
+     * t in ms, l von 0 bis 1, in zeitlicher Folge.
+     */
+    public static double akkuStunden(long[] t, double[] l) {
+        int n = Math.min(t.length, l.length);
+        if (n == 0) return Double.NaN;
+        int b = 0;
+        while (b < n - 1 && t[b] < t[n - 1] - 3600000L) b++;
+        if (t[n - 1] - t[b] < 600000L) b = 0;
+        double dauer = (t[n - 1] - t[b]) / 3600000.0, verbrauch = l[b] - l[n - 1];
+        if (t[n - 1] - t[b] < 600000L || verbrauch < 0.02) return Double.NaN;
+        return l[n - 1] / (verbrauch / dauer);
+    }
+
+    /** 2 = reicht nicht bis zum Ziel plus 30 min, 1 = höchstens 15 %, 0 = gut (wie R.akkuWarnung). */
+    public static int akkuWarnung(int prozent, double stunden, double restStunden) {
+        if (!Double.isNaN(stunden) && !Double.isNaN(restStunden) && stunden < restStunden + 0.5) return 2;
+        return prozent <= 15 ? 1 : 0;
+    }
+
+    public static String akkuText(int art, int prozent, double stunden, double restStunden) {
+        if (art == 2) return "Achtung: Der Akku reicht bei diesem Verbrauch noch etwa " + zeitSprache(stunden) + ", bis zum Ziel sind es etwa " + zeitSprache(restStunden) + ". Bildschirm aus lassen, die Ansagen kommen trotzdem.";
+        return "Akku nur noch " + prozent + " Prozent. Bildschirm aus lassen und Strom sparen.";
+    }
 }

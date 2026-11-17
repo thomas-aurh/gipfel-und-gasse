@@ -169,6 +169,15 @@ Stirnlampe nach Aufstieg, Abstieg und Länge; Sonnenschutz in der Höhe; Kleidun
 Wind, Hinweis bei Gewitter); Hüttensachen bei Etappen; Zusätze beim Tempo „Mit Kind“. Abhaken merkt sich die App je Tour,
 eigene Dinge („Fernglas“) stehen bei allen Touren unter „Eigenes“.
 
+**Umkehrzeit, Ausstiege, Akku:** Am Berg nennt der Zeitplan unter *Planen* die Umkehrzeit: bis wann man am höchsten
+Punkt sein muss, damit man 30 min vor Sonnenuntergang am Ziel ist (mit dem gewählten Tempo, den Pausen und den
+Besichtigungen danach). „🚪 Ausstiege entlang der Route“ listet, wo man abbrechen kann: Bus und Bahn, Bergbahn, Parkplatz
+und Hütten bis 400 m neben der Route (OpenStreetMap, ohne Netz aus dem Kartenpaket), mit Kilometer und Gehzeit ab Start.
+Beim Folgen steht unter *Unterwegs* der nächste Ausstieg vorn und zurück. Warnungen kommen 15 min vor der Umkehrzeit, bei
+der Umkehrzeit und wenn die Ankunft nach der Dunkelheit läge; sie nennen den nächsten Ausstieg. Der Akku wird über die
+letzte Stunde gemessen: Reicht er nicht bis zum Ziel plus 30 min, oder sind es nur noch 15 %, warnt die App einmal. In der
+Android-App sagt der Navigationsdienst all das auch bei gesperrtem Bildschirm an.
+
 **Wetter für die Tour:** In *Planen* „🌦 Wetter für die Tour“: Vorhersage für Start, höchsten Punkt und Ziel (bei Etappen je
 Tag), jeweils für die Stunde, in der man laut Zeitplan dort ist, umgerechnet auf die Höhe des Punkts. Warnt bei Gewitter,
 Sturmböen (ab 60 km/h) und Frost. Ohne Startzeit rechnet die App ab 9 Uhr; bis 16 Tage voraus.
