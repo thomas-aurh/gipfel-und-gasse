@@ -747,8 +747,22 @@ function pruef(name, bed, info) {
   const ausT = await page.textContent('#ausstiegListe');
   pruef('Ausstiege: Bushaltestelle mit Lage und Gehzeit, kein Brunnen', mitte.laenge > 1200 ? /🚌Bushaltestelle Testhalt.*bei [\d,]+ k?m · nach etwa/.test(ausT) && !ausT.includes('Trinkwasser') : true, [ausT, await page.textContent('#ausstiegStatus'), mitte.laenge]);
   await page.unroute(/overpass-api\.de/);
+  // Schatten: Wald genau über dem ersten Rahmen der Abfrage (erste rund 1,5 km der Route), Rest offen
+  await page.route(/overpass-api\.de/, r => {
+    const q = decodeURIComponent((r.request().postData() || '').replace(/^data=/, ''));
+    const [s0, w0, n0, o0] = /way\["landuse"="forest"\]\(([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)\)/.exec(q).slice(1).map(Number);
+    const ring = [[s0, w0], [s0, o0], [n0, o0], [n0, w0], [s0, w0]].map(([lat, lon]) => ({ lat, lon }));
+    r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ elements: [{ type: 'way', id: 71, geometry: ring, tags: { landuse: 'forest' } }] }) });
+  });
+  await planReiter(page, 'vorbereiten'); await page.click('#bSchatten');
+  await page.waitForFunction(() => /% im Wald|nicht abrufbar/.test(document.getElementById('schattenText').textContent), null, { timeout: 8000 }).catch(() => {});
+  const schT = await page.textContent('#schattenText');
+  const schPz = +((/Etwa (\d+) % im Wald/.exec(schT) || [])[1]);
+  pruef('Schatten: Waldanteil zwischen 0 und 100 %, offene Stücke auf der Karte', schPz > 0 && schPz < 100 && (mitte.laenge < 1600 || await page.locator('path[stroke="#e8890c"]').count() > 0), [schT, mitte.laenge]);
+  await page.unroute(/overpass-api\.de/);
   await planReiter(page, 'route'); await page.selectOption('#tempowahl', tempoVorher === '0.85' ? '1' : '0.85'); await page.selectOption('#tempowahl', tempoVorher);
   pruef('Ausstiege: neue Auswertung leert die Liste', (await page.textContent('#ausstiegListe')) === '');
+  pruef('Schatten: neue Auswertung leert Text und Karte', (await page.textContent('#schattenText')) === '' && (await page.locator('path[stroke="#e8890c"]').count()) === 0);
   await planReiter(page, 'vorbereiten'); await page.fill('#startTag', ''); await page.dispatchEvent('#startTag', 'change');
   // Mehrtagestour über den Schalter im Reiter Route: „Mehrere Tage“ teilt nach Gehzeit, 3 Tage, zurück zu 1 Tag
   await planReiter(page, 'route');
@@ -2648,6 +2662,18 @@ function pruef(name, bed, info) {
   await pe.reload();
   const nachLaden = await pe.evaluate(() => [document.querySelector('#tempowahl').selectedOptions[0].id, localStorage.getItem('gug.tempo')]);
   pruef('Eigenes Tempo: gewählt bleibt es nach dem Neuladen (nicht „Zügig“ mit gleichem Wert)', nachLaden[0] === 'tempoEigen' && nachLaden[1] === '1.2', nachLaden);
+  // Jahreskarte aus denselben drei Aufzeichnungen: Jahr wählen, Linien auf der Karte, Hinweis mit ✕
+  await zuSeite(pe, 'gegangen');
+  await pe.waitForTimeout(100);
+  const jahrJetzt = String(new Date(Date.now() - 864e5).getFullYear());
+  pruef('Jahreskarte: Jahr wählbar, Text mit Touren und km', await pe.isVisible('#jahrBox') && (await pe.inputValue('#jahrWahl')) === jahrJetzt &&
+    /\d+ Touren an \d+ Tagen · \d+ km/.test(await pe.textContent('#jahrText')), [await pe.inputValue('#jahrWahl'), await pe.textContent('#jahrText')]);
+  await pe.click('#bJahrKarte');
+  await pe.waitForTimeout(200);
+  pruef('Jahreskarte: Linien je Tour, Hinweis über der Karte', (await pe.locator('path.jahr-spur').count()) === 3 && await pe.isVisible('#jahrHinweis') &&
+    (await pe.textContent('#jahrHinweisText')).includes('3 Touren'), [await pe.locator('path.jahr-spur').count(), await pe.textContent('#jahrHinweisText')]);
+  await pe.click('#bJahrAus');
+  pruef('Jahreskarte: ✕ blendet sie aus', (await pe.locator('path.jahr-spur').count()) === 0 && await pe.isHidden('#jahrHinweis'));
   await tc.close();
 
   await browser.close();

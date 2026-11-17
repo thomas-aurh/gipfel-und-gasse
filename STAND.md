@@ -5,6 +5,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Schatten und Jahreskarte (17.11.):** geprüft in Einheitstests und im Klicktest (Wald nachgebildet, Jahreskarte mit
+  drei Aufzeichnungen am PC und Telefon angesehen). Nicht geprüft: echte Overpass-Antwort für Wald (aus der Cloud gesperrt):
+  Größe der Antwort bei großen Wald-Multipolygonen, Antwortzeit, ob 40 s reichen; Waldränder in OSM ungenau, Wege am
+  Waldrand zählen zufällig. Jahreskarte: Tempo der Karte mit vielen langen Aufzeichnungen auf dem Pixel.
 - **Umkehrzeit, Ausstiege, Akku (17.11.):** geprüft in Einheitstests (Web und Java `NaviRechnenTest`) und im Klicktest
   (Umkehrzeit im Zeitplan, Ausstiege mit nachgebildetem Overpass, Werte an den Dienst, Akku-Anzeige aus dem Dienst);
   `NaviService` und `NaviPlugin` nur in GitHub Actions gebaut. Nicht geprüft auf dem Pixel: Ansagen bei gesperrtem
@@ -178,6 +182,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Schatten aus OSM-Waldflächen über Overpass** (17.11., Thomas: „Mache 6 und 7“): kleine Rahmen entlang der Route,
+  `out geom`, Punkt-in-Fläche ohne Zusammensetzen der Ringe; nur auf Knopfdruck, nur mit Netz. Verworfen: Wald ins
+  Kartenpaket (große Datei), Vektorkacheln der Offline-Karte auswerten (nur in der App, viel Code), Sonnenstand und
+  Hangschatten (zu ungenau für den Nutzen).
+- **Jahreskarte aus den gespeicherten Aufzeichnungen** (17.11.): keine neuen Daten, Farbe je Monat, Gipfel aus dem Gipfelbuch.
 - **Umkehrzeit am höchsten Punkt, Warnungen im Dienst** (17.11., Thomas: „Mache 1, 2 und 3“): Umkehrpunkt ist der
   höchste Punkt der Route, Grenze wie im Zeitplan 30 min vor Sonnenuntergang am Ziel; nur am Berg (in der Stadt aus).
   Jede Warnung einmal je Navigation, im Dienst der App (gesperrter Bildschirm), im Browser über Meldung, Vibration und
@@ -366,6 +375,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **17.11. (PR folgt)** Schatten: Waldanteil der Route mit längstem offenem Stück und offenen Stücken auf der Karte;
+  Jahreskarte unter Gegangen mit Summen, Rekorden und Gipfeln. Einheitstests 388, Klicktest 490.
 
 - **17.11. (PR #122, Bau 310)** Umkehrzeit im Zeitplan und unterwegs (Warnung 15 min vorher, bei der Umkehrzeit und bei Ankunft
   nach Dunkelheit), Ausstiege entlang der Route (Bus/Bahn, Bergbahn, Parkplatz, Hütte) in Planen und Unterwegs,

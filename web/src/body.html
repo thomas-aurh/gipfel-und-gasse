@@ -86,6 +86,7 @@
   <!-- läuft Folgen oder Aufzeichnen, steht das über der Leiste; Antippen öffnet Unterwegs -->
   <button id="laeuftBalken" hidden></button>
   <div id="abseits" hidden>Du bist abseits der Route</div>
+  <div id="jahrHinweis" hidden><span id="jahrHinweisText"></span><button type="button" id="bJahrAus" aria-label="Jahreskarte ausblenden">✕</button></div>
   <div id="infoHinweis" hidden>ℹ️ Info: Antippen zeigt, was dort ist <button type="button" id="bInfoAus">✏️ Planen</button></div>
 
   <aside id="panel">
@@ -239,6 +240,7 @@
             <div id="tourWetterBox"><button class="knopf" id="bTourWetter">🌦 Wetter für die Tour</button><div id="tourWetter" class="klein"></div></div>
             <div class="pack-box"><button class="knopf" data-pack="planen" aria-expanded="false">🎒 Packliste</button><div class="pack" hidden></div></div>
             <div id="ausstiegBox"><button class="knopf" id="bAusstiege">🚪 Ausstiege entlang der Route</button><div id="ausstiegStatus" class="klein"></div><ul id="ausstiegListe" class="liste"></ul></div>
+            <div id="schattenBox"><button class="knopf" id="bSchatten">🌳 Schatten: Waldanteil der Route</button><div id="schattenText" class="klein"></div></div>
             <div id="familieBox"><button class="knopf" id="bFamilie">👨‍👩‍👧 Familien-Check</button><div id="familie" class="klein"></div></div>
             <div id="anreise" class="klein" hidden>Anreise zum Start: <a id="anreiseOepnv" target="_blank" rel="noopener">🚆 mit Bus und Bahn</a> · <a id="anreiseAuto" target="_blank" rel="noopener">🚗 mit dem Auto</a> (Google Maps)</div>
           </div>
@@ -422,6 +424,7 @@
         <div id="gangStatistik" class="zahlen"></div>
         <div id="gangZeitraum" class="klein" hidden></div>
         <figure id="gangMonate" class="monate" hidden></figure>
+        <div id="jahrBox" hidden><div class="zeile"><label>Jahr<select id="jahrWahl"></select></label><button class="knopf" type="button" id="bJahrKarte">🗺 Auf der Karte zeigen</button></div><div id="jahrText" class="klein"></div></div>
         <div id="ordnerGegangen" class="chips ordner-chips" aria-label="Ordner"></div>
         <div class="tourfilter" data-liste="gangliste" hidden><input type="search" class="feld tf-suche" placeholder="🔍 Tour suchen" aria-label="Gegangene Touren durchsuchen"><select class="tf-sort" aria-label="Sortieren"><option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option><option value="name">Name A–Z</option><option value="lang">Längste zuerst</option><option value="kurz">Kürzeste zuerst</option><option value="hm">Meiste Höhenmeter</option></select></div>
         <ul id="gangliste" class="liste"></ul>
@@ -595,6 +598,10 @@
             die Warnungen zur Umkehrzeit nennen ihn.</dd>
           <dt>🔋 Akku</dt><dd>Beim Folgen misst die App den Verbrauch über die letzte Stunde und schätzt, wie lange der Akku reicht. Reicht er nicht
             bis zum Ziel plus 30 min, oder sind es nur noch 15 %, warnt sie einmal. Die Schätzung steht nach etwa 10 min.</dd>
+          <dt>🌳 Schatten</dt><dd>Wie viel der Route durch Wald führt, aus den Waldflächen in OpenStreetMap (nur mit Netz, nicht im Kartenpaket).
+            Offene Stücke ab 100 m zeigt die Karte orange gestrichelt. Einzelne Bäume, Alleen und der Sonnenstand zählen nicht.</dd>
+          <dt>🗺 Jahreskarte</dt><dd>Unter Touren › Gegangen: alle gegangenen Touren eines Jahres auf der Karte, je Monat eine Farbe, dazu Kilometer,
+            Höhenmeter, Zeit, Rekorde und die Gipfel aus dem Gipfelbuch. „✕“ oben auf der Karte blendet sie aus.</dd>
           <dt>⛰️ Gipfelbuch</dt><dd>Kommt eine Aufzeichnung bis auf 50 m an einen Gipfel, steht er hier, mit Höhe und Tag. Gipfel und Höhen stammen
             aus OpenStreetMap (ohne Netz aus dem Kartenpaket).</dd>
         </dl>
