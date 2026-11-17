@@ -9,17 +9,17 @@ jobs:
   brouter:
     runs-on: ubuntu-latest
     steps:
-      - name: Anfragen wie die App an brouter.de
+      - name: Höhen in der Antwort von brouter.de
         run: |
           B="https://brouter.de/brouter"
-          L="lonlats=11.383000,47.760000|11.385000,47.753000"
           E="&alternativeidx=0&format=geojson&timode=2&profile:turnInstructionRoundabouts=1"
-          for P in "profile=hiking-mountain" \
-                   "profile=hiking-mountain&profile:SAC_scale_limit=2&profile:SAC_scale_preferred=1&profile:hiking_routes_preference=0&profile:path_preference=2" \
-                   "profile=trekking"; do
-            echo "=== $P"
-            curl -sS -m 40 -o antwort.txt -w "HTTP %{http_code} in %{time_total}s\n" "$B?$L&$P$E" || echo "curl-Fehler $?"
-            head -c 400 antwort.txt; echo
+          for L in "lonlats=11.383000,47.760000|11.385000,47.753000" "lonlats=11.385000,47.753000|11.408000,47.740000" "lonlats=11.408000,47.740000|11.368000,47.735000"; do
+            curl -sS -m 40 -o a.json "$B?$L&profile=hiking-mountain&profile:SAC_scale_limit=2&profile:SAC_scale_preferred=1&profile:hiking_routes_preference=0&profile:path_preference=2$E"
+            python3 -c "import json;c=json.load(open('a.json'))['features'][0]['geometry']['coordinates'];print('$L', len(c),'Punkte, ohne Höhe:',sum(1 for x in c if len(x)<3 or x[2] is None), 'erste:',c[:2],'letzte:',c[-1])"
           done
-          echo "=== Höhen Open-Meteo"
-          curl -sS -m 20 -w "\nHTTP %{http_code} in %{time_total}s\n" "https://api.open-meteo.com/v1/elevation?latitude=47.76&longitude=11.383" | head -c 300
+      - name: Open-Meteo
+        run: |
+          for U in "https://api.open-meteo.com/v1/elevation?latitude=47.76&longitude=11.383" "https://api.open-meteo.com/v1/forecast?latitude=47.76&longitude=11.383&current=temperature_2m"; do
+            curl -sS -m 40 -o o.txt -w "HTTP %{http_code} in %{time_total}s  $U\n" "$U" || echo "curl-Fehler $? $U"
+            head -c 200 o.txt 2>/dev/null; echo
+          done
