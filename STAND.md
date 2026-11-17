@@ -367,6 +367,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Erledigt
 
+- **17.11. (PR #122, Bau 310)** Umkehrzeit im Zeitplan und unterwegs (Warnung 15 min vorher, bei der Umkehrzeit und bei Ankunft
+  nach Dunkelheit), Ausstiege entlang der Route (Bus/Bahn, Bergbahn, Parkplatz, Hütte) in Planen und Unterwegs,
+  Akku-Schätzung gegen die Restzeit; der Navigationsdienst sagt alles bei gesperrtem Bildschirm an und rechnet
+  Umkehrpunkt und Ausstiege nach dem Umplanen um. Einheitstests 373, Java `NaviRechnenTest` 17, Klicktest 485.
+
 - **17.11. (PRs #120, #121)** Routing-Fehler als Meldung über der Karte, Luftlinie auch nach Steigung gestrichelt (#120);
   Längen aus einer Welt-Kopie (−348°) zurück in −180 … 180: Karte, gespeicherter Ausschnitt, neue und gezogene Punkte,
   Entwurf und geöffnete Touren (#121). Einheitstests 351, Klicktest 478.
