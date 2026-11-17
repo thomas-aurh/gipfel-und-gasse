@@ -516,6 +516,7 @@ function tourenZeigen() {
   ].map(([w, t]) => '<div class="zahl"><b>' + R.esc(String(w)) + '</b><span>' + R.esc(t) + '</span></div>').join('') : '';
   $('gangStatistik').hidden = !gegangen.length;
   zeitraeumeZeigen(gegangen);
+  if (typeof jahrBoxZeigen === 'function') setTimeout(jahrBoxZeigen, 0);   // 69-jahreskarte.js läuft erst nach dieser Datei
 }
 
 // Suchen, Sortieren und (bei geplanten) Art: die Leiste über der Liste erscheint ab drei Touren

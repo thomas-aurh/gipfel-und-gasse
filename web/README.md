@@ -99,8 +99,10 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
 | `src/60-touren.js` | Touren speichern und öffnen, GPX, Teilen-Link, Sicherung |
 | `src/65-tagebuch.js` | Reisetagebuch: Reisen, Einträge mit Fotos, Ort und Wetter, Heft (PDF) |
 | `src/67-ziele.js` | Reiseziele: Listen, ⭐-Ebene, eintippen, Liste einfügen, Datei laden (Text, CSV, GPX, KML, GeoJSON), als GPX |
+| `src/69-jahreskarte.js` | Jahreskarte: gegangene Touren eines Jahres auf der Karte, Summen, Rekorde, Gipfel des Jahres |
 | `src/70-unterwegs.js` | GPS, Route folgen, Aufzeichnen, Bildschirm wach halten |
 | `src/72-sicherheit.js` | Ausstiege entlang der Route (Planen und Unterwegs), Warnungen zu Umkehrzeit und Dunkelheit, Akku-Schätzung; in der App sagt der Dienst die Warnungen an |
+| `src/73-schatten.js` | Schatten: Waldanteil der Route (Overpass), offene Stücke auf der Karte |
 | `src/75-app.js` | in der App: Route folgen und Aufzeichnen über den Navigationsdienst, GPX über Teilen, Drucken über Android |
 | `src/80-start.js` | Reiter, Blatt unten, Entwurf und Link beim Start |
 | `vendor/leaflet/` | Leaflet 1.9.4 (unverändert aus npm) |
@@ -124,6 +126,10 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
   über dem tiefsten liegt); Umkehrzeit = Sonnenuntergang am Ziel − 30 min − Zeit vom höchsten Punkt bis zum Ziel (samt
   Besichtigungen danach und anteiligen Pausen). Unterwegs: Ankunft = jetzt + Restzeit, Warnung, wenn sie hinter
   Sonnenuntergang − 30 min liegt.
+- **Schatten:** Wald = `landuse=forest` oder `natural=wood`, abgefragt in Rahmen von je rund 1,5 km Strecke; die Route in
+  Stücken von höchstens 25 m, jedes nach seiner Mitte im Wald oder offen (Gerade-Ungerade über alle Ränder, auch Lichtungen).
+- **Jahreskarte:** Zeit = Bewegungszeit aus den Zeitstempeln der Spur (Abstände über 90 s zählen als Pause), sonst die
+  geschätzte Gehzeit; Gipfel aus dem Gipfelbuch mit einem Besuch in dem Jahr.
 - **Akku:** Verbrauch je Stunde über die letzte Stunde (erst ab 10 min und 2 % Verbrauch), Rest geteilt durch Verbrauch.
 - **Abseits der Route:** mehr als 50 m (oder 1,5 × GPS-Ungenauigkeit) für mindestens 15 Sekunden.
 

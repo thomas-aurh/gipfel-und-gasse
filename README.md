@@ -178,6 +178,14 @@ der Umkehrzeit und wenn die Ankunft nach der Dunkelheit läge; sie nennen den n�
 letzte Stunde gemessen: Reicht er nicht bis zum Ziel plus 30 min, oder sind es nur noch 15 %, warnt die App einmal. In der
 Android-App sagt der Navigationsdienst all das auch bei gesperrtem Bildschirm an.
 
+**Schatten:** „🌳 Schatten: Waldanteil der Route“ unter *Planen* sagt, wie viel der Route durch Wald führt (Waldflächen
+aus OpenStreetMap über Overpass, nur mit Netz), nennt das längste Stück ohne Wald mit Gehzeit und zeichnet offene Stücke
+ab 100 m orange gestrichelt auf die Karte.
+
+**Jahreskarte:** Unter *Touren › Gegangen* ein Jahr wählen: Touren, Tage, Kilometer, Höhenmeter, Zeit, längste Tour,
+meiste Höhenmeter und die Gipfel des Jahres aus dem Gipfelbuch; „🗺 Auf der Karte zeigen“ legt alle gegangenen Touren des
+Jahres auf die Karte (Farbe je Monat, Antippen öffnet die Tour), „✕“ oben blendet sie aus.
+
 **Wetter für die Tour:** In *Planen* „🌦 Wetter für die Tour“: Vorhersage für Start, höchsten Punkt und Ziel (bei Etappen je
 Tag), jeweils für die Stunde, in der man laut Zeitplan dort ist, umgerechnet auf die Höhe des Punkts. Warnt bei Gewitter,
 Sturmböen (ab 60 km/h) und Frost. Ohne Startzeit rechnet die App ab 9 Uhr; bis 16 Tage voraus.

@@ -1100,6 +1100,112 @@ var R = (function () {
     return 'Akku nur noch ' + s.prozent + ' Prozent. Bildschirm aus lassen und Strom sparen.';
   }
 
+  // ---------- Schatten: Waldanteil der Route ----------
+  // Overpass-Abfrage nach Wald (landuse=forest, natural=wood) in kleinen Rahmen entlang der Route statt eines großen
+  // Rahmens um alles: so kommen nur Waldstücke, die nahe an der Route liegen. Je Rahmen höchstens rund 1,5 km Strecke.
+  function waldAbfrage(pts) {
+    const rahmen = [];
+    let teil = [];
+    for (const p of ausduennen(pts, 50)) {
+      teil.push(p);
+      if (teil.length > 1 && abstand(teil[0], p) > 1500) { rahmen.push(streckenRahmen(teil, 40)); teil = [p]; }
+    }
+    if (teil.length) rahmen.push(streckenRahmen(teil, 40));
+    const b = r => '(' + r.map(x => x.toFixed(5)).join(',') + ')';
+    const teile = rahmen.flatMap(r => ['way["landuse"="forest"]' + b(r), 'way["natural"="wood"]' + b(r), 'rel["landuse"="forest"]' + b(r), 'rel["natural"="wood"]' + b(r)]);
+    return '[out:json][timeout:30];(' + teile.map(t => t + ';').join('') + ');out geom qt;';
+  }
+  // Waldflächen aus der Antwort (out geom): je Fläche ihr Rahmen und alle Randstücke. Bei Multipolygonen zählt das
+  // Gerade-Ungerade-Prinzip über alle Ränder, außen wie innen (Lichtungen): dafür müssen die Ringe nicht zusammengesetzt
+  // werden, die Teilstücke eines Rings ergeben zusammen dieselben Kreuzungen. Offene Wege (kein Ring) zählen nicht.
+  function waldLesen(json) {
+    const out = [];
+    for (const el of (json && json.elements) || []) {
+      const linien = el.type === 'way' ? [el.geometry] : el.type === 'relation' ? (el.members || []).filter(m => m.type === 'way').map(m => m.geometry) : [];
+      const segs = [];
+      let s = 90, w = 180, n = -90, o = -180;
+      for (const g of linien) {
+        if (!Array.isArray(g) || g.length < 2) continue;
+        if (el.type === 'way' && (g[0].lat !== g[g.length - 1].lat || g[0].lon !== g[g.length - 1].lon)) continue;
+        for (let i = 1; i < g.length; i++) {
+          if (!g[i] || !g[i - 1]) continue;
+          segs.push([g[i - 1].lat, g[i - 1].lon, g[i].lat, g[i].lon]);
+          s = Math.min(s, g[i].lat); n = Math.max(n, g[i].lat); w = Math.min(w, g[i].lon); o = Math.max(o, g[i].lon);
+        }
+      }
+      if (segs.length >= 3) out.push({ id: el.type + '/' + el.id, rahmen: [s, w, n, o], segs });
+    }
+    return out;
+  }
+  function imWald(flaechen, lat, lon) {
+    for (const f of flaechen) {
+      const r = f.rahmen;
+      if (lat < r[0] || lat > r[2] || lon < r[1] || lon > r[3]) continue;
+      let innen = false;
+      for (const [a1, o1, a2, o2] of f.segs) {
+        if ((a1 > lat) !== (a2 > lat) && lon < o1 + (lat - a1) / (a2 - a1) * (o2 - o1)) innen = !innen;
+      }
+      if (innen) return true;
+    }
+    return false;
+  }
+  // Waldanteil der Route: Stücke höchstens `schritt` Meter lang, jedes nach seiner Mitte im Wald oder offen.
+  // { wald, offen (Meter), anteil (0…1), stuecke: [{ von, bis, wald }] (gleiche Art zusammengefasst), sonne: längstes
+  // offenes Stück { von, bis } oder null }. Sprünge einer mehrteiligen Spur zählen nicht.
+  function waldAnteil(pts, flaechen, schritt) {
+    const st = schritt || 25, stuecke = [];
+    let wald = 0, offen = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (b.luecke) continue;
+      const lang = b.d - a.d;
+      if (!(lang > 0)) continue;
+      const n = Math.max(1, Math.ceil(lang / st));
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n, w = imWald(flaechen, a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t);
+        const von = a.d + lang * k / n, bis = a.d + lang * (k + 1) / n;
+        if (w) wald += bis - von; else offen += bis - von;
+        const letztes = stuecke[stuecke.length - 1];
+        if (letztes && letztes.wald === w && Math.abs(letztes.bis - von) < 0.5) letztes.bis = bis;
+        else stuecke.push({ von, bis, wald: w });
+      }
+    }
+    let sonne = null;
+    for (const s of stuecke) if (!s.wald && (!sonne || s.bis - s.von > sonne.bis - sonne.von)) sonne = { von: s.von, bis: s.bis };
+    const ges = wald + offen;
+    return { wald, offen, anteil: ges ? wald / ges : 0, stuecke, sonne };
+  }
+
+  // ---------- Jahreskarte: Rückblick auf die gegangenen Touren eines Jahres ----------
+  // Jahre mit gegangenen Touren (Aufzeichnungen), neuestes zuerst
+  function tourJahre(touren) {
+    return [...new Set((touren || []).filter(t => t.art === 'aufzeichnung').map(t => new Date(tourZeit(t)).getFullYear()))].sort((a, b) => b - a);
+  }
+  // Touren des Jahres (nach Zeit), Summen, Tage, Rekorde und die Gipfel des Jahres aus dem Gipfelbuch (höchste zuerst).
+  // Dauer: Bewegungszeit aus den Zeitstempeln der Spur, sonst die geschätzte Gehzeit der Tour.
+  function jahresRueckblick(touren, buch, jahr) {
+    const liste = (touren || []).filter(t => t.art === 'aufzeichnung' && new Date(tourZeit(t)).getFullYear() === jahr).sort((a, b) => tourZeit(a) - tourZeit(b));
+    const out = { jahr, touren: liste, km: 0, auf: 0, stunden: 0, tage: new Set(liste.map(t => tagIso(tourZeit(t)))).size, laengste: null, meisteHm: null, gipfel: [], monate: Array(12).fill(0) };
+    for (const t of liste) {
+      const m = +(t.kurz && t.kurz.laenge) || 0, a = +(t.kurz && t.kurz.auf) || 0;
+      out.km += m / 1000; out.auf += a;
+      const bew = Array.isArray(t.spur) ? bewegungStunden(t.spur) : null;
+      out.stunden += bew != null ? bew : +(t.kurz && t.kurz.zeit) || 0;
+      out.monate[new Date(tourZeit(t)).getMonth()] += m / 1000;
+      if (!out.laengste || m > +out.laengste.kurz.laenge) out.laengste = t;
+      if (a > 0 && (!out.meisteHm || a > +out.meisteHm.kurz.auf)) out.meisteHm = t;
+    }
+    for (const g of Object.values((buch && buch.gipfel) || {})) {
+      const mal = g.besuche.filter(b => new Date(b.datum).getFullYear() === jahr).length;
+      if (mal) out.gipfel.push({ name: g.name, ele: g.ele, lat: g.lat, lon: g.lon, mal });
+    }
+    out.gipfel.sort((a, b) => (b.ele || 0) - (a.ele || 0) || a.name.localeCompare(b.name, 'de'));
+    return out;
+  }
+  // Farbe je Monat (0 = Januar): Winter blau, Frühling grün, Sommer orange, Herbst rot und violett
+  const MONAT_FARBEN = ['#2b6cb0', '#3182ce', '#2f855a', '#38a169', '#68a63a', '#d69e2e', '#dd6b20', '#c05621', '#c53030', '#9b2c2c', '#805ad5', '#4c51bf'];
+  function monatFarbe(m) { return MONAT_FARBEN[((m % 12) + 12) % 12]; }
+
   // ---------- Notfall ----------
   function gradMinSek(x, pos, neg) {
     // erst auf Zehntelsekunden runden, dann zerlegen: sonst entsteht „59′ 60,0″“ statt des Übertrags
@@ -2812,7 +2918,8 @@ var R = (function () {
     wikiQuelle, wikiAusWikidata, wikiKurz, oeffnungLesen, oeffnungJetzt, oeffnungBesuch, zeitBis, zeitZwischen, infoPruefen, ohStand, ohDatum, googleOrtLink, tourWetterUrl, wetterStunde, tourWetterText, stoppInfo, fuehrungText, etappen, etappeAusschnitt, telAdresse, bescheidText, ankunftText, tourCheck, notsignalAn, tagesAufteilung, tageVorschlag, tageWahl, unterkunftAbfrage, unterkunftWahl, UNTERKUNFT, gipfelAbfrage, gipfelErreicht, gipfelbuchDazu, gipfelbuchPruefen, gipfelbuchListe, gipfelBesuchGleich, gipfelFotos, GIPFEL_RADIUS, regenTag, DRINNEN, regenAbfrage, regenLesen, anreiseLink,
     infoAbfrage, infoArt, infoLesen, infoRadius,
     ZIEL_STICHWORTE, ZIEL_STAND, zieleLesen, zielePruefen, zieleBesucht, zieleGpx, googleSuche,
-    umkehrPunkt, umkehrZeit, dunkelLage, dunkelText, AUSSTIEG, ausstiege, naechsteAusstiege, ausstiegText, akkuSchaetzung, akkuWarnung, akkuText
+    umkehrPunkt, umkehrZeit, dunkelLage, dunkelText, AUSSTIEG, ausstiege, naechsteAusstiege, ausstiegText, akkuSchaetzung, akkuWarnung, akkuText,
+    waldAbfrage, waldLesen, imWald, waldAnteil, tourJahre, jahresRueckblick, MONAT_FARBEN, monatFarbe
   };
 })();
 if (typeof module !== 'undefined') module.exports = R;

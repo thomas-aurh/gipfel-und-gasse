@@ -1061,6 +1061,61 @@ async function warteschlangePruefen() {
   pruef('Akku: leer ohne Schätzung', R.akkuWarnung({ prozent: 12, stunden: null }, 1) === 'leer');
 }
 
+// ---------- Schatten und Jahreskarte ----------
+{
+  // Wald als Quadrat (Weg) mit Lichtung (Multipolygon): Route von West nach Ost quer hindurch
+  const quad = (s, w, n, o) => [{ lat: s, lon: w }, { lat: s, lon: o }, { lat: n, lon: o }, { lat: n, lon: w }, { lat: s, lon: w }];
+  const json = { elements: [
+    { type: 'way', id: 1, geometry: quad(47.0, 11.01, 47.01, 11.03) },
+    // Multipolygon aus zwei offenen Teilstücken (außen) und einer Lichtung (innen)
+    { type: 'relation', id: 2, members: [
+      { type: 'way', role: 'outer', geometry: [{ lat: 47.0, lon: 11.05 }, { lat: 47.0, lon: 11.08 }, { lat: 47.01, lon: 11.08 }] },
+      { type: 'way', role: 'outer', geometry: [{ lat: 47.01, lon: 11.08 }, { lat: 47.01, lon: 11.05 }, { lat: 47.0, lon: 11.05 }] },
+      { type: 'way', role: 'inner', geometry: quad(47.002, 11.06, 47.008, 11.07) }
+    ] },
+    { type: 'way', id: 3, geometry: [{ lat: 47.0, lon: 11.09 }, { lat: 47.01, lon: 11.095 }] }   // offener Weg: kein Wald
+  ] };
+  const fl = R.waldLesen(json);
+  pruef('Wald: Flächen gelesen (offener Weg nicht)', fl.length === 2, fl.map(f => f.id));
+  pruef('Wald: im Quadrat', R.imWald(fl, 47.005, 11.02) && !R.imWald(fl, 47.005, 11.04));
+  pruef('Wald: Multipolygon aus Teilstücken, Lichtung frei', R.imWald(fl, 47.005, 11.055) && !R.imWald(fl, 47.005, 11.065));
+  // Route 47.005 von 11.00 bis 11.10, Punkte alle 0,005°
+  const pts = [];
+  for (let i = 0; i <= 20; i++) pts.push({ lat: 47.005, lon: 11 + i * 0.005 });
+  R.laengen(pts);
+  const ges = pts[pts.length - 1].d;
+  const w = R.waldAnteil(pts, fl);
+  // Wald: 11.01–11.03 (0,02°) und 11.05–11.06, 11.07–11.08 (0,02°) = 0,04° von 0,1° ⇒ 40 %
+  pruef('Wald: Anteil 40 %', nahe(w.anteil, 0.4, 0.02) && nahe(w.wald + w.offen, ges, 1), w.anteil);
+  // zwei gleich lange offene Stücke (11.03–11.05 und 11.08–11.10): das erste zählt
+  pruef('Wald: längstes offenes Stück 11.03–11.05', w.sonne && nahe(w.sonne.von, ges * 0.3, ges * 0.02) && nahe(w.sonne.bis, ges * 0.5, ges * 0.02), w.sonne);
+  pruef('Wald: Stücke wechseln ab', w.stuecke.map(s => s.wald ? 'W' : 'o').join('') === 'oWoWoWo', w.stuecke.map(s => s.wald ? 'W' : 'o').join(''));
+  pruef('Wald: Abfrage mit mehreren Rahmen und Geometrie', /way\["landuse"="forest"\]\(47\.\d+,11\.\d+/.test(R.waldAbfrage(pts)) && (R.waldAbfrage(pts).match(/rel\["natural"="wood"\]/g) || []).length >= 4 && /out geom qt;$/.test(R.waldAbfrage(pts)), R.waldAbfrage(pts).slice(0, 200));
+  pruef('Wald: ohne Flächen alles offen', R.waldAnteil(pts, []).anteil === 0);
+  // Jahreskarte
+  const tour = (id, iso, km, auf, spur) => ({ id, name: 'Tour ' + id, art: 'aufzeichnung', datum: iso, kurz: { laenge: km * 1000, auf, zeit: 3 }, spur: spur || [[47, 11, 600, 0], [47.01, 11, 650, 0]] });
+  const t0 = Date.UTC(2026, 4, 10, 8), t1 = t0 + 120e3;   // Punkte je Minute: 2 min Bewegung
+  const touren = [
+    tour('a', '2026-05-10T08:00:00Z', 12, 800, [[47, 11, 600, t0], [47.01, 11, 650, t0 + 60e3], [47.02, 11, 700, t1]]),
+    tour('b', '2026-08-02T09:00:00Z', 20, 300),
+    tour('c', '2025-12-30T09:00:00Z', 5, 100),
+    Object.assign(tour('d', '2026-06-01T09:00:00Z', 50, 0), { art: 'geplant' })
+  ];
+  pruef('Jahre: neuestes zuerst, nur gegangene', JSON.stringify(R.tourJahre(touren)) === '[2026,2025]', R.tourJahre(touren));
+  const buch = { gipfel: {
+    n1: { name: 'Hochberg', ele: 1800, lat: 47.01, lon: 11, besuche: [{ datum: '2026-05-10T10:00:00Z' }, { datum: '2026-08-02T11:00:00Z' }] },
+    n2: { name: 'Niederberg', ele: 900, lat: 47, lon: 11, besuche: [{ datum: '2025-12-30T10:00:00Z' }] },
+    n3: { name: 'Mittelberg', ele: 1200, lat: 47, lon: 11, besuche: [{ datum: '2026-08-02T12:00:00Z' }] }
+  }, geprueft: [] };
+  const j = R.jahresRueckblick(touren, buch, 2026);
+  pruef('Jahr: Touren, km, Höhenmeter, Tage', j.touren.length === 2 && j.km === 32 && j.auf === 1100 && j.tage === 2, [j.touren.length, j.km, j.auf, j.tage]);
+  pruef('Jahr: Zeit aus Bewegung, sonst Gehzeit', nahe(j.stunden, 2 / 60 + 3, 1e-6), j.stunden);
+  pruef('Jahr: Rekorde', j.laengste.id === 'b' && j.meisteHm.id === 'a');
+  pruef('Jahr: Gipfel des Jahres, höchster zuerst, Besuche gezählt', j.gipfel.map(g => g.name + g.mal).join() === 'Hochberg2,Mittelberg1', j.gipfel);
+  pruef('Jahr: km je Monat', j.monate[4] === 12 && j.monate[7] === 20 && j.monate[0] === 0);
+  pruef('Jahr: Monatsfarben verschieden', new Set(R.MONAT_FARBEN).size === 12 && R.monatFarbe(13) === R.monatFarbe(1));
+}
+
 warteschlangePruefen().then(() => {
 console.log('Einheitstests: ' + ok + ' bestanden, ' + fehler + ' fehlgeschlagen');
 process.exit(fehler ? 1 : 0);

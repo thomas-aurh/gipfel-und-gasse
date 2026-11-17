@@ -513,6 +513,7 @@ function zeitplanZeigen() {
   if (typeof tourWetterPruefen === 'function') tourWetterPruefen();
   if (typeof packlisteNeu === 'function') packlisteNeu();   // offene Packliste folgt Zeitplan und Route
   if (typeof ausstiegePruefen === 'function') ausstiegePruefen();   // alte Ausstiege gehören nicht zur neuen Route
+  if (typeof schattenPruefen === 'function') schattenPruefen();     // ebenso der Waldanteil
   planReiterZeigen();
   box.textContent = text;
   box.classList.toggle('warnung', !!((et ? etKnapp : z.knapp) || probleme || (!et && !start && z.spaetestens && z.spaetestens < new Date() && !$('startTag').value)));
