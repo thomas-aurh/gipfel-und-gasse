@@ -269,6 +269,8 @@ pruef('Sicherung: HTML in Kennzahlen wird zur Zahl, Datum bleibt', geprueft[0].k
 pruef('Sicherung: kaputte Spur fällt weg', !geprueft.some(t => t.id === 'y'));
 pruef('Sicherung: passende Teilstücke bleiben (Planung)', geprueft.find(t => t.id === 'z').stuecke.length === 1 && geprueft.find(t => t.id === 'z').art === 'plan');
 pruef('Sicherung: unpassende Teilstücke → Tour als Spur', geprueft.find(t => t.id === 'w').stuecke === null && geprueft.find(t => t.id === 'w').art === 'spur');
+pruef('Länge aus einer Welt-Kopie: −348,6° ist 11,4°, 371,4° auch, Werte in −180 … 180 bleiben', Math.abs(R.laengeNorm(-348.62) - 11.38) < 1e-9 && Math.abs(R.laengeNorm(371.38) - 11.38) < 1e-9 &&
+  R.laengeNorm(11.38) === 11.38 && R.laengeNorm(-180) === -180 && R.laengeNorm(180) === 180 && Math.abs(R.laengeNorm(-190) - 170) < 1e-9);
 // Notiz am Punkt: siebter Wert; ohne Übernachtung steht davor 0, kein Text wird nicht mitgenommen
 const mitNotiz = R.sicherungLesen(JSON.stringify({ app: 'gipfel-und-gasse', touren: [{ id: 'n', name: 'N', spur: [[47, 11, null], [47.01, 11.01, null]],
   wps: [[47, 11, 'Start', 0, 0, 0, '  Wasser auffüllen '], [47.005, 11.005, 'Hütte', 0, 0, 1, 'Frühstück ab 7'], [47.01, 11.01, '', 0, 0, 0, 42]],

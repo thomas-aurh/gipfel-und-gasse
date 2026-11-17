@@ -201,11 +201,13 @@ if (!ausLink()) {
   const ent = SPEICHER.lesen('entwurf', null);
   if (ent && ent.wps && ent.wps.length) {
     if (ent.modus) modusSetzen(ent.modus);
-    S.wps = ent.wps; S.name = ent.name || ''; S.tourId = ent.tourId || null; $('tourname').value = S.name; zeitplanSetzen(ent.zeit);
+    // Punkte aus einer Welt-Kopie (Länge außerhalb −180 … 180, vor dem 17.11.) zurückholen
+    S.wps = ent.wps.map(w => (w.lon < -180 || w.lon > 180) ? Object.assign({}, w, { lon: R.laengeNorm(w.lon) }) : w); S.name = ent.name || ''; S.tourId = ent.tourId || null; $('tourname').value = S.name; zeitplanSetzen(ent.zeit);
     // Entwürfe von vor dem 16.11. haben die Startzeiten je Tag nur in zeit.tage
     if (ent.zeit && ent.zeit.tage && !S.wps.some(w => w.start)) tagesStartAnwenden(ent.zeit.tage);
     // eine gespeicherte Tour füllt den Speicher der Teilstücke, dann muss nichts neu angefragt werden
-    if (ent.spur && ent.stuecke && ent.stuecke.length === S.wps.length - 1) {
+    const verschoben = ent.wps.some(w => w.lon < -180 || w.lon > 180);   // dann ist die alte Linie (Luftlinie am falschen Ort) nichts wert
+    if (!verschoben && ent.spur && ent.stuecke && ent.stuecke.length === S.wps.length - 1) {
       S.profil = PROFILE[ent.profil] ? ent.profil : S.profil; $('profilwahl').value = S.profil;
       try { planEntpacken(S.wps, S.profil, ent.spur, ent.stuecke); } catch (e) { /* dann wird neu gefragt */ }
       // Entwurf ohne Abbiegehinweise (vor Stufe 4): neuBerechnen holt sie, die alte Linie bleibt Ersatz
