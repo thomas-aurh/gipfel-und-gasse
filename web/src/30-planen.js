@@ -1182,6 +1182,7 @@ $('profilwahl').onchange = e => {
   einstellTextSetzen();
   // wer laufen geht, will meist die Kilometer hören: einmal einschalten, abschalten bleibt möglich
   if (artAktuell() === 'lauf' && !SPEICHER.lesen('kmAnsageGewaehlt', false)) { $('kmAnsage').checked = true; SPEICHER.schreiben('kmAnsage', true); }
+  aktivitaetAusPlanen();   // die Aktivität unter Unterwegs geht mit
   neuBerechnen();
 };
 $('pacewahl').onchange = e => { S.pace = +e.target.value; einstellTextSetzen(); SPEICHER.schreiben('pace', S.pace); if (S.stuecke.length) auswertenUndZeigen(); };

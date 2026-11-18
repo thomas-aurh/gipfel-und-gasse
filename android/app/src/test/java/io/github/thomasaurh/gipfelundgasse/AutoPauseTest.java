@@ -20,6 +20,27 @@ public class AutoPauseTest {
         assertEquals(120000, p.bewegungMs(180000));
     }
 
+    @Test public void pauseVonHand() {
+        AutoPause p = new AutoPause(0, 0);
+        gehen(p, 60000);
+        p.handPause(60000);
+        assertFalse(p.bewegt(70000));          // Bewegung beendet die Pause von Hand nicht
+        assertFalse(p.takt(90000));
+        assertEquals(60000, p.bewegungMs(120000));
+        p.handWeiter(120000);
+        assertFalse(p.hand);
+        assertEquals(60000, p.pauseMs);
+        gehen(p, 0); p.bewegt(125000);
+        assertEquals(65000, p.bewegungMs(125000));
+        // während einer Auto-Pause gedrückt: die Pause beginnt bei der letzten Bewegung
+        AutoPause q = new AutoPause(0, 0);
+        gehen(q, 60000);
+        assertTrue(q.takt(75000));
+        q.handPause(80000);
+        q.handWeiter(100000);
+        assertEquals(40000, q.pauseMs);
+    }
+
     @Test public void schwelleAuchOhneTaktDazwischen() {
         // letzte Bewegung 60 s, Takte bei 65 und 70 s (noch unter der Schwelle), weiter bei 72 s: 12 s Stehen zählen nicht
         AutoPause p = new AutoPause(0, 0);

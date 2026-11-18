@@ -329,6 +329,23 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--grau
 .wetter b{display:block;font-size:24px}
 .klein{font-size:12px;color:var(--grau)}
 .unterwegs-zahlen .zahl b{font-size:22px}
+/* Unterwegs: Aufzeichnen und Route folgen als Blöcke; läuft die Navigation, steht sie oben */
+.u-bloecke{display:flex;flex-direction:column}
+.u-bloecke.navi-oben #uRouteBlock{order:-1}
+.u-block{border:1px solid var(--linie);border-radius:14px;padding:4px 12px 10px;margin:10px 0;background:var(--karte)}
+.u-block h3{margin:8px 0 6px}
+.akt-wahl{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.akt-wahl button{border:1.5px solid var(--linie);background:var(--karte);color:var(--text);border-radius:18px;padding:7px 11px;font:inherit;font-size:14px;min-height:40px}
+.akt-wahl button.an{border-color:var(--gruen);background:var(--gruen2);color:var(--gruen);font-weight:700}
+.akt-wahl.gesperrt button:not(.an){opacity:.45}
+.unterwegs-zahlen.gross{grid-template-columns:repeat(3,1fr)}
+.unterwegs-zahlen.gross .zahl b{font-size:clamp(18px,5.4vw,26px);white-space:nowrap;font-variant-numeric:tabular-nums}
+.km-liste{margin:6px 0;padding-left:0;list-style:none;font-size:14px;font-variant-numeric:tabular-nums}
+.km-liste li{display:flex;gap:10px;padding:3px 0;border-bottom:1px solid var(--linie)}
+.km-liste li b{min-width:4.5em}
+.km-liste li.schnell b::after{content:" ⚡"}
+.u-block details{margin:6px 0}
+.u-block summary{cursor:pointer;font-size:14px;padding:6px 0}
 #meldung{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:3000;background:#1f2a22;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,520px);box-shadow:0 4px 16px #0004;transition:opacity .25s;pointer-events:none}
 #meldung:empty{opacity:0}
 #offlineBericht{white-space:pre-wrap;word-break:break-word;background:var(--feld);border:1px solid var(--linie);border-radius:8px;padding:8px;font-size:12px;user-select:text}

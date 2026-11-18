@@ -226,9 +226,16 @@ Reservieren und Öffnungszeiten, soweit OpenStreetMap sie kennt.
 
 **Notfall:** Menü ☰ › *Notfall*: „🔦 Notsignal geben“ (alpines Notsignal: sechs Zeichen je Minute, eine Minute Pause; in der App mit der Taschenlampe, sonst blinkt der Bildschirm, dazu Ton und Vibration), Hinweis auf die Notruf-App SOS-EU-ALP; Koordinaten zum Vorlesen, „📍 Standort senden“ (SMS, Messenger) und „📞 112“.
 
-**Unterwegs:** Leiste unten › *Unterwegs* › „▶ Route folgen“ und/oder „⏺ Aufzeichnung starten“. Im Browser sichert die
-Seite die Aufzeichnung laufend; wird der Tab neu geladen oder vom Browser verworfen, zeichnet sie danach weiter (über 12 h
-alt: nur noch speichern). Die Spur erscheint dabei blau auf der Karte (in der App holt die Oberfläche alle 5 s die neuen
+**Unterwegs:** Leiste unten › *Unterwegs* › „⏺ Aufzeichnung starten“ und/oder „▶ Route folgen“ (läuft die Navigation,
+steht sie oben). Über dem Start die Aktivität: 🥾 Wandern, 🚶 Spaziergang, 🏃 Laufen, 🚲 Rad, 🚵 MTB (folgt der Art aus
+Planen, bis man selbst wählt); sie bestimmt Tempo (Rad in km/h, sonst min/km), Ansagen und Namen der Tour („Radfahrt
+18.11., 07:45“). Große Zahlen: Strecke, Dauer, Ø Tempo aus der Bewegungszeit, Tempo jetzt, bergauf, Höhe. „⏸ Pause“
+hält die Aufzeichnung von Hand an (der Weg in der Pause zählt nicht, die Spur bekommt eine Lücke), dazu die Auto-Pause.
+„⏱ Kilometer“ listet die Bewegungszeit je km (auch auf der Tourseite). **Beenden speichert gleich** unter „Gegangene
+Touren“, mit „Öffnen“ und „🗑 Verwerfen“; auch nach „Beenden“ in der Mitteilung und eine liegengebliebene Aufzeichnung
+beim nächsten Öffnen. Kilometer-Ansage und Streckenziel stehen unter „🔊 Ansagen und Ziel“, Führung und Punkt-Alarm unter
+„⚙“ bei Route folgen. Im Browser sichert die Seite die Aufzeichnung laufend; wird der Tab neu geladen oder vom Browser
+verworfen, zeichnet sie danach weiter (über 12 h alt: gleich gespeichert). Die Spur erscheint dabei blau auf der Karte (in der App holt die Oberfläche alle 5 s die neuen
 Punkte aus dem Dienst); gespeicherte Aufzeichnungen zeigt die Ebene „Meine Touren“ als grüne Linie (in der Farbe des
 Ordners); Antippen zeigt Länge und Höhenmeter mit „Öffnen“. Danach darf der Bildschirm aus:
 Android zeigt die Mitteilung „Noch 3,2 km · 1:10 h“, die Sprachausgabe sagt Abzweigungen an („In 100 Metern links

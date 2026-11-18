@@ -10,11 +10,14 @@ public final class AutoPause {
 
     public long start, pauseMs, letzteBewegung;
     public boolean pausiert;
+    /** Pause von Hand (⏸): zählt als Pause, bis weiter(); Bewegung beendet sie nicht. */
+    public boolean hand;
 
     public AutoPause(long start, long pauseMs) { this.start = start; this.pauseMs = pauseMs; this.letzteBewegung = start; }
 
     /** Weg gemacht; liefert true, wenn damit eine Pause endet („Weiter“). */
     public boolean bewegt(long t) {
+        if (hand) return false;
         boolean weiter = pausiert;
         // auch ohne Takt dazwischen: wer länger als STILL stand, hat pausiert (sonst hinge es an der Taktphase)
         if (pausiert || t - letzteBewegung > STILL) { pauseMs += Math.max(0, t - letzteBewegung); pausiert = false; }
@@ -24,9 +27,25 @@ public final class AutoPause {
 
     /** Regelmäßig aufrufen (auch ohne GPS-Punkt); liefert true, wenn jetzt eine Pause beginnt („Pause“). */
     public boolean takt(long t) {
-        if (pausiert || t - letzteBewegung <= STILL) return false;
+        if (hand || pausiert || t - letzteBewegung <= STILL) return false;
         pausiert = true;
         return true;
+    }
+
+    /** ⏸ von Hand: läuft schon eine Auto-Pause, gilt deren Beginn, sonst beginnt die Pause jetzt. */
+    public void handPause(long t) {
+        if (hand) return;
+        if (!pausiert) { pausiert = true; letzteBewegung = t; }
+        hand = true;
+    }
+
+    /** ▶ weiter nach einer Pause von Hand. */
+    public void handWeiter(long t) {
+        if (!hand) return;
+        hand = false;
+        pauseMs += Math.max(0, t - letzteBewegung);
+        pausiert = false;
+        letzteBewegung = t;
     }
 
     /** Bewegungszeit bis t (eine laufende Pause zählt nicht). */

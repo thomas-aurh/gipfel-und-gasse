@@ -64,7 +64,10 @@ function spurAlsTour(name, pts, art, extra) {
   if (extra.punkte && extra.punkte.length) tour.punkte = extra.punkte;
   if (extra.quelle) tour.quelle = extra.quelle;
   if (extra.dateiDauer) tour.dateiDauer = extra.dateiDauer;
-  if (extra.plan) tour.plan = extra.plan;   // Aufzeichnung: die geplante Tour, die beim Gehen offen war (Plan gegen gegangen)
+  if (extra.plan) tour.plan = extra.plan;
+  // Aufzeichnung: Aktivität (wandern, spaziergang, laufen, rad, mtb) und Bewegungszeit je Kilometer (ms)
+  if (extra.aktivitaet) tour.aktivitaet = extra.aktivitaet;
+  if (extra.kmZeiten && extra.kmZeiten.length) tour.kmZeiten = extra.kmZeiten.map(x => Math.round(+x) || 0);   // Aufzeichnung: die geplante Tour, die beim Gehen offen war (Plan gegen gegangen)
   liste.unshift(tour);
   if (!tourenSchreiben(liste)) return false;
   tourenZeigen();
@@ -104,7 +107,7 @@ function tourAnsehen(id) {
 function tourSeiteZeigen() {
   const t = tourenLesen().find(x => x.id === S.tourId);
   $('tourName').textContent = S.name || (t && t.name) || 'Tour';
-  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + (t.quelle ? ' aus ' + t.quelle : '') +
+  $('tourArt').textContent = t ? tourZeichen(t) + ' ' + ({ aufzeichnung: AKTIVITAETEN[t.aktivitaet] ? AKTIVITAETEN[t.aktivitaet].name + ' · ' + AKTIVITAETEN[t.aktivitaet].weg : 'gegangen', spur: 'GPX-Spur' }[t.art] || 'geplant') + (t.quelle ? ' aus ' + t.quelle : '') +
     ' · gespeichert am ' + new Date(t.datum).toLocaleDateString('de-DE') : '';
   const zahl = (id, text) => '<div class="zahl"><b>' + R.esc($(id).textContent) + '</b><span>' + R.esc(text) + '</span></div>';
   $('tourZahlen').innerHTML = S.ergebnis ? zahl('zLaenge', 'Strecke') + zahl('zZeit', $('zZeitText').textContent) + zahl('zAuf', 'Aufstieg') +
@@ -112,6 +115,9 @@ function tourSeiteZeigen() {
     (t && t.dateiDauer ? '<div class="zahl"><b>' + R.esc(R.zeitText(t.dateiDauer, true)) + '</b><span>Dauer laut Datei</span></div>' : '') : '';
   tourOrdnerWahl(t);
   planVergleichZeigen(t);
+  // Kilometer-Liste der Aufzeichnung (Bewegungszeit je km)
+  const akt = t && AKTIVITAETEN[t.aktivitaet];
+  kmListeZeigen($('tourKmFeld'), $('tourKmTitel'), $('tourKmListe'), (t && t.art === 'aufzeichnung' && t.kmZeiten) || [], akt ? akt.art : 'fuss');
   dateiPunkteZeigen(t);
   tourFotosZeigen(t);
   packlisteNeu();
@@ -298,6 +304,7 @@ function tourLoeschen(id) {
 }
 
 function tourZeichen(t) {
+  if (t.art === 'aufzeichnung' && AKTIVITAETEN[t.aktivitaet]) return AKTIVITAETEN[t.aktivitaet].zeichen;
   return t.art === 'aufzeichnung' ? '⏺' : t.art === 'spur' ? '📄' : (t.profil === 'rad' ? '🚲' : t.modus === 'stadt' || t.profil === 'stadt' ? '🏛️' : '🥾');
 }
 

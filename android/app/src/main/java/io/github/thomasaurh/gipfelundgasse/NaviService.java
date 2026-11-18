@@ -109,7 +109,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         int naechsterKm = -1;
         boolean[] stoppAngekuendigt = new boolean[0], stoppErreicht = new boolean[0];
         NaviRechnen.Rest rest;
-        // Aufzeichnung: {lat, lon, ele, zeit}
+        // Aufzeichnung: {lat, lon, ele, zeit}, nach ⏸ von Hand {lat, lon, ele, zeit, 1}: beginnt einen neuen Abschnitt
         final List<double[]> spur = new ArrayList<>();
         long aufzStart, aufzEnde;
         double aufzMeter;
@@ -123,6 +123,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         // Kopfhörer getrennt: Ansagen stumm, bis man sie wieder einschaltet (sonst spräche der Lautsprecher in der
         // Tasche oder im Zug); Vibration bleibt. Gilt bis zum Ende der Sitzung oder „Ansagen an“
         boolean stumm;
+        // Bewegungszeit je Kilometer der Aufzeichnung (ms), für die Kilometer-Liste
+        final List<Long> kmZeiten = new ArrayList<>();
+        // nach ⏸ von Hand: der nächste Punkt beginnt neu, der Weg in der Pause zählt nicht
+        boolean nachPause;
         // GPS-Sprünge in der Aufzeichnung zurückhalten
         NaviRechnen.SprungFilter sprung = new NaviRechnen.SprungFilter();
     }
@@ -319,6 +323,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (Z.aufzeichnen && Z.aufzStart == 0) {
                 Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0;
                 Z.aufzKm = 0; Z.aufzKmZeit = 0; Z.zielGesagt = 0; Z.sprung = new NaviRechnen.SprungFilter();
+                Z.kmZeiten.clear(); Z.nachPause = false;
                 Z.pause = new AutoPause(Z.aufzStart, 0);
             }
         }
@@ -657,6 +662,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     private void aufzeichnen(Location loc) {
+        if (Z.pause != null && Z.pause.hand) return;               // ⏸ von Hand: nichts aufzeichnen
         // Bewegung für die Auto-Pause: GPS-Geschwindigkeit über 0,6 m/s, unabhängig davon, ob der Punkt in die Spur kommt
         // (bei ungenauem GPS kommt erst nach vielen Metern ein Punkt dazu, das Gehen ist trotzdem Bewegung)
         if (Z.pause != null && loc.hasSpeed() && loc.getSpeed() > 0.6f && Z.pause.bewegt(System.currentTimeMillis()) && Z.lauf && Z.ansagen) sagen("Weiter.");
@@ -667,8 +673,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         List<double[]> dazu = Z.sprung.pruefen(Z.spur.isEmpty() ? null : Z.spur.get(Z.spur.size() - 1), neu,
             loc.hasAccuracy() ? loc.getAccuracy() : 20, Z.rad);
         boolean neuerPunkt = false;
+        // erster Punkt nach ⏸ von Hand: kommt in die Spur, der Weg in der Pause zählt aber nicht
+        boolean ohneWeg = Z.nachPause;
+        if (ohneWeg) { Z.nachPause = false; Z.sprung = new NaviRechnen.SprungFilter(); dazu = new ArrayList<>(); dazu.add(neu); }
         for (double[] p : dazu) {
-            if (!Z.spur.isEmpty()) {
+            if (ohneWeg) {
+                ohneWeg = false;
+                if (!Z.spur.isEmpty()) p = new double[] { p[0], p[1], p[2], p[3], 1 };   // Lücke: kein Weg dorthin
+            } else if (!Z.spur.isEmpty()) {
                 double[] l = Z.spur.get(Z.spur.size() - 1);
                 double m = NaviRechnen.abstand(l[0], l[1], p[0], p[1]);
                 if (m < Math.max(8, loc.getAccuracy() / 2)) continue;    // stehen bleiben zählt nicht als Weg
@@ -685,7 +697,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         int km = (int) Math.floor(Z.aufzMeter / 1000);
         if (km > Z.aufzKm) {
             long bewegung = Z.pause.bewegungMs(jetzt);
-            if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, bewegung, (bewegung - Z.aufzKmZeit) / (km - Z.aufzKm)));
+            long jeKm = (bewegung - Z.aufzKmZeit) / (km - Z.aufzKm);
+            if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, bewegung, jeKm));
+            for (int k = Z.aufzKm; k < km; k++) Z.kmZeiten.add(jeKm);   // Lücke über mehrere km: gemittelt
             Z.aufzKm = km; Z.aufzKmZeit = bewegung;
         }
         // Streckenziel: einmal ansagen und vibrieren, die Aufzeichnung läuft weiter
@@ -716,6 +730,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
                 // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
                 o.put("aufzKm", Z.aufzKm); o.put("aufzKmZeit", Z.aufzKmZeit);
+                JSONArray kz = new JSONArray();
+                for (Long k : Z.kmZeiten) kz.put((long) k);
+                o.put("kmZeiten", kz);
+                o.put("aufzHand", Z.pause != null && Z.pause.hand);
                 JSONArray pts = new JSONArray();
                 if (Z.strecke != null) for (int i = 0; i < Z.strecke.groesse(); i++) {
                     JSONArray p = new JSONArray();
@@ -901,8 +919,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                     JSONArray sp = new JSONObject(dateiLesen(a)).optJSONArray("spur");
                     if (sp != null) for (int i = 0; i < sp.length(); i++) {
                         JSONArray p = sp.optJSONArray(i);
-                        double[] q = { p.optDouble(0), p.optDouble(1), p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN), p.optLong(3, 0) };
-                        if (!Z.spur.isEmpty()) { double[] l = Z.spur.get(Z.spur.size() - 1); Z.aufzMeter += NaviRechnen.abstand(l[0], l[1], q[0], q[1]); }
+                        double[] q = p.optInt(4, 0) == 1
+                            ? new double[] { p.optDouble(0), p.optDouble(1), p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN), p.optLong(3, 0), 1 }
+                            : new double[] { p.optDouble(0), p.optDouble(1), p.isNull(2) ? Double.NaN : p.optDouble(2, Double.NaN), p.optLong(3, 0) };
+                        if (!Z.spur.isEmpty() && q.length < 5) { double[] l = Z.spur.get(Z.spur.size() - 1); Z.aufzMeter += NaviRechnen.abstand(l[0], l[1], q[0], q[1]); }
                         Z.spur.add(q);
                     }
                 }
@@ -913,8 +933,16 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.pause = Z.aufzStart > 0 ? new AutoPause(Z.aufzStart, o.optLong("aufzPauseMs", 0)) : null;
                 if (Z.pause != null) Z.pause.letzteBewegung = jetzt;
                 Z.aufzKm = (int) Math.floor(Z.aufzMeter / 1000);
+                Z.kmZeiten.clear();
+                // ⏸ von Hand bleibt nach dem Neustart, die Zeit bis dahin zählt als Pause
+                if (Z.pause != null && o.optBoolean("aufzHand", false)) {
+                    Z.pause.hand = true; Z.pause.pausiert = true; Z.pause.letzteBewegung = o.optLong("gesichert", jetzt);
+                    Z.nachPause = true;
+                }
                 if (o.optInt("aufzKm", -1) == Z.aufzKm) {
                     Z.aufzKmZeit = o.optLong("aufzKmZeit", 0);   // gesichert mit dem Pausenstand: passt zusammen
+                    JSONArray kz = o.optJSONArray("kmZeiten");
+                    if (kz != null) for (int i = 0; i < kz.length(); i++) Z.kmZeiten.add(kz.optLong(i));
                 } else {
                     // älterer Stand ohne diese Werte: aus den Zeitstempeln der Spur schätzen
                     long grenze = NaviRechnen.kmGrenzzeit(Z.spur, Z.aufzStart > 0 ? Z.aufzStart : jetzt);
@@ -934,6 +962,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 for (double[] p : Z.spur) {
                     JSONArray q = new JSONArray();
                     q.put(p[0]); q.put(p[1]); q.put(Double.isNaN(p[2]) ? JSONObject.NULL : p[2]); q.put((long) p[3]);
+                    if (p.length > 4 && p[4] == 1) q.put(1);   // Lücke nach einer Pause von Hand
                     a.put(q);
                 }
             }

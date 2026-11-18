@@ -215,6 +215,25 @@ public class NaviPlugin extends Plugin {
         call.resolve(stand());
     }
 
+    /**
+     * ⏸ Pause von Hand ({ an: true }) und ▶ weiter ({ an: false }) der laufenden Aufzeichnung. In der Pause kommt kein
+     * Punkt in die Spur, der Weg bis zum ersten Punkt danach zählt nicht.
+     */
+    @PluginMethod
+    public void pause(PluginCall call) {
+        NaviService.Zustand z = NaviService.Z;
+        boolean an = call.getBoolean("an", true);
+        synchronized (z) {
+            if (z.aufzeichnen && z.pause != null) {
+                long jetzt = System.currentTimeMillis();
+                if (an) z.pause.handPause(jetzt);
+                else if (z.pause.hand) { z.pause.handWeiter(jetzt); z.nachPause = true; }
+            }
+        }
+        NaviService.sitzungSichern(getContext());
+        call.resolve(stand());
+    }
+
     /** Ansagen nach dem Trennen der Kopfhörer wieder einschalten (wie „Ansagen an“ in der Mitteilung). */
     @PluginMethod
     public void laut(PluginCall call) {
@@ -306,12 +325,15 @@ public class NaviPlugin extends Plugin {
                 for (int i = ab; i < spur.size(); i++) {
                     double[] p = spur.get(i);
                     JSONArray q = new JSONArray();
-                    try { q.put(p[0]); q.put(p[1]); q.put(Double.isNaN(p[2]) ? JSONObject.NULL : p[2]); q.put((long) p[3]); } catch (Exception e) { continue; }
+                    try {
+                        q.put(p[0]); q.put(p[1]); q.put(Double.isNaN(p[2]) ? JSONObject.NULL : p[2]); q.put((long) p[3]);
+                        if (p.length > 4 && p[4] == 1) q.put(1);   // Lücke nach ⏸ von Hand: kein Weg vom Punkt davor
+                    } catch (Exception e) { continue; }
                     a.put(q);
                 }
             }
             if (call.getBoolean("leeren", false) && !z.aufzeichnen) {
-                z.spur.clear(); z.aufzStart = 0; z.aufzEnde = 0; z.aufzMeter = 0; z.pause = null;
+                z.spur.clear(); z.aufzStart = 0; z.aufzEnde = 0; z.aufzMeter = 0; z.pause = null; z.kmZeiten.clear();
                 new File(getContext().getFilesDir(), "aufzeichnung.json").delete();
             }
         }
@@ -575,6 +597,9 @@ public class NaviPlugin extends Plugin {
                 o.put("t", l.getTime());
                 // Bewegungsrichtung nur, wenn man sich bewegt (im Stehen ist sie Zufall)
                 if (l.hasBearing() && l.hasSpeed() && l.getSpeed() > 0.7f) o.put("richtung", (double) l.getBearing());
+                // Geschwindigkeit (m/s) und Höhe für die Live-Werte der Aufzeichnung
+                if (l.hasSpeed()) o.put("v", (double) l.getSpeed());
+                if (l.hasAltitude()) o.put("ele", l.getAltitude());
             }
             if (z.folgen && z.rest != null) {
                 JSObject r = new JSObject();
@@ -610,7 +635,15 @@ public class NaviPlugin extends Plugin {
                 a.put("punkte", z.spur.size());
                 if (z.aufzEnde != 0) a.put("ende", z.aufzEnde);
                 // Bewegungszeit (Auto-Pause: Stehen zählt nicht) und ob gerade Pause ist
-                if (z.pause != null) { a.put("bewegung", z.pause.bewegungMs(z.aufzEnde != 0 ? z.aufzEnde : System.currentTimeMillis())); a.put("pause", z.pause.pausiert && z.aufzEnde == 0); }
+                if (z.pause != null) {
+                    a.put("bewegung", z.pause.bewegungMs(z.aufzEnde != 0 ? z.aufzEnde : System.currentTimeMillis()));
+                    a.put("pause", z.pause.pausiert && z.aufzEnde == 0);
+                    if (z.pause.hand && z.aufzEnde == 0) a.put("hand", true);   // ⏸ von Hand
+                }
+                // Bewegungszeit je Kilometer (ms) für die Kilometer-Liste
+                JSONArray kz = new JSONArray();
+                for (Long k : z.kmZeiten) kz.put((long) k);
+                a.put("kmZeiten", kz);
                 double[] hm = NaviRechnen.hoehenmeter(eles(z.spur), 0, Double.NaN, 8);
                 a.put("auf", hm[0]);
                 o.put("aufz", a);

@@ -312,42 +312,68 @@
       <!-- Unterwegs -->
       <section data-reiter="unterwegs">
         <div id="gpsStatus" class="klein" style="margin-top:8px">GPS aus.</div>
-        <h3>Route folgen</h3>
-        <!-- vor dem Start: welche Tour, wie lang; dann Tag, „Los“, Führung; die Zahlen darunter füllen sich unterwegs -->
-        <div id="uTourKarte" class="u-tour"></div>
-        <div id="naviEtappeFeld" hidden><div class="klein">Welcher Tag?</div><div id="naviTage" class="navi-tage" role="group" aria-label="Tag folgen"></div><select id="naviEtappe" hidden aria-hidden="true"></select></div>
-        <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button><button class="knopf" id="bBescheid">📣 Bescheid geben</button></div>
-        <!-- nach „Bescheid geben“: geplante Rückkehr, Ankunft melden; nach der Zeit eine Erinnerung -->
-        <div id="bescheidBox" class="hinweis" hidden><div id="bescheidText"></div>
-          <div class="knopfreihe"><button class="knopf haupt" id="bAnkunft">✅ Ankunft melden</button><button class="knopf" id="bBescheidSpaeter">⏰ +1 h</button><button class="knopf" id="bBescheidAus">Aus</button></div></div>
-        <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
-        <div class="zahlen unterwegs-zahlen">
-          <div class="zahl"><b id="uRest">–</b><span>noch</span></div>
-          <div class="zahl"><b id="uZeit">–</b><span>Restzeit</span></div>
-          <div class="zahl"><b id="uAuf">–</b><span>noch bergauf</span></div>
-        </div>
-        <div id="uAnkunft" class="klein"></div>
-        <div id="uAusstieg" class="klein" hidden></div>
-        <div id="uAkku" class="klein" hidden></div>
-        <div id="uSicher" class="hinweis warnung" style="white-space:pre-line" hidden></div>
         <div id="uWetter" class="hinweis warnung" hidden></div>
-        <h3>Aufzeichnen</h3>
-        <div class="zahlen unterwegs-zahlen">
-          <div class="zahl"><b id="aStrecke">–</b><span>gegangen</span></div>
-          <div class="zahl"><b id="aDauer">–</b><span>Dauer</span></div>
-          <div class="zahl"><b id="aAuf">–</b><span>bergauf</span></div>
-          <div class="zahl"><b id="aTempo">–</b><span>Ø Tempo</span></div>
-        </div>
-        <div id="aBewegung" class="klein"></div>
-        <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
-        <label class="klein ankreuzen">🎯 Streckenziel <input type="number" id="streckenziel" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="aus" style="width:5em" aria-label="Streckenziel in Kilometern"> km: ansagen, die Aufzeichnung läuft weiter</label>
         <div id="uStumm" class="hinweis warnung" hidden>🔇 Kopfhörer getrennt: Ansagen sind aus, damit nichts aus dem Lautsprecher kommt. <button class="knopf" id="bLaut">🔊 Ansagen wieder an</button></div>
-        <label class="klein ankreuzen">🔔 Punkt-Alarm <select id="punktAlarm" aria-label="Punkt-Alarm: wie weit vorher"><option value="0">aus</option><option value="150">150 m vorher</option>
-          <option value="300">300 m vorher</option><option value="500">500 m vorher</option></select></label>
-        <div class="klein" id="punktAlarmText">Meldet benannte Wegpunkte, Wegpunkte aus GPX-Dateien und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“ (bis 150 m neben der Route).</div>
-        <div class="knopfreihe">
-          <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
-          <button class="knopf" id="bAufzSpeichern" disabled>💾 Als Tour speichern</button>
+        <!-- Reihenfolge: läuft die Navigation, steht „Route folgen“ oben (Klasse navi-oben), sonst das Aufzeichnen -->
+        <div class="u-bloecke" id="uBloecke">
+        <div class="u-block" id="uAufzBlock">
+          <h3 id="aKopf">⏺ Aufzeichnen</h3>
+          <!-- Aktivität: Tempo-Anzeige, Ansagen und Art der gespeicherten Tour -->
+          <div class="akt-wahl" id="aktWahl" role="radiogroup" aria-label="Aktivität">
+            <button type="button" role="radio" data-akt="wandern">🥾 Wandern</button>
+            <button type="button" role="radio" data-akt="spaziergang">🚶 Spaziergang</button>
+            <button type="button" role="radio" data-akt="laufen">🏃 Laufen</button>
+            <button type="button" role="radio" data-akt="rad">🚲 Rad</button>
+            <button type="button" role="radio" data-akt="mtb">🚵 MTB</button>
+          </div>
+          <div class="zahlen unterwegs-zahlen gross">
+            <div class="zahl"><b id="aStrecke">–</b><span id="aStreckeText">gegangen</span></div>
+            <div class="zahl"><b id="aDauer">–</b><span>Dauer</span></div>
+            <div class="zahl"><b id="aTempo">–</b><span id="aTempoText">Ø Tempo</span></div>
+            <div class="zahl"><b id="aJetzt">–</b><span>jetzt</span></div>
+            <div class="zahl"><b id="aAuf">–</b><span>bergauf</span></div>
+            <div class="zahl"><b id="aHoehe">–</b><span>Höhe</span></div>
+          </div>
+          <div id="aBewegung" class="klein"></div>
+          <div class="knopfreihe">
+            <button class="knopf haupt" id="bAufz">⏺ Aufzeichnung starten</button>
+            <button class="knopf" id="bAufzPause" hidden>⏸ Pause</button>
+            <button class="knopf" id="bAufzSpeichern" hidden>💾 Nochmal speichern</button>
+          </div>
+          <div id="aGespeichert" class="hinweis" hidden></div>
+          <details id="aKmFeld" hidden><summary id="aKmTitel">⏱ Kilometer</summary><ol id="aKmListe" class="km-liste"></ol></details>
+          <details id="aEinst"><summary>🔊 Ansagen und Ziel</summary>
+            <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
+            <label class="klein ankreuzen">🎯 Streckenziel <input type="number" id="streckenziel" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="aus" style="width:5em" aria-label="Streckenziel in Kilometern"> km: ansagen, die Aufzeichnung läuft weiter</label>
+          </details>
+        </div>
+        <div class="u-block" id="uRouteBlock">
+          <h3>🧭 Route folgen</h3>
+          <!-- vor dem Start: welche Tour, wie lang; dann Tag, „Los“, Führung; die Zahlen darunter füllen sich unterwegs -->
+          <div id="uTourKarte" class="u-tour"></div>
+          <div id="naviEtappeFeld" hidden><div class="klein">Welcher Tag?</div><div id="naviTage" class="navi-tage" role="group" aria-label="Tag folgen"></div><select id="naviEtappe" hidden aria-hidden="true"></select></div>
+          <div class="knopfreihe"><button class="knopf haupt" id="bNavi">▶ Route folgen</button><button class="knopf" id="bBescheid">📣 Bescheid geben</button></div>
+          <!-- nach „Bescheid geben“: geplante Rückkehr, Ankunft melden; nach der Zeit eine Erinnerung -->
+          <div id="bescheidBox" class="hinweis" hidden><div id="bescheidText"></div>
+            <div class="knopfreihe"><button class="knopf haupt" id="bAnkunft">✅ Ankunft melden</button><button class="knopf" id="bBescheidSpaeter">⏰ +1 h</button><button class="knopf" id="bBescheidAus">Aus</button></div></div>
+          <div id="uRouteZahlen">
+            <div class="zahlen unterwegs-zahlen">
+              <div class="zahl"><b id="uRest">–</b><span>noch</span></div>
+              <div class="zahl"><b id="uZeit">–</b><span>Restzeit</span></div>
+              <div class="zahl"><b id="uAuf">–</b><span>noch bergauf</span></div>
+            </div>
+            <div id="uAnkunft" class="klein"></div>
+            <div id="uAusstieg" class="klein" hidden></div>
+            <div id="uAkku" class="klein" hidden></div>
+            <div id="uSicher" class="hinweis warnung" style="white-space:pre-line" hidden></div>
+          </div>
+          <details id="uRouteEinst"><summary>⚙ Führung und Punkt-Alarm</summary>
+            <label class="klein ankreuzen"><input type="checkbox" id="fuehrung"> 🎧 Führung: an Stopps mit Wikipedia-Artikel die Kurzinfo vorlesen (Texte werden beim Start geladen)</label>
+            <label class="klein ankreuzen">🔔 Punkt-Alarm <select id="punktAlarm" aria-label="Punkt-Alarm: wie weit vorher"><option value="0">aus</option><option value="150">150 m vorher</option>
+              <option value="300">300 m vorher</option><option value="500">500 m vorher</option></select></label>
+            <div class="klein" id="punktAlarmText">Meldet benannte Wegpunkte, Wegpunkte aus GPX-Dateien und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“ (bis 150 m neben der Route).</div>
+          </details>
+        </div>
         </div>
       </section>
 
@@ -374,6 +400,7 @@
           <label class="klein">Plan gegen gegangen <select id="tourVergleichWahl" aria-label="Geplante Tour zum Vergleich"></select></label>
           <div id="tourVergleichErgebnis"></div>
         </div>
+        <details id="tourKmFeld" hidden><summary id="tourKmTitel">⏱ Kilometer</summary><ol id="tourKmListe" class="km-liste"></ol></details>
         <div class="knopfreihe tour-knoepfe">
           <button class="knopf haupt" id="tLos">▶ Los</button>
           <button class="knopf" id="tBearbeiten">✏️ Bearbeiten</button>
