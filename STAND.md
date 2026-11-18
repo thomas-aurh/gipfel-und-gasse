@@ -11,7 +11,7 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Pixel: Pause und Weiter bei gesperrtem Bildschirm, ob die GPS-Geschwindigkeit „jetzt“ beim Rad brauchbar ist,
   Kilometer-Liste nach einem Neustart des Dienstes. Offen bei Thomas: ob die nicht gespeicherte Radfahrt vom 18.11. beim
   Öffnen von Bau 319 von selbst unter „Gegangene Touren“ landet (heißt „Wanderung …“, ältere Aufzeichnungen haben keine
-  Aktivität). „Nur Rad reicht“ und MTB/Spaziergang kamen zusammen; gebaut wurden beide, MTB fällt weg, wenn Thomas das sagt.
+  Aktivität).
 - **GPS-Sprünge, Ton, Streckenziel (18.11., PR #125, Bau 317):** Ideen aus dem Laufpilot. Geprüft in Einheitstests (Web
   und Java `NaviRechnenTest`) und im Klicktest (Sprung 1,1 km, Streckenziel, Kopfhörer-Hinweis). Nicht geprüft auf dem
   Pixel: ob Musik und Podcast bei Ansagen leiser werden, ob `AUDIO_BECOMING_NOISY` beim Trennen von Bluetooth-Kopfhörern
@@ -198,7 +198,8 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Aufzeichnung beim Öffnen. Verworfen: Nachfrage beim Beenden, getrennte Knöpfe wie bisher.
 - **Aktivität getrennt von der Art in Planen** (18.11.): eigene Wahl unter Unterwegs, folgt der Art aus Planen, bis man
   wählt; MTB speichert als Profil `rad`, Spaziergang als `stadt`, dazu Feld `aktivitaet`. Beim Folgen einer Route geht für
-  die Restzeit die Art der Route an den Dienst. Verworfen: MTB als eigenes Routing-Profil (nicht in den Offline-Profilen).
+  die Restzeit die Art der Route an den Dienst; MTB bleibt als Aktivität (Thomas, 18.11.). Verworfen: MTB als eigenes
+  Routing-Profil (nicht in den Offline-Profilen).
 - **Pause von Hand als Lücke in der Spur** (18.11.): fünfter Wert 1 wie bei mehrteiligen GPX-Dateien, der Weg in der Pause
   zählt nicht. Verworfen: Weg über die Pause mitzählen (wer zur Hütte geht, hätte sonst Weg ohne Zeit).
 - **GPS-Sprünge zurückhalten, Lücken überbrücken** (18.11., aus dem Laufpilot): Grenze 15 m/s (Rad 25), bestätigt der
