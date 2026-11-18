@@ -23,6 +23,15 @@ const PROFILE = {
   kurz: { brouter: 'shortest', art: 'fuss', name: 'Kürzester Weg' },
   linie: { brouter: null, art: 'fuss', name: 'Gerade Linie' }
 };
+// Aktivität der Aufzeichnung (Unterwegs): art wie in PROFILE (Tempo-Anzeige, Ansagen, Sprunggrenze), profil für die
+// gespeicherte Tour, wort für ihren Namen. Folgt der Art aus Planen, bis man unter Unterwegs selbst wählt
+const AKTIVITAETEN = {
+  wandern: { name: 'Wandern', zeichen: '🥾', art: 'fuss', profil: 'wandern', wort: 'Wanderung', weg: 'gegangen' },
+  spaziergang: { name: 'Spaziergang', zeichen: '🚶', art: 'fuss', profil: 'stadt', wort: 'Spaziergang', weg: 'gegangen' },
+  laufen: { name: 'Laufen', zeichen: '🏃', art: 'lauf', profil: 'laufen', wort: 'Lauf', weg: 'gelaufen' },
+  rad: { name: 'Rad', zeichen: '🚲', art: 'rad', profil: 'rad', wort: 'Radfahrt', weg: 'gefahren' },
+  mtb: { name: 'Mountainbike', zeichen: '🚵', art: 'rad', profil: 'rad', wort: 'MTB-Tour', weg: 'gefahren' }
+};
 
 // eigene Profile: Profildatei von BRouter und Werte, die darin überschrieben werden (online als „profile:Name=Wert“,
 // in der App ohne Netz und beim Umplanen genauso: android/…/Profile.java, beide Tabellen müssen übereinstimmen).

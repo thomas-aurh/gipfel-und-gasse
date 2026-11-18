@@ -313,6 +313,14 @@ const ap2 = R.autoPause(0, 0);
 gehen(ap2, 60000); ap2.takt(65000); ap2.takt(70000);
 pruef('Auto-Pause: Schwelle auch ohne Takt dazwischen (12 s Stehen zählen nicht)', ap2.bewegt(72000) === false && ap2.pauseMs === 12000 && ap2.bewegungMs(72000) === 60000);
 pruef('Auto-Pause: weiter nach einer Minute Ampel', ap.bewegt(120000) === true && ap.pauseMs === 60000 && ap.bewegungMs(180000) === 120000);
+{
+  const h = R.autoPause(0, 0); gehen(h, 60000); h.handPause(60000);
+  pruef('Pause von Hand: Bewegung beendet sie nicht', h.bewegt(70000) === false && !h.takt(90000) && h.bewegungMs(120000) === 60000);
+  h.handWeiter(120000); h.bewegt(125000);
+  pruef('Pause von Hand: weiter zählt die Pause', !h.hand && h.pauseMs === 60000 && h.bewegungMs(125000) === 65000);
+  const q = R.autoPause(0, 0); gehen(q, 60000); q.takt(75000); q.handPause(80000); q.handWeiter(100000);
+  pruef('Pause von Hand während der Auto-Pause: Beginn bei der letzten Bewegung', q.pauseMs === 40000);
+}
 // Rundkurs: Ecken auf einem Kreis, Start mit dabei, Umfang passt zur Wunschlänge
 const rs = { lat: 47.75, lon: 11.37 };
 const [r1, r2] = R.rundkursPunkte(rs, 8000, 90, 1.3);

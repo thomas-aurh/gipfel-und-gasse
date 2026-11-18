@@ -1000,9 +1000,17 @@ function pruef(name, bed, info) {
   const rest2 = await page.textContent('#uRest');
   pruef('Rest wird kürzer', parseFloat(rest2.replace(',', '.')) < parseFloat(rest1.replace(',', '.')), [rest1, rest2]);
   // Streckenziel 0,2 km: wird beim Erreichen gemeldet, die Aufzeichnung läuft weiter
+  // Ansagen und Ziel sind eingeklappt: aufklappen wie am Handy
+  await page.click('#aEinst summary');
   await page.fill('#streckenziel', '0.2');
   await page.dispatchEvent('#streckenziel', 'change');
+  // Aktivität: Rad zeigt km/h, wieder Wandern für die Aufzeichnung
+  await page.click('#aktWahl [data-akt=rad]');
+  pruef('Aktivität: Rad gewählt, Ø in km/h, „gefahren“', (await page.getAttribute('#aktWahl [data-akt=rad]', 'aria-checked')) === 'true' &&
+    (await page.textContent('#aTempoText')) === 'Ø km/h' && (await page.textContent('#aStreckeText')) === 'gefahren');
+  await page.click('#aktWahl [data-akt=wandern]');
   await page.click('#bAufz');
+  pruef('Aufzeichnung: ⏸ sichtbar, Kopf mit Aktivität und Uhrzeit', await page.isVisible('#bAufzPause') && /^⏺ Wandern seit \d\d:\d\d · \d\d:\d\d Uhr$/.test(await page.textContent('#aKopf')), await page.textContent('#aKopf'));
   // je 80 m: der Sprungfilter lässt höchstens 15 m/s durch, darum gut 3,5 s zwischen den Punkten
   for (let i = 1; i <= 4; i++) {
     await ctx.setGeolocation({ latitude: 47.7618 + i * 0.0006, longitude: 11.3893 + i * 0.0006, accuracy: 6 }); await page.waitForTimeout(3600);
@@ -1017,8 +1025,34 @@ function pruef(name, bed, info) {
   }
   pruef('Aufzeichnung: Streckenziel gemeldet und angezeigt', (await page.textContent('#aBewegung')).includes('Ziel 200 m erreicht') && (await page.textContent('#bAufz')).includes('beenden'),
     [await page.textContent('#aBewegung'), await page.textContent('#meldung')]);
+  // ⏸ von Hand: ein Punkt 300 m weiter in der Pause zählt nicht, nach ▶ zählt auch der Weg dorthin nicht
+  const vorPause = await page.textContent('#aStrecke');
+  await page.click('#bAufzPause');
+  pruef('Pause von Hand: Knopf „▶ Weiter“, Anzeige', (await page.textContent('#bAufzPause')) === '▶ Weiter' && (await page.textContent('#aBewegung')).includes('Pause (von Hand)'), await page.textContent('#aBewegung'));
+  await ctx.setGeolocation({ latitude: 47.7618 + 4 * 0.0006 + 0.0027, longitude: 11.3893 + 4 * 0.0006, accuracy: 6 }); await page.waitForTimeout(400);
+  await page.click('#bAufzPause');
+  await ctx.setGeolocation({ latitude: 47.7618 + 4 * 0.0006 + 0.0028, longitude: 11.3893 + 4 * 0.0006, accuracy: 6 }); await page.waitForTimeout(600);
+  pruef('Pause von Hand: Weg in der Pause zählt nicht', (await page.textContent('#aStrecke')) === vorPause && (await page.textContent('#bAufzPause')) === '⏸ Pause', [vorPause, await page.textContent('#aStrecke')]);
+  // Reiseziele: eines an der Spur (rund 100 m daneben), eines weit weg; beim Beenden wird gespeichert, nur das nahe ist besucht
+  const zieleVorher = await page.evaluate(() => {
+    const alt = localStorage.getItem('gug.ziele');
+    localStorage.setItem('gug.ziele', JSON.stringify({ listen: [{ id: 'lt', name: 'Test' }], ziele: [
+      { id: 'zn', liste: 'lt', name: 'Bank am Weg', lat: 47.7635, lon: 11.3920, stich: [], stand: 'idee' },
+      { id: 'zw', liste: 'lt', name: 'Weit weg', lat: 47.80, lon: 11.45, stich: [], stand: 'idee' }] }));
+    return alt;
+  });
   await page.click('#bAufz');
-  pruef('Aufzeichnung gemessen', (await page.textContent('#aStrecke')) !== '–' && !(await page.isDisabled('#bAufzSpeichern')), await page.textContent('#aStrecke'));
+  await page.waitForFunction(() => !document.getElementById('aGespeichert').hidden, null, { timeout: 8000 }).catch(() => {});
+  const gespeichert = await page.textContent('#aGespeichert');
+  pruef('Beenden speichert gleich, mit Name nach der Aktivität', /Gespeichert: Wanderung \d\d\.\d\d\., \d\d:\d\d/.test(gespeichert) && (await page.isHidden('#bAufzSpeichern')) && (await page.isHidden('#bAufzPause')), gespeichert);
+  const zieleNach = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.map(z => [z.id, z.stand, z.besuchtWie]));
+  pruef('Reiseziel an der Aufzeichnung von selbst besucht, das ferne nicht, mit Meldung', JSON.stringify(zieleNach) === JSON.stringify([['zn', 'besucht', 'tour'], ['zw', 'idee', '']]) &&
+    (await page.textContent('#meldung')).includes('Reiseziel besucht: Bank am Weg'), [zieleNach, await page.textContent('#meldung')]);
+  await page.click('#meldung button');
+  pruef('Reiseziel: Rückgängig in der Meldung macht es wieder offen', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele[0].stand)) === 'idee');
+  await page.evaluate(alt => { if (alt == null) localStorage.removeItem('gug.ziele'); else localStorage.setItem('gug.ziele', alt); }, zieleVorher);
+  const gespTour = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.touren')).find(t => t.art === 'aufzeichnung'));
+  pruef('Aufzeichnung gemessen und gespeichert, mit Aktivität', (await page.textContent('#aStrecke')) !== '–' && gespTour && gespTour.aktivitaet === 'wandern' && gespTour.profil === 'wandern', gespTour && [gespTour.aktivitaet, gespTour.profil]);
   await page.fill('#streckenziel', '');
   await page.dispatchEvent('#streckenziel', 'change');
   // Notfall: Koordinaten zum Vorlesen, Senden über die Zwischenablage (ohne Teilen-Menü im Browser), 112 als Telefon-Link
@@ -1042,22 +1076,6 @@ function pruef(name, bed, info) {
   pruef('Notfall: 112 als Telefon-Link', (await page.getAttribute('#bNotruf', 'href')) === 'tel:112');
   await zuSeite(page, 'unterwegs');
   await page.screenshot({ path: path.join(OUT, '4-unterwegs.png') });
-  // Reiseziele: eines an der Spur (rund 100 m daneben), eines weit weg; nach dem Speichern ist nur das nahe besucht
-  const zieleVorher = await page.evaluate(() => {
-    const alt = localStorage.getItem('gug.ziele');
-    localStorage.setItem('gug.ziele', JSON.stringify({ listen: [{ id: 'lt', name: 'Test' }], ziele: [
-      { id: 'zn', liste: 'lt', name: 'Bank am Weg', lat: 47.7635, lon: 11.3920, stich: [], stand: 'idee' },
-      { id: 'zw', liste: 'lt', name: 'Weit weg', lat: 47.80, lon: 11.45, stich: [], stand: 'idee' }] }));
-    return alt;
-  });
-  await page.click('#bAufzSpeichern');
-  await page.waitForTimeout(300);
-  const zieleNach = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele.map(z => [z.id, z.stand, z.besuchtWie]));
-  pruef('Reiseziel an der Aufzeichnung von selbst besucht, das ferne nicht, mit Meldung', JSON.stringify(zieleNach) === JSON.stringify([['zn', 'besucht', 'tour'], ['zw', 'idee', '']]) &&
-    (await page.textContent('#meldung')).includes('Reiseziel besucht: Bank am Weg'), [zieleNach, await page.textContent('#meldung')]);
-  await page.click('#meldung button');
-  pruef('Reiseziel: Rückgängig in der Meldung macht es wieder offen', (await page.evaluate(() => JSON.parse(localStorage.getItem('gug.ziele')).ziele[0].stand)) === 'idee');
-  await page.evaluate(alt => { if (alt == null) localStorage.removeItem('gug.ziele'); else localStorage.setItem('gug.ziele', alt); }, zieleVorher);
   pruef('Route bleibt beim Speichern der Aufzeichnung', (await page.textContent('#bNavi')).includes('beenden') && (await page.$$('.wp')).length === 2);
   await page.click('#bNavi');
   // GPS kam mit „Route folgen“ und geht mit dem Ende von Folgen und Aufzeichnen wieder aus (📍 nie angetippt)
@@ -1082,12 +1100,12 @@ function pruef(name, bed, info) {
   });
   pruef('GPS bleibt an, wenn es mit 📍 eingeschaltet war; 📍 schaltet aus', gpsBleibt[0] && gpsBleibt[1] === 'GPS aus.', gpsBleibt);
   await zuSeite(page, 'touren');
-  pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Aufzeichnung') && (await page.textContent('#tourliste')).includes('Testrunde'));
+  pruef('Touren getrennt: Aufzeichnung nicht bei den geplanten', !(await page.textContent('#tourliste')).includes('Wanderung') && (await page.textContent('#tourliste')).includes('Testrunde'));
   await page.click('section[data-reiter=touren] .umschalter [data-ziel=gegangen]');
   const spurLinien = (await page.$$('path.tour-spur')).length;
   const gegangenMitSpur = await page.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung' && t.spur && t.spur.length > 1).length);
   pruef('Gegangene Tour als Linie auf der Karte (Ebene „Meine Touren“), geplante ohne', spurLinien >= 1 && spurLinien === gegangenMitSpur, [spurLinien, gegangenMitSpur]);
-  pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Aufzeichnung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
+  pruef('Aufzeichnung bei den gegangenen Touren, mit Statistik', (await page.textContent('#gangliste')).includes('Wanderung') && (await page.textContent('#gangStatistik')).includes('Tour') &&
     (await page.textContent('#seitenTitel')) === 'Gegangene Touren' && (await page.getAttribute('#leiste [data-reiter=ich]', 'class')).includes('an'));
   // Statistik je Woche und Monat: Zeilen und 12 Säulen, aktueller Monat mit Zahl und Wert beim Antippen
   pruef('Statistik: diese Woche und dieser Monat', (await page.textContent('#gangZeitraum')).includes('Diese Woche:') && (await page.textContent('#gangZeitraum')).includes('Dieser Monat:') &&
@@ -1464,6 +1482,7 @@ function pruef(name, bed, info) {
   await planReiter(page, 'vorbereiten'); await page.dispatchEvent('#startZeit', 'change');
   // Führung: beim Losgehen die Kurzinfos der Stopps mit Wikipedia-Artikel laden (Stopps aus der Stadt-Liste bringen ihn mit)
   await zuSeite(page, 'unterwegs');
+  await page.click('#uRouteEinst summary');
   await page.check('#fuehrung');
   await page.click('#bNavi');
   await page.waitForFunction(() => document.getElementById('meldung').textContent.includes('Führung:'), null, { timeout: 12000 }).catch(() => {});
@@ -1589,10 +1608,14 @@ function pruef(name, bed, info) {
       Karten: { liste: async () => ({ installiert: [] }), status: async () => ({ laufend: [] }), addListener: () => {} },
       Navi: {
         // stumm wie stand() im Plugin: bleibt bis „laut“
-        starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen, stumm: window.__navi.stumm || undefined }; },
+        starten: async o => { aufrufe.push(['starten', o]); if (o.aufzeichnen) window.__navi.spurDa = true; return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen, stumm: window.__navi.stumm || undefined }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => {
           aufrufe.push(['aufzeichnungHolen', o]);
+          // wie der Dienst: eine Spur gibt es erst nach einer Aufzeichnung, „leeren“ nimmt sie weg
+          const da = window.__navi.spurDa;
+          if (o && o.leeren) window.__navi.spurDa = false;
+          if (!da && !(o && o.ab != null)) return { spur: [] };
           const spur = [[47.75, 11.37, 600, Date.now() - 600000], [47.751, 11.371, 610, Date.now() - 300000], [47.752, 11.372, null, Date.now()]];
           // mit „ab“: nur die Punkte ab dieser Nummer, dazu die Anzahl (wie NaviPlugin)
           return o && o.ab != null ? { start: Date.now() - 600000, anzahl: spur.length, spur: spur.slice(o.ab) } : { start: Date.now() - 600000, spur };
@@ -1607,6 +1630,7 @@ function pruef(name, bed, info) {
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
         vorlesen: async o => { aufrufe.push(['vorlesen', { text: o.text }]); },
         vorlesenStopp: async () => { aufrufe.push(['vorlesenStopp', {}]); },
+        pause: async o => { aufrufe.push(['pause', o]); return { laeuft: true, aufzeichnen: true, aufz: { meter: 1200, start: Date.now() - 600000, punkte: 30, auf: 5, pause: !!o.an, hand: !!o.an } }; },
         laut: async () => { aufrufe.push(['laut', {}]); window.__navi.stumm = false; return { laeuft: true, aufzeichnen: true }; },
         route: async () => {
           aufrufe.push(['route', {}]);
@@ -1721,12 +1745,19 @@ function pruef(name, bed, info) {
   await pa2.evaluate(() => { window.__routeLangsam = false; window.__routeFassung = 1; });
   await pa2.click('#bNavi');
   await pa2.waitForTimeout(200);
-  // Aufzeichnung über „Beenden“ in der Mitteilung gestoppt: Speichern wird frei, Dauer bis zum Ende
+  // Aufzeichnung über „Beenden“ in der Mitteilung gestoppt: wird gleich gespeichert, Dauer bis zum Ende
   await pa2.click('#bAufz');
   const t0 = Date.now();
   await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, aufz: { meter: 800, start: t - 1800000, punkte: 40, auf: 30 } }), t0);
   await pa2.evaluate(t => window.__navi.melden({ laeuft: false, folgen: false, aufzeichnen: false, aufz: { meter: 820, start: t - 1800000, ende: t - 600000, punkte: 41, auf: 30 } }), t0);
-  pruef('App: nach „Beenden“ in der Mitteilung speicherbar', !(await pa2.isDisabled('#bAufzSpeichern')));
+  await pa2.waitForFunction(() => !document.getElementById('aGespeichert').hidden, null, { timeout: 5000 }).catch(() => {});
+  pruef('App: nach „Beenden“ in der Mitteilung gleich gespeichert', (await pa2.textContent('#aGespeichert')).includes('Gespeichert: Wanderung') &&
+    (await pa2.evaluate(() => window.__navi.aufrufe.some(x => x[0] === 'aufzeichnungHolen' && x[1].leeren === true))), await pa2.textContent('#aGespeichert'));
+  // Verwerfen: zweimal tippen nimmt die Tour wieder heraus
+  const vorVerwerfen = await pa2.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung').length);
+  await pa2.click('#aVerwerfen'); await pa2.click('#aVerwerfen');
+  pruef('App: Verwerfen nach zweitem Tippen', (await pa2.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung').length)) === vorVerwerfen - 1 &&
+    (await pa2.textContent('#aGespeichert')).startsWith('Verworfen'), vorVerwerfen);
   // Spur der Aufzeichnung auf der Karte: erst ab Punkt 0, dann nur die neuen (hier keine mehr), Linie mit allen Punkten
   await pa2.waitForTimeout(150);
   const spurAbrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'aufzeichnungHolen' && x[1].ab != null).map(x => x[1].ab)));
@@ -1754,7 +1785,24 @@ function pruef(name, bed, info) {
   await pa2.waitForTimeout(200);
   const nachLauf = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
   pruef('App: Laufen während der Aufzeichnung an den Dienst', nachLauf.lauf === true && nachLauf.kmAnsage === true && nachLauf.tempo === 6, [nachLauf.lauf, nachLauf.kmAnsage, nachLauf.tempo]);
+  // Aktivität Rad während der Aufzeichnung: Rad-Kennung an den Dienst, Ø und jetzt in km/h, Kilometer-Liste mit km/h
+  await pa2.click('#aktWahl [data-akt=rad]');
+  await pa2.waitForTimeout(150);
+  const nachRad = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, v: 5, ele: 812.4, lat: 47.76, lon: 11.39, gen: 5,
+    aufz: { meter: 3000, start: t - 900000, bewegung: 600000, punkte: 60, auf: 10, kmZeiten: [200000, 180000, 220000] } }), Date.now());
+  pruef('App: Rad an den Dienst, km/h, Höhe, Kilometer-Liste', nachRad.rad === true && nachRad.lauf === false && (await pa2.textContent('#aTempo')) === '18,0 km/h' &&
+    (await pa2.textContent('#aJetzt')) === '18,0 km/h' && (await pa2.textContent('#aHoehe')) === '812 m' && (await pa2.textContent('#aKmTitel')).includes('Kilometer (3) · schnellster: km 2 in 3:00') &&
+    (await pa2.$$('#aKmListe li')).length === 3, [nachRad.rad, await pa2.textContent('#aTempo'), await pa2.textContent('#aJetzt'), await pa2.textContent('#aKmTitel')]);
+  // ⏸ von Hand: an den Dienst, Knopf wird „▶ Weiter“
+  await pa2.click('#bAufzPause');
+  await pa2.waitForTimeout(150);
+  pruef('App: Pause von Hand an den Dienst', (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'pause').pop()))[1].an === true &&
+    (await pa2.textContent('#bAufzPause')) === '▶ Weiter', await pa2.textContent('#bAufzPause'));
+  await pa2.click('#aktWahl [data-akt=laufen]');
+  await pa2.waitForTimeout(150);
   // Streckenziel während der Aufzeichnung: gleich an den Dienst, Rest in der Anzeige
+  await pa2.click('#aEinst summary');
   await pa2.fill('#streckenziel', '8');
   await pa2.dispatchEvent('#streckenziel', 'change');
   await pa2.waitForTimeout(150);
@@ -1773,14 +1821,12 @@ function pruef(name, bed, info) {
   await pa2.evaluate(() => { const p = document.querySelector('#profilwahl'); p.value = 'wandern'; p.dispatchEvent(new Event('change')); });
   await pa2.waitForTimeout(200);
   await pa2.click('#bAufz');
-  await pa2.waitForTimeout(150);
-  await pa2.click('#bAufzSpeichern');
   await pa2.waitForTimeout(400);
   // beim Start fragt die App einmal nach einer liegengebliebenen Aufzeichnung; beim Speichern holt sie und leert danach
   const a2 = (await pa2.evaluate(() => window.__navi.aufrufe)).filter(x => x[0] === 'aufzeichnungHolen');
   pruef('App: Aufzeichnung geholt und danach geleert', a2.length >= 2 && a2[a2.length - 1][1].leeren === true && a2[a2.length - 2][1].leeren === false, a2);
   await zuSeite(pa2, 'gegangen');
-  pruef('App: Aufzeichnung bei den gegangenen Touren', (await pa2.textContent('#gangliste')).includes('Aufzeichnung'));
+  pruef('App: Aufzeichnung bei den gegangenen Touren', (await pa2.textContent('#gangliste')).includes('Wanderung'), await pa2.textContent('#gangliste'));
   pruef('App: gespeicherte Aufzeichnung als Linie unter „Meine Touren“', (await pa2.$$('path.tour-spur')).length >= 1);
   await pa2.click('[data-reiter=planen]');
   // Telefon: Kennzahlen und Profil zuerst; Art und Tempo sowie Name und Zeitplan je eine Zeile zum Aufklappen
@@ -1978,17 +2024,19 @@ function pruef(name, bed, info) {
     pruef('Aufzeichnung: neue Punkte beim Verlassen gesichert, nach erneutem Laden noch da', gesichert && gesichert.laeuft && gesichert.pts.length >= 5 && (await pz.textContent('#bAufz')).includes('beenden'), gesichert && gesichert.pts.length);
     await zuSeite(pz, 'unterwegs');
     await pz.click('#bAufz');
-    pruef('Aufzeichnung: beendet und speicherbar', !(await pz.isDisabled('#bAufzSpeichern')) && (await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.aufzSicherung')).laeuft)) === false);
-    await pz.click('#bAufzSpeichern');
+    // Beenden speichert gleich: Tour da, Sicherung gelöscht
     await pz.waitForFunction(() => localStorage.getItem('gug.aufzSicherung') === 'null', null, { timeout: 8000 }).catch(() => {});
-    pruef('Aufzeichnung: als Tour gespeichert, Sicherung gelöscht', (await pz.evaluate(() => localStorage.getItem('gug.aufzSicherung'))) === 'null' &&
-      (await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').some(t => /^Aufzeichnung/.test(t.name)))));
-    // nach mehr als 12 h ohne Sicherung: nicht weiterzeichnen, nur noch speichern
+    const toureNach = await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung').length);
+    pruef('Aufzeichnung: beim Beenden als Tour gespeichert, Sicherung gelöscht', (await pz.evaluate(() => localStorage.getItem('gug.aufzSicherung'))) === 'null' &&
+      toureNach === 1 && (await pz.textContent('#aGespeichert')).includes('Gespeichert:'), toureNach);
+    // nach mehr als 12 h ohne Sicherung: nicht weiterzeichnen, gleich speichern
     await pz.evaluate(v => { const o = JSON.parse(v); o.gesichert = Date.now() - 13 * 3600e3; localStorage.setItem('gug.aufzSicherung', JSON.stringify(o)); }, JSON.stringify(sich));
     await pz.reload();
     await pz.waitForFunction(() => window.__gugBereit);
-    pruef('Aufzeichnung: alt (über 12 h) nur wiederhergestellt, nicht weitergezeichnet', (await pz.textContent('#bAufz')).includes('Neue Aufzeichnung') &&
-      (await pz.textContent('#meldung')).includes('wiederhergestellt') && !(await pz.isDisabled('#bAufzSpeichern')), await pz.textContent('#meldung'));
+    await pz.waitForFunction(() => localStorage.getItem('gug.aufzSicherung') === 'null', null, { timeout: 8000 }).catch(() => {});
+    pruef('Aufzeichnung: alt (über 12 h) nicht weitergezeichnet, gleich gespeichert', (await pz.textContent('#bAufz')).includes('Neue Aufzeichnung') &&
+      (await pz.textContent('#aGespeichert')).includes('Gespeichert:') &&
+      (await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.touren') || '[]').filter(t => t.art === 'aufzeichnung').length)) === 2, await pz.textContent('#aGespeichert'));
     await actx.close();
   }
 

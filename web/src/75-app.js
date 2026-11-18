@@ -46,8 +46,10 @@ if (NATIV) {
   async function senden(mitRoute) {
     const plan = naviPlan(), e = plan.e;   // Mehrtagestour: nur der gewählte Tag
     if (mitRoute && e) app.plan = planKennung();
-    // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen
-    const opt = { tempo: tempoAktuell(), rad: artAktuell() === 'rad', lauf: artAktuell() === 'lauf', kmAnsage: $('kmAnsage').checked,
+    // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen.
+    // Art: beim Folgen die der Route (Restzeit), sonst die Aktivität unter Unterwegs (Sprunggrenze, „Pause/Weiter“)
+    const art = app.folgen ? artAktuell() : AKT().art;
+    const opt = { tempo: art === 'lauf' ? S.pace : artAktuell() === 'lauf' ? 1 : tempoAktuell(), rad: art === 'rad', lauf: art === 'lauf', kmAnsage: $('kmAnsage').checked,
       streckenziel: streckenziel(), ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
@@ -172,14 +174,14 @@ if (NATIV) {
     $('uStumm').hidden = !st.stumm;
     if (st.aufz) {
       spurNachladen(st.aufz);
-      $('aStrecke').textContent = R.kmText(st.aufz.meter);
+      app.kmZeiten = st.aufz.kmZeiten || [];
+      app.hand = !!st.aufz.hand;
       // beendete Aufzeichnung: bis zu ihrem Ende rechnen, nicht bis jetzt
-      $('aDauer').textContent = R.zeitText(((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3, true);
-      // auch wenn sie über „Beenden“ in der Mitteilung gestoppt wurde: jetzt speicherbar
-      if (warAufz && !app.aufz && st.aufz.punkte > 1) $('bAufzSpeichern').disabled = false;
-      $('aAuf').textContent = Math.round(st.aufz.auf) + ' m';
       const std = ((st.aufz.ende || Date.now()) - st.aufz.start) / 3600e3;
-      bewegungZeigen(st.aufz.meter, std, st.aufz.bewegung != null ? st.aufz.bewegung / 3600e3 : std, !!st.aufz.pause);
+      aufzAnzeige({ meter: st.aufz.meter, dauer: std, bewegung: st.aufz.bewegung != null ? st.aufz.bewegung / 3600e3 : std, start: st.aufz.start,
+        laeuft: app.aufz, pausiert: !!st.aufz.pause, hand: app.hand, auf: st.aufz.auf, v: st.v, ele: st.ele, kmZeiten: app.kmZeiten });
+      // über „Beenden“ in der Mitteilung gestoppt: gleich speichern wie mit dem Knopf
+      if (warAufz && !app.aufz && st.aufz.punkte > 1) appSpeichern();
     }
   }
   Navi.addListener('position', anzeigen);
@@ -191,9 +193,7 @@ if (NATIV) {
   $('bLaut').onclick = () => Navi.laut().then(anzeigen).catch(() => {});
   // anderer Abstand oder aus: Stopps samt Punkten neu an den Dienst
   $('punktAlarm').addEventListener('change', () => { if (app.folgen) senden(true).catch(() => {}); });
-  // Art gewechselt (z. B. auf Laufen, das die Kilometer-Ansage einschaltet) während einer Aufzeichnung ohne Routenführung:
-  // Einstellungen gleich an den Dienst; mit Routenführung schickt die Neuberechnung sie mit
-  $('profilwahl').addEventListener('change', () => { if (app.aufz && !app.folgen) senden(false).catch(() => {}); });
+
 
   $('bNavi').onclick = async () => {
     if (app.startet) return;   // Texte der Führung laden noch: ein zweiter Tipp darf das Folgen nicht gleich beenden
@@ -210,41 +210,44 @@ if (NATIV) {
     } finally { app.startet = false; knoepfe(); }
   };
 
+  // Beenden speichert gleich (wie im Browser); ⏸/▶ schaltet die Pause von Hand im Dienst
   $('bAufz').onclick = async () => {
     if (app.aufz) {
       app.aufz = false;
       await senden(false).catch(() => {});
-      $('bAufzSpeichern').disabled = false;
+      await appSpeichern();
       return;
     }
-    app.aufz = true;
-    $('bAufzSpeichern').disabled = true;
-    $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
+    app.aufz = true; app.gespeichert = false;
+    $('aGespeichert').hidden = true; $('bAufzSpeichern').hidden = true;
     await senden(false).catch(() => {});
   };
+  $('bAufzPause').onclick = () => { if (app.aufz) Navi.pause({ an: !app.hand }).then(anzeigen).catch(err => melde(err.message || String(err), 6)); };
+  aktivitaetGewechselt = () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); };
 
-  // Höhen nachladen kann dauern: der Knopf ist solange gesperrt, sonst speichert ein zweiter Tipp die Tour doppelt
-  $('bAufzSpeichern').onclick = async () => {
-    const knopf = $('bAufzSpeichern');
-    if (knopf.disabled) return;
-    knopf.disabled = true;
+  // Aufzeichnung aus dem Dienst holen und als Tour speichern, danach im Dienst leeren. Höhen nachladen kann dauern:
+  // solange speichert ein zweiter Aufruf nicht doppelt. Misslingt es, bleibt die Spur im Dienst und „Nochmal speichern“
+  async function appSpeichern(meldung) {
+    if (app.speichert || app.gespeichert) return;
+    app.speichert = true;
     let fertig = false;
     try {
       const r = await Navi.aufzeichnungHolen({ leeren: false });
-      const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; return q; });
-      if (pts.length < 2) { melde('Die Aufzeichnung hat zu wenige Punkte.'); return; }
-      if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
-      const name = 'Aufzeichnung ' + new Date(r.start || pts[0].t || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-      if (!spurAlsTour(name, pts, 'aufzeichnung', { profil: S.profil, plan: offenePlanung() })) return;
-      fertig = true;
+      const pts = (r.spur || []).map(p => { const q = { lat: p[0], lon: p[1], ele: p[2] == null ? null : p[2] }; if (p[3]) q.t = p[3]; if (p[4] === 1) q.luecke = true; return q; });
+      if (pts.length < 2) { melde('Aufzeichnung zu kurz: nichts gespeichert.'); await Navi.aufzeichnungHolen({ leeren: true }); fertig = true; return; }
+      if (pts.some(p => p.ele == null)) await hoehenFuellen(pts).catch(() => {});
+      if (!aufzAlsTour(pts, r.start, app.kmZeiten)) return;
+      fertig = true; app.gespeichert = true;
       await Navi.aufzeichnungHolen({ leeren: true });
-      knopf.textContent = '✓ In „Gegangene Touren“';
+      if (meldung) melde(meldung + '.', 7);
     } catch (e) {
       if (!fertig) melde('Aufzeichnung nicht gespeichert: ' + (e && e.message || e));
     } finally {
-      if (!fertig) knopf.disabled = false;
+      app.speichert = false;
+      $('bAufzSpeichern').hidden = fertig;
     }
-  };
+  }
+  $('bAufzSpeichern').onclick = () => appSpeichern();
 
   // anderer Tag einer Mehrtagestour gewählt, während der Dienst folgt: neue Route nachreichen
   naviEtappeGewechselt = () => { if (app.folgen && S.ergebnis) senden(true).catch(() => {}); };
@@ -330,8 +333,8 @@ if (NATIV) {
             spur.start = r.start || spur.start; spur.n = r.spur.length; spurLinieNeu();
             aufzLinie.setLatLngs(r.spur.map(p => [p[0], p[1]]));
           }
-          $('bAufzSpeichern').disabled = false;
-          melde('Eine Aufzeichnung wartet noch aufs Speichern (Reiter Unterwegs).', 6);
+          // beendet, aber noch nicht gespeichert (z. B. vor dieser Fassung oder über die Mitteilung bei geschlossener App)
+          appSpeichern('Aufzeichnung von ' + new Date(r.start || r.spur[0][3] || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr gespeichert');
         }
       }).catch(() => {});
     }

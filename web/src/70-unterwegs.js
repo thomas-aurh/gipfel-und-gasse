@@ -42,7 +42,7 @@ function gpsAus() {
 
 function posNeu(p) {
   const c = p.coords;
-  U.pos = { lat: c.latitude, lon: c.longitude, ele: c.altitude, gen: c.accuracy, t: p.timestamp };
+  U.pos = { lat: c.latitude, lon: c.longitude, ele: c.altitude, gen: c.accuracy, t: p.timestamp, v: c.speed };
   const ll = [c.latitude, c.longitude];
   if (!ichMarke) {
     ichKreis = L.circle(ll, { radius: c.accuracy, color: '#1a73e8', weight: 1, fillOpacity: 0.12, interactive: false }).addTo(ebeneIch);
@@ -188,6 +188,9 @@ function unterwegsKarte() {
   // ohne Route hat „Route folgen“ nichts zu folgen (läuft die Navigation, bleibt der Knopf zum Beenden)
   $('bNavi').hidden = !e && !/beenden/.test($('bNavi').textContent);
   $('bBescheid').hidden = !e;
+  // ohne Route: keine Restzahlen und keine Einstellungen zum Folgen, nur der Weg zum Planen
+  const ohne = !e && !/beenden/.test($('bNavi').textContent);
+  $('uRouteZahlen').hidden = ohne; $('uRouteEinst').hidden = ohne;
   if (!e) {
     box.innerHTML = '<span class="klein">Noch keine Route.</span><div class="knopfreihe"><button class="knopf" type="button" id="uZuPlanen">✏️ Route planen</button>' +
       '<button class="knopf" type="button" id="uZuTouren">🥾 Tour öffnen</button></div>';
@@ -435,53 +438,113 @@ async function fuehrungLaden() {
 // Führung beim Beenden oder Abschalten verwerfen: kein Vorlesen mehr, auch nicht aus einem noch laufenden Laden
 function fuehrungAus() { fuehrungNr++; FUEHRUNG.clear(); }
 
+// ---------- Aktivität der Aufzeichnung ----------
+// gewählt unter Unterwegs; ohne eigene Wahl folgt sie der Art aus Planen (aktivitaetAusPlanen). Bestimmt Tempo-Anzeige
+// (min/km oder km/h), „Pause/Weiter“ beim Laufen, die Sprunggrenze und Art und Namen der gespeicherten Tour
+function aktivitaetKey() {
+  const k = SPEICHER.lesen('aktivitaet', null);
+  return AKTIVITAETEN[k] ? k : ({ laufen: 'laufen', rad: 'rad', stadt: 'spaziergang' }[S.profil] || 'wandern');
+}
+const AKT = () => AKTIVITAETEN[aktivitaetKey()];
+let aktivitaetGewechselt = () => {};   // die App schickt die neue Art an den Dienst (75-app.js)
+function aktivitaetSetzen(k) {
+  if (!AKTIVITAETEN[k] || k === SPEICHER.lesen('aktivitaet', null)) { aktWahlZeigen(); return; }
+  SPEICHER.schreiben('aktivitaet', k);
+  // Laufen schaltet die Kilometer-Ansage ein, solange man sie nicht selbst gewählt hat (wie in Planen)
+  if (AKTIVITAETEN[k].art === 'lauf' && !SPEICHER.lesen('kmAnsageGewaehlt', false)) { $('kmAnsage').checked = true; SPEICHER.schreiben('kmAnsage', true); }
+  aktWahlZeigen();
+  if (U.aufz) aufzZahlen();
+  aktivitaetGewechselt();
+}
+// Art in Planen gewechselt: die Aktivität geht mit (Rad bleibt MTB, wenn MTB gewählt war)
+function aktivitaetAusPlanen() {
+  const k = { laufen: 'laufen', rad: 'rad', stadt: 'spaziergang' }[S.profil] || 'wandern';
+  if (k === 'rad' && aktivitaetKey() === 'mtb') return;
+  aktivitaetSetzen(k);
+}
+function aktWahlZeigen() {
+  const k = aktivitaetKey(), a = AKTIVITAETEN[k];
+  for (const b of $('aktWahl').querySelectorAll('button[data-akt]')) { const an = b.dataset.akt === k; b.classList.toggle('an', an); b.setAttribute('aria-checked', String(an)); }
+  $('aStreckeText').textContent = a.weg;
+  $('aTempoText').textContent = a.art === 'rad' ? 'Ø km/h' : 'Ø Tempo';
+}
+$('aktWahl').onclick = e => { const b = e.target.closest('button[data-akt]'); if (b) aktivitaetSetzen(b.dataset.akt); };
+const kmhText = kmh => isFinite(kmh) && kmh > 0 ? kmh.toFixed(1).replace('.', ',') + ' km/h' : '–';
+// Tempo je nach Art: Rad in km/h, sonst min/km; aus Metern und Stunden
+function tempoText(meter, stunden, art) {
+  if (!(meter > 50 && stunden > 0)) return '–';
+  return art === 'rad' ? kmhText(meter / 1000 / stunden) : R.paceText(stunden * 60 / (meter / 1000));
+}
+
 // ---------- Aufzeichnen ----------
+// Beenden speichert gleich unter „Gegangene Touren“ (Thomas 18.11.: die Radfahrt ging verloren, weil nach dem Beenden
+// noch „Speichern“ fehlte); „Verwerfen“ nimmt sie wieder heraus
 $('bAufz').onclick = () => {
   setTimeout(gewitterPruefen, 60000);
   setTimeout(() => { if (!NATIV && !(U.navi || aufzLaeuft())) gewitterZeigen(null); }, 0);   // beendet: Warnung weg
   if (U.aufz && U.aufz.laeuft) {
+    if (U.aufz.pause && U.aufz.pause.hand) U.aufz.pause.handWeiter(Date.now());   // eine Pause von Hand endet mit
     U.aufz.laeuft = false; U.aufz.ende = Date.now();
     $('bAufz').textContent = '⏺ Neue Aufzeichnung';
-    $('bAufzSpeichern').disabled = U.aufz.pts.length < 2;
     if (!U.navi) wachHalten(false);
     aufzZahlen();
     aufzSichern(true);
     gpsFreigeben();
+    aufzSpeichern();
     return;
   }
   if (!gpsFuer()) return;
-  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0, zielGesagt: 0, sprung: R.sprungFilter() };
+  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0, kmZeiten: [], zielGesagt: 0, sprung: R.sprungFilter() };
   U.aufz.pause = R.autoPause(U.aufz.start, 0);
   aufzSichern(true);
-  $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
+  $('aGespeichert').hidden = true; $('bAufzSpeichern').hidden = true;
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline([], { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
   U.folgen = true; $('bOrt').classList.add('an');
   $('bAufz').textContent = '■ Aufzeichnung beenden';
-  $('bAufzSpeichern').disabled = true;
   wachHalten(true);
   if (U.pos) aufzNeu();
+  aufzZahlen();
+};
+// ⏸ Pause von Hand: nichts wird aufgezeichnet, die Zeit zählt als Pause; ▶ weiter beginnt neu am Standort
+$('bAufzPause').onclick = () => {
+  const a = U.aufz;
+  if (!a || !a.laeuft || !a.pause) return;
+  if (a.pause.hand) { a.pause.handWeiter(Date.now()); a.nachPause = true; sagenBrowser('Weiter.'); }
+  else { a.pause.handPause(Date.now()); sagenBrowser('Pause.'); }
+  aufzSichern(true);
+  aufzZahlen();
 };
 
 function aufzNeu(c) {
   const a = U.aufz;
   if (!a || !a.laeuft || !U.pos) return;
+  if (a.pause && a.pause.hand) { aufzZahlen(); return; }   // ⏸ von Hand
   // Bewegung für die Auto-Pause auch an der GPS-Geschwindigkeit (unabhängig vom Ausdünnen der Spur)
   if (a.pause && c && c.speed > 0.6 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   if (U.pos.gen > 40) return;                     // zu ungenau
-  // GPS-Sprung (weiter weg, als man seit dem letzten Punkt kommen kann): zurückhalten, bis der nächste ihn bestätigt
-  if (!a.sprung) a.sprung = R.sprungFilter();
-  const dazu = a.sprung.pruefen(a.pts[a.pts.length - 1], { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t }, U.pos.gen, artAktuell() === 'rad');
+  const p0 = { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t };
+  // erster Punkt nach ⏸: kommt in die Spur, der Weg in der Pause zählt nicht
+  let ohneWeg = !!a.nachPause, dazu;
+  if (ohneWeg) { a.nachPause = false; a.sprung = R.sprungFilter(); dazu = [p0]; }
+  else {
+    // GPS-Sprung (weiter weg, als man seit dem letzten Punkt kommen kann): zurückhalten, bis der nächste ihn bestätigt
+    if (!a.sprung) a.sprung = R.sprungFilter();
+    dazu = a.sprung.pruefen(a.pts[a.pts.length - 1], p0, U.pos.gen, AKT().art === 'rad');
+  }
   let neu = false;
   for (const p of dazu) {
     const letzt = a.pts[a.pts.length - 1];
-    if (letzt && R.abstand(letzt, p) < Math.max(8, U.pos.gen / 2)) continue;   // stehen bleiben zählt nicht als Weg
-    if (letzt) a.meter += R.abstand(letzt, p);
+    if (ohneWeg) { ohneWeg = false; if (letzt) p.luecke = true; }   // Lücke: kein Weg in der Pause
+    else {
+      if (letzt && R.abstand(letzt, p) < Math.max(8, U.pos.gen / 2)) continue;   // stehen bleiben zählt nicht als Weg
+      if (letzt) a.meter += R.abstand(letzt, p);
+    }
     a.pts.push(p);
     aufzLinie.addLatLng([p.lat, p.lon]);
     neu = true;
   }
-  if (!neu) return;
+  if (!neu) { aufzZahlen(); return; }
   aufzSichern(false);
   if (a.pts.length > 1 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   kmAnsagen(a.meter, a.pause, a);
@@ -504,58 +567,60 @@ function zielAnsagen(a) {
 let aufzGesichert = 0;
 function aufzSichern(sofort) {
   const a = U.aufz;
-  if (NATIV || !a || (!sofort && Date.now() - aufzGesichert < 15000)) return;
+  if (NATIV || !a || a.gespeichert || (!sofort && Date.now() - aufzGesichert < 15000)) return;
   aufzGesichert = Date.now();
   const r6 = x => Math.round(x * 1e6) / 1e6;
-  SPEICHER.schreiben('aufzSicherung', { laeuft: a.laeuft, start: a.start, ende: a.ende, meter: a.meter, km: a.km, kmZeit: a.kmZeit, zielGesagt: a.zielGesagt || 0,
-    pauseMs: a.pause ? a.pause.pauseMs : 0, gesichert: Date.now(),
-    pts: a.pts.map(p => ({ lat: r6(p.lat), lon: r6(p.lon), ele: p.ele == null ? null : Math.round(p.ele * 10) / 10, t: p.t })) });
+  SPEICHER.schreiben('aufzSicherung', { laeuft: a.laeuft, start: a.start, ende: a.ende, meter: a.meter, km: a.km, kmZeit: a.kmZeit, kmZeiten: a.kmZeiten || [], zielGesagt: a.zielGesagt || 0,
+    pauseMs: a.pause ? a.pause.pauseMs + (a.pause.hand ? Math.max(0, Date.now() - a.pause.letzte) : 0) : 0, hand: !!(a.pause && a.pause.hand), gesichert: Date.now(),
+    pts: a.pts.map(p => Object.assign({ lat: r6(p.lat), lon: r6(p.lon), ele: p.ele == null ? null : Math.round(p.ele * 10) / 10, t: p.t }, p.luecke ? { luecke: true } : {})) });
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) aufzSichern(true); });
 window.addEventListener('pagehide', () => aufzSichern(true));
 // beim Start: eine gesicherte Aufzeichnung zurückholen. Lief sie noch, zeichnet die Seite weiter (die Lücke zählt als
-// Pause); nach mehr als 12 h ohne Sicherung gilt sie als beendet und lässt sich nur noch speichern
+// Pause); nach mehr als 12 h ohne Sicherung gilt sie als beendet und wird gleich gespeichert
 function aufzWiederholen() {
   if (NATIV || U.aufz) return;
   const s = SPEICHER.lesen('aufzSicherung', null);
   if (!s || !Array.isArray(s.pts) || !s.start) return;
   const weiter = s.laeuft && Date.now() - (s.gesichert || 0) < 12 * 3600e3;
   const ende = weiter ? null : (s.ende || s.gesichert || Date.now());
-  U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0, zielGesagt: s.zielGesagt || 0, sprung: R.sprungFilter() };
+  U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0, kmZeiten: Array.isArray(s.kmZeiten) ? s.kmZeiten : [],
+    zielGesagt: s.zielGesagt || 0, sprung: R.sprungFilter() };
   U.aufz.pause = R.autoPause(s.start, (s.pauseMs || 0) + (weiter ? Math.max(0, Date.now() - (s.gesichert || Date.now())) : 0));
+  if (weiter && s.hand) { U.aufz.pause.handPause(Date.now()); U.aufz.nachPause = false; }
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline(s.pts.map(p => [p.lat, p.lon]), { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
   const uhrzeit = new Date(s.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   if (weiter && gpsFuer()) {
     U.folgen = true; $('bOrt').classList.add('an');
     $('bAufz').textContent = '■ Aufzeichnung beenden';
-    $('bAufzSpeichern').disabled = true;
     wachHalten(true);
     melde('Aufzeichnung von ' + uhrzeit + ' Uhr läuft weiter (die Seite war geschlossen).', 7);
   } else {
     U.aufz.laeuft = false; U.aufz.ende = ende || Date.now();
     $('bAufz').textContent = '⏺ Neue Aufzeichnung';
-    $('bAufzSpeichern').disabled = s.pts.length < 2;
-    if (s.pts.length >= 2) melde('Aufzeichnung von ' + uhrzeit + ' Uhr wiederhergestellt: unter Unterwegs als Tour speichern.', 7);
+    aufzSpeichern('Aufzeichnung von ' + uhrzeit + ' Uhr wiederhergestellt und gespeichert');
   }
   aufzZahlen();
   balkenZeigen();
 }
 
 // jeden vollen Kilometer der Aufzeichnung: Zeit und Tempo des letzten Kilometers (im Browser per Sprachausgabe;
-// in der App sagt das der Navigationsdienst an, auch bei gesperrtem Bildschirm)
+// in der App sagt das der Navigationsdienst an, auch bei gesperrtem Bildschirm); die Zeiten gehen in die Kilometer-Liste
 // Zeiten in Bewegungszeit (Auto-Pause: Stehen an der Ampel zählt nicht)
 function kmAnsagen(meter, pause, zaehler) {
   const km = Math.floor(meter / 1000);
   if (km <= zaehler.km) return;
-  const bewegung = pause.bewegungMs(Date.now());
-  const text = R.kmAnsage(km, bewegung, (bewegung - zaehler.kmZeit) / (km - zaehler.km));
+  const bewegung = pause.bewegungMs(Date.now()), jeKm = (bewegung - zaehler.kmZeit) / (km - zaehler.km);
+  const text = R.kmAnsage(km, bewegung, jeKm);
+  if (!zaehler.kmZeiten) zaehler.kmZeiten = [];
+  for (let k = zaehler.km; k < km; k++) zaehler.kmZeiten.push(Math.round(jeKm));   // Lücke über mehrere km: gemittelt
   zaehler.km = km; zaehler.kmZeit = bewegung;
   if ($('kmAnsage').checked) sagenBrowser(text);
 }
 // Sprachausgabe im Browser (die App spricht über den Dienst); nurLauf: „Pause“/„Weiter“ nur beim Laufen
 function sagenBrowser(text, nurLauf) {
-  if (NATIV || !window.speechSynthesis || (nurLauf && artAktuell() !== 'lauf')) return;
+  if (NATIV || !window.speechSynthesis || (nurLauf && AKT().art !== 'lauf')) return;
   try { const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; speechSynthesis.speak(u); } catch (e) { /* ohne Sprachausgabe */ }
 }
 // Auto-Pause auch ohne neuen Standort erkennen (im Stehen kommen kaum Punkte)
@@ -599,41 +664,96 @@ $('streckenziel').addEventListener('change', () => { SPEICHER.schreiben('strecke
 
 function aufzZahlen() {
   const a = U.aufz;
-  if (!a) return;
+  if (!a) { aufzAnzeige({}); return; }
   const pts = a.pts.map(p => Object.assign({}, p));
   const m = R.laengen(pts);
-  $('aStrecke').textContent = R.kmText(m);
   const dauer = ((a.ende || Date.now()) - a.start) / 3600e3;
   const bewegung = a.pause ? a.pause.bewegungMs(a.ende || Date.now()) / 3600e3 : dauer;
-  $('aDauer').textContent = R.zeitText(dauer, true);
-  $('aAuf').textContent = R.hoehenmeter(pts.map(p => p.ele), 8).auf + ' m';
-  bewegungZeigen(m, dauer, bewegung, a.laeuft && a.pause && a.pause.pausiert);
+  aufzAnzeige({ meter: m, dauer, bewegung, start: a.start, laeuft: a.laeuft, pausiert: a.laeuft && a.pause && a.pause.pausiert, hand: a.laeuft && a.pause && a.pause.hand,
+    auf: R.hoehenmeter(pts.map(p => p.ele), 8).auf, v: U.pos && Date.now() - U.pos.t < 15000 ? U.pos.v : null, ele: U.pos ? U.pos.ele : null, kmZeiten: a.kmZeiten || [] });
 }
-// Ø Tempo aus der Bewegungszeit; darunter Bewegungszeit und ob gerade Pause ist (auch für die App, 75-app.js)
-function bewegungZeigen(meter, dauer, bewegung, pausiert) {
-  $('aTempo').textContent = meter > 50 && bewegung > 0 ? R.paceText(bewegung * 60 / (meter / 1000)) : '–';
+// Zahlen der Aufzeichnung (Browser und App, 75-app.js): Strecke, Dauer, Ø Tempo aus der Bewegungszeit (Rad in km/h),
+// Tempo jetzt aus der GPS-Geschwindigkeit, bergauf, Höhe; darunter Bewegungszeit, Pause, Streckenziel; ⏸, Kilometer-Liste
+function aufzAnzeige(z) {
+  const art = AKT().art, an = !!z.laeuft;
+  const meter = z.meter || 0, dauer = z.dauer || 0, bewegung = z.bewegung != null ? z.bewegung : dauer;
+  $('aStrecke').textContent = z.meter != null ? R.kmText(meter) : '–';
+  $('aDauer').textContent = z.dauer != null ? R.zeitText(dauer, true) : '–';
+  $('aTempo').textContent = tempoText(meter, bewegung, art);
+  $('aJetzt').textContent = an && !z.pausiert && z.v > 0.5 ? (art === 'rad' ? kmhText(z.v * 3.6) : R.paceText(1000 / z.v / 60)) : '–';
+  $('aAuf').textContent = z.auf != null ? Math.round(z.auf) + ' m' : '–';
+  $('aHoehe').textContent = z.ele != null && isFinite(z.ele) ? Math.round(z.ele) + ' m' : '–';
+  const uhr = t => new Date(t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  $('aKopf').textContent = an ? '⏺ ' + AKT().name + ' seit ' + uhr(z.start) + ' · ' + uhr(Date.now()) + ' Uhr' : '⏺ Aufzeichnen';
+  $('aktWahl').classList.toggle('gesperrt', an);
   const teile = [];
   if (dauer - bewegung > 1 / 60) teile.push('Bewegung ' + R.zeitText(bewegung, true) + ' · Stehen zählt nicht');
-  if (pausiert) teile.push('⏸ Pause');
-  const z = streckenziel();
-  if (z) teile.push(meter >= z * 1000 ? '🎯 Ziel ' + R.kmText(z * 1000) + ' erreicht' : '🎯 noch ' + R.kmText(z * 1000 - meter) + ' bis ' + R.kmText(z * 1000));
+  if (z.hand) teile.push('⏸ Pause (von Hand)'); else if (z.pausiert) teile.push('⏸ Pause');
+  const ziel = streckenziel();
+  if (ziel && z.meter != null) teile.push(meter >= ziel * 1000 ? '🎯 Ziel ' + R.kmText(ziel * 1000) + ' erreicht' : '🎯 noch ' + R.kmText(ziel * 1000 - meter) + ' bis ' + R.kmText(ziel * 1000));
   $('aBewegung').textContent = teile.join(' · ');
+  $('bAufzPause').hidden = !an;
+  $('bAufzPause').textContent = z.hand ? '▶ Weiter' : '⏸ Pause';
+  kmListeZeigen($('aKmFeld'), $('aKmTitel'), $('aKmListe'), z.kmZeiten || [], art);
+}
+// Kilometer-Liste: Bewegungszeit je km, schnellster markiert; Rad zusätzlich in km/h. Auch auf der Tourseite (60-touren.js)
+function kmListeZeigen(feld, titel, ol, zeiten, art) {
+  feld.hidden = !zeiten.length;
+  const schl = zeiten.join(',') + art;
+  if (ol.dataset.stand === schl) return;
+  ol.dataset.stand = schl;
+  if (!zeiten.length) { ol.innerHTML = ''; return; }
+  const best = zeiten.length > 1 ? zeiten.indexOf(Math.min(...zeiten)) : -1;
+  const mmss = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  titel.textContent = '⏱ Kilometer (' + zeiten.length + ')' + (best >= 0 ? ' · schnellster: km ' + (best + 1) + ' in ' + mmss(zeiten[best]) : '');
+  ol.innerHTML = zeiten.map((ms, i) => '<li' + (i === best ? ' class="schnell"' : '') + '><b>km ' + (i + 1) + '</b><span>' + mmss(ms) + ' min</span>' +
+    (art === 'rad' ? '<span>' + kmhText(3600000 / ms) + '</span>' : '') + '</li>').join('');
 }
 setInterval(() => { if (U.aufz && U.aufz.laeuft) aufzZahlen(); }, 30000);
 
-$('bAufzSpeichern').onclick = async () => {
+// Aufzeichnung als Tour speichern (Browser und App): Name nach der Aktivität, Art, Kilometer-Zeiten, geöffnete Planung
+function aufzAlsTour(pts, start, kmZeiten) {
+  const k = aktivitaetKey(), a = AKTIVITAETEN[k];
+  const name = a.wort + ' ' + new Date(start || (pts[0] && pts[0].t) || Date.now()).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const id = spurAlsTour(name, pts, 'aufzeichnung', { profil: a.profil, aktivitaet: k, kmZeiten, plan: offenePlanung() });
+  if (id) gespeichertZeigen(id, name);
+  return id;
+}
+// nach dem Speichern: Name, „Öffnen“ und „Verwerfen“ (zweimal tippen) unter den Knöpfen
+function gespeichertZeigen(id, name) {
+  const box = $('aGespeichert');
+  box.hidden = false;
+  box.innerHTML = '✓ Gespeichert: <b>' + R.esc(name) + '</b> unter „Gegangene Touren“. <div class="knopfreihe"><button class="knopf" type="button" id="aOeffnen">Öffnen</button>' +
+    '<button class="knopf" type="button" id="aVerwerfen">🗑 Verwerfen</button></div>';
+  $('aOeffnen').onclick = () => tourOeffnen(id);
+  $('aVerwerfen').onclick = () => {
+    const b = $('aVerwerfen');
+    if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = '🗑 Wirklich verwerfen?'; return; }
+    if (!tourenSchreiben(tourenLesen().filter(x => x.id !== id))) return;
+    if (S.tourId === id) S.tourId = null;
+    tourenZeigen();
+    box.textContent = 'Verworfen: ' + name;
+  };
+}
+// Browser: beenden = speichern; misslingt es (Speicher voll), bleibt die Sicherung und „Nochmal speichern“
+async function aufzSpeichern(meldung) {
   const a = U.aufz;
-  if (!a || a.pts.length < 2) return;
-  const pts = a.pts.map(p => Object.assign({}, p));
-  // GPS-Höhen schwanken stark; wo sie fehlen, das Höhenmodell nehmen
-  if (pts.some(p => p.ele == null)) await hoehenFuellen(pts);
-  const name = 'Aufzeichnung ' + new Date(a.start).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  if (!spurAlsTour(name, pts, 'aufzeichnung', { profil: S.profil, plan: offenePlanung() })) return;
-  if (!a.laeuft) SPEICHER.schreiben('aufzSicherung', null);   // gespeichert: die Sicherung wird nicht mehr gebraucht
-  $('bAufzSpeichern').disabled = true;
-  $('bAufzSpeichern').textContent = '✓ In „Gegangene Touren“';
-  setTimeout(() => { $('bAufzSpeichern').textContent = '💾 Als Tour speichern'; }, 4000);
-};
+  if (!a || a.gespeichert || a.speichert) return;
+  if (a.pts.length < 2) { melde('Aufzeichnung zu kurz: nichts gespeichert.'); SPEICHER.schreiben('aufzSicherung', null); return; }
+  a.speichert = true;
+  try {
+    const pts = a.pts.map(p => Object.assign({}, p));
+    // GPS-Höhen schwanken stark; wo sie fehlen, das Höhenmodell nehmen (ohne Netz: ohne Höhen speichern)
+    if (pts.some(p => p.ele == null)) await hoehenFuellen(pts).catch(() => {});
+    const id = aufzAlsTour(pts, a.start, a.kmZeiten);
+    $('bAufzSpeichern').hidden = !!id;
+    if (!id) return;
+    a.gespeichert = id;
+    SPEICHER.schreiben('aufzSicherung', null);   // gespeichert: die Sicherung wird nicht mehr gebraucht
+    if (meldung) melde(meldung + '.', 7);
+  } finally { a.speichert = false; }
+}
+$('bAufzSpeichern').onclick = () => aufzSpeichern();
 
 // Gewitterwarnung unterwegs (im Browser; in der App fragt der Navigationsdienst selbst, auch bei gesperrtem Bildschirm):
 // beim Folgen oder Aufzeichnen alle 30 min die nächsten drei Stunden am Standort
@@ -663,6 +783,7 @@ setInterval(gewitterPruefen, 30 * 60000);
 // Balken über der Leiste, solange Folgen oder Aufzeichnen läuft (Browser und App: der Zustand steht an den Knöpfen)
 function balkenZeigen() {
   const navi = /beenden/.test($('bNavi').textContent), aufz = /beenden/.test($('bAufz').textContent);
+  $('uBloecke').classList.toggle('navi-oben', navi);   // läuft die Navigation, steht „Route folgen“ oben
   const an = (navi || aufz) && seite !== 'unterwegs';
   $('laeuftBalken').hidden = !an;
   document.body.classList.toggle('mitBalken', an);

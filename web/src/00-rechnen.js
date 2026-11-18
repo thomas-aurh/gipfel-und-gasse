@@ -296,10 +296,13 @@ var R = (function () {
   }
   // Auto-Pause (wie AutoPause.java): länger als still ms ohne Weg = Pause ab der letzten Bewegung
   function autoPause(start, pauseMs, still) {
-    const p = { start, pauseMs: pauseMs || 0, letzte: start, pausiert: false, still: still || 10000 };
-    p.bewegt = t => { const weiter = p.pausiert; if (p.pausiert || t - p.letzte > p.still) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
-    p.takt = t => { if (p.pausiert || t - p.letzte <= p.still) return false; p.pausiert = true; return true; };
+    const p = { start, pauseMs: pauseMs || 0, letzte: start, pausiert: false, hand: false, still: still || 10000 };
+    p.bewegt = t => { if (p.hand) return false; const weiter = p.pausiert; if (p.pausiert || t - p.letzte > p.still) { p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; } p.letzte = t; return weiter; };
+    p.takt = t => { if (p.hand || p.pausiert || t - p.letzte <= p.still) return false; p.pausiert = true; return true; };
     p.bewegungMs = t => Math.max(0, t - p.start - p.pauseMs - (p.pausiert ? Math.max(0, t - p.letzte) : 0));
+    // ⏸ von Hand (wie AutoPause.handPause): eine laufende Auto-Pause behält ihren Beginn; Bewegung beendet sie nicht
+    p.handPause = t => { if (p.hand) return; if (!p.pausiert) { p.pausiert = true; p.letzte = t; } p.hand = true; };
+    p.handWeiter = t => { if (!p.hand) return; p.hand = false; p.pauseMs += Math.max(0, t - p.letzte); p.pausiert = false; p.letzte = t; };
     return p;
   }
 
