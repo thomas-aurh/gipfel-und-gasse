@@ -327,6 +327,31 @@ var R = (function () {
       Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + '.';
   }
 
+  // GPS-Sprung beim Aufzeichnen (wie NaviRechnen.gpsSprung): weiter weg, als man in der Zeit kommen kann. 15 m/s
+  // (Seilbahnen bleiben darunter), mit dem Rad 25 m/s, dazu doppelte Genauigkeit und 20 m; die Grenze wächst mit der Zeit
+  function gpsSprung(meter, dtMs, gen, rad) {
+    return meter > (rad ? 25 : 15) * Math.max(0, dtMs) / 1000 + 2 * Math.max(5, gen || 0) + 20;
+  }
+  // hält einen einzelnen Sprung zurück (wie NaviRechnen.SprungFilter); kommt der nächste Punkt passend zu ihm, war es
+  // keiner (Bahn, Seilbahn, oder der letzte Punkt lag daneben): dann beide. Punkte { lat, lon, t }; [] = zurückgehalten
+  function sprungFilter() {
+    let kandidat = null;
+    return {
+      pruefen(letzt, p, gen, rad) {
+        if (!letzt || !gpsSprung(abstand(letzt, p), p.t - letzt.t, gen, rad)) { kandidat = null; return [p]; }
+        if (kandidat && !gpsSprung(abstand(kandidat, p), p.t - kandidat.t, gen, rad)) { const k = kandidat; kandidat = null; return [k, p]; }
+        kandidat = p;
+        return [];
+      }
+    };
+  }
+  // Ansage beim Streckenziel der Aufzeichnung (wie NaviRechnen.zielAnsage)
+  function zielAnsage(zielKm, bewegungMs) {
+    const km = Number.isInteger(zielKm) ? String(zielKm) : zielKm.toFixed(1).replace('.', ',');
+    const s = Math.round(bewegungMs / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return 'Streckenziel ' + km + ' Kilometer erreicht. Zeit ' + (h ? h + (h === 1 ? ' Stunde ' : ' Stunden ') : '') + m + (m === 1 ? ' Minute.' : ' Minuten.');
+  }
+
   // Teilstücke (je Wegpunkt-Paar) zu einer Strecke zusammensetzen und auswerten.
   // Jeder Abschnitt bekommt von/bis (Meter ab Start); BRouter zählt Längen etwas anders als die Geometrie,
   // darum wird je Teilstück auf dessen Länge gestreckt.
@@ -2910,7 +2935,7 @@ var R = (function () {
   }
 
   return {
-    laengeNorm, abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, eigenesTempo, bewegungStunden, planVergleich, planKandidaten, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
+    laengeNorm, abstand, laengen, hoehenmeter, hoehenmeterSpur, gehzeit, eigenesTempo, bewegungStunden, planVergleich, planKandidaten, fahrzeit, laufzeit, zeitFuer, paceText, kmAnsage, gpsSprung, sprungFilter, zielAnsage, autoPause, rundkursPunkte, versatz, zeitText, kmText, tagsLesen, SAC, wegtyp, untergrund, anteile, maxSteigung,
     kinderwagen, schwierigkeit, brouterLesen, linie, auswerten, aufStrecke, rest, ausduennen, gpxSchreiben, gpxLesen, gpxQuelle, gpxProfil, gpxPunktArt, gpxDauer,
     hinweisText, routenKachel, richtung, abbiegeBefehl, linkSchreiben, linkLesen, ortLinkSchreiben, ortLinkLesen, ORTE, ortArt, overpassAbfrage, orteLesen, wetterText, esc,
     FAMILIE, familieHalbzeit, STADT, stadtAbfrage, stadtLesen, stadtArt, wikiLink, sonnenuntergang, uhr, zeitplan, gradMinSek, notfallText, abseitsText, gewitterTage, sicherungLesen, gewitterAb, statistik, sicherungTagebuch, tagIso, tagebuchTage, tourZeit, reiseTouren, fotoListe, reiseHeute, tagebuchPruefen, heftSkizze, spurTeile, ortElement, orteUmkreis, orteAusschnitt, abstandZurLinie, streckenRahmen, suchNorm, sucheOffline, rundgangOrdnen, rundgangLaenge, rundgangMinuten, parkplaetze, parkText, wegeAbfrage, wegeLesen, wegText, wegVerlauf, TRAIL_FARBE, TRAIL_TEXT, mtbSkala, trailsAbfrage, trailsAusOverpass, trailsEntpacken, trailsImAusschnitt, trailText, naechsterTrail, mercatorPixel, ordnerName, ordnerListe, STEIL_STUFEN, steigungen, steigungStuecke, alarmPunkte, ORDNER_FARBEN, ordnerFarbe, ordnerFarbeFrei, routenEntpacken, wegeAusPaket, dienstFehler, bbox3857, wegeAusWmt, crc32, zipTeile, zipLesen, bildArt, exifLesen, fotoOrt, packliste, packWetter, wegOrdnen, wegLaenge,

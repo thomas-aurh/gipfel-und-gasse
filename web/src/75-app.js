@@ -48,7 +48,7 @@ if (NATIV) {
     if (mitRoute && e) app.plan = planKennung();
     // beim Laufen ist tempo das Lauftempo (min/km); kmAnsage: jeden Kilometer der Aufzeichnung Zeit und Tempo ansagen
     const opt = { tempo: tempoAktuell(), rad: artAktuell() === 'rad', lauf: artAktuell() === 'lauf', kmAnsage: $('kmAnsage').checked,
-      ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
+      streckenziel: streckenziel(), ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
@@ -166,6 +166,10 @@ if (NATIV) {
       : st.spracheFehlt ? 'Die Sprachausgabe von Android startet nicht: es kommen keine Ansagen und keine Abseits-Warnung.' : '';
     if (ausfall && ausfall !== app.ausfall) melde(ausfall, 10);
     app.ausfall = ausfall;
+    // Kopfhörer getrennt: der Dienst spricht nicht mehr, bis man die Ansagen wieder einschaltet
+    if (st.stumm && !app.stumm) melde('🔇 Kopfhörer getrennt: Ansagen aus.', 8);
+    app.stumm = !!st.stumm;
+    $('uStumm').hidden = !st.stumm;
     if (st.aufz) {
       spurNachladen(st.aufz);
       $('aStrecke').textContent = R.kmText(st.aufz.meter);
@@ -183,6 +187,8 @@ if (NATIV) {
   ausstiegeGeladen = () => { if (app.folgen) senden(false).catch(() => {}); };
   // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
   $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  $('streckenziel').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  $('bLaut').onclick = () => Navi.laut().then(anzeigen).catch(() => {});
   // anderer Abstand oder aus: Stopps samt Punkten neu an den Dienst
   $('punktAlarm').addEventListener('change', () => { if (app.folgen) senden(true).catch(() => {}); });
   // Art gewechselt (z. B. auf Laufen, das die Kilometer-Ansage einschaltet) während einer Aufzeichnung ohne Routenführung:

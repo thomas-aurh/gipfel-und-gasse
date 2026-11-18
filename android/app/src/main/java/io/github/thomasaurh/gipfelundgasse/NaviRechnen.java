@@ -122,6 +122,46 @@ public final class NaviRechnen {
     }
 
     /**
+     * GPS-Sprung beim Aufzeichnen (wie R.gpsSprung): der neue Punkt liegt weiter vom letzten weg, als man in der Zeit
+     * dazwischen kommen kann. Grenze 15 m/s (54 km/h, Seilbahnen bleiben darunter), mit dem Rad 25 m/s; dazu die
+     * doppelte Genauigkeit und 20 m Spielraum. Lange Lücken (Tunnel, Wald) bleiben erlaubt: die Grenze wächst mit der Zeit.
+     */
+    public static boolean gpsSprung(double meter, long dtMs, double genauigkeit, boolean rad) {
+        double v = rad ? 25 : 15;
+        return meter > v * Math.max(0, dtMs) / 1000.0 + 2 * Math.max(5, genauigkeit) + 20;
+    }
+
+    /**
+     * Hält einen einzelnen Sprung zurück (wie R.sprungFilter). Kommt der nächste Punkt passend zum zurückgehaltenen,
+     * war es keiner (Bahn, Seilbahn, oder der letzte Punkt der Spur lag daneben): dann kommen beide in die Spur.
+     * Punkte {lat, lon, ele, zeit in ms}.
+     */
+    public static final class SprungFilter {
+        double[] kandidat;
+
+        /** Punkte für die Spur, in dieser Reihenfolge: leer = als Sprung zurückgehalten. */
+        public java.util.List<double[]> pruefen(double[] letzter, double[] p, double genauigkeit, boolean rad) {
+            java.util.List<double[]> out = new java.util.ArrayList<>();
+            if (letzter == null || !gpsSprung(abstand(letzter[0], letzter[1], p[0], p[1]), (long) (p[3] - letzter[3]), genauigkeit, rad)) {
+                kandidat = null; out.add(p); return out;
+            }
+            if (kandidat != null && !gpsSprung(abstand(kandidat[0], kandidat[1], p[0], p[1]), (long) (p[3] - kandidat[3]), genauigkeit, rad)) {
+                out.add(kandidat); out.add(p); kandidat = null; return out;
+            }
+            kandidat = p;
+            return out;
+        }
+    }
+
+    /** Ansage beim Streckenziel der Aufzeichnung (wie R.zielAnsage): „Streckenziel 8 Kilometer erreicht. Zeit 47 Minuten.“ */
+    public static String zielAnsage(double zielKm, long bewegungMs) {
+        String km = zielKm == Math.floor(zielKm) ? String.valueOf((long) zielKm) : String.format(Locale.GERMANY, "%.1f", zielKm);
+        long s = Math.round(bewegungMs / 1000.0), h = s / 3600, m = s % 3600 / 60;
+        return "Streckenziel " + km + " Kilometer erreicht. Zeit " + (h > 0 ? h + (h == 1 ? " Stunde " : " Stunden ") : "")
+            + m + (m == 1 ? " Minute." : " Minuten.");
+    }
+
+    /**
      * Wann der letzte volle Kilometer einer Aufzeichnung erreicht war, aus den Zeitstempeln der Spur {lat, lon, ele, zeit}
      * (Wege wie beim Aufzeichnen summiert); vor dem ersten Kilometer oder ohne Zeitstempel: start.
      */

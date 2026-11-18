@@ -6,10 +6,15 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
@@ -45,6 +50,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private static final String KANAL = "navigation";
     private static final int NR = 4711;
     static final String AKTION_BEENDEN = "io.github.thomasaurh.gipfelundgasse.BEENDEN";
+    // Ansagen nach dem Trennen der Kopfhörer wieder einschalten (Knopf in der Mitteilung und in der App)
+    static final String AKTION_LAUT = "io.github.thomasaurh.gipfelundgasse.LAUT";
 
     /** Gemeinsamer Zustand von Plugin und Dienst (beide laufen im selben Prozess). */
     static final class Zustand {
@@ -71,6 +78,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         double tempo = 1;
         boolean rad, lauf, folgen, aufzeichnen, ansagen = true;
         boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
+        double streckenziel;         // Aufzeichnung: beim Erreichen ansagen (km, 0 = aus); beendet nichts
+        double zielGesagt;           // zuletzt angesagtes Streckenziel (km): ein anderes Ziel wird wieder angesagt
         double alarm = 150;          // Punkt-Alarm: Stopps und Punkte so viele Meter vorher ankündigen
         String gewitter;             // Warnung „Gewitter möglich gegen …“ für die Anzeige, null = keine
         // Umkehrzeit: Dunkelgrenze (Sonnenuntergang − 30 min) und Umkehrzeit am höchsten Punkt (ms, 0 = aus), von der App
@@ -111,6 +120,11 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         boolean unterbrochen;
         String gpsFehler;      // GPS ließ sich nicht einschalten (Erlaubnis entzogen, kein Anbieter)
         boolean spracheFehlt;  // Sprachausgabe startet nicht: keine Ansagen, auch keine Abseits-Warnung
+        // Kopfhörer getrennt: Ansagen stumm, bis man sie wieder einschaltet (sonst spräche der Lautsprecher in der
+        // Tasche oder im Zug); Vibration bleibt. Gilt bis zum Ende der Sitzung oder „Ansagen an“
+        boolean stumm;
+        // GPS-Sprünge in der Aufzeichnung zurückhalten
+        NaviRechnen.SprungFilter sprung = new NaviRechnen.SprungFilter();
     }
 
     static final Zustand Z = new Zustand();
@@ -183,16 +197,57 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private final Handler endeHandler = new Handler(Looper.getMainLooper());
     private Runnable ausstehendesEnde;
     private int ungespeichert;
+    // Audiofokus während einer Ansage: Musik oder Podcast werden leiser (oder halten an) und kommen danach zurück
+    private AudioManager audio;
+    private AudioFocusRequest fokusAnfrage;   // ab Android 8
+    private final AudioManager.OnAudioFocusChangeListener fokusHoerer = f -> {};
+    private final Handler fokusHandler = new Handler(Looper.getMainLooper());
+    private final Runnable fokusPruefen = () -> { if (tts == null || !tts.isSpeaking()) fokusAbgeben(); };
+    private static final AudioAttributes ANSAGE = new AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build();
+    // Kopfhörer getrennt (Kabel oder Bluetooth): Android schickt AUDIO_BECOMING_NOISY, Musik-Apps halten an
+    private final BroadcastReceiver kopfhoerer = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(i.getAction())) kopfhoererGetrennt();
+        }
+    };
 
     @Override
     public void onCreate() {
         super.onCreate();
+        audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         tts = new TextToSpeech(this, this);
         kanalAnlegen();
+        // reine Systemmeldung: ab Android 14 ohne RECEIVER_EXPORTED/NOT_EXPORTED erlaubt
+        registerReceiver(kopfhoerer, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
+    }
+
+    private void kopfhoererGetrennt() {
+        synchronized (Z) {
+            if (!Z.laeuft || !Z.ansagen || Z.stumm) return;
+            Z.stumm = true;
+        }
+        if (tts != null) tts.stop();
+        fokusAbgeben();
+        vibrieren();
+        zuletztBenachrichtigt = 0;
+        benachrichtigungAktualisieren();
+        if (Z.beiNeuem != null) Z.beiNeuem.run();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && AKTION_LAUT.equals(intent.getAction())) {
+            boolean lief;
+            synchronized (Z) { Z.stumm = false; lief = Z.laeuft; }
+            if (!lief) { stopSelf(); return START_NOT_STICKY; }
+            zuletztBenachrichtigt = 0;
+            benachrichtigungAktualisieren();
+            sagen("Ansagen sind wieder an.");
+            if (Z.beiNeuem != null) Z.beiNeuem.run();
+            return START_STICKY;
+        }
         if (intent != null && AKTION_BEENDEN.equals(intent.getAction())) {
             synchronized (Z) {
                 if (Z.aufzeichnen) Z.aufzEnde = System.currentTimeMillis();
@@ -237,7 +292,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (ausstehendesEnde != null) { endeHandler.removeCallbacks(ausstehendesEnde); ausstehendesEnde = null; }
         boolean neu = !Z.laeuft;
         if (neu) {
-            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; Z.gpsFehler = null; }   // neue Sitzung: keine alte Warnung
+            synchronized (Z) { Z.gewitter = null; Z.gewitterGemeldet = 0; Z.gpsFehler = null; Z.stumm = false; }   // neue Sitzung: keine alte Warnung
             takt.removeCallbacks(taktLauf); takt.postDelayed(taktLauf, 5000);
             wetter.removeCallbacks(wetterLauf); wetter.postDelayed(wetterLauf, 60000);
         }
@@ -263,7 +318,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
             if (Z.aufzeichnen && Z.aufzStart == 0) {
                 Z.aufzStart = System.currentTimeMillis(); Z.aufzEnde = 0; Z.spur.clear(); Z.aufzMeter = 0;
-                Z.aufzKm = 0; Z.aufzKmZeit = 0;
+                Z.aufzKm = 0; Z.aufzKmZeit = 0; Z.zielGesagt = 0; Z.sprung = new NaviRechnen.SprungFilter();
                 Z.pause = new AutoPause(Z.aufzStart, 0);
             }
         }
@@ -606,14 +661,23 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         // (bei ungenauem GPS kommt erst nach vielen Metern ein Punkt dazu, das Gehen ist trotzdem Bewegung)
         if (Z.pause != null && loc.hasSpeed() && loc.getSpeed() > 0.6f && Z.pause.bewegt(System.currentTimeMillis()) && Z.lauf && Z.ansagen) sagen("Weiter.");
         if (loc.hasAccuracy() && loc.getAccuracy() > 40) return;   // zu ungenau
-        double[] p = { loc.getLatitude(), loc.getLongitude(), loc.hasAltitude() ? loc.getAltitude() : Double.NaN, loc.getTime() };
-        if (!Z.spur.isEmpty()) {
-            double[] l = Z.spur.get(Z.spur.size() - 1);
-            double m = NaviRechnen.abstand(l[0], l[1], p[0], p[1]);
-            if (m < Math.max(8, loc.getAccuracy() / 2)) return;    // stehen bleiben zählt nicht als Weg
-            Z.aufzMeter += m;
+        double[] neu = { loc.getLatitude(), loc.getLongitude(), loc.hasAltitude() ? loc.getAltitude() : Double.NaN, loc.getTime() };
+        // ein Punkt weiter weg, als man seit dem letzten kommen kann, ist ein Sprung im GPS: zurückhalten, bis der nächste
+        // zeigt, ob man wirklich dort ist (sonst zählten 300 m daneben hin und zurück 600 m zur Strecke und zum Tempo)
+        List<double[]> dazu = Z.sprung.pruefen(Z.spur.isEmpty() ? null : Z.spur.get(Z.spur.size() - 1), neu,
+            loc.hasAccuracy() ? loc.getAccuracy() : 20, Z.rad);
+        boolean neuerPunkt = false;
+        for (double[] p : dazu) {
+            if (!Z.spur.isEmpty()) {
+                double[] l = Z.spur.get(Z.spur.size() - 1);
+                double m = NaviRechnen.abstand(l[0], l[1], p[0], p[1]);
+                if (m < Math.max(8, loc.getAccuracy() / 2)) continue;    // stehen bleiben zählt nicht als Weg
+                Z.aufzMeter += m;
+            }
+            Z.spur.add(p);
+            neuerPunkt = true;
         }
-        Z.spur.add(p);
+        if (!neuerPunkt) return;
         long jetzt = System.currentTimeMillis();
         if (Z.pause == null) Z.pause = new AutoPause(Z.aufzStart != 0 ? Z.aufzStart : jetzt, 0);
         if (Z.pause.bewegt(jetzt) && Z.lauf && Z.ansagen) sagen("Weiter.");
@@ -623,6 +687,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             long bewegung = Z.pause.bewegungMs(jetzt);
             if (Z.kmAnsage && Z.ansagen && Z.aufzStart != 0) sagen(NaviRechnen.kmAnsage(km, bewegung, (bewegung - Z.aufzKmZeit) / (km - Z.aufzKm)));
             Z.aufzKm = km; Z.aufzKmZeit = bewegung;
+        }
+        // Streckenziel: einmal ansagen und vibrieren, die Aufzeichnung läuft weiter
+        if (Z.streckenziel > 0 && Z.zielGesagt != Z.streckenziel && Z.aufzMeter >= Z.streckenziel * 1000) {
+            Z.zielGesagt = Z.streckenziel;
+            vibrieren();
+            if (Z.ansagen) sagen(NaviRechnen.zielAnsage(Z.streckenziel, Z.pause.bewegungMs(jetzt)));
         }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
         if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); sitzungSichern(this); }
@@ -641,7 +711,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 o.put("unterbrochen", Z.unterbrochen);
                 o.put("gesichert", System.currentTimeMillis());
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
-                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("alarm", Z.alarm); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("streckenziel", Z.streckenziel); o.put("zielGesagt", Z.zielGesagt); o.put("alarm", Z.alarm); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
                 o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
                 // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
@@ -816,7 +886,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.umkehrLat = o.optDouble("umkehrLat", Double.NaN); Z.umkehrLon = o.optDouble("umkehrLon", Double.NaN);
                 Z.dunkelGesagt = o.optInt("dunkelGesagt", 0); Z.akkuGesagt = o.optInt("akkuGesagt", 0);
                 ausstiegeLesen(o.optJSONArray("ausstiege"));
-                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.alarm = o.optDouble("alarm", 150); Z.ansagen = o.optBoolean("ansagen", true);
+                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false);
+                Z.streckenziel = o.optDouble("streckenziel", 0); Z.zielGesagt = o.optDouble("zielGesagt", 0); Z.alarm = o.optDouble("alarm", 150); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
                 Z.aufzStart = o.optLong("aufzStart", 0); Z.aufzEnde = o.optLong("aufzEnde", 0);
@@ -824,7 +895,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.stoppAngekuendigt = new boolean[Z.stopps.size()];
                 Z.stoppErreicht = new boolean[Z.stopps.size()];
                 // bisherige Aufzeichnung zurückholen
-                Z.spur.clear(); Z.aufzMeter = 0;
+                Z.spur.clear(); Z.aufzMeter = 0; Z.sprung = new NaviRechnen.SprungFilter();
                 File a = new File(c.getFilesDir(), "aufzeichnung.json");
                 if (a.exists()) {
                     JSONArray sp = new JSONObject(dateiLesen(a)).optJSONArray("spur");
@@ -898,6 +969,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.aufzStart != 0) spurSichern(this);
         synchronized (Z) { Z.laeuft = false; }
         if (tts != null) { tts.stop(); tts.shutdown(); }
+        fokusAbgeben();
+        try { unregisterReceiver(kopfhoerer); } catch (IllegalArgumentException e) { /* nicht angemeldet */ }
         super.onDestroy();
     }
 
@@ -912,7 +985,16 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (status == TextToSpeech.SUCCESS) {
             int r = tts.setLanguage(Locale.GERMANY);
             ttsBereit = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
-            if (ttsBereit) { for (String s : ttsWarten) tts.speak(s, TextToSpeech.QUEUE_ADD, null, "gug"); }
+            tts.setAudioAttributes(ANSAGE);
+            // nach jeder Ansage: ist nichts mehr in der Warteschlange, den Audiofokus zurückgeben; „ende“ beendet danach
+            // den Dienst (sagenDannBeenden). Kurz warten, sonst zuckt die Musik zwischen zwei Ansagen hoch
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String id) {}
+                @Override public void onDone(String id) { fertig(id); }
+                @Override public void onError(String id) { fertig(id); }
+                @Override public void onStop(String id, boolean unterbrochen) { fertig(id); }
+            });
+            if (ttsBereit && !Z.stumm) { for (String s : ttsWarten) sprechen(s, TextToSpeech.QUEUE_ADD, "gug"); }
         }
         ttsWarten.clear();
         ttsGeprueft = true;
@@ -934,14 +1016,51 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     private void sagen(String text) {
+        if (Z.stumm) return;   // Kopfhörer getrennt: nicht über den Lautsprecher
         if (ttsBereit && System.currentTimeMillis() < fuehrungBis) {
             fuehrungBis = 0;
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gug");
+            sprechen(text, TextToSpeech.QUEUE_FLUSH, "gug");
             return;
         }
-        if (ttsBereit) tts.speak(text, TextToSpeech.QUEUE_ADD, null, "gug");
+        if (ttsBereit) sprechen(text, TextToSpeech.QUEUE_ADD, "gug");
         else if (!ttsGeprueft && ttsWarten.size() < 20) ttsWarten.add(text);   // bis die Sprachausgabe bereit ist
     }
+
+    /** Mit Audiofokus sprechen: andere Wiedergabe wird für die Ansage leiser. */
+    private void sprechen(String text, int modus, String id) {
+        fokusHolen();
+        fokusHandler.removeCallbacks(fokusPruefen);
+        if (tts.speak(text, modus, null, id) != TextToSpeech.SUCCESS) fokusHandler.postDelayed(fokusPruefen, 500);
+    }
+
+    private void fertig(String id) {
+        fokusHandler.removeCallbacks(fokusPruefen);
+        fokusHandler.postDelayed(fokusPruefen, 500);
+        if ("ende".equals(id)) { Runnable e = endeNachAnsage; if (e != null) endeHandler.post(e); }
+    }
+
+    private boolean fokusGehalten;
+
+    private synchronized void fokusHolen() {
+        if (audio == null || fokusGehalten) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (fokusAnfrage == null) fokusAnfrage = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(ANSAGE).setOnAudioFocusChangeListener(fokusHoerer).build();
+            audio.requestAudioFocus(fokusAnfrage);
+        } else {
+            audio.requestAudioFocus(fokusHoerer, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+        }
+        fokusGehalten = true;   // auch wenn abgelehnt (Telefonat): gesprochen wird trotzdem, abgegeben wird danach
+    }
+
+    private synchronized void fokusAbgeben() {
+        if (audio == null || !fokusGehalten) return;
+        fokusGehalten = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { if (fokusAnfrage != null) audio.abandonAudioFocusRequest(fokusAnfrage); }
+        else audio.abandonAudioFocus(fokusHoerer);
+    }
+
+    private volatile Runnable endeNachAnsage;
 
     /** Letzte Ansage zu Ende sprechen lassen, dann den Dienst beenden (spätestens nach 10 s). */
     private void sagenDannBeenden(String text) {
@@ -954,14 +1073,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
         };
         ausstehendesEnde = ende;
-        if (ttsBereit) {
-            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                @Override public void onStart(String id) {}
-                @Override public void onDone(String id) { if ("ende".equals(id)) endeHandler.post(ende); }
-                @Override public void onError(String id) { if ("ende".equals(id)) endeHandler.post(ende); }
-            });
-            tts.speak(text, TextToSpeech.QUEUE_ADD, null, "ende");
-        }
+        endeNachAnsage = ende;
+        if (ttsBereit && !Z.stumm) sprechen(text, TextToSpeech.QUEUE_ADD, "ende");
         endeHandler.postDelayed(ende, 10000);
     }
 
@@ -1005,8 +1118,9 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             }
             if (Z.gpsFehler != null) text = Z.gpsFehler + " · " + text;
             if (Z.spracheFehlt && Z.ansagen) text += " · ohne Ansagen (Sprachausgabe fehlt)";
+            else if (Z.stumm) text += " · Ansagen aus (Kopfhörer getrennt)";
         }
-        return new NotificationCompat.Builder(this, KANAL)
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, KANAL)
             .setSmallIcon(R.drawable.ic_stat_navi)
             .setContentTitle(titel)
             .setContentText(text)
@@ -1014,8 +1128,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setContentIntent(oeffnen)
-            .addAction(0, "Beenden", stopp)
-            .build();
+            .addAction(0, "Beenden", stopp);
+        if (Z.stumm) b.addAction(0, "Ansagen an", PendingIntent.getService(this, 2,
+            new Intent(this, NaviService.class).setAction(AKTION_LAUT), flags));
+        return b.build();
     }
 
     private long zuletztBenachrichtigt;

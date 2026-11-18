@@ -166,6 +166,8 @@ public class NaviPlugin extends Plugin {
             z.rad = call.getBoolean("rad", z.rad);
             z.lauf = call.getBoolean("lauf", z.lauf);
             z.kmAnsage = call.getBoolean("kmAnsage", z.kmAnsage);
+            // Streckenziel der Aufzeichnung in km (0 = aus), höchstens 1000
+            z.streckenziel = Math.max(0, Math.min(1000, call.getDouble("streckenziel", z.streckenziel)));
             z.alarm = Math.max(50, Math.min(1000, call.getDouble("alarm", z.alarm)));
             z.ansagen = call.getBoolean("ansagen", z.ansagen);
             // Umkehrzeit und Dunkelgrenze (kommen mit der Route), Ausstiege (auch später, sobald geladen)
@@ -210,6 +212,16 @@ public class NaviPlugin extends Plugin {
         } else if (z.laeuft) {
             c.startService(new Intent(c, NaviService.class).setAction(NaviService.AKTION_BEENDEN));
         }
+        call.resolve(stand());
+    }
+
+    /** Ansagen nach dem Trennen der Kopfhörer wieder einschalten (wie „Ansagen an“ in der Mitteilung). */
+    @PluginMethod
+    public void laut(PluginCall call) {
+        NaviService.Zustand z = NaviService.Z;
+        boolean lief;
+        synchronized (z) { lief = z.laeuft; if (!lief) z.stumm = false; }
+        if (lief) getContext().startService(new Intent(getContext(), NaviService.class).setAction(NaviService.AKTION_LAUT));
         call.resolve(stand());
     }
 
@@ -554,6 +566,7 @@ public class NaviPlugin extends Plugin {
             if (z.gewitter != null && z.laeuft && (z.folgen || z.aufzeichnen)) o.put("gewitter", z.gewitter);
             if (z.gpsFehler != null && z.laeuft) o.put("gpsFehler", z.gpsFehler);
             if (z.spracheFehlt && z.laeuft && z.ansagen) o.put("spracheFehlt", true);
+            if (z.stumm && z.laeuft) o.put("stumm", true);   // Kopfhörer getrennt: Ansagen aus bis „laut“
             Location l = z.letzte;
             if (l != null) {
                 o.put("lat", l.getLatitude());

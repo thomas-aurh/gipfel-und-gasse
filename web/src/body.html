@@ -340,6 +340,8 @@
         </div>
         <div id="aBewegung" class="klein"></div>
         <label class="klein ankreuzen"><input type="checkbox" id="kmAnsage"> Jeden Kilometer ansagen: Zeit und Tempo des letzten Kilometers</label>
+        <label class="klein ankreuzen">🎯 Streckenziel <input type="number" id="streckenziel" min="0" max="1000" step="0.5" inputmode="decimal" placeholder="aus" style="width:5em" aria-label="Streckenziel in Kilometern"> km: ansagen, die Aufzeichnung läuft weiter</label>
+        <div id="uStumm" class="hinweis warnung" hidden>🔇 Kopfhörer getrennt: Ansagen sind aus, damit nichts aus dem Lautsprecher kommt. <button class="knopf" id="bLaut">🔊 Ansagen wieder an</button></div>
         <label class="klein ankreuzen">🔔 Punkt-Alarm <select id="punktAlarm" aria-label="Punkt-Alarm: wie weit vorher"><option value="0">aus</option><option value="150">150 m vorher</option>
           <option value="300">300 m vorher</option><option value="500">500 m vorher</option></select></label>
         <div class="klein" id="punktAlarmText">Meldet benannte Wegpunkte, Wegpunkte aus GPX-Dateien und Hütten, Gipfel und Brunnen aus „Orte entlang der Route“ (bis 150 m neben der Route).</div>

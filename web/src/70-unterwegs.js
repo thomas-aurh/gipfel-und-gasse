@@ -450,7 +450,7 @@ $('bAufz').onclick = () => {
     return;
   }
   if (!gpsFuer()) return;
-  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0 };
+  U.aufz = { laeuft: true, start: Date.now(), ende: null, pts: [], meter: 0, km: 0, kmZeit: 0, zielGesagt: 0, sprung: R.sprungFilter() };
   U.aufz.pause = R.autoPause(U.aufz.start, 0);
   aufzSichern(true);
   $('bAufzSpeichern').textContent = '💾 Als Tour speichern';
@@ -469,16 +469,34 @@ function aufzNeu(c) {
   // Bewegung für die Auto-Pause auch an der GPS-Geschwindigkeit (unabhängig vom Ausdünnen der Spur)
   if (a.pause && c && c.speed > 0.6 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   if (U.pos.gen > 40) return;                     // zu ungenau
-  const p = { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t };
-  const letzt = a.pts[a.pts.length - 1];
-  if (letzt && R.abstand(letzt, p) < Math.max(8, U.pos.gen / 2)) return;   // stehen bleiben zählt nicht als Weg
-  if (letzt) a.meter += R.abstand(letzt, p);
-  a.pts.push(p);
-  aufzLinie.addLatLng([p.lat, p.lon]);
+  // GPS-Sprung (weiter weg, als man seit dem letzten Punkt kommen kann): zurückhalten, bis der nächste ihn bestätigt
+  if (!a.sprung) a.sprung = R.sprungFilter();
+  const dazu = a.sprung.pruefen(a.pts[a.pts.length - 1], { lat: U.pos.lat, lon: U.pos.lon, ele: U.pos.ele, t: U.pos.t }, U.pos.gen, artAktuell() === 'rad');
+  let neu = false;
+  for (const p of dazu) {
+    const letzt = a.pts[a.pts.length - 1];
+    if (letzt && R.abstand(letzt, p) < Math.max(8, U.pos.gen / 2)) continue;   // stehen bleiben zählt nicht als Weg
+    if (letzt) a.meter += R.abstand(letzt, p);
+    a.pts.push(p);
+    aufzLinie.addLatLng([p.lat, p.lon]);
+    neu = true;
+  }
+  if (!neu) return;
   aufzSichern(false);
   if (a.pts.length > 1 && a.pause.bewegt(Date.now())) sagenBrowser('Weiter.', true);
   kmAnsagen(a.meter, a.pause, a);
+  zielAnsagen(a);
   aufzZahlen();
+}
+// Streckenziel der Aufzeichnung (km, 0 = aus): einmal melden, ansagen und vibrieren; beendet nichts
+function streckenziel() { const z = parseFloat(String($('streckenziel').value).replace(',', '.')); return z > 0 && z <= 1000 ? z : 0; }
+function zielAnsagen(a) {
+  const z = streckenziel();
+  if (!z || a.zielGesagt === z || a.meter < z * 1000) return;
+  a.zielGesagt = z;
+  const text = R.zielAnsage(z, a.pause.bewegungMs(Date.now()));
+  melde('🎯 ' + text, 10); sagenBrowser(text);
+  if (navigator.vibrate) navigator.vibrate([250, 150, 250]);
 }
 
 // Aufzeichnung im Browser sichern: Chrome verwirft Tabs im Hintergrund, ein Neuladen nähme sonst die ganze Spur mit.
@@ -489,7 +507,7 @@ function aufzSichern(sofort) {
   if (NATIV || !a || (!sofort && Date.now() - aufzGesichert < 15000)) return;
   aufzGesichert = Date.now();
   const r6 = x => Math.round(x * 1e6) / 1e6;
-  SPEICHER.schreiben('aufzSicherung', { laeuft: a.laeuft, start: a.start, ende: a.ende, meter: a.meter, km: a.km, kmZeit: a.kmZeit,
+  SPEICHER.schreiben('aufzSicherung', { laeuft: a.laeuft, start: a.start, ende: a.ende, meter: a.meter, km: a.km, kmZeit: a.kmZeit, zielGesagt: a.zielGesagt || 0,
     pauseMs: a.pause ? a.pause.pauseMs : 0, gesichert: Date.now(),
     pts: a.pts.map(p => ({ lat: r6(p.lat), lon: r6(p.lon), ele: p.ele == null ? null : Math.round(p.ele * 10) / 10, t: p.t })) });
 }
@@ -503,7 +521,7 @@ function aufzWiederholen() {
   if (!s || !Array.isArray(s.pts) || !s.start) return;
   const weiter = s.laeuft && Date.now() - (s.gesichert || 0) < 12 * 3600e3;
   const ende = weiter ? null : (s.ende || s.gesichert || Date.now());
-  U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0 };
+  U.aufz = { laeuft: weiter, start: s.start, ende, pts: s.pts, meter: s.meter || 0, km: s.km || 0, kmZeit: s.kmZeit || 0, zielGesagt: s.zielGesagt || 0, sprung: R.sprungFilter() };
   U.aufz.pause = R.autoPause(s.start, (s.pauseMs || 0) + (weiter ? Math.max(0, Date.now() - (s.gesichert || Date.now())) : 0));
   if (aufzLinie) aufzLinie.remove();
   aufzLinie = L.polyline(s.pts.map(p => [p.lat, p.lon]), { color: '#1a73e8', weight: 4, opacity: 0.85, interactive: false, className: 'aufz-spur' }).addTo(karte);
@@ -577,6 +595,7 @@ function punktAlarmPruefen(e, lage) {
 }
 
 $('kmAnsage').onchange = e => { SPEICHER.schreiben('kmAnsage', e.target.checked); SPEICHER.schreiben('kmAnsageGewaehlt', true); };
+$('streckenziel').addEventListener('change', () => { SPEICHER.schreiben('streckenziel', streckenziel() || null); if (U.aufz) aufzZahlen(); });
 
 function aufzZahlen() {
   const a = U.aufz;
@@ -593,7 +612,12 @@ function aufzZahlen() {
 // Ø Tempo aus der Bewegungszeit; darunter Bewegungszeit und ob gerade Pause ist (auch für die App, 75-app.js)
 function bewegungZeigen(meter, dauer, bewegung, pausiert) {
   $('aTempo').textContent = meter > 50 && bewegung > 0 ? R.paceText(bewegung * 60 / (meter / 1000)) : '–';
-  $('aBewegung').textContent = (dauer - bewegung > 1 / 60 ? 'Bewegung ' + R.zeitText(bewegung, true) + ' · Stehen zählt nicht' : '') + (pausiert ? (dauer - bewegung > 1 / 60 ? ' · ' : '') + '⏸ Pause' : '');
+  const teile = [];
+  if (dauer - bewegung > 1 / 60) teile.push('Bewegung ' + R.zeitText(bewegung, true) + ' · Stehen zählt nicht');
+  if (pausiert) teile.push('⏸ Pause');
+  const z = streckenziel();
+  if (z) teile.push(meter >= z * 1000 ? '🎯 Ziel ' + R.kmText(z * 1000) + ' erreicht' : '🎯 noch ' + R.kmText(z * 1000 - meter) + ' bis ' + R.kmText(z * 1000));
+  $('aBewegung').textContent = teile.join(' · ');
 }
 setInterval(() => { if (U.aufz && U.aufz.laeuft) aufzZahlen(); }, 30000);
 
