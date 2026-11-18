@@ -5,6 +5,17 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Unterwegs neu (18.11., PR #126, Bau 319):** Aktivität (Wandern, Spaziergang, Laufen, Rad, MTB), Beenden speichert
+  gleich, ⏸ Pause von Hand, Tempo jetzt und Höhe, Kilometer-Liste. Geprüft in Einheitstests (Web und Java `AutoPauseTest`)
+  und im Klicktest (Browser und App mit nachgebildetem Dienst), Handybreite als Bild angesehen. Nicht geprüft auf dem
+  Pixel: Pause und Weiter bei gesperrtem Bildschirm, ob die GPS-Geschwindigkeit „jetzt“ beim Rad brauchbar ist,
+  Kilometer-Liste nach einem Neustart des Dienstes. Offen bei Thomas: ob die nicht gespeicherte Radfahrt vom 18.11. beim
+  Öffnen von Bau 319 von selbst unter „Gegangene Touren“ landet (heißt „Wanderung …“, ältere Aufzeichnungen haben keine
+  Aktivität). „Nur Rad reicht“ und MTB/Spaziergang kamen zusammen; gebaut wurden beide, MTB fällt weg, wenn Thomas das sagt.
+- **GPS-Sprünge, Ton, Streckenziel (18.11., PR #125, Bau 317):** Ideen aus dem Laufpilot. Geprüft in Einheitstests (Web
+  und Java `NaviRechnenTest`) und im Klicktest (Sprung 1,1 km, Streckenziel, Kopfhörer-Hinweis). Nicht geprüft auf dem
+  Pixel: ob Musik und Podcast bei Ansagen leiser werden, ob `AUDIO_BECOMING_NOISY` beim Trennen von Bluetooth-Kopfhörern
+  kommt, ob 15 m/s echte Ausreißer im Wald und in der Stadt fangen, ohne gute Punkte zu verlieren.
 - **Schatten und Jahreskarte (17.11.):** geprüft in Einheitstests und im Klicktest (Wald nachgebildet, Jahreskarte mit
   drei Aufzeichnungen am PC und Telefon angesehen). Nicht geprüft: echte Overpass-Antwort für Wald (aus der Cloud gesperrt):
   Größe der Antwort bei großen Wald-Multipolygonen, Antwortzeit, ob 40 s reichen; Waldränder in OSM ungenau, Wege am
@@ -182,6 +193,17 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Entscheidungen
 
+- **Beenden speichert die Aufzeichnung** (18.11., Thomas' Wahl nach der verlorenen Radfahrt): sofort als gegangene Tour,
+  „Verwerfen“ (zweimal tippen) nimmt sie heraus; ebenso nach „Beenden“ in der Mitteilung und für eine liegengebliebene
+  Aufzeichnung beim Öffnen. Verworfen: Nachfrage beim Beenden, getrennte Knöpfe wie bisher.
+- **Aktivität getrennt von der Art in Planen** (18.11.): eigene Wahl unter Unterwegs, folgt der Art aus Planen, bis man
+  wählt; MTB speichert als Profil `rad`, Spaziergang als `stadt`, dazu Feld `aktivitaet`. Beim Folgen einer Route geht für
+  die Restzeit die Art der Route an den Dienst. Verworfen: MTB als eigenes Routing-Profil (nicht in den Offline-Profilen).
+- **Pause von Hand als Lücke in der Spur** (18.11.): fünfter Wert 1 wie bei mehrteiligen GPX-Dateien, der Weg in der Pause
+  zählt nicht. Verworfen: Weg über die Pause mitzählen (wer zur Hütte geht, hätte sonst Weg ohne Zeit).
+- **GPS-Sprünge zurückhalten, Lücken überbrücken** (18.11., aus dem Laufpilot): Grenze 15 m/s (Rad 25), bestätigt der
+  nächste Punkt den Sprung, zählt er (Bahn, Seilbahn). Verworfen: Lücken nicht verbinden wie der Laufpilot (im Wald wäre
+  die Strecke zu kurz). Kopfhörer getrennt: Ansagen stumm bis „Ansagen an“, Vibration bleibt.
 - **Schatten aus OSM-Waldflächen über Overpass** (17.11., Thomas: „Mache 6 und 7“): kleine Rahmen entlang der Route,
   `out geom`, Punkt-in-Fläche ohne Zusammensetzen der Ringe; nur auf Knopfdruck, nur mit Netz. Verworfen: Wald ins
   Kartenpaket (große Datei), Vektorkacheln der Offline-Karte auswerten (nur in der App, viel Code), Sonnenstand und
@@ -375,6 +397,10 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **18.11. (PRs #125, #126, Bau 319)** Aus dem Laufpilot: GPS-Sprünge zählen nicht, Ansagen mit Audiofokus, Kopfhörer
+  getrennt macht stumm, Streckenziel (#125). Unterwegs neu: Aktivität, Beenden speichert, Pause von Hand, Tempo jetzt,
+  Höhe, Kilometer-Liste, Blöcke Aufzeichnen und Route folgen (#126). Einheitstests 399, Java 24, Klicktest grün.
 
 - **17.11. (PR #124)** Schatten: Waldanteil der Route mit längstem offenem Stück und offenen Stücken auf der Karte;
   Jahreskarte unter Gegangen mit Summen, Rekorden und Gipfeln. Einheitstests 388, Klicktest 490.
