@@ -7,11 +7,9 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 - **Unterwegs neu (18.11., PR #126, Bau 319):** Aktivität (Wandern, Spaziergang, Laufen, Rad, MTB), Beenden speichert
   gleich, ⏸ Pause von Hand, Tempo jetzt und Höhe, Kilometer-Liste. Geprüft in Einheitstests (Web und Java `AutoPauseTest`)
-  und im Klicktest (Browser und App mit nachgebildetem Dienst), Handybreite als Bild angesehen. Nicht geprüft auf dem
-  Pixel: Pause und Weiter bei gesperrtem Bildschirm, ob die GPS-Geschwindigkeit „jetzt“ beim Rad brauchbar ist,
-  Kilometer-Liste nach einem Neustart des Dienstes. Offen bei Thomas: ob die nicht gespeicherte Radfahrt vom 18.11. beim
-  Öffnen von Bau 319 von selbst unter „Gegangene Touren“ landet (heißt „Wanderung …“, ältere Aufzeichnungen haben keine
-  Aktivität).
+  und im Klicktest (Browser und App mit nachgebildetem Dienst), Handybreite als Bild angesehen. Thomas am 18.11. auf dem
+  Pixel (Bau 319): die liegengebliebene Radfahrt wurde beim Öffnen gespeichert, ⏸ Pause „hat geklappt“. Nicht geprüft:
+  ob die GPS-Geschwindigkeit „jetzt“ beim Rad brauchbar ist, Kilometer-Liste nach einem Neustart des Dienstes.
 - **GPS-Sprünge, Ton, Streckenziel (18.11., PR #125, Bau 317):** Ideen aus dem Laufpilot. Geprüft in Einheitstests (Web
   und Java `NaviRechnenTest`) und im Klicktest (Sprung 1,1 km, Streckenziel, Kopfhörer-Hinweis). Nicht geprüft auf dem
   Pixel: ob Musik und Podcast bei Ansagen leiser werden, ob `AUDIO_BECOMING_NOISY` beim Trennen von Bluetooth-Kopfhörern
