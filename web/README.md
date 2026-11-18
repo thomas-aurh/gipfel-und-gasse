@@ -75,6 +75,11 @@ bricht er dort ab, alles davor ist gelaufen. Fallen beim Schreiben neuer Schritt
   15.11. nach dem letzten Lauf umbenannt, der neue Name war im selben Test schon vergeben, Job `klicktest` rot.
 - Mehrere Pull Requests gleichzeitig: neue Klicktest-Blöcke nicht alle an dieselbe Stelle (vor `await fc.close()`)
   hängen, sonst gibt jeder Merge einen Konflikt im nächsten (15.11. dreimal); lieber neben den Schritt des Bereichs.
+- Nachgebildete Dienste antworten wie die echten: liefert das Plugin ein Feld in jeder Antwort (z. B. `stumm` in
+  `stand()`), muss die Nachbildung es auch in `starten` liefern, sonst blendet eine Zwischenantwort den Zustand aus
+  (18.11.: Klick auf „Ansagen wieder an“ ging ins Leere, weil ein `change` beim Verlassen des Feldes dazwischenkam).
+- GPS-Punkte im Test mit echtem Tempo: der Sprungfilter verwirft mehr als 15 m/s, 80 m in 0,25 s gilt als Sprung
+  (18.11.); lieber kürzere Schritte oder längere Pausen zwischen `setGeolocation`.
 - Gerätetest `test/emulator.js` nur in GitHub Actions (Job `emulator`, kein Android in der Cloud): die WebView über das
   DevTools-Protokoll ansprechen, nicht mit Playwright (`connectOverCDP` scheitert an fehlenden Browser-Kontexten).
 
