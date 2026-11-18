@@ -239,6 +239,13 @@ App oder direkt in der Mitteilung. Mit „🎧 Führung“ liest die App an jede
 (Stopps aus *Entdecken* oder der Stadt-Liste bringen ihn mit); die Texte lädt sie beim Losgehen, unterwegs braucht es dafür
 kein Netz.
 
+Beim Aufzeichnen zählen GPS-Sprünge nicht: ein Punkt, der weiter weg liegt, als man seit dem letzten kommen kann (über
+15 m/s, mit dem Rad 25 m/s), wartet auf den nächsten; liegt der wieder am Weg, fällt er weg, liegt er beim Sprung (Bahn,
+Seilbahn), kommen beide in die Spur. Lücken im Empfang (Tunnel, Wald) werden wie bisher überbrückt. „🎯 Streckenziel“ sagt
+an, wenn die Aufzeichnung die gewählten Kilometer erreicht, und läuft weiter. In der App werden Musik und Podcasts während
+einer Ansage leiser; werden die Kopfhörer getrennt, sind die Ansagen stumm (Vibration bleibt), bis man sie in der
+Mitteilung oder unter *Unterwegs* wieder einschaltet.
+
 ## Aufbau
 
 | Ordner | Inhalt |

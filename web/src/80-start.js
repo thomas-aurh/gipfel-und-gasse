@@ -167,6 +167,7 @@ S.pace = SPEICHER.lesen('pace', 6);
 $('pacewahl').value = String(S.pace);
 if ($('pacewahl').value !== String(S.pace)) { S.pace = 6; $('pacewahl').value = '6'; }
 $('kmAnsage').checked = !!SPEICHER.lesen('kmAnsage', false);
+$('streckenziel').value = SPEICHER.lesen('streckenziel', null) || '';
 tempoFelder();
 
 // Teilen-Link hat Vorrang vor dem Entwurf

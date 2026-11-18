@@ -89,6 +89,40 @@ public class NaviRechnenTest {
         assertEquals("12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.", NaviRechnen.kmAnsage(12, 4100000, 305000));
     }
 
+    @Test public void gpsSprungErkannt() {
+        // 300 m in 2 s bei ± 10 m: Sprung; 300 m in 60 s (5 m/s, Laufen): kein Sprung; 3 km in 10 min Lücke (Tunnel): keiner
+        assertTrue(NaviRechnen.gpsSprung(300, 2000, 10, false));
+        assertFalse(NaviRechnen.gpsSprung(300, 60000, 10, false));
+        assertFalse(NaviRechnen.gpsSprung(3000, 600000, 10, false));
+        // 100 m in 4 s: zu Fuß ein Sprung, mit dem Rad (25 m/s) nicht
+        assertTrue(NaviRechnen.gpsSprung(100, 4000, 5, false));
+        assertFalse(NaviRechnen.gpsSprung(100, 4000, 5, true));
+    }
+
+    @Test public void sprungFilterHaeltAusreisserZurueck() {
+        NaviRechnen.SprungFilter f = new NaviRechnen.SprungFilter();
+        double[] a = { 47, 11, Double.NaN, 0 };
+        double[] weg = { 47.003, 11, Double.NaN, 1000 };      // 334 m in 1 s: Ausreißer
+        double[] b = { 47.00003, 11, Double.NaN, 2000 };      // wieder beim alten Ort
+        assertEquals(0, f.pruefen(a, weg, 10, false).size());
+        assertEquals(1, f.pruefen(a, b, 10, false).size());
+        assertSame(b, f.pruefen(a, b, 10, false).get(0));
+        // zweimal in Folge am neuen Ort (z. B. aus der Bahn gestiegen): beide kommen in die Spur
+        double[] c1 = { 47.05, 11, Double.NaN, 3000 }, c2 = { 47.05003, 11, Double.NaN, 4000 };
+        assertEquals(0, f.pruefen(b, c1, 10, false).size());
+        java.util.List<double[]> beide = f.pruefen(b, c2, 10, false);
+        assertEquals(2, beide.size());
+        assertSame(c1, beide.get(0));
+        assertSame(c2, beide.get(1));
+        assertEquals(1, f.pruefen(null, a, 10, false).size());
+    }
+
+    @Test public void zielAnsageText() {
+        assertEquals("Streckenziel 8 Kilometer erreicht. Zeit 47 Minuten.", NaviRechnen.zielAnsage(8, 47 * 60000 + 20000));
+        assertEquals("Streckenziel 21,1 Kilometer erreicht. Zeit 1 Stunde 52 Minuten.", NaviRechnen.zielAnsage(21.1, 112 * 60000));
+        assertEquals("Streckenziel 1 Kilometer erreicht. Zeit 1 Minute.", NaviRechnen.zielAnsage(1, 61000));
+    }
+
     @Test public void kmGrenzzeitAusDerSpur() {
         // nach Norden je 0,005° (~556 m) alle 3 Minuten: der 1. km fällt auf Punkt 2 (1112 m), der 2. auf Punkt 4 (2224 m)
         java.util.List<double[]> spur = new java.util.ArrayList<>();

@@ -999,10 +999,28 @@ function pruef(name, bed, info) {
   await page.waitForFunction(r => document.querySelector('#uRest').textContent !== r, rest1, { timeout: 8000 });
   const rest2 = await page.textContent('#uRest');
   pruef('Rest wird kürzer', parseFloat(rest2.replace(',', '.')) < parseFloat(rest1.replace(',', '.')), [rest1, rest2]);
+  // Streckenziel 0,2 km: wird beim Erreichen gemeldet, die Aufzeichnung läuft weiter
+  await page.fill('#streckenziel', '0.2');
+  await page.dispatchEvent('#streckenziel', 'change');
   await page.click('#bAufz');
-  for (let i = 1; i <= 4; i++) { await ctx.setGeolocation({ latitude: 47.7618 + i * 0.0006, longitude: 11.3893 + i * 0.0006, accuracy: 6 }); await page.waitForTimeout(250); }
+  // je 80 m: der Sprungfilter lässt höchstens 15 m/s durch, darum gut 3,5 s zwischen den Punkten
+  for (let i = 1; i <= 4; i++) {
+    await ctx.setGeolocation({ latitude: 47.7618 + i * 0.0006, longitude: 11.3893 + i * 0.0006, accuracy: 6 }); await page.waitForTimeout(3600);
+    if (i === 2) {
+      // Ausreißer 1,1 km daneben, dann wieder auf dem Weg: zählt nicht zur Strecke
+      const vorSprung = await page.textContent('#aStrecke').then(t => /^\d+ m$/.test(t) ? parseInt(t) : null);
+      await ctx.setGeolocation({ latitude: 47.7718, longitude: 11.3905, accuracy: 6 }); await page.waitForTimeout(400);
+      await ctx.setGeolocation({ latitude: 47.7618 + i * 0.0006 + 0.0001, longitude: 11.3893 + i * 0.0006, accuracy: 6 }); await page.waitForTimeout(400);
+      const nachSprung = await page.textContent('#aStrecke').then(t => /^\d+ m$/.test(t) ? parseInt(t) : null);
+      pruef('Aufzeichnung: GPS-Sprung von 1,1 km zählt nicht', vorSprung != null && nachSprung - vorSprung < 30, [vorSprung, nachSprung]);
+    }
+  }
+  pruef('Aufzeichnung: Streckenziel gemeldet und angezeigt', (await page.textContent('#aBewegung')).includes('Ziel 200 m erreicht') && (await page.textContent('#bAufz')).includes('beenden'),
+    [await page.textContent('#aBewegung'), await page.textContent('#meldung')]);
   await page.click('#bAufz');
   pruef('Aufzeichnung gemessen', (await page.textContent('#aStrecke')) !== '–' && !(await page.isDisabled('#bAufzSpeichern')), await page.textContent('#aStrecke'));
+  await page.fill('#streckenziel', '');
+  await page.dispatchEvent('#streckenziel', 'change');
   // Notfall: Koordinaten zum Vorlesen, Senden über die Zwischenablage (ohne Teilen-Menü im Browser), 112 als Telefon-Link
   await zuSeite(page, 'notfall');
   pruef('Notfall: eigene Seite über das Menü', (await page.textContent('#seitenTitel')) === 'Notfall' && await page.isVisible('#bNotruf'));
@@ -1570,7 +1588,8 @@ function pruef(name, bed, info) {
     window.__bruecke({
       Karten: { liste: async () => ({ installiert: [] }), status: async () => ({ laufend: [] }), addListener: () => {} },
       Navi: {
-        starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen }; },
+        // stumm wie stand() im Plugin: bleibt bis „laut“
+        starten: async o => { aufrufe.push(['starten', o]); return { laeuft: o.folgen || o.aufzeichnen, folgen: !!o.folgen, aufzeichnen: !!o.aufzeichnen, stumm: window.__navi.stumm || undefined }; },
         status: async () => ({ laeuft: false, folgen: false, aufzeichnen: false }),
         aufzeichnungHolen: async o => {
           aufrufe.push(['aufzeichnungHolen', o]);
@@ -1588,6 +1607,7 @@ function pruef(name, bed, info) {
         fotoInGalerie: async o => { aufrufe.push(['fotoInGalerie', { laenge: o.daten.length, name: o.name, mime: o.mime }]); },
         vorlesen: async o => { aufrufe.push(['vorlesen', { text: o.text }]); },
         vorlesenStopp: async () => { aufrufe.push(['vorlesenStopp', {}]); },
+        laut: async () => { aufrufe.push(['laut', {}]); window.__navi.stumm = false; return { laeuft: true, aufzeichnen: true }; },
         route: async () => {
           aufrufe.push(['route', {}]);
           if (window.__routeLangsam) await new Promise(r => setTimeout(r, 400));
@@ -1734,6 +1754,22 @@ function pruef(name, bed, info) {
   await pa2.waitForTimeout(200);
   const nachLauf = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
   pruef('App: Laufen während der Aufzeichnung an den Dienst', nachLauf.lauf === true && nachLauf.kmAnsage === true && nachLauf.tempo === 6, [nachLauf.lauf, nachLauf.kmAnsage, nachLauf.tempo]);
+  // Streckenziel während der Aufzeichnung: gleich an den Dienst, Rest in der Anzeige
+  await pa2.fill('#streckenziel', '8');
+  await pa2.dispatchEvent('#streckenziel', 'change');
+  await pa2.waitForTimeout(150);
+  const mitZiel = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
+  await pa2.evaluate(t => window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, aufz: { meter: 5500, start: t - 1800000, bewegung: 1800000, punkte: 60, auf: 10 } }), Date.now());
+  pruef('App: Streckenziel an den Dienst, Rest angezeigt', mitZiel.streckenziel === 8 && (await pa2.textContent('#aBewegung')).includes('noch 2,5 km bis 8'), [mitZiel.streckenziel, await pa2.textContent('#aBewegung')]);
+  // Kopfhörer getrennt: Dienst meldet stumm, Hinweis mit Knopf; der Knopf schaltet über das Plugin wieder ein
+  await pa2.evaluate(t => (window.__navi.stumm = true) && window.__navi.melden({ laeuft: true, folgen: false, aufzeichnen: true, stumm: true, aufz: { meter: 5500, start: t - 1800000, punkte: 60, auf: 10 } }), Date.now());
+  const stummSichtbar = await pa2.isVisible('#uStumm');
+  await pa2.click('#bLaut');
+  await pa2.waitForTimeout(150);
+  pruef('App: Kopfhörer getrennt angezeigt, „Ansagen wieder an“ ruft den Dienst', stummSichtbar && (await pa2.isHidden('#uStumm')) &&
+    (await pa2.evaluate(() => window.__navi.aufrufe.some(x => x[0] === 'laut'))), stummSichtbar);
+  await pa2.fill('#streckenziel', '');
+  await pa2.dispatchEvent('#streckenziel', 'change');
   await pa2.evaluate(() => { const p = document.querySelector('#profilwahl'); p.value = 'wandern'; p.dispatchEvent(new Event('change')); });
   await pa2.waitForTimeout(200);
   await pa2.click('#bAufz');
@@ -1934,7 +1970,8 @@ function pruef(name, bed, info) {
     pruef('Aufzeichnung: nach dem Neuladen läuft sie weiter, mit Meldung und Spur', (await pz.textContent('#bAufz')).includes('beenden') &&
       (await pz.textContent('#meldung')).includes('läuft weiter') && (await pz.textContent('#aStrecke')) !== '–', [await pz.textContent('#bAufz'), await pz.textContent('#meldung')]);
     await pz.waitForTimeout(600);
-    for (let i = 1; i <= 2; i++) { await actx.setGeolocation({ latitude: 47.7600 + i * 0.0008, longitude: 11.3800, accuracy: 6 }); await pz.waitForTimeout(300); }
+    // je 22 m in 0,7 s: unter der Grenze des Sprungfilters (15 m/s)
+    for (let i = 1; i <= 2; i++) { await actx.setGeolocation({ latitude: 47.7600 + i * 0.0002, longitude: 11.3800, accuracy: 6 }); await pz.waitForTimeout(700); }
     await pz.reload();
     await pz.waitForFunction(() => window.__gugBereit);
     const gesichert = await pz.evaluate(() => JSON.parse(localStorage.getItem('gug.aufzSicherung')));

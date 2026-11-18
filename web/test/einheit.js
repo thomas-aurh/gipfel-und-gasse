@@ -325,6 +325,20 @@ pruef('Zeit je Art', R.zeitFuer('lauf', 10000, 0, 0, 5) === 50 / 60 && R.zeitFue
 pruef('Tempo als Text', R.paceText(5.7) === '5:42 min/km' && R.paceText(Infinity) === '–', R.paceText(5.7));
 pruef('Kilometer-Ansage', R.kmAnsage(3, 1025000, 342000) === '3 Kilometer. Zeit 17 Minuten 5 Sekunden. Letzter Kilometer 5:42.', R.kmAnsage(3, 1025000, 342000));
 pruef('Kilometer-Ansage über eine Stunde', R.kmAnsage(12, 4100000, 305000) === '12 Kilometer. Zeit 1 Stunde 8 Minuten. Letzter Kilometer 5:05.', R.kmAnsage(12, 4100000, 305000));
+pruef('GPS-Sprung: 300 m in 2 s', R.gpsSprung(300, 2000, 10, false) && !R.gpsSprung(300, 60000, 10, false) && !R.gpsSprung(3000, 600000, 10, false));
+pruef('GPS-Sprung: Rad darf schneller', R.gpsSprung(100, 4000, 5, false) && !R.gpsSprung(100, 4000, 5, true));
+{
+  const f = R.sprungFilter(), a = { lat: 47, lon: 11, t: 0 }, weg = { lat: 47.003, lon: 11, t: 1000 }, b = { lat: 47.00003, lon: 11, t: 2000 };
+  pruef('Sprungfilter: Ausreißer zurückgehalten', f.pruefen(a, weg, 10, false).length === 0);
+  const zurueck = f.pruefen(a, b, 10, false);
+  pruef('Sprungfilter: danach wieder am alten Ort, nur der neue Punkt', zurueck.length === 1 && zurueck[0] === b);
+  const c1 = { lat: 47.05, lon: 11, t: 3000 }, c2 = { lat: 47.05003, lon: 11, t: 4000 };
+  const beide = (f.pruefen(b, c1, 10, false), f.pruefen(b, c2, 10, false));
+  pruef('Sprungfilter: zweimal am neuen Ort, beide in die Spur', beide.length === 2 && beide[0] === c1 && beide[1] === c2);
+  pruef('Sprungfilter: erster Punkt', f.pruefen(null, a, 10, false).length === 1);
+}
+pruef('Streckenziel-Ansage', R.zielAnsage(8, 47 * 60000 + 20000) === 'Streckenziel 8 Kilometer erreicht. Zeit 47 Minuten.', R.zielAnsage(8, 47 * 60000 + 20000));
+pruef('Streckenziel-Ansage mit Komma', R.zielAnsage(21.1, 112 * 60000) === 'Streckenziel 21,1 Kilometer erreicht. Zeit 1 Stunde 52 Minuten.', R.zielAnsage(21.1, 112 * 60000));
 // Reisetagebuch
 const ms = (s) => new Date(s).getTime();
 pruef('Tag in Ortszeit', R.tagIso(new Date(2026, 10, 2, 0, 30)) === '2026-11-02');
