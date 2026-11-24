@@ -253,6 +253,15 @@ an, wenn die Aufzeichnung die gewählten Kilometer erreicht, und läuft weiter. 
 einer Ansage leiser; werden die Kopfhörer getrennt, sind die Ansagen stumm (Vibration bleibt), bis man sie in der
 Mitteilung oder unter *Unterwegs* wieder einschaltet.
 
+**Uhr (Wear OS):** Eine eigene App für die Uhr gibt es nicht: Die App braucht die Web-Ansicht von Android, und die fehlt
+auf Wear OS. Mit „⌚ Hinweise an die Uhr“ (in der App unter *Unterwegs* → *Ansagen und Ziel*) schickt die App bei
+Abzweigungen, abseits der Route, an Stopps, am Ziel und bei Warnungen (Gewitter, Umkehrzeit, Akku, Streckenziel) eine
+kurze Mitteilung. Android gibt sie an die gekoppelte Uhr weiter, dort vibriert sie; auf dem Handy kommt sie ohne Ton und
+ohne Vibration, nach einer Minute verschwindet sie von selbst. Das gilt auch bei stummen Ansagen (Kopfhörer getrennt).
+Ab Android 16 wird „Navigation läuft“ zusätzlich als Live-Anzeige gezeigt; ab Wear OS 7 kann sie auch auf der Uhr
+stehen, ob sie das tut, entscheidet das System. Die dauerhafte Mitteilung selbst gibt Android nie an die Uhr weiter.
+Einstellen lässt sich der Kanal „Hinweise an die Uhr“ in den Android-Einstellungen der App.
+
 ## Aufbau
 
 | Ordner | Inhalt |

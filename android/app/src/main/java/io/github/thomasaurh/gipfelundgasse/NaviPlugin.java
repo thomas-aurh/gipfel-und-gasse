@@ -166,6 +166,7 @@ public class NaviPlugin extends Plugin {
             z.rad = call.getBoolean("rad", z.rad);
             z.lauf = call.getBoolean("lauf", z.lauf);
             z.kmAnsage = call.getBoolean("kmAnsage", z.kmAnsage);
+            z.uhr = call.getBoolean("uhr", z.uhr);
             // Streckenziel der Aufzeichnung in km (0 = aus), höchstens 1000
             z.streckenziel = Math.max(0, Math.min(1000, call.getDouble("streckenziel", z.streckenziel)));
             z.alarm = Math.max(50, Math.min(1000, call.getDouble("alarm", z.alarm)));

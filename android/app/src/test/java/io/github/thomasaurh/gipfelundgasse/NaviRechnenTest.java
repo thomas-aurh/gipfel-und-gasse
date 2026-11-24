@@ -7,6 +7,15 @@ import org.junit.Test;
 public class NaviRechnenTest {
     private static final double N = Double.NaN;
 
+    @Test public void uhrTextOhnePunktUndKurz() {
+        assertEquals("In 80 Metern links abbiegen", NaviRechnen.uhrText("In 80 Metern links abbiegen."));
+        assertEquals("Ziel erreicht", NaviRechnen.uhrText(" Ziel erreicht. "));
+        String lang = NaviRechnen.uhrText(new String(new char[300]).replace('\0', 'a'));
+        assertEquals(120, lang.length());
+        assertTrue(lang.endsWith("…"));
+        assertEquals("", NaviRechnen.uhrText(null));
+    }
+
     @Test public void abstandEinBreitengrad() {
         assertEquals(111195, NaviRechnen.abstand(47, 11, 48, 11), 50);
     }
