@@ -5,14 +5,13 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
-- **Hinweise an die Uhr (24.11., Stufe 1 für die Pixel Watch 5):** Schalter „⌚ Hinweise an die Uhr“ (nur App, Vorgabe
-  aus): kurze, wegwischbare Mitteilung im eigenen Kanal (Handy ohne Ton und Vibration, 60 s) bei Abzweigung, abseits,
-  wieder auf der Route, Stopp, Ziel, Gewitter, Umkehrzeit, Akku, Streckenziel, GPS aus; „Navigation läuft“ bittet dann um
-  Live-Anzeige (Extra `android.requestPromotedOngoing`, Name erst ab API 37; `POST_PROMOTED_NOTIFICATIONS`). Geprüft: Java-Einheitstest `uhrText`,
-  Klicktest (Schalter nur in der App, geht an den Dienst, bleibt gespeichert). Nicht geprüft, erst mit der Uhr: ob die
-  Uhr bei einem Kanal ohne Vibration auf dem Handy trotzdem vibriert (sonst im Kanal Vibration einschalten oder den Kanal
-  ändern), ob die Live-Anzeige auf der Uhr erscheint, ob eine ersetzte Mitteilung auf der Uhr erneut vibriert. Stufe 2
-  (eigene Wear-OS-App über die Data Layer, Installation per WLAN-ADB) erst nach dem Test von Stufe 1 entscheiden.
+- **Hinweise an die Uhr (24.11., PRs #130 und #131, Stufe 1 für die Pixel Watch 5):** Thomas testet, sobald die Uhr da
+  ist. Geprüft: Java-Einheitstests `uhrText` und `uhrPfeil`, Klicktest (Schalter nur in der App, geht an den Dienst,
+  bleibt gespeichert), Bau 328 auf der Download-Seite gemessen. Nicht geprüft, erst mit Uhr und Pixel: ob die Uhr
+  vibriert, obwohl der Kanal „Hinweise an die Uhr“ auf dem Handy ohne Vibration ist (sonst dort Vibration einschalten
+  oder die Vorgabe ändern); ob die Live-Anzeige von „Navigation läuft“ auf der Uhr erscheint; ob eine ersetzte
+  Mitteilung erneut vibriert; ob Pfeile und Emoji auf der Uhr lesbar sind; ob „🔊 Ansagen an“ an der Uhr erscheint und
+  wirkt. Stufe 2 (eigene Wear-OS-App) erst nach diesem Test entscheiden.
 - **Unterwegs neu (18.11., PR #126, Bau 319):** Aktivität (Wandern, Spaziergang, Laufen, Rad, MTB), Beenden speichert
   gleich, ⏸ Pause von Hand, Tempo jetzt und Höhe, Kilometer-Liste. Geprüft in Einheitstests (Web und Java `AutoPauseTest`)
   und im Klicktest (Browser und App mit nachgebildetem Dienst), Handybreite als Bild angesehen. Thomas am 18.11. auf dem
@@ -198,6 +197,16 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   Paket aktualisieren (Menü › Offline-Karten) und „Stand …“ in einem Ort-Fenster ohne Netz.
 
 ## Entscheidungen
+
+- **Uhr über weitergegebene Mitteilungen, keine eigene Wear-OS-App** (24.11.): Wear OS hat keine WebView, die App läuft
+  dort nicht; die dauerhafte Mitteilung gibt Android nie an die Uhr weiter. Darum kurze, wegwischbare Mitteilungen im
+  eigenen Kanal (Handy ohne Ton und Vibration, 60 s, Symbol davor) und Live-Anzeige für „Navigation läuft“, Schalter
+  Vorgabe aus. Verworfen vorerst: eigene Uhr-App über die Data Layer (blind gebaut ohne Uhr und Emulator, Installation
+  nur per WLAN-ADB), Vibration auf dem Handy (brummt in der Tasche bei jeder Abzweigung).
+- **Android-Namen gegen compileSdk 36 prüfen** (24.11.): `Notification.EXTRA_REQUEST_PROMOTED_ONGOING` kam erst mit
+  API 37, der Bau war rot. Vor dem Einsatz eines neuen Android-Namens „Added in API level“ nachsehen; jüngere Extras als
+  Text (`"android.requestPromotedOngoing"`) mit `SDK_INT`-Abfrage. Reines Java (z. B. `NaviRechnen`) lässt sich in der
+  Cloud mit `javac` übersetzen, alles mit Android-Klassen nur in GitHub Actions.
 
 - **Beenden speichert die Aufzeichnung** (18.11., Thomas' Wahl nach der verlorenen Radfahrt): sofort als gegangene Tour,
   „Verwerfen“ (zweimal tippen) nimmt sie heraus; ebenso nach „Beenden“ in der Mitteilung und für eine liegengebliebene
@@ -404,6 +413,11 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
   liegen je Browser; zwischen PC und Handy über „Sicherung speichern/laden“.
 
 ## Erledigt
+
+- **24.11. (PRs #130, #131, Bau 328)** Pixel Watch 5 geprüft: Die App läuft auf Wear OS nicht (keine WebView). Dafür
+  „⌚ Hinweise an die Uhr“: kurze Mitteilungen bei Abzweigung, abseits, Stopp, Ziel und Warnungen, die Android an die
+  Uhr weitergibt, mit Pfeil oder Symbol davor und „🔊 Ansagen an“ bei stummen Ansagen (#131); „Navigation läuft“ als
+  Live-Anzeige. Einheitstests 399, Klicktest 505.
 
 - **18.11. (PRs #125, #126, Bau 319)** Aus dem Laufpilot: GPS-Sprünge zählen nicht, Ansagen mit Audiofokus, Kopfhörer
   getrennt macht stumm, Streckenziel (#125). Unterwegs neu: Aktivität, Beenden speichert, Pause von Hand, Tempo jetzt,

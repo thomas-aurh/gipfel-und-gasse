@@ -16,6 +16,20 @@ public class NaviRechnenTest {
         assertEquals("", NaviRechnen.uhrText(null));
     }
 
+    @Test public void uhrPfeilJeBefehl() {
+        assertEquals("⬅", NaviRechnen.uhrPfeil(2));
+        assertEquals("➡", NaviRechnen.uhrPfeil(5));
+        assertEquals("↗", NaviRechnen.uhrPfeil(6));
+        assertEquals("↘", NaviRechnen.uhrPfeil(7));
+        assertEquals("↩", NaviRechnen.uhrPfeil(10));
+        assertEquals("↻", NaviRechnen.uhrPfeil(13));
+        assertNull(NaviRechnen.uhrPfeil(1));
+        // jeder Befehl mit Ansage hat einen Pfeil
+        for (int c = 0; c < 20; c++) if (NaviRechnen.hinweisText(c, 2) != null) assertNotNull("Befehl " + c, NaviRechnen.uhrPfeil(c));
+        assertEquals("⬅ Jetzt links abbiegen", NaviRechnen.uhrText(NaviRechnen.uhrPfeil(2), NaviRechnen.hinweisJetzt(2, 0)));
+        assertEquals("Wieder auf der Route", NaviRechnen.uhrText(null, "Wieder auf der Route."));
+    }
+
     @Test public void abstandEinBreitengrad() {
         assertEquals(111195, NaviRechnen.abstand(47, 11, 48, 11), 50);
     }

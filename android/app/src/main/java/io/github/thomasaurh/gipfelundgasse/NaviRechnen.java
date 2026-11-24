@@ -240,6 +240,28 @@ public final class NaviRechnen {
         return t == null ? null : "Jetzt " + t + ".";
     }
 
+    /** Symbol für die Uhr zum Abbiegehinweis (Befehl wie hinweisText): auf dem kleinen Display mit einem Blick; null = keins. */
+    public static String uhrPfeil(int cmd) {
+        switch (cmd) {
+            case 2: return "⬅";
+            case 3: case 8: case 17: return "↖";
+            case 4: return "↙";
+            case 5: return "➡";
+            case 6: case 9: case 18: return "↗";
+            case 7: return "↘";
+            case 10: case 11: case 15: return "↩";
+            case 13: return "↻";
+            case 14: return "↺";
+            default: return null;
+        }
+    }
+
+    /** Text für die Uhr mit Symbol davor (null = ohne). */
+    public static String uhrText(String symbol, String ansage) {
+        String t = uhrText(ansage);
+        return symbol == null || symbol.isEmpty() ? t : symbol + " " + t;
+    }
+
     /** Text für die Uhr aus der Ansage: ohne Schlusspunkt, höchstens 120 Zeichen. */
     public static String uhrText(String ansage) {
         String t = ansage == null ? "" : ansage.trim();

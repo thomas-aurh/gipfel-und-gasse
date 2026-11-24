@@ -49,6 +49,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private static final String TAG = "GipfelGasseNavi";
     private static final String KANAL = "navigation";
     private static final int NR = 4711;
+    // Symbole für die Uhr (Abbiegen: NaviRechnen.uhrPfeil)
+    private static final String WARNUNG = "⚠", ZIEL = "🏁", STOPP = "📍";
     // Hinweise an die Uhr: eigener Kanal und eigene Nummer. Android gibt dauerhafte Mitteilungen nicht an die Uhr weiter
     // (die von „Navigation läuft“ also nicht), kurze, wegwischbare schon
     private static final String KANAL_UHR = "uhr";
@@ -175,7 +177,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                         ansagen = text != null && (Z.ansagen || Z.uhr) && jetzt - Z.gewitterGemeldet > 2 * 3600000L;
                         if (ansagen) Z.gewitterGemeldet = jetzt;
                     }
-                    if (ansagen) { vibrieren(); melden("Achtung: " + text + "."); }
+                    if (ansagen) { vibrieren(); melden(WARNUNG, "Achtung: " + text + "."); }
                     benachrichtigungAktualisieren();
                     if (Z.beiNeuem != null) Z.beiNeuem.run();
                 });
@@ -417,7 +419,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.abseitsGemeldet = true;
                 vibrieren();
                 boolean neu = Z.profil != null && Umplanen.naechstes(Z.ziele, Z.fortschritt) >= 0;
-                melden("Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route." + (neu ? " Ich plane neu." : ""));
+                melden(WARNUNG, "Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route." + (neu ? " Ich plane neu." : ""));
             }
             if (Z.abseitsGemeldet) umplanen(loc, jetzt);
         } else {
@@ -432,13 +434,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         for (int i = 0; i < Z.stopps.size(); i++) {
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
-            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < Z.alarm) { Z.stoppAngekuendigt[i] = true; melden("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
+            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < Z.alarm) { Z.stoppAngekuendigt[i] = true; melden(STOPP, "In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
                 Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
                 String ort = i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "";
                 String text = Z.stoppTexte.get(ort);
-                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) { if (Z.ansagen) fuehrungSagen(text); uhr(name + " erreicht."); }
-                else melden(name + " erreicht.");
+                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) { if (Z.ansagen) fuehrungSagen(text); uhr(STOPP, name + " erreicht."); }
+                else melden(STOPP, name + " erreicht.");
             }
         }
         // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
@@ -458,12 +460,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (!Z.hinweisVorab[i] && bis > 40 && bis <= vorab) {
                 Z.hinweisVorab[i] = true;
                 String t = NaviRechnen.hinweisVorab(bis, (int) h[1], (int) h[2]);
-                if (t != null) melden(t.substring(0, t.length() - 1) + dann + ".");
+                if (t != null) melden(NaviRechnen.uhrPfeil((int) h[1]), t.substring(0, t.length() - 1) + dann + ".");
             }
             if (bis <= jetztAb) {
                 Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true;
                 String t = NaviRechnen.hinweisJetzt((int) h[1], (int) h[2]);
-                if (t != null) melden(t.substring(0, t.length() - 1) + dann + ".");
+                if (t != null) melden(NaviRechnen.uhrPfeil((int) h[1]), t.substring(0, t.length() - 1) + dann + ".");
                 if (!dann.isEmpty()) { Z.hinweisVorab[i + 1] = true; Z.hinweisJetzt[i + 1] = true; }   // schon mit angesagt
             }
         }
@@ -479,7 +481,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             vibrieren();
             Z.folgen = false;
             sitzungSichern(this);
-            uhr("Ziel erreicht.");
+            uhr(ZIEL, "Ziel erreicht.");
             if (Z.aufzeichnen) { if (Z.ansagen) sagen("Ziel erreicht. Schön war's!"); }
             else {
                 gpsAus();
@@ -508,7 +510,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             text.append(text.length() > 0 ? " " : "").append(NaviRechnen.dunkelText(art, jetzt, ankunft, Z.umkehrZeit, Z.untergang, text.length() > 0 ? "" : aus, zone));
         }
         vibrieren();
-        melden(text.toString());
+        melden(WARNUNG, text.toString());
     }
 
     /**
@@ -557,7 +559,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (art == 0 || (Z.akkuGesagt & art) != 0) return;
         Z.akkuGesagt |= art;
         vibrieren();
-        melden(NaviRechnen.akkuText(art, Z.akkuProzent, Z.akkuStunden, rest));
+        melden(WARNUNG, NaviRechnen.akkuText(art, Z.akkuProzent, Z.akkuStunden, rest));
     }
 
     static final String BROUTER = "https://brouter.de/brouter";
@@ -712,7 +714,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.streckenziel > 0 && Z.zielGesagt != Z.streckenziel && Z.aufzMeter >= Z.streckenziel * 1000) {
             Z.zielGesagt = Z.streckenziel;
             vibrieren();
-            melden(NaviRechnen.zielAnsage(Z.streckenziel, Z.pause.bewegungMs(jetzt)));
+            melden(ZIEL, NaviRechnen.zielAnsage(Z.streckenziel, Z.pause.bewegungMs(jetzt)));
         }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
         if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); sitzungSichern(this); }
@@ -1011,7 +1013,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
 
     @Override public IBinder onBind(Intent intent) { return null; }
     @Override public void onProviderEnabled(@NonNull String provider) {}
-    @Override public void onProviderDisabled(@NonNull String provider) { melden("GPS ist ausgeschaltet."); }
+    @Override public void onProviderDisabled(@NonNull String provider) { melden(WARNUNG, "GPS ist ausgeschaltet."); }
     @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
 
     // ---------- Sprache ----------
@@ -1051,9 +1053,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     }
 
     /** Ansage (wenn an) und dieselbe Nachricht an die Uhr (wenn an). */
-    private void melden(String text) {
+    private void melden(String text) { melden(null, text); }
+
+    /** Wie melden(text), auf der Uhr mit Symbol davor (Pfeil, ⚠, 🏁, 📍; null = ohne). */
+    private void melden(String symbol, String text) {
         if (Z.ansagen) sagen(text);
-        uhr(text);
+        uhr(symbol, text);
     }
 
     /**
@@ -1061,23 +1066,27 @@ public class NaviService extends Service implements LocationListener, TextToSpee
      * getrennten Kopfhörern (stumm), dann ist die Uhr der einzige Hinweis. Eine neue ersetzt die alte; nach einer Minute
      * verschwindet sie von selbst.
      */
-    private void uhr(String text) {
+    private void uhr(String symbol, String text) {
         if (!Z.uhr || text == null) return;
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
         int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent oeffnen = PendingIntent.getActivity(this, 3,
             new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), flags);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, KANAL_UHR)
+            .setSmallIcon(R.drawable.ic_stat_navi)
+            .setContentTitle(NaviRechnen.uhrText(symbol, text))
+            .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setTimeoutAfter(60000)
+            .setContentIntent(oeffnen);
+        // Kopfhörer getrennt: Ansagen von der Uhr aus wieder einschalten (der Knopf geht mit an die Uhr, ausgeführt wird
+        // er auf dem Handy)
+        if (Z.stumm) b.addAction(0, "🔊 Ansagen an", PendingIntent.getService(this, 4,
+            new Intent(this, NaviService.class).setAction(AKTION_LAUT), flags));
         try {
-            nm.notify(NR_UHR, new NotificationCompat.Builder(this, KANAL_UHR)
-                .setSmallIcon(R.drawable.ic_stat_navi)
-                .setContentTitle(NaviRechnen.uhrText(text))
-                .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-                .setTimeoutAfter(60000)
-                .setContentIntent(oeffnen)
-                .build());
+            nm.notify(NR_UHR, b.build());
         } catch (RuntimeException e) {
             Log.w(TAG, "Hinweis an die Uhr ging nicht", e);   // ohne Erlaubnis für Mitteilungen: nur keine Uhr
         }
