@@ -50,7 +50,7 @@ if (NATIV) {
     // Art: beim Folgen die der Route (Restzeit), sonst die Aktivität unter Unterwegs (Sprunggrenze, „Pause/Weiter“)
     const art = app.folgen ? artAktuell() : AKT().art;
     const opt = { tempo: art === 'lauf' ? S.pace : artAktuell() === 'lauf' ? 1 : tempoAktuell(), rad: art === 'rad', lauf: art === 'lauf', kmAnsage: $('kmAnsage').checked,
-      streckenziel: streckenziel(), ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
+      uhr: $('uhrHinweise').checked, streckenziel: streckenziel(), ansagen: true, folgen: app.folgen, aufzeichnen: app.aufz, alarm: punktAlarmAbstand() || 150 };
     if (mitRoute && e) {
       // vierter Wert 1: Punkt beginnt einen neuen Abschnitt (mehrteilige GPX-Spur), der Sprung ist kein Weg
       opt.pts = e.pts.map(p => [p.lat, p.lon, p.ele == null ? null : p.ele, p.luecke ? 1 : 0]);
@@ -190,6 +190,10 @@ if (NATIV) {
   // Kilometer-Ansage an- oder abgeschaltet: gleich an den Dienst (läuft die Aufzeichnung schon, gilt es sofort)
   $('kmAnsage').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
   $('streckenziel').addEventListener('change', () => { if (app.folgen || app.aufz) senden(false).catch(() => {}); });
+  // Hinweise an die Uhr (nur in der App): kurze Mitteilungen, die Android an die gekoppelte Uhr weitergibt
+  $('uhrFeld').hidden = false;
+  $('uhrHinweise').checked = !!SPEICHER.lesen('uhrHinweise', false);
+  $('uhrHinweise').addEventListener('change', e => { SPEICHER.schreiben('uhrHinweise', e.target.checked); if (app.folgen || app.aufz) senden(false).catch(() => {}); });
   $('bLaut').onclick = () => Navi.laut().then(anzeigen).catch(() => {});
   // anderer Abstand oder aus: Stopps samt Punkten neu an den Dienst
   $('punktAlarm').addEventListener('change', () => { if (app.folgen) senden(true).catch(() => {}); });

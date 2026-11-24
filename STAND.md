@@ -5,6 +5,14 @@ Gepflegt beim Session-Abschluss (Skill `projekt-abschluss`).
 
 ## Offen
 
+- **Hinweise an die Uhr (24.11., Stufe 1 für die Pixel Watch 5):** Schalter „⌚ Hinweise an die Uhr“ (nur App, Vorgabe
+  aus): kurze, wegwischbare Mitteilung im eigenen Kanal (Handy ohne Ton und Vibration, 60 s) bei Abzweigung, abseits,
+  wieder auf der Route, Stopp, Ziel, Gewitter, Umkehrzeit, Akku, Streckenziel, GPS aus; „Navigation läuft“ bittet dann um
+  Live-Anzeige (Extra `android.requestPromotedOngoing`, Name erst ab API 37; `POST_PROMOTED_NOTIFICATIONS`). Geprüft: Java-Einheitstest `uhrText`,
+  Klicktest (Schalter nur in der App, geht an den Dienst, bleibt gespeichert). Nicht geprüft, erst mit der Uhr: ob die
+  Uhr bei einem Kanal ohne Vibration auf dem Handy trotzdem vibriert (sonst im Kanal Vibration einschalten oder den Kanal
+  ändern), ob die Live-Anzeige auf der Uhr erscheint, ob eine ersetzte Mitteilung auf der Uhr erneut vibriert. Stufe 2
+  (eigene Wear-OS-App über die Data Layer, Installation per WLAN-ADB) erst nach dem Test von Stufe 1 entscheiden.
 - **Unterwegs neu (18.11., PR #126, Bau 319):** Aktivität (Wandern, Spaziergang, Laufen, Rad, MTB), Beenden speichert
   gleich, ⏸ Pause von Hand, Tempo jetzt und Höhe, Kilometer-Liste. Geprüft in Einheitstests (Web und Java `AutoPauseTest`)
   und im Klicktest (Browser und App mit nachgebildetem Dienst), Handybreite als Bild angesehen. Thomas am 18.11. auf dem

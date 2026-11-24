@@ -49,6 +49,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private static final String TAG = "GipfelGasseNavi";
     private static final String KANAL = "navigation";
     private static final int NR = 4711;
+    // Hinweise an die Uhr: eigener Kanal und eigene Nummer. Android gibt dauerhafte Mitteilungen nicht an die Uhr weiter
+    // (die von „Navigation läuft“ also nicht), kurze, wegwischbare schon
+    private static final String KANAL_UHR = "uhr";
+    private static final int NR_UHR = 4712;
     static final String AKTION_BEENDEN = "io.github.thomasaurh.gipfelundgasse.BEENDEN";
     // Ansagen nach dem Trennen der Kopfhörer wieder einschalten (Knopf in der Mitteilung und in der App)
     static final String AKTION_LAUT = "io.github.thomasaurh.gipfelundgasse.LAUT";
@@ -78,6 +82,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         double tempo = 1;
         boolean rad, lauf, folgen, aufzeichnen, ansagen = true;
         boolean kmAnsage;            // Aufzeichnung: jeden Kilometer Zeit und Tempo ansagen
+        boolean uhr;                 // Hinweise an die Uhr: kurze Mitteilungen und „Navigation läuft“ als Live-Anzeige
         double streckenziel;         // Aufzeichnung: beim Erreichen ansagen (km, 0 = aus); beendet nichts
         double zielGesagt;           // zuletzt angesagtes Streckenziel (km): ein anderes Ziel wird wieder angesagt
         double alarm = 150;          // Punkt-Alarm: Stopps und Punkte so viele Meter vorher ankündigen
@@ -167,10 +172,10 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                         // inzwischen beendet: diese Antwort gehört zu keiner laufenden Sitzung mehr
                         if (!Z.laeuft || !(Z.folgen || Z.aufzeichnen)) { Z.gewitter = null; return; }
                         Z.gewitter = text;
-                        ansagen = text != null && Z.ansagen && jetzt - Z.gewitterGemeldet > 2 * 3600000L;
+                        ansagen = text != null && (Z.ansagen || Z.uhr) && jetzt - Z.gewitterGemeldet > 2 * 3600000L;
                         if (ansagen) Z.gewitterGemeldet = jetzt;
                     }
-                    if (ansagen) { vibrieren(); sagen("Achtung: " + text + "."); }
+                    if (ansagen) { vibrieren(); melden("Achtung: " + text + "."); }
                     benachrichtigungAktualisieren();
                     if (Z.beiNeuem != null) Z.beiNeuem.run();
                 });
@@ -412,28 +417,28 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.abseitsGemeldet = true;
                 vibrieren();
                 boolean neu = Z.profil != null && Umplanen.naechstes(Z.ziele, Z.fortschritt) >= 0;
-                if (Z.ansagen) sagen("Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route." + (neu ? " Ich plane neu." : ""));
+                melden("Achtung, du bist " + NaviRechnen.kmSprache(lage.abw) + " neben der Route." + (neu ? " Ich plane neu." : ""));
             }
             if (Z.abseitsGemeldet) umplanen(loc, jetzt);
         } else {
-            if (Z.abseitsGemeldet && Z.ansagen) sagen("Wieder auf der Route.");
+            if (Z.abseitsGemeldet) melden("Wieder auf der Route.");
             Z.abseitsSeit = 0;
             Z.abseitsGemeldet = false;
         }
         dunkelPruefen(d, jetzt);
         akkuPruefen(jetzt);
-        if (!Z.ansagen || lage.abw > 80) return;
+        if ((!Z.ansagen && !Z.uhr) || lage.abw > 80) return;
         // Stopps (auch Punkte des Punkt-Alarms): Z.alarm Meter vorher ankündigen (Standard 150), bei 30 m „erreicht“
         for (int i = 0; i < Z.stopps.size(); i++) {
             double bis = Z.stopps.get(i)[0] - d;
             String name = Z.stoppNamen.get(i);
-            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < Z.alarm) { Z.stoppAngekuendigt[i] = true; sagen("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
+            if (!Z.stoppAngekuendigt[i] && bis > 30 && bis < Z.alarm) { Z.stoppAngekuendigt[i] = true; melden("In " + NaviRechnen.kmDativ(bis) + ": " + name + "."); }
             if (!Z.stoppErreicht[i] && Math.abs(bis) <= 30) {
                 Z.stoppErreicht[i] = true; Z.stoppAngekuendigt[i] = true;
                 String ort = i < Z.stoppOrte.size() ? Z.stoppOrte.get(i) : "";
                 String text = Z.stoppTexte.get(ort);
-                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) fuehrungSagen(text);
-                else sagen(name + " erreicht.");
+                if (text != null && !text.isEmpty() && Z.vorgelesen.add(ort)) { if (Z.ansagen) fuehrungSagen(text); uhr(name + " erreicht."); }
+                else melden(name + " erreicht.");
             }
         }
         // Abbiegehinweise: vorab (zu Fuß 100 m, Rad 200 m) und kurz davor („Jetzt …“). Nur der nächste noch offene Hinweis
@@ -453,12 +458,12 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             if (!Z.hinweisVorab[i] && bis > 40 && bis <= vorab) {
                 Z.hinweisVorab[i] = true;
                 String t = NaviRechnen.hinweisVorab(bis, (int) h[1], (int) h[2]);
-                if (t != null) sagen(t.substring(0, t.length() - 1) + dann + ".");
+                if (t != null) melden(t.substring(0, t.length() - 1) + dann + ".");
             }
             if (bis <= jetztAb) {
                 Z.hinweisVorab[i] = true; Z.hinweisJetzt[i] = true;
                 String t = NaviRechnen.hinweisJetzt((int) h[1], (int) h[2]);
-                if (t != null) sagen(t.substring(0, t.length() - 1) + dann + ".");
+                if (t != null) melden(t.substring(0, t.length() - 1) + dann + ".");
                 if (!dann.isEmpty()) { Z.hinweisVorab[i + 1] = true; Z.hinweisJetzt[i + 1] = true; }   // schon mit angesagt
             }
         }
@@ -467,17 +472,18 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.naechsterKm < 0) Z.naechsterKm = km + 1;
         if (km >= Z.naechsterKm && Z.rest.meter > 300) {
             Z.naechsterKm = km + 1;
-            sagen("Noch " + NaviRechnen.kmSprache(Z.rest.meter) + ", etwa " + NaviRechnen.zeitSprache(Z.rest.stunden) + ".");
+            if (Z.ansagen) sagen("Noch " + NaviRechnen.kmSprache(Z.rest.meter) + ", etwa " + NaviRechnen.zeitSprache(Z.rest.stunden) + ".");
         }
         if (!Z.zielGemeldet && Z.rest.meter < 30 && lage.abw < 40 && d > Z.strecke.laenge() / 2 && jetzt - Z.folgenSeit > 60000) {
             Z.zielGemeldet = true;
             vibrieren();
             Z.folgen = false;
             sitzungSichern(this);
-            if (Z.aufzeichnen) sagen("Ziel erreicht. Schön war's!");
+            uhr("Ziel erreicht.");
+            if (Z.aufzeichnen) { if (Z.ansagen) sagen("Ziel erreicht. Schön war's!"); }
             else {
                 gpsAus();
-                sagenDannBeenden("Ziel erreicht. Schön war's!");
+                sagenDannBeenden(Z.ansagen ? "Ziel erreicht. Schön war's!" : null);
             }
         }
     }
@@ -502,7 +508,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             text.append(text.length() > 0 ? " " : "").append(NaviRechnen.dunkelText(art, jetzt, ankunft, Z.umkehrZeit, Z.untergang, text.length() > 0 ? "" : aus, zone));
         }
         vibrieren();
-        if (Z.ansagen) sagen(text.toString());
+        melden(text.toString());
     }
 
     /**
@@ -551,7 +557,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (art == 0 || (Z.akkuGesagt & art) != 0) return;
         Z.akkuGesagt |= art;
         vibrieren();
-        if (Z.ansagen) sagen(NaviRechnen.akkuText(art, Z.akkuProzent, Z.akkuStunden, rest));
+        melden(NaviRechnen.akkuText(art, Z.akkuProzent, Z.akkuStunden, rest));
     }
 
     static final String BROUTER = "https://brouter.de/brouter";
@@ -585,7 +591,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             sitzungSichern(c);
             final String text = ansage;
             new Handler(Looper.getMainLooper()).post(() -> {
-                if (Z.ansagen) sagen(text);
+                melden(text);
                 benachrichtigungAktualisieren();
                 if (Z.beiNeuem != null) Z.beiNeuem.run();
             });
@@ -706,7 +712,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         if (Z.streckenziel > 0 && Z.zielGesagt != Z.streckenziel && Z.aufzMeter >= Z.streckenziel * 1000) {
             Z.zielGesagt = Z.streckenziel;
             vibrieren();
-            if (Z.ansagen) sagen(NaviRechnen.zielAnsage(Z.streckenziel, Z.pause.bewegungMs(jetzt)));
+            melden(NaviRechnen.zielAnsage(Z.streckenziel, Z.pause.bewegungMs(jetzt)));
         }
         // regelmäßig sichern, damit nichts verloren geht, wenn Android die App beendet
         if (++ungespeichert >= 20) { ungespeichert = 0; spurSichern(this); sitzungSichern(this); }
@@ -725,7 +731,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 o.put("unterbrochen", Z.unterbrochen);
                 o.put("gesichert", System.currentTimeMillis());
                 o.put("folgen", Z.folgen); o.put("aufzeichnen", Z.aufzeichnen); o.put("ansagen", Z.ansagen);
-                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("streckenziel", Z.streckenziel); o.put("zielGesagt", Z.zielGesagt); o.put("alarm", Z.alarm); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
+                o.put("tempo", Z.tempo); o.put("rad", Z.rad); o.put("lauf", Z.lauf); o.put("kmAnsage", Z.kmAnsage); o.put("uhr", Z.uhr); o.put("streckenziel", Z.streckenziel); o.put("zielGesagt", Z.zielGesagt); o.put("alarm", Z.alarm); o.put("aufzStart", Z.aufzStart); o.put("aufzEnde", Z.aufzEnde);
                 long bis = Z.aufzEnde != 0 ? Z.aufzEnde : System.currentTimeMillis();
                 o.put("aufzPauseMs", Z.pause != null ? Z.pause.pauseMs + (Z.pause.pausiert ? Math.max(0, bis - Z.pause.letzteBewegung) : 0) : 0);
                 // Kilometerstand und Bewegungszeit an seiner Grenze, damit ein Neustart das Tempo des laufenden Kilometers kennt
@@ -904,7 +910,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
                 Z.umkehrLat = o.optDouble("umkehrLat", Double.NaN); Z.umkehrLon = o.optDouble("umkehrLon", Double.NaN);
                 Z.dunkelGesagt = o.optInt("dunkelGesagt", 0); Z.akkuGesagt = o.optInt("akkuGesagt", 0);
                 ausstiegeLesen(o.optJSONArray("ausstiege"));
-                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false);
+                Z.tempo = o.optDouble("tempo", 1); Z.rad = o.optBoolean("rad", false); Z.lauf = o.optBoolean("lauf", false); Z.kmAnsage = o.optBoolean("kmAnsage", false); Z.uhr = o.optBoolean("uhr", false);
                 Z.streckenziel = o.optDouble("streckenziel", 0); Z.zielGesagt = o.optDouble("zielGesagt", 0); Z.alarm = o.optDouble("alarm", 150); Z.ansagen = o.optBoolean("ansagen", true);
                 Z.folgen = o.optBoolean("folgen", false) && Z.strecke != null;
                 Z.aufzeichnen = o.optBoolean("aufzeichnen", false);
@@ -1005,7 +1011,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
 
     @Override public IBinder onBind(Intent intent) { return null; }
     @Override public void onProviderEnabled(@NonNull String provider) {}
-    @Override public void onProviderDisabled(@NonNull String provider) { if (Z.ansagen) sagen("GPS ist ausgeschaltet."); }
+    @Override public void onProviderDisabled(@NonNull String provider) { melden("GPS ist ausgeschaltet."); }
     @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
 
     // ---------- Sprache ----------
@@ -1042,6 +1048,39 @@ public class NaviService extends Service implements LocationListener, TextToSpee
     private void fuehrungSagen(String text) {
         sagen(text);
         fuehrungBis = System.currentTimeMillis() + text.length() * 1000L / 14;
+    }
+
+    /** Ansage (wenn an) und dieselbe Nachricht an die Uhr (wenn an). */
+    private void melden(String text) {
+        if (Z.ansagen) sagen(text);
+        uhr(text);
+    }
+
+    /**
+     * Kurze Mitteilung für die Uhr: Android gibt sie an die gekoppelte Wear-OS-Uhr weiter, dort vibriert sie. Auch bei
+     * getrennten Kopfhörern (stumm), dann ist die Uhr der einzige Hinweis. Eine neue ersetzt die alte; nach einer Minute
+     * verschwindet sie von selbst.
+     */
+    private void uhr(String text) {
+        if (!Z.uhr || text == null) return;
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
+        PendingIntent oeffnen = PendingIntent.getActivity(this, 3,
+            new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), flags);
+        try {
+            nm.notify(NR_UHR, new NotificationCompat.Builder(this, KANAL_UHR)
+                .setSmallIcon(R.drawable.ic_stat_navi)
+                .setContentTitle(NaviRechnen.uhrText(text))
+                .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setTimeoutAfter(60000)
+                .setContentIntent(oeffnen)
+                .build());
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Hinweis an die Uhr ging nicht", e);   // ohne Erlaubnis für Mitteilungen: nur keine Uhr
+        }
     }
 
     private void sagen(String text) {
@@ -1103,7 +1142,7 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         };
         ausstehendesEnde = ende;
         endeNachAnsage = ende;
-        if (ttsBereit && !Z.stumm) sprechen(text, TextToSpeech.QUEUE_ADD, "ende");
+        if (text != null && ttsBereit && !Z.stumm) sprechen(text, TextToSpeech.QUEUE_ADD, "ende");
         endeHandler.postDelayed(ende, 10000);
     }
 
@@ -1122,6 +1161,13 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             k.setDescription("Route folgen und Aufzeichnen");
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(k);
+            // Hinweise an die Uhr: auf dem Handy ohne Ton und ohne Vibration (das Handy spricht ja schon); was die Uhr
+            // daraus macht, stellt man in den Einstellungen der Uhr und dieses Kanals ein
+            NotificationChannel u = new NotificationChannel(KANAL_UHR, "Hinweise an die Uhr", NotificationManager.IMPORTANCE_DEFAULT);
+            u.setDescription("Abbiegen, abseits, Stopps und Warnungen als kurze Mitteilung für die Uhr");
+            u.setSound(null, null);
+            u.enableVibration(false);
+            if (nm != null) nm.createNotificationChannel(u);
         }
     }
 
@@ -1158,6 +1204,14 @@ public class NaviService extends Service implements LocationListener, TextToSpee
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setContentIntent(oeffnen)
             .addAction(0, "Beenden", stopp);
+        // Hinweise an die Uhr: als Live-Anzeige (ab Android 16) bitten; ab Wear OS 7 kann sie auch auf der Uhr stehen.
+        // Ob Android sie so zeigt, entscheidet das System (und der Nutzer in den Einstellungen der App)
+        if (Z.uhr && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            Bundle live = new Bundle();
+            // Notification.EXTRA_REQUEST_PROMOTED_ONGOING: der Name kommt erst mit API 37, compileSdk ist 36
+            live.putBoolean("android.requestPromotedOngoing", true);
+            b.addExtras(live);
+        }
         if (Z.stumm) b.addAction(0, "Ansagen an", PendingIntent.getService(this, 2,
             new Intent(this, NaviService.class).setAction(AKTION_LAUT), flags));
         return b.build();

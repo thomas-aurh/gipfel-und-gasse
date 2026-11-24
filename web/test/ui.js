@@ -652,6 +652,7 @@ function pruef(name, bed, info) {
   pruef('GPX: „Neu“ nimmt die Wegpunkte der Datei von der Karte', await page.evaluate(() => ![...document.querySelectorAll('.ort-mk')].some(m => m.textContent === '🏠')));
   await zuSeite(page, 'touren');
 
+  pruef('Browser: kein Schalter „Hinweise an die Uhr“', await page.evaluate(() => document.querySelector('#uhrFeld').hidden));
   // Teilen-Link öffnen (die geplante Tour, nicht die importierte Spur)
   await page.click('#tourliste li:has-text("🥾") >> nth=0');
   await page.click('#tBearbeiten');   // die Liste öffnet die Tourseite, Bearbeiten das Planen
@@ -1779,6 +1780,16 @@ function pruef(name, bed, info) {
   await pa2.waitForTimeout(150);
   const kmAufrufe = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten')));
   pruef('App: Kilometer-Ansage umgeschaltet an den Dienst', kmAufrufe.length >= vorKm + 2 && kmAufrufe[kmAufrufe.length - 1][1].kmAnsage === (await pa2.isChecked('#kmAnsage')));
+  // Hinweise an die Uhr: nur in der App sichtbar, geht an den Dienst und bleibt gespeichert
+  pruef('App: Schalter „Hinweise an die Uhr“ sichtbar', !(await pa2.evaluate(() => document.querySelector('#uhrFeld').hidden)));
+  pruef('App: Uhr-Hinweise anfangs aus', kmAufrufe[kmAufrufe.length - 1][1].uhr === false, kmAufrufe[kmAufrufe.length - 1][1].uhr);
+  await pa2.evaluate(() => { const k = document.querySelector('#uhrHinweise'); k.checked = true; k.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(150);
+  const uhrAufruf = (await pa2.evaluate(() => window.__navi.aufrufe.filter(x => x[0] === 'starten'))).pop()[1];
+  pruef('App: Uhr-Hinweise eingeschaltet an den Dienst und gespeichert', uhrAufruf.uhr === true && (await pa2.evaluate(() => localStorage.getItem('gug.uhrHinweise'))) === 'true',
+    [uhrAufruf.uhr, await pa2.evaluate(() => localStorage.getItem('gug.uhrHinweise'))]);
+  await pa2.evaluate(() => { const k = document.querySelector('#uhrHinweise'); k.checked = false; k.dispatchEvent(new Event('change')); });
+  await pa2.waitForTimeout(100);
   // während der Aufzeichnung (ohne Routenführung) auf Laufen: Lauf-Kennung, Tempo und Ansage gehen an den Dienst
   await pa2.evaluate(() => { localStorage.removeItem('gug.kmAnsageGewaehlt'); const k = document.querySelector('#kmAnsage'); k.checked = false;
     const p = document.querySelector('#profilwahl'); p.value = 'laufen'; p.dispatchEvent(new Event('change')); });

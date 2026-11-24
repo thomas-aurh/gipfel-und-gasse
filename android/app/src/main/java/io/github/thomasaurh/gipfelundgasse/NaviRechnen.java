@@ -240,6 +240,14 @@ public final class NaviRechnen {
         return t == null ? null : "Jetzt " + t + ".";
     }
 
+    /** Text für die Uhr aus der Ansage: ohne Schlusspunkt, höchstens 120 Zeichen. */
+    public static String uhrText(String ansage) {
+        String t = ansage == null ? "" : ansage.trim();
+        if (t.endsWith(".")) t = t.substring(0, t.length() - 1);
+        if (t.length() > 120) t = t.substring(0, 119).trim() + "…";
+        return t;
+    }
+
     public static String kmText(double meter) {
         if (meter < 1000) return Math.round(meter) + " m";
         return String.format(Locale.GERMANY, meter < 10000 ? "%.1f km" : "%.0f km", meter / 1000);
