@@ -1208,7 +1208,8 @@ public class NaviService extends Service implements LocationListener, TextToSpee
         // Ob Android sie so zeigt, entscheidet das System (und der Nutzer in den Einstellungen der App)
         if (Z.uhr && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             Bundle live = new Bundle();
-            live.putBoolean(Notification.EXTRA_REQUEST_PROMOTED_ONGOING, true);
+            // Notification.EXTRA_REQUEST_PROMOTED_ONGOING: der Name kommt erst mit API 37, compileSdk ist 36
+            live.putBoolean("android.requestPromotedOngoing", true);
             b.addExtras(live);
         }
         if (Z.stumm) b.addAction(0, "Ansagen an", PendingIntent.getService(this, 2,
